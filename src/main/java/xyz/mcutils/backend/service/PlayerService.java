@@ -78,6 +78,9 @@ public class PlayerService {
             if (player == null) {
                 log.debug("Getting player profile from Mojang: {}", id);
                 MojangProfileToken mojangProfile = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
+                if (mojangProfile == null) {
+                    throw new ResourceNotFoundException("Player with UUID '%s' not found".formatted(uuid));
+                }
                 log.debug("Got player profile from Mojang: {}", id);
 
                 player = new Player(mojangProfile);
