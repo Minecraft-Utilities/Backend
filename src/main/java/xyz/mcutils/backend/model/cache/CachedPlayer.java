@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.redis.core.RedisHash;
 import xyz.mcutils.backend.common.CachedResponse;
@@ -18,7 +19,7 @@ import java.util.UUID;
  *
  * @author Braydon
  */
-@Setter @Getter @EqualsAndHashCode(callSuper = false)
+@Setter @Getter @EqualsAndHashCode(callSuper = false) @ToString
 @RedisHash(value = "player", timeToLive = 60L * 15L) // 15 minutes (in seconds)
 public class CachedPlayer extends CachedResponse implements Serializable {
     /**

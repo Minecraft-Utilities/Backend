@@ -63,7 +63,7 @@ public class PlayerService {
         }
 
         Optional<CachedPlayer> optionalCachedPlayer = playerCacheRepository.findById(uuid);
-        if (optionalCachedPlayer.isPresent() && AppConfig.isProduction()) { // Return the cached player if it exists
+        if (optionalCachedPlayer.isPresent() /*&& AppConfig.isProduction()*/) { // Return the cached player if it exists
             log.debug("Player {} is cached", id);
             CachedPlayer player = optionalCachedPlayer.get();
             player.getPlayer().getSkin().populatePartUrls(player.getUniqueId().toString());

@@ -79,13 +79,19 @@ public class PlayerUpdateService {
             Player player = cachedPlayer.getPlayer();
             player.refresh(mojangService, playerService, playerRepository, false);
 
-            if (queueItem.getSubmitterUuid() != null) {
-                player.setUuidsContributed(player.getUuidsContributed() + 1);
-                playerRepository.save(player); // Update the player
-                playerCacheRepository.save(cachedPlayer); // Update the cached player
+            UUID submitterUuid = queueItem.getSubmitterUuid();
+            if (submitterUuid != null) {
+                CachedPlayer submitter = playerService.getCachedPlayer(submitterUuid.toString());
+                Player submitterPlayer = submitter.getPlayer();
+                submitterPlayer.setUuidsContributed(submitterPlayer.getUuidsContributed() + 1);
+
+                playerRepository.save(submitterPlayer); // Update the submitter
+                playerCacheRepository.save(submitter); // Update the submitter in the cache
+
+                log.info("{} has contributed to {} by submitting {} UUIDs", submitterPlayer.getUsername(), player.getUsername(), player.getUuidsContributed());
             }
         } catch (Exception ex) {
-            log.error("Failed to update player with UUID: {}", queueItem.getUuid(), ex);
+            log.error("Failed to update player with UUID: {}, error: {}", queueItem.getUuid(), ex.getMessage());
         } finally {
             // Remove from both queues
             queueLock.lock();
@@ -179,7 +185,7 @@ public class PlayerUpdateService {
         playerUpdateQueueRepository.saveAll(queueItems);
 
         Player player = submission.getAccountUuid() != null ? playerService.getCachedPlayer(submission.getAccountUuid().toString()).getPlayer() : null;
-        log.info("Added {} UUIDs to queue{}", added, player != null ? " by " + player.getUsername() : "");
+        log.info("{} UUIDs have been submitted{}", added, player != null ? " by " + player.getUsername() : "");
         return added;
     }
 }
