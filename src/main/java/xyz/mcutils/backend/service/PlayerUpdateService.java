@@ -61,53 +61,46 @@ public class PlayerUpdateService {
     /**
      * Gets the oldest item from the queue and updates the player.
      * <p>
-     * This method is scheduled to run every second.
+     * This method is scheduled to run every 500ms.
      * </p>
      */
-    @Scheduled(fixedRate = 1_000)
+    @Scheduled(fixedRate = 500)
     public void updatePlayer() {
-        // If both queues are empty, try to fill them
-        if (memoryQueue.isEmpty() && playerUpdateQueueRepository.count() == 0) {
-            this.insertToQueue();
+        if (memoryQueue.isEmpty()) {
             return;
         }
 
-        // Get the oldest item from memory queue
         PlayerUpdateQueueItem queueItem = memoryQueue.peek();
         if (queueItem == null) {
-            // If memory queue is empty but Redis has items, reload from Redis
-            reloadMemoryQueueFromRedis();
             return;
         }
 
         try {
+            boolean playerExists = playerRepository.existsById(queueItem.getUuid());
+
+            // getCachedPlayer will create the player if it doesn't exist
             CachedPlayer cachedPlayer = playerService.getCachedPlayer(queueItem.getUuid().toString());
             Player player = cachedPlayer.getPlayer();
+
+            // Refresh data (Mojang API)
             player.refresh(mojangService, playerService, playerRepository, false);
 
-            UUID submitterUuid = queueItem.getSubmitterUuid();
-            if (submitterUuid != null) {
-                CachedPlayer submitter = playerService.getCachedPlayer(submitterUuid.toString());
-                Player submitterPlayer = submitter.getPlayer();
-                submitterPlayer.setUuidsContributed(submitterPlayer.getUuidsContributed() + 1);
-
-                playerRepository.save(submitterPlayer); // Update the submitter
-                playerCacheRepository.save(submitter); // Update the submitter in the cache
-
-                log.info("{} has contributed by submitting {} UUIDs", submitterPlayer.getUsername(), submitterPlayer.getUuidsContributed());
+            // Update submitter stats
+            if (queueItem.getSubmitterUuid() != null // Submitter is not null
+                    && !playerExists // Player has not existed before
+                    && !queueItem.getSubmitterUuid().equals(queueItem.getUuid()) // Submitter is not the same as the player
+            ) {
+                Player submitter = playerService.getCachedPlayer(queueItem.getSubmitterUuid().toString()).getPlayer();
+                submitter.setUuidsContributed(submitter.getUuidsContributed() + 1);
+                playerRepository.save(submitter);
+                log.info("Incremented contributions for {} to {}", submitter.getUsername(), submitter.getUuidsContributed());
             }
         } catch (Exception ex) {
-            log.error("Failed to update player with UUID: {}, error: {}", queueItem.getUuid(), ex.getMessage());
+            log.error("Failed to update player {}: {}", queueItem.getUuid(), ex.getMessage());
         } finally {
-            // Remove from both queues
-            queueLock.lock();
-            try {
-                memoryQueue.poll(); // Remove from memory
-                playerUpdateQueueRepository.delete(queueItem); // Remove from Redis
-                log.info("Processed player update for UUID: {}", queueItem.getUuid());
-            } finally {
-                queueLock.unlock();
-            }
+            // Remove from queues
+            memoryQueue.poll();
+            playerUpdateQueueRepository.delete(queueItem);
         }
     }
 
