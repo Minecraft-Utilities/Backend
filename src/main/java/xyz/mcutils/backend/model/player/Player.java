@@ -47,6 +47,11 @@ public class Player {
     @Setter private boolean legacyAccount;
 
     /**
+     * The number of uuids contributed by this player
+     */
+    @Setter private int uuidsContributed;
+
+    /**
      * The skin of the player, null if the
      * player does not have a skin
      */

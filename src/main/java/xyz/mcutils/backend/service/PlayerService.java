@@ -14,6 +14,7 @@ import xyz.mcutils.backend.exception.impl.ResourceNotFoundException;
 import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.cache.CachedPlayerName;
 import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
+import xyz.mcutils.backend.model.player.UUIDSubmission;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.token.MojangProfileToken;
@@ -184,5 +185,30 @@ public class PlayerService {
         log.debug("Fetched skin part {} for player: {}", name, player.getUniqueId());
         playerSkinPartCacheRepository.save(skinPart);
         return skinPart;
+    }
+
+    /**
+     * Adds the UUIDs to the database.
+     *
+     * @param ingest the object containing the UUIDs to ingest
+     * @return the number of UUIDs added
+     */
+    public int submitUUIDs(UUIDSubmission ingest) {
+        int added = 0;
+        for (UUID uuid : ingest.getUuids()) {
+            if (playerRepository.existsById(uuid)) {
+                continue;
+            }
+            this.getCachedPlayer(uuid.toString()); // Create the player
+            added++;
+        }
+
+        if (ingest.getAccountUuid() != null) {
+            CachedPlayer cachedPlayer = this.getCachedPlayer(ingest.getAccountUuid().toString());
+            cachedPlayer.getPlayer().setUuidsContributed(cachedPlayer.getPlayer().getUuidsContributed() + added);
+            this.playerRepository.save(cachedPlayer.getPlayer());
+        }
+
+        return added;
     }
 }

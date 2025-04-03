@@ -8,13 +8,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.model.cache.CachedPlayer;
-import xyz.mcutils.backend.model.player.Cape;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.player.PlayerUpdateQueueItem;
-import xyz.mcutils.backend.model.skin.Skin;
-import xyz.mcutils.backend.model.token.MojangProfileToken;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.redis.PlayerUpdateQueueRepository;
 
