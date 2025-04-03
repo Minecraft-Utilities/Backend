@@ -122,7 +122,7 @@
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
             <artifactId>httpclient5</artifactId>
-            <version>5.3.1</version>
+            <version>5.4.2</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -134,19 +134,6 @@
             <groupId>io.sentry</groupId>
             <artifactId>sentry-spring-boot-starter-jakarta</artifactId>
             <version>7.14.0</version>
-        </dependency>
-
-        <!-- InfluxDB Metrics -->
-        <dependency>
-            <groupId>com.influxdb</groupId>
-            <artifactId>influxdb-spring</artifactId>
-            <version>7.2.0</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.influxdb</groupId>
-            <artifactId>influxdb-client-java</artifactId>
-            <version>7.2.0</version>
         </dependency>
 
         <!-- DNS Lookup -->

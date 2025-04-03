@@ -35,26 +35,6 @@ public-url: http://localhost
 maxmind:
   license: ""
 
-# InfluxDB Configuration
-influx:
-  url: http://localhost
-  token: token
-  org: org
-  bucket: bucket
-
-management:
-  # Disable all actuator endpoints
-  endpoints:
-    web:
-      exposure:
-        exclude:
-          - "*"
-  # Disable default metrics
-  influx:
-    metrics:
-      export:
-        enabled: false
-
 # Set the embedded MongoDB version
 de:
   flapdoodle:

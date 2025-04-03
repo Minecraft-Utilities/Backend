@@ -1,13 +1,10 @@
 package xyz.mcutils.backend.websocket;
 
-import org.jetbrains.annotations.NotNull;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
-import xyz.mcutils.backend.service.MetricService;
-import xyz.mcutils.backend.websocket.impl.MetricsWebSocket;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,16 +14,9 @@ import java.util.List;
 public class WebSocketManager implements WebSocketConfigurer {
     private static final List<WebSocket> WEB_SOCKETS = new ArrayList<>();
 
-    private final MetricService metricService;
-
-    @Autowired
-    public WebSocketManager(MetricService metricService) {
-        this.metricService = metricService;
-    }
-
     @Override
     public void registerWebSocketHandlers(@NotNull WebSocketHandlerRegistry registry) {
-        registerWebSocket(registry, new MetricsWebSocket(metricService));
+
     }
 
     /**

@@ -22,7 +22,6 @@ import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.redis.PlayerCacheRepository;
 import xyz.mcutils.backend.repository.redis.PlayerNameCacheRepository;
 import xyz.mcutils.backend.repository.redis.PlayerSkinPartCacheRepository;
-import xyz.mcutils.backend.service.metric.metrics.UniquePlayerLookupsMetric;
 
 import java.awt.image.BufferedImage;
 import java.util.Optional;
@@ -32,17 +31,15 @@ import java.util.UUID;
 public class PlayerService {
 
     private final MojangService mojangAPIService;
-    private final MetricService metricService;
     private final PlayerRepository playerRepository;
     private final PlayerCacheRepository playerCacheRepository;
     private final PlayerNameCacheRepository playerNameCacheRepository;
     private final PlayerSkinPartCacheRepository playerSkinPartCacheRepository;
 
     @Autowired
-    public PlayerService(MojangService mojangAPIService, MetricService metricService, PlayerRepository playerRepository, PlayerCacheRepository playerCacheRepository,
+    public PlayerService(MojangService mojangAPIService, PlayerRepository playerRepository, PlayerCacheRepository playerCacheRepository,
                          PlayerNameCacheRepository playerNameCacheRepository, PlayerSkinPartCacheRepository playerSkinPartCacheRepository) {
         this.mojangAPIService = mojangAPIService;
-        this.metricService = metricService;
         this.playerRepository = playerRepository;
         this.playerCacheRepository = playerCacheRepository;
         this.playerNameCacheRepository = playerNameCacheRepository;
@@ -85,10 +82,6 @@ public class PlayerService {
             }
 
             CachedPlayer cachedPlayer = new CachedPlayer(uuid, player);
-
-            // Add the lookup to the unique player lookups metric
-            ((UniquePlayerLookupsMetric) metricService.getMetric(UniquePlayerLookupsMetric.class))
-                    .addLookup(uuid);
 
             playerCacheRepository.save(cachedPlayer);
             cachedPlayer.setCached(false);
