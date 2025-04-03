@@ -17,8 +17,10 @@ RUN mvn dependency:go-offline -q
 # Copy source files
 COPY src/ ./src/
 
-# Copy any other necessary project files (excluding what's in .dockerignore)
-COPY *.xml *.properties ./ 2>/dev/null || true
+# Copy any other necessary project files
+COPY ["*.xml", "./"]
+# Optionally copy properties files if they exist (in a separate command)
+COPY ["*.properties", "./"] 2>/dev/null || echo "No properties files found"
 
 # Build the jar
 RUN mvn package -q -Dmaven.test.skip -DskipTests -T2C
@@ -30,5 +32,5 @@ ENV PORT=80
 # Indicate that we're running in production
 ENV ENVIRONMENT=production
 
-# Run the jar file
-CMD java -jar target/Minecraft-Utilities.jar -Djava.awt.headless=true
+# Run the jar file using JSON format for CMD (addressing the warning)
+CMD ["java", "-jar", "target/Minecraft-Utilities.jar", "-Djava.awt.headless=true"]
