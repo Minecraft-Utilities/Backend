@@ -60,11 +60,8 @@ public class PlayerUpdateService {
 
     /**
      * Gets the oldest item from the queue and updates the player.
-     * <p>
-     * This method is scheduled to run every 500ms.
-     * </p>
      */
-    @Scheduled(fixedRate = 500)
+    @Scheduled(fixedRate = 400) // 150 executions per minute (60,000ms / 150 = 400ms)
     public void updatePlayer() {
         if (memoryQueue.isEmpty()) {
             return;
