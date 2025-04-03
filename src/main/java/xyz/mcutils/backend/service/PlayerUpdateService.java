@@ -58,7 +58,13 @@ public class PlayerUpdateService {
         }
     }
 
-    @Scheduled(fixedRate = 3000)
+    /**
+     * Gets the oldest item from the queue and updates the player.
+     * <p>
+     * This method is scheduled to run every second.
+     * </p>
+     */
+    @Scheduled(fixedRate = 1_000)
     public void updatePlayer() {
         // If both queues are empty, try to fill them
         if (memoryQueue.isEmpty() && playerUpdateQueueRepository.count() == 0) {
