@@ -194,6 +194,7 @@ public class PlayerService {
      * @return the number of UUIDs added
      */
     public int submitUUIDs(UUIDSubmission submission) {
+        System.out.println(submission);
         int added = 0;
         for (UUID uuid : submission.getUuids()) {
             if (playerRepository.existsById(uuid)) {
@@ -203,8 +204,9 @@ public class PlayerService {
             added++;
         }
 
-        if (submission.getAccountUuid() != null) {
-            CachedPlayer cachedPlayer = this.getCachedPlayer(submission.getAccountUuid().toString());
+        UUID submitterUuid = submission.getAccountUuid();
+        if (submitterUuid != null) {
+            CachedPlayer cachedPlayer = this.getCachedPlayer(submitterUuid.toString());
             cachedPlayer.getPlayer().setUuidsContributed(cachedPlayer.getPlayer().getUuidsContributed() + added);
             this.playerRepository.save(cachedPlayer.getPlayer());
         }
