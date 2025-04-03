@@ -6,6 +6,7 @@ import org.springframework.data.mongodb.repository.Query;
 import xyz.mcutils.backend.model.player.Player;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -24,4 +25,12 @@ public interface PlayerRepository extends MongoRepository<Player, UUID> {
      */
     @Query("{ 'lastUpdated': { $lt: ?0 } }")
     List<Player> findPlayersLastUpdatedBefore(long timestamp, Pageable pageable);
+
+    /**
+     * Finds a player by their username, ignoring case.
+     *
+     * @param username The username to search for
+     * @return The player, or null if not found
+     */
+    Optional<Player> findByUsernameIgnoreCase(String username);
 }

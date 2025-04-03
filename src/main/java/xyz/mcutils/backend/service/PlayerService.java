@@ -100,10 +100,25 @@ public class PlayerService {
     public CachedPlayerName usernameToUuid(String username) {
         log.debug("Getting UUID from username: {}", username);
         String id = username.toUpperCase();
+
+        // First check Redis cache
         Optional<CachedPlayerName> cachedPlayerName = playerNameCacheRepository.findById(id);
         if (cachedPlayerName.isPresent() && AppConfig.isProduction()) {
             return cachedPlayerName.get();
         }
+
+        // Then check the database
+        Optional<Player> existingPlayer = playerRepository.findByUsernameIgnoreCase(username);
+        if (existingPlayer.isPresent()) {
+            UUID uuid = existingPlayer.get().getUniqueId();
+            CachedPlayerName player = new CachedPlayerName(id, username, uuid);
+            playerNameCacheRepository.save(player); // Cache it for future use
+            log.debug("Found UUID in database: {} -> {}", username, uuid);
+            player.setCached(false);
+            return player;
+        }
+
+        // Finally resort to Mojang API
         try {
             MojangUsernameToUuidToken mojangUsernameToUuid = mojangAPIService.getUuidFromUsername(username);
             if (mojangUsernameToUuid == null) {
@@ -113,7 +128,7 @@ public class PlayerService {
             UUID uuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
             CachedPlayerName player = new CachedPlayerName(id, username, uuid);
             playerNameCacheRepository.save(player);
-            log.debug("Got UUID from username: {} -> {}", username, uuid);
+            log.debug("Got UUID from Mojang API: {} -> {}", username, uuid);
             player.setCached(false);
             return player;
         } catch (RateLimitException exception) {

@@ -29,6 +29,17 @@ public class Player {
     private String trimmedUniqueId;
 
     /**
+     * The username of the player
+     */
+    private String username;
+
+    /**
+     * The skin of the player, null if the
+     * player does not have a skin
+     */
+    private Skin skin;
+
+    /**
      * The usernames this player has used previously,
      * includes the current skin.
      */
@@ -54,8 +65,13 @@ public class Player {
     private long lastUpdated;
 
     public Player(MojangProfileToken profile) {
+        // Get the skin and cape
+        Tuple<Skin, Cape> skinAndCape = profile.getSkinAndCape();
+
         this.uniqueId = UUIDUtils.addDashes(profile.getId());
         this.trimmedUniqueId = UUIDUtils.removeDashes(this.uniqueId);
+        this.username = profile.getName();
+        this.skin = skinAndCape != null ? skinAndCape.getLeft() : null;
 
         this.usernameHistory = new ArrayList<>();
         this.usernameHistory.add(new UsernameHistoryEntry(
@@ -63,8 +79,6 @@ public class Player {
                 -1
         ));
 
-        // Get the skin and cape
-        Tuple<Skin, Cape> skinAndCape = profile.getSkinAndCape();
         if (skinAndCape != null) {
             Cape cape = skinAndCape.getRight();
             Skin skin = skinAndCape.getLeft();
@@ -104,37 +118,6 @@ public class Player {
         if (this.capes == null) {
             this.capes = new ArrayList<>();
         }
-    }
-
-    /**
-     * Gets the current username for the player.
-     *
-     * @return the username
-     */
-    public String getUsername() {
-        this.usernameHistory.sort(Comparator.comparingLong(UsernameHistoryEntry::getTimestamp).reversed());
-        Optional<UsernameHistoryEntry> historyEntry = this.usernameHistory.stream().findFirst();
-        return historyEntry.map(UsernameHistoryEntry::getUsername).orElse(null);
-    }
-
-    /**
-     * Gets the current skin for the player.
-     *
-     * @return the skin, or null if they have no skin
-     */
-    public Skin getSkin() {
-        this.skinHistory.sort(Comparator.comparingLong(SkinHistoryEntry::getLastUsed).reversed());
-        Optional<SkinHistoryEntry> historyEntry = this.skinHistory.stream().findFirst();
-        if (historyEntry.isEmpty()) {
-            return null;
-        }
-        SkinHistoryEntry entry = historyEntry.get();
-        Skin skin = new Skin(
-                "https://textures.minecraft.net/texture/" + entry.getId(),
-                entry.getModel()
-        );
-        skin.populatePartUrls(String.valueOf(this.uniqueId));
-        return skin;
     }
 
     /**
