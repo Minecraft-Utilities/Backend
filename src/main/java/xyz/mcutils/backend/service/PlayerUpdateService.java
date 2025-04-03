@@ -13,6 +13,7 @@ import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.player.PlayerUpdateQueueItem;
 import xyz.mcutils.backend.model.player.UUIDSubmission;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
+import xyz.mcutils.backend.repository.redis.PlayerCacheRepository;
 import xyz.mcutils.backend.repository.redis.PlayerUpdateQueueRepository;
 
 import java.util.*;
@@ -23,6 +24,7 @@ import java.util.stream.Collectors;
 @Service @Log4j2(topic = "Player Update Service")
 public class PlayerUpdateService {
     private final PlayerRepository playerRepository;
+    private final PlayerCacheRepository playerCacheRepository;
     private final PlayerUpdateQueueRepository playerUpdateQueueRepository;
     private final PlayerService playerService;
     private final MojangService mojangService;
@@ -32,10 +34,12 @@ public class PlayerUpdateService {
 
     @Autowired
     public PlayerUpdateService(@NonNull PlayerRepository playerRepository,
+                               @NonNull PlayerCacheRepository playerCacheRepository,
                                @NonNull PlayerUpdateQueueRepository playerUpdateQueueRepository,
                                @NonNull PlayerService playerService,
                                @NonNull MojangService mojangService) {
         this.playerRepository = playerRepository;
+        this.playerCacheRepository = playerCacheRepository;
         this.playerUpdateQueueRepository = playerUpdateQueueRepository;
         this.playerService = playerService;
         this.mojangService = mojangService;
@@ -77,7 +81,8 @@ public class PlayerUpdateService {
 
             if (queueItem.getSubmitterUuid() != null) {
                 player.setUuidsContributed(player.getUuidsContributed() + 1);
-                playerRepository.save(player);
+                playerRepository.save(player); // Update the player
+                playerCacheRepository.save(cachedPlayer); // Update the cached player
             }
         } catch (Exception ex) {
             log.error("Failed to update player with UUID: {}", queueItem.getUuid(), ex);
