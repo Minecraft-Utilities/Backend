@@ -100,6 +100,9 @@ public class Player {
      * @return the username
      */
     public String getUsername() {
+        if (this.usernameHistory == null) {
+            this.usernameHistory = new ArrayList<>();
+        }
         this.usernameHistory.sort(Comparator.comparingLong(UsernameHistoryEntry::getTimestamp).reversed());
         Optional<UsernameHistoryEntry> historyEntry = this.usernameHistory.stream().findFirst();
         return historyEntry.map(UsernameHistoryEntry::getUsername).orElse(null);
@@ -111,6 +114,9 @@ public class Player {
      * @return the skin, or null if they have no skin
      */
     public Skin getSkin() {
+        if (this.skinHistory == null) {
+            this.skinHistory = new ArrayList<>();
+        }
         this.skinHistory.sort(Comparator.comparingLong(SkinHistoryEntry::getLastUsed).reversed());
         Optional<SkinHistoryEntry> historyEntry = this.skinHistory.stream().findFirst();
         if (historyEntry.isEmpty()) {
@@ -131,6 +137,9 @@ public class Player {
      * @return the cape, or null if they have no cape
      */
     public Cape getCape() {
+        if (this.capes == null) {
+            this.capes = new ArrayList<>();
+        }
         this.capes.sort(Comparator.comparingLong(CapeHistoryEntry::getLastUsed).reversed());
         Optional<CapeHistoryEntry> historyEntry = this.capes.stream().findFirst();
         if (historyEntry.isEmpty()) {
