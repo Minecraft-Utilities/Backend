@@ -50,13 +50,13 @@ public abstract class WebSocket extends TextWebSocketHandler {
     @Override
     public final void afterConnectionEstablished(@NotNull WebSocketSession session) {
         this.sessions.add(session);
-        log.debug("Connection established: {}", session.getId());
+        log.info("Connection established: {}", session.getId());
         this.onSessionConnect(session);
     }
 
     @Override
     public final void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) {
         this.sessions.remove(session);
-        log.debug("Connection closed: {}", session.getId());
+        log.info("Connection closed: {}", session.getId());
     }
 }

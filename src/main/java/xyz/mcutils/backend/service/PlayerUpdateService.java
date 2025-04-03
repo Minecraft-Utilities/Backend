@@ -104,7 +104,7 @@ public class PlayerUpdateService {
             try {
                 memoryQueue.poll(); // Remove from memory
                 playerUpdateQueueRepository.delete(queueItem); // Remove from Redis
-                log.debug("Processed player update for UUID: {}", queueItem.getUuid());
+                log.info("Processed player update for UUID: {}", queueItem.getUuid());
             } finally {
                 queueLock.unlock();
             }

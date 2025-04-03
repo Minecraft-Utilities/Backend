@@ -35,7 +35,7 @@ public final class JavaMinecraftServerPinger implements MinecraftServerPinger<Ja
      */
     @Override
     public JavaMinecraftServer ping(String hostname, String ip, int port, DNSRecord[] records) {
-        log.debug("Pinging {}:{}...", hostname, port);
+        log.info("Pinging {}:{}...", hostname, port);
 
         // Open a socket connection to the server
         try (Socket socket = new Socket()) {

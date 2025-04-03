@@ -52,7 +52,7 @@ public class ServerService {
     public CachedMinecraftServer getServer(String platformName, String hostname) {
         MinecraftServer.Platform platform = EnumUtils.getEnumConstant(MinecraftServer.Platform.class, platformName.toUpperCase());
         if (platform == null) {
-            log.debug("Invalid platform: {} for server {}", platformName, hostname);
+            log.info("Invalid platform: {} for server {}", platformName, hostname);
             throw new BadRequestException("Invalid platform: %s".formatted(platformName));
         }
         int port = platform.getDefaultPort();
@@ -62,17 +62,17 @@ public class ServerService {
             try {
                 port = Integer.parseInt(parts[1]);
             } catch (NumberFormatException e) {
-                log.debug("Invalid port: {} for server {}", parts[1], hostname);
+                log.info("Invalid port: {} for server {}", parts[1], hostname);
                 throw new BadRequestException("Invalid port: %s".formatted(parts[1]));
             }
         }
         String key = "%s-%s:%s".formatted(platformName, hostname, port);
-        log.debug("Getting server: {}:{}", hostname, port);
+        log.info("Getting server: {}:{}", hostname, port);
 
         // Check if the server is cached
         Optional<CachedMinecraftServer> cached = serverCacheRepository.findById(key);
         if (cached.isPresent() && AppConfig.isProduction()) {
-                log.debug("Server {}:{} is cached", hostname, port);
+                log.info("Server {}:{} is cached", hostname, port);
             return cached.get();
         }
 
@@ -90,7 +90,7 @@ public class ServerService {
         String ip = aRecord == null ? null : aRecord.getAddress(); // Get the IP address
         if (ip != null) { // Was the IP resolved?
             records.add(aRecord); // Going to need this for later
-            log.debug("Resolved hostname: {} -> {}", hostname, ip);
+            log.info("Resolved hostname: {} -> {}", hostname, ip);
         }
 
         CachedMinecraftServer server = new CachedMinecraftServer(
@@ -103,7 +103,7 @@ public class ServerService {
             ((JavaMinecraftServer) server.getServer()).setMojangBlocked(mojangService.isServerBlocked(hostname));
         }
 
-        log.debug("Found server: {}:{}", hostname, port);
+        log.info("Found server: {}:{}", hostname, port);
         serverCacheRepository.save(server);
         server.setCached(false);
         return server;
@@ -148,19 +148,19 @@ public class ServerService {
             throw new BadRequestException("Size cannot be smaller than 256");
         }
         MinecraftServer server = cachedServer.getServer();
-        log.debug("Getting preview for server: {}:{} (size {})", server.getHostname(), server.getPort(), size);
+        log.info("Getting preview for server: {}:{} (size {})", server.getHostname(), server.getPort(), size);
         String key = "%s-%s:%s".formatted(platform, server.getHostname(), server.getPort());
 
         // Check if the server preview is cached
         Optional<CachedServerPreview> cached = serverPreviewCacheRepository.findById(key);
         if (cached.isPresent() && AppConfig.isProduction()) {
-            log.debug("Server preview for {}:{} is cached", server.getHostname(), server.getPort());
+            log.info("Server preview for {}:{} is cached", server.getHostname(), server.getPort());
             return cached.get().getBytes();
         }
 
         long start = System.currentTimeMillis();
         byte[] preview = ImageUtils.imageToBytes(ServerPreviewRenderer.INSTANCE.render(server, size));
-        log.debug("Took {}ms to render preview for server: {}:{}", System.currentTimeMillis() - start, server.getHostname(), server.getPort());
+        log.info("Took {}ms to render preview for server: {}:{}", System.currentTimeMillis() - start, server.getHostname(), server.getPort());
 
         CachedServerPreview serverPreview = new CachedServerPreview(key, preview);
         serverPreviewCacheRepository.save(serverPreview);

@@ -36,7 +36,7 @@ public final class BedrockMinecraftServerPinger implements MinecraftServerPinger
      */
     @Override
     public BedrockMinecraftServer ping(String hostname, String ip, int port, DNSRecord[] records) {
-        log.debug("Pinging {}:{}...", hostname, port);
+        log.info("Pinging {}:{}...", hostname, port);
         long before = System.currentTimeMillis(); // Timestamp before pinging
 
         // Open a socket connection to the server
@@ -45,7 +45,7 @@ public final class BedrockMinecraftServerPinger implements MinecraftServerPinger
             socket.connect(new InetSocketAddress(hostname, port));
 
             long ping = System.currentTimeMillis() - before; // Calculate the ping
-            log.debug("Pinged {}:{} in {}ms", hostname, port, ping);
+            log.info("Pinged {}:{} in {}ms", hostname, port, ping);
 
             // Send the unconnected ping packet
             new BedrockPacketUnconnectedPing().process(socket);
