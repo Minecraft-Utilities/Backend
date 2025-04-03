@@ -89,6 +89,16 @@ public class PlayerUpdateService {
             player.updateSkinHistory(player, currentSkin);
             player.updateCapeHistory(player, currentCape);
 
+            // Update username if it's different
+            if (!currentUsername.equals(player.getUsername())) {
+                player.setUsername(currentUsername);
+            }
+
+            // Update skin if it's different
+            if (currentSkin != null && !currentSkin.equals(player.getSkin())) {
+                player.setSkin(currentSkin);
+            }
+
             player.setLastUpdated(System.currentTimeMillis());
             this.playerRepository.save(player);
         } catch (Exception e) {
@@ -106,6 +116,9 @@ public class PlayerUpdateService {
         }
     }
 
+    /**
+     * Reloads the memory queue from Redis.
+     */
     private void reloadMemoryQueueFromRedis() {
         queueLock.lock();
         try {
@@ -118,6 +131,9 @@ public class PlayerUpdateService {
         }
     }
 
+    /**
+     * Inserts all players in the queue into the memory queue.
+     */
     public void insertToQueue() {
         PageRequest pageRequest = PageRequest.of(
                 0,
