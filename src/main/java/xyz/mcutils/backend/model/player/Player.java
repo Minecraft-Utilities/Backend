@@ -14,7 +14,7 @@ import xyz.mcutils.backend.model.token.MojangProfileToken;
 
 import java.util.*;
 
-@AllArgsConstructor @NoArgsConstructor
+@AllArgsConstructor
 @Getter @EqualsAndHashCode @ToString
 @Document("players")
 public class Player {
@@ -94,15 +94,24 @@ public class Player {
         this.lastUpdated = System.currentTimeMillis();
     }
 
+    public Player() {
+        if (this.usernameHistory == null) {
+            this.usernameHistory = new ArrayList<>();
+        }
+        if (this.skinHistory == null) {
+            this.skinHistory = new ArrayList<>();
+        }
+        if (this.capes == null) {
+            this.capes = new ArrayList<>();
+        }
+    }
+
     /**
      * Gets the current username for the player.
      *
      * @return the username
      */
     public String getUsername() {
-        if (this.usernameHistory == null) {
-            this.usernameHistory = new ArrayList<>();
-        }
         this.usernameHistory.sort(Comparator.comparingLong(UsernameHistoryEntry::getTimestamp).reversed());
         Optional<UsernameHistoryEntry> historyEntry = this.usernameHistory.stream().findFirst();
         return historyEntry.map(UsernameHistoryEntry::getUsername).orElse(null);
@@ -114,9 +123,6 @@ public class Player {
      * @return the skin, or null if they have no skin
      */
     public Skin getSkin() {
-        if (this.skinHistory == null) {
-            this.skinHistory = new ArrayList<>();
-        }
         this.skinHistory.sort(Comparator.comparingLong(SkinHistoryEntry::getLastUsed).reversed());
         Optional<SkinHistoryEntry> historyEntry = this.skinHistory.stream().findFirst();
         if (historyEntry.isEmpty()) {
@@ -124,7 +130,7 @@ public class Player {
         }
         SkinHistoryEntry entry = historyEntry.get();
         Skin skin = new Skin(
-                "http://textures.minecraft.net/texture/" + entry.getId(),
+                "https://textures.minecraft.net/texture/" + entry.getId(),
                 entry.getModel()
         );
         skin.populatePartUrls(String.valueOf(this.uniqueId));
@@ -137,9 +143,6 @@ public class Player {
      * @return the cape, or null if they have no cape
      */
     public Cape getCape() {
-        if (this.capes == null) {
-            this.capes = new ArrayList<>();
-        }
         this.capes.sort(Comparator.comparingLong(CapeHistoryEntry::getLastUsed).reversed());
         Optional<CapeHistoryEntry> historyEntry = this.capes.stream().findFirst();
         if (historyEntry.isEmpty()) {
@@ -147,8 +150,84 @@ public class Player {
         }
         CapeHistoryEntry entry = historyEntry.get();
         return new Cape(
-                "http://textures.minecraft.net/texture/" + entry.getId(),
+                "https://textures.minecraft.net/texture/" + entry.getId(),
                 entry.getId()
         );
+    }
+
+    /**
+     * Updates the player's username history.
+     *
+     * @param player the player to update
+     * @param currentUsername the current username
+     */
+    public void updateUsernameHistory(Player player, String currentUsername) {
+        List<UsernameHistoryEntry> usernameHistory = player.getUsernameHistory();
+        if (usernameHistory.stream().noneMatch(s -> s.getUsername().equals(currentUsername))) {
+            usernameHistory.add(new UsernameHistoryEntry(
+                    currentUsername,
+                    usernameHistory.isEmpty() ? -1 : System.currentTimeMillis()
+            ));
+        }
+    }
+
+    /**
+     * Updates the player's skin history.
+     *
+     * @param player the player to update
+     * @param currentSkin the current skin
+     */
+    public void updateSkinHistory(Player player, Skin currentSkin) {
+        Skin previousSkin = player.getSkin();
+        String previousSkinId = previousSkin != null ? previousSkin.getId() : null;
+        List<SkinHistoryEntry> skinHistory = player.getSkinHistory();
+
+        if (previousSkinId == null || !previousSkinId.equals(currentSkin.getId())) {
+            Optional<SkinHistoryEntry> existingEntry = skinHistory.stream()
+                    .filter(entry -> entry.getId().equals(currentSkin.getId()))
+                    .findFirst();
+
+            long currentTime = System.currentTimeMillis();
+            if (existingEntry.isPresent()) {
+                existingEntry.get().setLastUsed(currentTime);
+            } else {
+                skinHistory.add(new SkinHistoryEntry(
+                        currentSkin.getId(),
+                        currentSkin.isLegacy(),
+                        currentSkin.getModel(),
+                        currentTime,
+                        currentTime
+                ));
+            }
+        }
+    }
+
+    /**
+     * Updates the player's cape history.
+     *
+     * @param player the player to update
+     * @param currentCape the current cape
+     */
+    public void updateCapeHistory(Player player, Cape currentCape) {
+        Cape previousCape = player.getCape();
+        String previousCapeId = previousCape != null ? previousCape.getId() : null;
+        List<CapeHistoryEntry> capes = player.getCapes();
+
+        if (previousCapeId == null || !previousCapeId.equals(currentCape.getId())) {
+            Optional<CapeHistoryEntry> existingEntry = capes.stream()
+                    .filter(entry -> entry.getId().equals(currentCape.getId()))
+                    .findFirst();
+
+            long currentTime = System.currentTimeMillis();
+            if (existingEntry.isPresent()) {
+                existingEntry.get().setLastUsed(currentTime);
+            } else {
+                capes.add(new CapeHistoryEntry(
+                        currentCape.getId(),
+                        currentTime,
+                        currentTime
+                ));
+            }
+        }
     }
 }

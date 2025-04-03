@@ -13,16 +13,12 @@ import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.player.Cape;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.player.PlayerUpdateQueueItem;
-import xyz.mcutils.backend.model.player.history.CapeHistoryEntry;
-import xyz.mcutils.backend.model.player.history.SkinHistoryEntry;
-import xyz.mcutils.backend.model.player.history.UsernameHistoryEntry;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.model.token.MojangProfileToken;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.redis.PlayerUpdateQueueRepository;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.ReentrantLock;
@@ -89,9 +85,9 @@ public class PlayerUpdateService {
             Player player = cachedPlayer.getPlayer();
 
             // Update player
-            updateUsernameHistory(player, currentUsername);
-            updateSkinHistory(player, currentSkin);
-            updateCapeHistory(player, currentCape);
+            player.updateUsernameHistory(player, currentUsername);
+            player.updateSkinHistory(player, currentSkin);
+            player.updateCapeHistory(player, currentCape);
 
             player.setLastUpdated(System.currentTimeMillis());
             this.playerRepository.save(player);
@@ -119,64 +115,6 @@ public class PlayerUpdateService {
             log.info("Reloaded {} items from queues", memoryQueue.size());
         } finally {
             queueLock.unlock();
-        }
-    }
-
-    private void updateUsernameHistory(Player player, String currentUsername) {
-        List<UsernameHistoryEntry> usernameHistory = player.getUsernameHistory();
-        if (usernameHistory.stream().noneMatch(s -> s.getUsername().equals(currentUsername))) {
-            usernameHistory.add(new UsernameHistoryEntry(
-                    currentUsername,
-                    usernameHistory.isEmpty() ? -1 : System.currentTimeMillis()
-            ));
-        }
-    }
-
-    private void updateSkinHistory(Player player, Skin currentSkin) {
-        Skin previousSkin = player.getSkin();
-        String previousSkinId = previousSkin != null ? previousSkin.getId() : null;
-        List<SkinHistoryEntry> skinHistory = player.getSkinHistory();
-
-        if (previousSkinId == null || !previousSkinId.equals(currentSkin.getId())) {
-            Optional<SkinHistoryEntry> existingEntry = skinHistory.stream()
-                    .filter(entry -> entry.getId().equals(currentSkin.getId()))
-                    .findFirst();
-
-            long currentTime = System.currentTimeMillis();
-            if (existingEntry.isPresent()) {
-                existingEntry.get().setLastUsed(currentTime);
-            } else {
-                skinHistory.add(new SkinHistoryEntry(
-                        currentSkin.getId(),
-                        currentSkin.isLegacy(),
-                        currentSkin.getModel(),
-                        currentTime,
-                        currentTime
-                ));
-            }
-        }
-    }
-
-    private void updateCapeHistory(Player player, Cape currentCape) {
-        Cape previousCape = player.getCape();
-        String previousCapeId = previousCape != null ? previousCape.getId() : null;
-        List<CapeHistoryEntry> capes = player.getCapes();
-
-        if (previousCapeId == null || !previousCapeId.equals(currentCape.getId())) {
-            Optional<CapeHistoryEntry> existingEntry = capes.stream()
-                    .filter(entry -> entry.getId().equals(currentCape.getId()))
-                    .findFirst();
-
-            long currentTime = System.currentTimeMillis();
-            if (existingEntry.isPresent()) {
-                existingEntry.get().setLastUsed(currentTime);
-            } else {
-                capes.add(new CapeHistoryEntry(
-                        currentCape.getId(),
-                        currentTime,
-                        currentTime
-                ));
-            }
         }
     }
 
