@@ -88,7 +88,7 @@ public class PlayerUpdateService {
                 playerRepository.save(submitterPlayer); // Update the submitter
                 playerCacheRepository.save(submitter); // Update the submitter in the cache
 
-                log.info("{} has contributed to {} by submitting {} UUIDs", submitterPlayer.getUsername(), player.getUsername(), player.getUuidsContributed());
+                log.info("{} has contributed by submitting {} UUIDs", submitterPlayer.getUsername(), submitterPlayer.getUuidsContributed());
             }
         } catch (Exception ex) {
             log.error("Failed to update player with UUID: {}, error: {}", queueItem.getUuid(), ex.getMessage());
