@@ -36,7 +36,7 @@ public final class BedrockMinecraftServerPinger implements MinecraftServerPinger
      */
     @Override
     public BedrockMinecraftServer ping(String hostname, String ip, int port, DNSRecord[] records) {
-        log.info("Pinging {}:{}...", hostname, port);
+        log.debug("Pinging {}:{}...", hostname, port);
         long before = System.currentTimeMillis(); // Timestamp before pinging
 
         // Open a socket connection to the server
@@ -45,7 +45,7 @@ public final class BedrockMinecraftServerPinger implements MinecraftServerPinger
             socket.connect(new InetSocketAddress(hostname, port));
 
             long ping = System.currentTimeMillis() - before; // Calculate the ping
-            log.info("Pinged {}:{} in {}ms", hostname, port, ping);
+            log.debug("Pinged {}:{} in {}ms", hostname, port, ping);
 
             // Send the unconnected ping packet
             new BedrockPacketUnconnectedPing().process(socket);
@@ -58,7 +58,7 @@ public final class BedrockMinecraftServerPinger implements MinecraftServerPinger
                 throw new ResourceNotFoundException("Server '%s' didn't respond to ping".formatted(hostname));
             }
             return BedrockMinecraftServer.create(hostname, ip, port, records,
-                    MinecraftServer.GeoLocation.fromMaxMind(MaxMindService.lookup(ip)), response); // Return the server
+                    MinecraftServer.GeoLocation.fromMaxMind(MaxMindService.lookupCity(ip)), response); // Return the server
         } catch (IOException ex ) {
             if (ex instanceof UnknownHostException) {
                 throw new BadRequestException("Unknown hostname '%s'".formatted(hostname));

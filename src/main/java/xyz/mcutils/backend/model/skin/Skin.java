@@ -27,6 +27,11 @@ public class Skin {
     private String url;
 
     /**
+     * The ID for the skin
+     */
+    private String id;
+
+    /**
      * The model for the skin
      */
     private Model model;
@@ -51,6 +56,9 @@ public class Skin {
     public Skin(String url, Model model) {
         this.url = url;
         this.model = model;
+
+        String[] skinUrlParts = this.getUrl().split("/");
+        this.id = skinUrlParts[skinUrlParts.length - 1];
 
         this.skinImage = PlayerUtils.getSkinImage(url);
         if (this.skinImage != null) {

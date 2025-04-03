@@ -34,7 +34,7 @@ public class CachedPlayerName extends CachedResponse {
     private final UUID uniqueId;
 
     public CachedPlayerName(String id, String username, UUID uniqueId) {
-        super(Cache.defaultCache());
+        super(true, System.currentTimeMillis());
         this.id = id;
         this.username = username;
         this.uniqueId = uniqueId;

@@ -21,7 +21,6 @@ public class HomeController {
         model.addAttribute("player_example_url", publicUrl + "/player/" + examplePlayer);
         model.addAttribute("java_server_example_url", publicUrl + "/server/java/" + exampleJavaServer);
         model.addAttribute("bedrock_server_example_url", publicUrl + "/server/bedrock/" + exampleBedrockServer);
-        model.addAttribute("mojang_endpoint_status_url", publicUrl + "/mojang/status");
         model.addAttribute("swagger_url", publicUrl + "/swagger-ui.html");
         return "index";
     }

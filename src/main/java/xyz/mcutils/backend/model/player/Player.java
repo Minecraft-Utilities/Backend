@@ -1,24 +1,27 @@
 package xyz.mcutils.backend.model.player;
 
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
+import xyz.mcutils.backend.model.player.history.CapeHistoryEntry;
+import xyz.mcutils.backend.model.player.history.SkinHistoryEntry;
+import xyz.mcutils.backend.model.player.history.UsernameHistoryEntry;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.model.token.MojangProfileToken;
 
-import java.util.UUID;
+import java.util.*;
 
 @AllArgsConstructor @NoArgsConstructor
-@Getter @EqualsAndHashCode
+@Getter @EqualsAndHashCode @ToString
+@Document("players")
 public class Player {
-
     /**
      * The UUID of the player
      */
-    private UUID uniqueId;
+    @Id private UUID uniqueId;
 
     /**
      * The trimmed UUID of the player
@@ -26,38 +29,117 @@ public class Player {
     private String trimmedUniqueId;
 
     /**
-     * The username of the player
+     * The usernames this player has used previously,
+     * includes the current skin.
      */
-    private String username;
+    private List<UsernameHistoryEntry> usernameHistory;
 
     /**
-     * The skin of the player, null if the
-     * player does not have a skin
+     * The skins this player has used previously,
+     * includes the current skin.
      */
-    private Skin skin;
+    private List<SkinHistoryEntry> skinHistory;
 
     /**
-     * The cape of the player, null if the
-     * player does not have a cape
+     * The capes this player has used previously,
+     * includes the current skin.
      */
-    private Cape cape;
+    private List<CapeHistoryEntry> capes;
 
     /**
-     * The raw properties of the player
+     * The timestamp when this player last had
+     * their information (username, skin history, etc...) updated.
      */
-    private MojangProfileToken.ProfileProperty[] rawProperties;
+    @Setter @JsonIgnore
+    private long lastUpdated;
 
     public Player(MojangProfileToken profile) {
         this.uniqueId = UUIDUtils.addDashes(profile.getId());
         this.trimmedUniqueId = UUIDUtils.removeDashes(this.uniqueId);
-        this.username = profile.getName();
-        this.rawProperties = profile.getProperties();
+
+        this.usernameHistory = new ArrayList<>();
+        this.usernameHistory.add(new UsernameHistoryEntry(
+                profile.getName(),
+                -1
+        ));
 
         // Get the skin and cape
         Tuple<Skin, Cape> skinAndCape = profile.getSkinAndCape();
         if (skinAndCape != null) {
-            this.skin = skinAndCape.getLeft();
-            this.cape = skinAndCape.getRight();
+            Cape cape = skinAndCape.getRight();
+            Skin skin = skinAndCape.getLeft();
+
+            this.skinHistory = new ArrayList<>();
+            if (skin != null) {
+                this.skinHistory.add(new SkinHistoryEntry(
+                        skin.getId(),
+                        skin.isLegacy(),
+                        skin.getModel(),
+                        -1,
+                        -1
+                ));
+            }
+
+            this.capes = new ArrayList<>();
+            if (cape != null) {
+                String[] capeUrlParts = cape.getUrl().split("/");
+                this.capes.add(new CapeHistoryEntry(
+                        capeUrlParts[capeUrlParts.length - 1],
+                        -1,
+                        -1
+                ));
+            }
         }
+
+        this.lastUpdated = System.currentTimeMillis();
+    }
+
+    /**
+     * Gets the current username for the player.
+     *
+     * @return the username
+     */
+    public String getUsername() {
+        this.usernameHistory.sort(Comparator.comparingLong(UsernameHistoryEntry::getTimestamp).reversed());
+        Optional<UsernameHistoryEntry> historyEntry = this.usernameHistory.stream().findFirst();
+        return historyEntry.map(UsernameHistoryEntry::getUsername).orElse(null);
+    }
+
+    /**
+     * Gets the current skin for the player.
+     *
+     * @return the skin, or null if they have no skin
+     */
+    public Skin getSkin() {
+        this.skinHistory.sort(Comparator.comparingLong(SkinHistoryEntry::getLastUsed).reversed());
+        Optional<SkinHistoryEntry> historyEntry = this.skinHistory.stream().findFirst();
+        if (historyEntry.isEmpty()) {
+            return null;
+        }
+        SkinHistoryEntry entry = historyEntry.get();
+        Skin skin = new Skin(
+                "http://textures.minecraft.net/texture/" + entry.getId(),
+                entry.getModel()
+        );
+        skin.populatePartUrls(String.valueOf(this.uniqueId));
+        return skin;
+    }
+
+    /**
+     * Gets the current cape for the player.
+     *
+     * @return the cape, or null if they have no cape
+     */
+    public Cape getCape() {
+        this.capes.sort(Comparator.comparingLong(CapeHistoryEntry::getLastUsed).reversed());
+        Optional<CapeHistoryEntry> historyEntry = this.capes.stream().findFirst();
+        if (historyEntry.isEmpty()) {
+            return null;
+        }
+        CapeHistoryEntry entry = historyEntry.get();
+        return new Cape(
+                "http://textures.minecraft.net/texture/" + entry.getId(),
+                entry.getId()
+        );
     }
 }

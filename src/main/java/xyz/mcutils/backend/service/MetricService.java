@@ -7,7 +7,6 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.AppConfig;
-import xyz.mcutils.backend.common.Timer;
 import xyz.mcutils.backend.repository.mongo.MetricsRepository;
 import xyz.mcutils.backend.service.metric.Metric;
 import xyz.mcutils.backend.service.metric.metrics.*;
@@ -64,10 +63,10 @@ public class MetricService {
                 entry.getKey().setCollector(entry.getValue());
             }
 
-            Timer.scheduleRepeating(() -> {
-                saveMetrics();
-                writeToInflux();
-            }, saveInterval, saveInterval);
+//            Timer.scheduleRepeating(() -> {
+//                saveMetrics();
+//                writeToInflux();
+//            }, saveInterval, saveInterval);
         }
     }
 
@@ -115,7 +114,7 @@ public class MetricService {
         for (Metric<?> metric : metrics.values()) {
             saveMetric(metric);
         }
-        log.info("Saved {} metrics to MongoDB", metrics.size());
+        log.debug("Saved {} metrics to MongoDB", metrics.size());
     }
 
     /**
@@ -147,7 +146,7 @@ public class MetricService {
                 }
             }
             influxWriteApi.writePoints(points);
-            log.info("Wrote {} metrics to Influx", metrics.size());
+            log.debug("Wrote {} metrics to Influx", metrics.size());
         } catch (Exception e) {
             log.error("Failed to write metrics to Influx", e);
         }

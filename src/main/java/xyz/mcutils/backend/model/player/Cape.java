@@ -8,11 +8,15 @@ import lombok.Getter;
 @AllArgsConstructor
 @Getter @EqualsAndHashCode
 public class Cape {
-
     /**
      * The URL of the cape
      */
     private final String url;
+
+    /**
+     * The ID of the cape
+     */
+    private final String id;
 
     /**
      * Gets the cape from a {@link JsonObject}.
@@ -24,6 +28,9 @@ public class Cape {
         if (json == null) {
             return null;
         }
-        return new Cape(json.get("url").getAsString());
+        String url = json.get("url").getAsString();
+        String[] capeUrlParts = url.split("/");
+
+        return new Cape(url, capeUrlParts[capeUrlParts.length - 1]);
     }
 }

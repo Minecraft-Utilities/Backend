@@ -6,6 +6,7 @@ import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.io.File;
 import java.net.http.HttpClient;
@@ -15,6 +16,7 @@ import java.util.Objects;
 
 @Log4j2(topic = "Main")
 @SpringBootApplication
+@EnableScheduling
 public class Main {
         public static final Gson GSON = new GsonBuilder()
                 .setDateFormat("MM-dd-yyyy HH:mm:ss")

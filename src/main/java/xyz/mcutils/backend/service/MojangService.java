@@ -11,7 +11,6 @@ import lombok.extern.log4j.Log4j2;
 import net.jodah.expiringmap.ExpirationPolicy;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.ExpiringSet;
-import xyz.mcutils.backend.common.MojangServer;
 import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.model.token.MojangProfileToken;
 import xyz.mcutils.backend.model.token.MojangUsernameToUuidToken;
@@ -47,11 +46,6 @@ public class MojangService {
     private static final long FETCH_BLOCKED_SERVERS_INTERVAL = TimeUnit.HOURS.toMillis(1L);
 
     /**
-     * The interval to fetch the Mojang server status.
-     */
-    private static final long FETCH_MOJANG_SERVERS_STATUS_INTERVAL = TimeUnit.MINUTES.toMillis(1L);
-
-    /**
      * A list of banned server hashes provided by Mojang.
      * <p>
      * This is periodically fetched from Mojang, see
@@ -81,33 +75,6 @@ public class MojangService {
                 fetchBlockedServers();
             }
         }, 0L, FETCH_BLOCKED_SERVERS_INTERVAL);
-
-        new Timer().scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                log.info("Fetching Mojang Server status...");
-                Map<MojangServer, MojangServer.Status> mojangServers = new HashMap<>();
-                Arrays.stream(MojangServer.values()).parallel().forEach(server -> {
-                    log.info("Pinging {}...", server.getEndpoint());
-                    MojangServer.Status status = server.getStatus(); // Retrieve the server status
-                    log.info("Retrieved status of {}: {}", server.getEndpoint(), status.name());
-                    mojangServers.put(server, status); // Cache the server status
-                });
-
-                mojangServerStatus.clear();
-                for (Map.Entry<MojangServer, MojangServer.Status> entry : mojangServers.entrySet()) {
-                    MojangServer server = entry.getKey();
-
-                    Map<String, Object> serverStatus = new HashMap<>();
-                    serverStatus.put("name", server.getName());
-                    serverStatus.put("endpoint", server.getEndpoint());
-                    serverStatus.put("status", entry.getValue().name());
-                    mojangServerStatus.add(serverStatus);
-                }
-
-                log.info("Fetched Mojang Server status for {} endpoints", mojangServers.size());
-            }
-        }, 0L, FETCH_MOJANG_SERVERS_STATUS_INTERVAL);
     }
 
     /**
