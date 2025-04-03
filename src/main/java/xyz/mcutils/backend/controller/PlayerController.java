@@ -49,10 +49,11 @@ public class PlayerController {
                 .body(player);
     }
 
-    @GetMapping(value = "/{part}/{id}")
+    @GetMapping(value = "/{id}/skin/{part}.{extension}")
     public ResponseEntity<?> getPlayerHead(
-            @Parameter(description = "The part of the skin", example = "head") @PathVariable String part,
             @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String id,
+            @Parameter(description = "The part of the skin", example = "head") @PathVariable String part,
+            @Parameter(description = "The file extension of the image", example = "png") @PathVariable String extension,
             @Parameter(description = "The size of the image", example = "256") @RequestParam(required = false, defaultValue = "256") int size,
             @Parameter(description = "Whether to render the skin overlay (skin layers)", example = "false") @RequestParam(required = false, defaultValue = "false") boolean overlays,
             @Parameter(description = "Whether to download the image") @RequestParam(required = false, defaultValue = "false") boolean download) {
@@ -63,7 +64,7 @@ public class PlayerController {
         // Return the part image
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
-                .contentType(MediaType.IMAGE_PNG)
+                .contentType(extension.equals("png") ? MediaType.IMAGE_PNG : MediaType.IMAGE_JPEG)
                 .header(HttpHeaders.CONTENT_DISPOSITION, dispositionHeader.formatted(player.getUsername()))
                 .body(playerService.getSkinPart(player, part, overlays, size).getBytes());
     }

@@ -5,7 +5,7 @@ import lombok.Getter;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.BodyRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.IsometricHeadRenderer;
-import xyz.mcutils.backend.common.renderer.impl.skin.SquareRenderer;
+import xyz.mcutils.backend.common.renderer.impl.skin.VanillaSkinPartRenderer;
 
 import java.awt.image.BufferedImage;
 
@@ -137,7 +137,7 @@ public interface ISkinPart {
 
         @Override
         public BufferedImage render(Skin skin, boolean renderOverlays, int size) {
-            return SquareRenderer.INSTANCE.render(skin, this, renderOverlays, size);
+            return VanillaSkinPartRenderer.INSTANCE.render(skin, this, renderOverlays, size);
         }
 
         /**

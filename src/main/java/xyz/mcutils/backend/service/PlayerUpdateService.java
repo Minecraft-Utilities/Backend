@@ -75,34 +75,10 @@ public class PlayerUpdateService {
         }
 
         try {
-            MojangProfileToken profileToken = mojangService.getProfile(queueItem.getUuid().toString());
-            Tuple<Skin, Cape> skinAndCape = profileToken.getSkinAndCape();
-            Skin currentSkin = skinAndCape.getLeft();
-            Cape currentCape = skinAndCape.getRight();
-            String currentUsername = profileToken.getName();
-
             CachedPlayer cachedPlayer = playerService.getCachedPlayer(queueItem.getUuid().toString());
-            Player player = cachedPlayer.getPlayer();
-
-            // Update player
-            player.updateUsernameHistory(player, currentUsername);
-            player.updateSkinHistory(player, currentSkin);
-            player.updateCapeHistory(player, currentCape);
-
-            // Update username if it's different
-            if (!currentUsername.equals(player.getUsername())) {
-                player.setUsername(currentUsername);
-            }
-
-            // Update skin if it's different
-            if (currentSkin != null && !currentSkin.equals(player.getSkin())) {
-                player.setSkin(currentSkin);
-            }
-
-            player.setLastUpdated(System.currentTimeMillis());
-            this.playerRepository.save(player);
-        } catch (Exception e) {
-            log.error("Failed to update player with UUID: " + queueItem.getUuid(), e);
+            cachedPlayer.getPlayer().refresh(mojangService, playerService, playerRepository, false);
+        } catch (Exception ex) {
+            log.error("Failed to update player with UUID: {}", queueItem.getUuid(), ex);
         } finally {
             // Remove from both queues
             queueLock.lock();

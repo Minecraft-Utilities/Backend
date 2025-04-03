@@ -27,6 +27,15 @@ public class MojangProfileToken {
     private String name;
 
     /**
+     * Is this profile legacy?
+     * <p>
+     * A "Legacy" profile is a profile that
+     * has not yet migrated to a Mojang account.
+     * </p>
+     */
+    private boolean legacy;
+
+    /**
      * The properties of the player.
      */
     private ProfileProperty[] properties = new ProfileProperty[0];

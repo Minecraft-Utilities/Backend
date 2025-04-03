@@ -11,8 +11,8 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 
 @AllArgsConstructor @Getter @Log4j2(topic = "Skin Renderer/Square")
-public class SquareRenderer extends SkinRenderer<ISkinPart.Vanilla> {
-    public static final SquareRenderer INSTANCE = new SquareRenderer();
+public class VanillaSkinPartRenderer extends SkinRenderer<ISkinPart.Vanilla> {
+    public static final VanillaSkinPartRenderer INSTANCE = new VanillaSkinPartRenderer();
 
     @Override
     public BufferedImage render(Skin skin, ISkinPart.Vanilla part, boolean renderOverlays, int size) {

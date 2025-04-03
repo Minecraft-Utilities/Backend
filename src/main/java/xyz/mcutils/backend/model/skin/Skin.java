@@ -93,14 +93,14 @@ public class Skin {
      * @param playerUuid the player's UUID
      */
     public Skin populatePartUrls(String playerUuid) {
+        this.partUrls.clear();
         for (Enum<?>[] type : ISkinPart.TYPES) {
             for (Enum<?> part : type) {
                 ISkinPart skinPart = (ISkinPart) part;
                 if (skinPart.hidden()) {
                     continue;
                 }
-                String partName = part.name().toLowerCase();
-                this.partUrls.put(partName, Config.INSTANCE.getWebPublicUrl() + "/player/" + partName + "/" + playerUuid);
+                this.partUrls.put(part.name(), Config.INSTANCE.getWebPublicUrl() + "/player/" + playerUuid + "/skin/" + part.name().toLowerCase() + ".png");
             }
         }
         return this;

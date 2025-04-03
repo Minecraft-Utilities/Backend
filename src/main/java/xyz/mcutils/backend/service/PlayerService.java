@@ -30,16 +30,16 @@ import java.util.UUID;
 @Service @Log4j2(topic = "Player Service")
 public class PlayerService {
 
-    private final MojangService mojangAPIService;
+    private final MojangService mojangService;
     private final PlayerRepository playerRepository;
     private final PlayerCacheRepository playerCacheRepository;
     private final PlayerNameCacheRepository playerNameCacheRepository;
     private final PlayerSkinPartCacheRepository playerSkinPartCacheRepository;
 
     @Autowired
-    public PlayerService(MojangService mojangAPIService, PlayerRepository playerRepository, PlayerCacheRepository playerCacheRepository,
+    public PlayerService(MojangService mojangService, PlayerRepository playerRepository, PlayerCacheRepository playerCacheRepository,
                          PlayerNameCacheRepository playerNameCacheRepository, PlayerSkinPartCacheRepository playerSkinPartCacheRepository) {
-        this.mojangAPIService = mojangAPIService;
+        this.mojangService = mojangService;
         this.playerRepository = playerRepository;
         this.playerCacheRepository = playerCacheRepository;
         this.playerNameCacheRepository = playerNameCacheRepository;
@@ -64,7 +64,9 @@ public class PlayerService {
         Optional<CachedPlayer> optionalCachedPlayer = playerCacheRepository.findById(uuid);
         if (optionalCachedPlayer.isPresent() && AppConfig.isProduction()) { // Return the cached player if it exists
             log.debug("Player {} is cached", id);
-            return optionalCachedPlayer.get();
+            CachedPlayer player = optionalCachedPlayer.get();
+            player.getPlayer().getSkin().populatePartUrls(player.getUniqueId().toString());
+            return player;
         }
 
         Player player = playerRepository.findById(uuid).orElse(null);
@@ -74,7 +76,7 @@ public class PlayerService {
         try {
             if (player == null) {
                 log.debug("Getting player profile from Mojang: {}", id);
-                MojangProfileToken mojangProfile = mojangAPIService.getProfile(uuid.toString()); // Get the player profile from Mojang
+                MojangProfileToken mojangProfile = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
                 log.debug("Got player profile from Mojang: {}", id);
 
                 player = new Player(mojangProfile);
@@ -82,6 +84,7 @@ public class PlayerService {
             }
 
             CachedPlayer cachedPlayer = new CachedPlayer(uuid, player);
+            cachedPlayer.getPlayer().getSkin().populatePartUrls(player.getUniqueId().toString());
 
             playerCacheRepository.save(cachedPlayer);
             cachedPlayer.setCached(false);
@@ -110,17 +113,18 @@ public class PlayerService {
         // Then check the database
         Optional<Player> existingPlayer = playerRepository.findByUsernameIgnoreCase(username);
         if (existingPlayer.isPresent()) {
-            UUID uuid = existingPlayer.get().getUniqueId();
-            CachedPlayerName player = new CachedPlayerName(id, username, uuid);
-            playerNameCacheRepository.save(player); // Cache it for future use
+            Player player = existingPlayer.get();
+            UUID uuid = player.getUniqueId();
+            CachedPlayerName playerName = new CachedPlayerName(id, username, uuid);
+            playerNameCacheRepository.save(playerName); // Cache it for future use
             log.debug("Found UUID in database: {} -> {}", username, uuid);
-            player.setCached(false);
-            return player;
+            playerName.setCached(false);
+            return playerName;
         }
 
         // Finally resort to Mojang API
         try {
-            MojangUsernameToUuidToken mojangUsernameToUuid = mojangAPIService.getUuidFromUsername(username);
+            MojangUsernameToUuidToken mojangUsernameToUuid = mojangService.getUuidFromUsername(username);
             if (mojangUsernameToUuid == null) {
                 log.debug("Player with username '{}' not found", username);
                 throw new ResourceNotFoundException("Player with username '%s' not found".formatted(username));
