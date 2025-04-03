@@ -207,8 +207,9 @@ public class PlayerService {
         UUID submitterUuid = submission.getAccountUuid();
         if (submitterUuid != null) {
             CachedPlayer cachedPlayer = this.getCachedPlayer(submitterUuid.toString());
-            cachedPlayer.getPlayer().setUuidsContributed(cachedPlayer.getPlayer().getUuidsContributed() + added);
-            this.playerRepository.save(cachedPlayer.getPlayer());
+            Player player = cachedPlayer.getPlayer();
+            player.setUuidsContributed(player.getUuidsContributed() + added);
+            this.playerRepository.save(player);
         }
 
         return added;

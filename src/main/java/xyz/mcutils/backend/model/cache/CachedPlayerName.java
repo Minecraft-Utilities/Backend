@@ -15,7 +15,7 @@ import java.util.UUID;
  */
 @Setter
 @Getter @EqualsAndHashCode(callSuper = false)
-@RedisHash(value = "playerName", timeToLive = 60L * 60L * 6) // 6 hours (in seconds)
+@RedisHash(value = "playerName", timeToLive = 60L * 15L) // 15 minutes (in seconds)
 public class CachedPlayerName extends CachedResponse {
     /**
      * The id of the player.
