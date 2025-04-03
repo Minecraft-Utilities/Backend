@@ -11,11 +11,11 @@ import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.player.PlayerUpdateQueueItem;
+import xyz.mcutils.backend.model.player.UUIDSubmission;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.redis.PlayerUpdateQueueRepository;
 
-import java.util.List;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
@@ -72,7 +72,13 @@ public class PlayerUpdateService {
 
         try {
             CachedPlayer cachedPlayer = playerService.getCachedPlayer(queueItem.getUuid().toString());
-            cachedPlayer.getPlayer().refresh(mojangService, playerService, playerRepository, false);
+            Player player = cachedPlayer.getPlayer();
+            player.refresh(mojangService, playerService, playerRepository, false);
+
+            if (queueItem.getSubmitterUuid() != null) {
+                player.setUuidsContributed(player.getUuidsContributed() + 1);
+                playerRepository.save(player);
+            }
         } catch (Exception ex) {
             log.error("Failed to update player with UUID: {}", queueItem.getUuid(), ex);
         } finally {
@@ -120,7 +126,7 @@ public class PlayerUpdateService {
         queueLock.lock();
         try {
             List<PlayerUpdateQueueItem> newItems = players.stream()
-                    .map(player -> new PlayerUpdateQueueItem(player.getUniqueId(), System.currentTimeMillis()))
+                    .map(player -> new PlayerUpdateQueueItem(player.getUniqueId(), null, System.currentTimeMillis()))
                     .collect(Collectors.toList());
 
             // Add to both queues
@@ -134,5 +140,41 @@ public class PlayerUpdateService {
         } finally {
             queueLock.unlock();
         }
+    }
+
+    /**
+     * Adds the UUIDs to the database.
+     *
+     * @param submission the object containing the UUIDs to ingest
+     * @return the number of UUIDs added
+     */
+    public int submitUUIDs(UUIDSubmission submission) {
+        List<PlayerUpdateQueueItem> queueItems = new ArrayList<>();
+
+        int added = 0;
+        for (UUID uuid : submission.getUuids()) {
+            // Check if the player exists already
+            if (playerRepository.existsById(uuid)) {
+                continue;
+            }
+
+            // Check if the player is already in the queue
+            Optional<PlayerUpdateQueueItem> existingQueueItem = memoryQueue.stream()
+                    .filter(item -> item.getUuid().equals(uuid))
+                    .findFirst();
+            if (existingQueueItem.isPresent()) {
+                continue;
+            }
+
+            queueItems.add(new PlayerUpdateQueueItem(uuid, submission.getAccountUuid(), System.currentTimeMillis()));
+            added++;
+        }
+
+        memoryQueue.addAll(queueItems);
+        playerUpdateQueueRepository.saveAll(queueItems);
+
+        Player player = submission.getAccountUuid() != null ? playerService.getCachedPlayer(submission.getAccountUuid().toString()).getPlayer() : null;
+        log.info("Added {} UUIDs to queue{}", added, player != null ? " by " + player.getUsername() : "");
+        return added;
     }
 }

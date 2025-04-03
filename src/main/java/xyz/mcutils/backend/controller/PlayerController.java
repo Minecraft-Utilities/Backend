@@ -12,7 +12,9 @@ import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.cache.CachedPlayerName;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.player.UUIDSubmission;
+import xyz.mcutils.backend.repository.redis.PlayerUpdateQueueRepository;
 import xyz.mcutils.backend.service.PlayerService;
+import xyz.mcutils.backend.service.PlayerUpdateService;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -23,10 +25,21 @@ import java.util.concurrent.TimeUnit;
 public class PlayerController {
 
     private final PlayerService playerService;
+    private final PlayerUpdateService playerUpdateService;
 
     @Autowired
-    public PlayerController(PlayerService playerManagerService) {
+    public PlayerController(PlayerService playerManagerService, PlayerUpdateService playerUpdateService) {
         this.playerService = playerManagerService;
+        this.playerUpdateService = playerUpdateService;
+    }
+
+    @ResponseBody
+    @PostMapping(value = "/submit-uuids")
+    public ResponseEntity<?> submitUUIDs(@RequestBody UUIDSubmission submission) {
+        int added = playerUpdateService.submitUUIDs(submission);
+        return ResponseEntity.ok(Map.of(
+                "added", added
+        ));
     }
 
     @ResponseBody
@@ -69,14 +82,5 @@ public class PlayerController {
                 .contentType(extension.equals("png") ? MediaType.IMAGE_PNG : MediaType.IMAGE_JPEG)
                 .header(HttpHeaders.CONTENT_DISPOSITION, dispositionHeader.formatted(player.getUsername()))
                 .body(playerService.getSkinPart(player, part, overlays, size).getBytes());
-    }
-
-    @ResponseBody
-    @PostMapping(value = "/submit-uuids")
-    public ResponseEntity<?> submitUUIDs(@RequestBody UUIDSubmission submission) {
-        int added = playerService.submitUUIDs(submission);
-        return ResponseEntity.ok(Map.of(
-                "added", added
-        ));
     }
 }

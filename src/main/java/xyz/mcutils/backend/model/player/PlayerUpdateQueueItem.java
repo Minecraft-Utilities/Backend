@@ -16,6 +16,12 @@ public class PlayerUpdateQueueItem {
     @Id private UUID uuid;
 
     /**
+     * The UUID of the player that submitted the UUID.
+     * This is null if the player is just updating.
+     */
+    private UUID submitterUuid;
+
+    /**
      * When this player was added to the queue.
      */
     private long timeAdded;

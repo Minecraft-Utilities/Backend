@@ -189,32 +189,4 @@ public class PlayerService {
         playerSkinPartCacheRepository.save(skinPart);
         return skinPart;
     }
-
-    /**
-     * Adds the UUIDs to the database.
-     *
-     * @param submission the object containing the UUIDs to ingest
-     * @return the number of UUIDs added
-     */
-    public int submitUUIDs(UUIDSubmission submission) {
-        System.out.println(submission);
-        int added = 0;
-        for (UUID uuid : submission.getUuids()) {
-            if (playerRepository.existsById(uuid)) {
-                continue;
-            }
-            this.getCachedPlayer(uuid.toString()); // Create the player
-            added++;
-        }
-
-        UUID submitterUuid = submission.getAccountUuid();
-        if (submitterUuid != null) {
-            CachedPlayer cachedPlayer = this.getCachedPlayer(submitterUuid.toString());
-            Player player = cachedPlayer.getPlayer();
-            player.setUuidsContributed(player.getUuidsContributed() + added);
-            this.playerRepository.save(player);
-        }
-
-        return added;
-    }
 }
