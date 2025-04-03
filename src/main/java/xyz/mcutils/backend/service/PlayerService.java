@@ -190,12 +190,12 @@ public class PlayerService {
     /**
      * Adds the UUIDs to the database.
      *
-     * @param ingest the object containing the UUIDs to ingest
+     * @param submission the object containing the UUIDs to ingest
      * @return the number of UUIDs added
      */
-    public int submitUUIDs(UUIDSubmission ingest) {
+    public int submitUUIDs(UUIDSubmission submission) {
         int added = 0;
-        for (UUID uuid : ingest.getUuids()) {
+        for (UUID uuid : submission.getUuids()) {
             if (playerRepository.existsById(uuid)) {
                 continue;
             }
@@ -203,8 +203,8 @@ public class PlayerService {
             added++;
         }
 
-        if (ingest.getAccountUuid() != null) {
-            CachedPlayer cachedPlayer = this.getCachedPlayer(ingest.getAccountUuid().toString());
+        if (submission.getAccountUuid() != null) {
+            CachedPlayer cachedPlayer = this.getCachedPlayer(submission.getAccountUuid().toString());
             cachedPlayer.getPlayer().setUuidsContributed(cachedPlayer.getPlayer().getUuidsContributed() + added);
             this.playerRepository.save(cachedPlayer.getPlayer());
         }

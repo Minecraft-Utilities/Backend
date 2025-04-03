@@ -49,7 +49,7 @@ public class Player {
     /**
      * The number of uuids contributed by this player
      */
-    @Setter private int uuidsContributed;
+    @Setter private int uuidsContributed = 0; // Default to 0
 
     /**
      * The skin of the player, null if the
