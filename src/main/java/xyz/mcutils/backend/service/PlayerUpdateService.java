@@ -90,9 +90,11 @@ public class PlayerUpdateService {
                     && !playerExists // Player has not existed before
                     && !queueItem.getSubmitterUuid().equals(queueItem.getUuid()) // Submitter is not the same as the player
             ) {
-                Player submitter = playerService.getCachedPlayer(queueItem.getSubmitterUuid().toString()).getPlayer();
+                CachedPlayer cachedSubmitter = playerService.getCachedPlayer(queueItem.getSubmitterUuid().toString());
+                Player submitter = cachedSubmitter.getPlayer();
                 submitter.setUuidsContributed(submitter.getUuidsContributed() + 1);
                 playerRepository.save(submitter);
+                playerCacheRepository.save(cachedSubmitter);
                 log.info("Incremented contributions for {} to {}", submitter.getUsername(), submitter.getUuidsContributed());
             }
         } catch (Exception ex) {
