@@ -310,7 +310,6 @@ public class Player {
         if (!this.shouldRefresh(fastRefresh)) {
             return;
         }
-        this.lastUpdated = System.currentTimeMillis();
 
         MojangProfileToken profileToken = mojangService.getProfile(this.getUniqueId().toString());
         Tuple<Skin, Cape> skinAndCape = profileToken.getSkinAndCape();
