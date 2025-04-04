@@ -33,4 +33,13 @@ public interface PlayerRepository extends MongoRepository<Player, UUID> {
      * @return The player, or null if not found
      */
     Optional<Player> findByUsernameIgnoreCase(String username);
+
+    /**
+     * Gets the top contributors to the server.
+     *
+     * @param limit The number of contributors to return
+     * @return A map of UUIDs to the number of contributions
+     */
+    @Query("{ 'uuidsContributed': { $gt: 0 } }")
+    List<Player> findTopContributors(int limit);
 }

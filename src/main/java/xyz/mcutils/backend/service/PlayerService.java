@@ -25,8 +25,10 @@ import xyz.mcutils.backend.repository.redis.PlayerNameCacheRepository;
 import xyz.mcutils.backend.repository.redis.PlayerSkinPartCacheRepository;
 
 import java.awt.image.BufferedImage;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service @Log4j2(topic = "Player Service")
 public class PlayerService {
@@ -189,5 +191,15 @@ public class PlayerService {
         log.info("Fetched skin part {} for player: {}", name, player.getUniqueId());
         playerSkinPartCacheRepository.save(skinPart);
         return skinPart;
+    }
+
+    /**
+     * Gets the top contributors to the server.
+     *
+     * @return A map of UUIDs to the number of contributions
+     */
+    public Map<UUID, Integer> getTopContributors() {
+        return playerRepository.findTopContributors(10).stream()
+                .collect(Collectors.toMap(Player::getUniqueId, Player::getUuidsContributed));
     }
 }

@@ -67,7 +67,7 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
         graphics.drawString(server.getHostname(), x, y);
 
         // Draw the server motd
-        y += fontSize + (padding * 2);
+        y += fontSize + (padding * 2) + 2;
         for (String line : server.getMotd().getRaw()) {
             int index = 0;
             int colorIndex = line.indexOf("§");
@@ -84,13 +84,17 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
 
                 // Set the color and font style
                 switch (colorCode) {
-                    case 'l': graphics.setFont(Fonts.MINECRAFT_BOLD);
-                    case 'o': graphics.setFont(Fonts.MINECRAFT_ITALIC);
+                    case 'l':
+                        graphics.setFont(Fonts.MINECRAFT_BOLD);
+                        break;
+                    case 'o':
+                        graphics.setFont(Fonts.MINECRAFT_ITALIC);
+                        break;
                     default: {
                         try {
-                            graphics.setFont(Fonts.MINECRAFT);
                             Color color = ColorUtils.getMinecraftColor(colorCode);
                             graphics.setColor(color);
+                            graphics.setFont(Fonts.MINECRAFT);
                         } catch (Exception ignored) {
                             // Unknown color, can ignore the error
                         }
@@ -120,7 +124,7 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
         graphics.drawImage(pingIcon, x, padding, null);
 
         // Reset the y position
-        y = fontSize + 1;
+        y = fontSize + padding;
 
         // Render the player count
         MinecraftServer.Players players = server.getPlayers();

@@ -9,7 +9,6 @@ import java.io.InputStream;
 
 @Log4j2(topic = "Fonts")
 public class Fonts {
-
     public static final Font MINECRAFT;
     public static final Font MINECRAFT_BOLD;
     public static final Font MINECRAFT_ITALIC;
@@ -17,7 +16,7 @@ public class Fonts {
     static {
         InputStream stream = Main.class.getResourceAsStream("/fonts/minecraft-font.ttf");
         try {
-            MINECRAFT = Font.createFont(Font.TRUETYPE_FONT, stream).deriveFont(18f);
+            MINECRAFT = Font.createFont(Font.TRUETYPE_FONT, stream).deriveFont(17f);
             MINECRAFT_BOLD = MINECRAFT.deriveFont(Font.BOLD);
             MINECRAFT_ITALIC = MINECRAFT.deriveFont(Font.ITALIC);
         } catch (FontFormatException | IOException e) {
