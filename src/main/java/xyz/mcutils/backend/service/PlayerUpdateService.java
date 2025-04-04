@@ -119,8 +119,10 @@ public class PlayerUpdateService {
             CachedPlayer cachedPlayer = playerService.getCachedPlayer(queueItem.getUuid().toString());
             Player player = cachedPlayer.getPlayer();
 
-            // Refresh data (Mojang API)
-            player.refresh(mojangService, playerService, playerRepository, false);
+            // Refresh data (Mojang API) if the player exists
+            if (playerExists) {
+                player.refresh(mojangService, playerService, playerRepository);
+            }
 
             // Update submitter stats
             if (queueItem.getSubmitterUuid() != null // Submitter is not null

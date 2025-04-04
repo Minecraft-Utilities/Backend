@@ -285,31 +285,14 @@ public class Player {
     }
 
     /**
-     * Should this player be refreshed?
-     *
-     * @param fastRefresh whether to refresh fast
-     * @return whether to refresh
-     */
-    public boolean shouldRefresh(boolean fastRefresh) {
-        return System.currentTimeMillis() - this.lastUpdated >= (fastRefresh ?
-                (24 * 60 * 60 * 1000) : // Refresh every 24 hours
-                (6 * 60 * 60 * 1000)); // Refresh every 6 hours
-    }
-
-    /**
      * Refreshes the player's information from Mojang.
      *
      * @param mojangService    the mojang service to use
      * @param playerService    the player service to use
      * @param playerRepository the player repository to use
-     * @param fastRefresh      whether to fast refresh the player information (6 hours instead of 24 hours)
      */
     public void refresh(@NonNull MojangService mojangService, @NonNull PlayerService playerService,
-                        @NonNull PlayerRepository playerRepository, boolean fastRefresh) {
-        if (!this.shouldRefresh(fastRefresh)) {
-            return;
-        }
-
+                        @NonNull PlayerRepository playerRepository) {
         MojangProfileToken profileToken = mojangService.getProfile(this.getUniqueId().toString());
         Tuple<Skin, Cape> skinAndCape = profileToken.getSkinAndCape();
         Skin currentSkin = skinAndCape.getLeft();
