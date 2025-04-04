@@ -136,9 +136,9 @@ public class PlayerUpdateService {
 
                 // Set the contributed by for the player
                 player.setContributedBy(submitter.getUniqueId());
-                playerCacheRepository.save(cachedPlayer);
-                playerRepository.save(player);
             }
+            playerCacheRepository.save(cachedPlayer);
+            playerRepository.save(player);
         } catch (Exception ex) {
             log.error("Failed to update player {}: {}", queueItem.getUuid(), ex.getMessage());
             ex.printStackTrace();
