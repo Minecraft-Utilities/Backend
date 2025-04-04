@@ -291,10 +291,9 @@ public class Player {
      * @return whether to refresh
      */
     public boolean shouldRefresh(boolean fastRefresh) {
-        if (fastRefresh && this.lastUpdated < System.currentTimeMillis() - (6 * 60 * 60 * 1000)) { // 6 hours ago or more
-            return true;
-        } else
-            return !fastRefresh && this.lastUpdated < System.currentTimeMillis() - (24 * 60 * 60 * 1000); // 24 hours ago or more
+        return System.currentTimeMillis() - this.lastUpdated >= (fastRefresh ?
+                (24 * 60 * 60 * 1000) : // Refresh every 24 hours
+                (6 * 60 * 60 * 1000)); // Refresh every 6 hours
     }
 
     /**
