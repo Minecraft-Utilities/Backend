@@ -318,8 +318,13 @@ public class Player {
 
         // Update player
         player.updateUsernameHistory(player, currentUsername);
-        player.updateSkinHistory(player, currentSkin);
-        player.updateCapeHistory(player, currentCape);
+
+        if (currentSkin != null) {
+            player.updateSkinHistory(player, currentSkin);
+        }
+        if (currentCape != null) {
+            player.updateCapeHistory(player, currentCape);
+        }
 
         // Update username if it's different
         if (!currentUsername.equals(player.getUsername())) {
