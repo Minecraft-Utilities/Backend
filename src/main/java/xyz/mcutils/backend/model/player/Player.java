@@ -336,6 +336,5 @@ public class Player {
         }
 
         player.setLastUpdated(System.currentTimeMillis());
-        playerRepository.save(player);
     }
 }

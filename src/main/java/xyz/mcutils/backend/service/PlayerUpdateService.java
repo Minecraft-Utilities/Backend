@@ -139,6 +139,8 @@ public class PlayerUpdateService {
                 // Set the contributed by for the player
                 player.setContributedBy(submitter.getUniqueId());
             }
+
+            // Save the player
             playerCacheRepository.save(cachedPlayer);
             playerRepository.save(player);
         } catch (Exception ex) {
