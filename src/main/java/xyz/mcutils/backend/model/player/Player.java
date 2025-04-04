@@ -207,7 +207,7 @@ public class Player {
      * @return the time until the player's information is refreshed
      */
     public long getRefreshingIn() {
-        return this.lastUpdated - (System.currentTimeMillis() - (24 * 60 * 60 * 1000));
+        return (this.lastUpdated + (24 * 60 * 60 * 1000)) - System.currentTimeMillis();
     }
 
     /**
