@@ -121,7 +121,7 @@ public class PlayerUpdateService {
 
             // Refresh data (Mojang API) if the player exists
             if (playerExists) {
-                player.refresh(mojangService, playerService, playerRepository);
+                player.refresh(cachedPlayer, mojangService, playerRepository);
             }
 
             // Update submitter stats

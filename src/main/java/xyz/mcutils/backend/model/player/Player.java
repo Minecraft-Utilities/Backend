@@ -287,19 +287,17 @@ public class Player {
     /**
      * Refreshes the player's information from Mojang.
      *
+     * @param cachedPlayer     the cached player to update
      * @param mojangService    the mojang service to use
-     * @param playerService    the player service to use
      * @param playerRepository the player repository to use
      */
-    public void refresh(@NonNull MojangService mojangService, @NonNull PlayerService playerService,
-                        @NonNull PlayerRepository playerRepository) {
+    public void refresh(CachedPlayer cachedPlayer, @NonNull MojangService mojangService, @NonNull PlayerRepository playerRepository) {
         MojangProfileToken profileToken = mojangService.getProfile(this.getUniqueId().toString());
         Tuple<Skin, Cape> skinAndCape = profileToken.getSkinAndCape();
         Skin currentSkin = skinAndCape.getLeft();
         Cape currentCape = skinAndCape.getRight();
         String currentUsername = profileToken.getName();
 
-        CachedPlayer cachedPlayer = playerService.getCachedPlayer(this.getUniqueId().toString());
         Player player = cachedPlayer.getPlayer();
 
         // Update player
