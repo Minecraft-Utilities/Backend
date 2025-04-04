@@ -256,8 +256,7 @@ public class Player {
      * @param currentCape the current cape
      */
     public void updateCapeHistory(Player player, Cape currentCape) {
-        Cape previousCape = player.getCape();
-        String previousCapeId = previousCape != null ? previousCape.getId() : null;
+        String previousCapeId = player.getCapeId();
         List<CapeHistoryEntry> capes = player.getCapes();
 
         if (previousCapeId == null || !previousCapeId.equals(currentCape.getId())) {
