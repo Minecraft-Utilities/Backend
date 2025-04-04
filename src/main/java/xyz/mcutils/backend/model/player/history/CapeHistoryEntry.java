@@ -1,9 +1,11 @@
 package xyz.mcutils.backend.model.player.history;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@AllArgsConstructor
 @NoArgsConstructor
 @Getter @Setter
 public class CapeHistoryEntry {
@@ -21,10 +23,4 @@ public class CapeHistoryEntry {
      * The timestamp this cape was last used.
      */
     private long lastUsed;
-
-    public CapeHistoryEntry(String id, long firstUsed, long lastUsed) {
-        this.id = id;
-        this.firstUsed = firstUsed;
-        this.lastUsed = lastUsed;
-    }
 }

@@ -136,8 +136,6 @@ public class Player {
 
             this.skinHistory.add(new SkinHistoryEntry(
                     skin.getId(),
-                    skin.isLegacy(),
-                    skin.getModel(),
                     -1,
                     -1
             ));
@@ -240,8 +238,6 @@ public class Player {
             } else {
                 skinHistory.add(new SkinHistoryEntry(
                         currentSkin.getId(),
-                        currentSkin.isLegacy(),
-                        currentSkin.getModel(),
                         currentTime,
                         currentTime
                 ));

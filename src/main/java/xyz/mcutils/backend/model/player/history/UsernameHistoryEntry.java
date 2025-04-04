@@ -1,9 +1,11 @@
 package xyz.mcutils.backend.model.player.history;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@AllArgsConstructor
 @NoArgsConstructor
 @Getter
 public class UsernameHistoryEntry {
@@ -18,9 +20,4 @@ public class UsernameHistoryEntry {
      */
     @Setter
     private long timestamp;
-
-    public UsernameHistoryEntry(String username, long timestamp) {
-        this.username = username;
-        this.timestamp = timestamp;
-    }
 }
