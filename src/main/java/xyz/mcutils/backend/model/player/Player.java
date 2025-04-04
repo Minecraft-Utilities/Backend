@@ -52,6 +52,12 @@ public class Player {
     @Setter private int uuidsContributed = 0; // Default to 0
 
     /**
+     * The UUID of the player who contributed
+     * this account to be tracked
+     */
+    @JsonIgnore @Setter private UUID contributedBy;
+
+    /**
      * The skin of the player, null if the
      * player does not have a skin
      */
