@@ -80,6 +80,8 @@ public class PlayerUpdateService {
             return;
         }
 
+        long start = System.currentTimeMillis();
+        log.info("Processing queue item \"{}\"", queueItem.getUuid());
         try {
             boolean playerExists = playerRepository.existsById(queueItem.getUuid());
 
@@ -114,6 +116,12 @@ public class PlayerUpdateService {
             // Remove from queues
             memoryQueue.poll();
             playerUpdateQueueRepository.delete(queueItem);
+
+            log.info("Finished processing queue item \"{}\" in {}ms ({} left)",
+                    queueItem.getUuid(),
+                    System.currentTimeMillis() - start,
+                    memoryQueue.size()
+            );
         }
     }
 
