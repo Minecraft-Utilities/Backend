@@ -23,6 +23,8 @@ import java.util.stream.Collectors;
 
 @Service @Log4j2(topic = "Player Update Service")
 public class PlayerUpdateService {
+    private static final int QUEUE_INTERVAL_MS = 400; // 150 executions per minute (60,000ms / 150 = 400ms)
+
     private final PlayerRepository playerRepository;
     private final PlayerCacheRepository playerCacheRepository;
     private final PlayerUpdateQueueRepository playerUpdateQueueRepository;
@@ -31,6 +33,7 @@ public class PlayerUpdateService {
 
     private final Queue<PlayerUpdateQueueItem> memoryQueue = new ConcurrentLinkedQueue<>();
     private final ReentrantLock queueLock = new ReentrantLock();
+    private long lastQueueTime = -1;
 
     @Autowired
     public PlayerUpdateService(@NonNull PlayerRepository playerRepository,
@@ -58,7 +61,35 @@ public class PlayerUpdateService {
         }
     }
 
-    @Scheduled(fixedRate = 60_000)
+    @Scheduled(fixedRate = 50) // Run every 50ms
+    public void runQueue() {
+        if (lastQueueTime == -1) {
+            lastQueueTime = System.currentTimeMillis();
+        }
+
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastQueueTime < QUEUE_INTERVAL_MS) {
+            return;
+        }
+        lastQueueTime = currentTime;
+
+        if (memoryQueue.isEmpty()) {
+            return;
+        }
+
+        // Add lock to ensure only one thread processes the queue at a time
+        if (queueLock.tryLock()) {
+            try {
+                processQueue();
+            } finally {
+                queueLock.unlock();
+            }
+        } else {
+            log.debug("Queue is already being processed by another thread");
+        }
+    }
+
+    @Scheduled(fixedRate = 30_000)
     public void refreshQueue() {
         if (!memoryQueue.isEmpty()) {
             return;
@@ -69,7 +100,6 @@ public class PlayerUpdateService {
     /**
      * Gets the oldest item from the queue and updates the player.
      */
-    @Scheduled(fixedRate = 400) // 150 executions per minute (60,000ms / 150 = 400ms)
     public void processQueue() {
         if (memoryQueue.isEmpty()) {
             return;
