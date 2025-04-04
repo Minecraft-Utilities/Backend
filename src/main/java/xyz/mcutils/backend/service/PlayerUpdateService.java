@@ -58,6 +58,14 @@ public class PlayerUpdateService {
         }
     }
 
+    @Scheduled(fixedRate = 60_000)
+    public void refreshQueue() {
+        if (!memoryQueue.isEmpty()) {
+            return;
+        }
+        insertToQueue();
+    }
+
     /**
      * Gets the oldest item from the queue and updates the player.
      */
@@ -101,6 +109,7 @@ public class PlayerUpdateService {
             }
         } catch (Exception ex) {
             log.error("Failed to update player {}: {}", queueItem.getUuid(), ex.getMessage());
+            ex.printStackTrace();
         } finally {
             // Remove from queues
             memoryQueue.poll();
@@ -127,9 +136,10 @@ public class PlayerUpdateService {
      * Inserts all players in the queue into the memory queue.
      */
     public void insertToQueue() {
+        log.info("Inserting players to queue...");
         PageRequest pageRequest = PageRequest.of(
                 0,
-                20,
+                200,
                 Sort.by(Sort.Direction.ASC, "lastUpdated")
         );
         List<Player> players = playerRepository.findPlayersLastUpdatedBefore(

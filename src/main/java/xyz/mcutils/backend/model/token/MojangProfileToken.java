@@ -51,7 +51,7 @@ public class MojangProfileToken {
             return null;
         }
         JsonObject texturesJson = textureProperty.getDecodedValue().getAsJsonObject("textures"); // Parse the decoded JSON and get the texture object
-        return new Tuple<>(Skin.fromJson(texturesJson.getAsJsonObject("SKIN")).populatePartUrls(this.getFormattedUuid()),
+        return new Tuple<>(Skin.fromJson(texturesJson.getAsJsonObject("SKIN")),
                 Cape.fromJson(texturesJson.getAsJsonObject("CAPE")));
     }
 

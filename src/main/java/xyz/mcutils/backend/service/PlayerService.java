@@ -66,9 +66,7 @@ public class PlayerService {
         Optional<CachedPlayer> optionalCachedPlayer = playerCacheRepository.findById(uuid);
         if (optionalCachedPlayer.isPresent() && AppConfig.isProduction()) { // Return the cached player if it exists
             log.info("Player {} is cached", id);
-            CachedPlayer player = optionalCachedPlayer.get();
-            player.getPlayer().getSkin().populatePartUrls(player.getUniqueId().toString());
-            return player;
+            return optionalCachedPlayer.get();
         }
 
         Player player = playerRepository.findById(uuid).orElse(null);
@@ -89,8 +87,6 @@ public class PlayerService {
             }
 
             CachedPlayer cachedPlayer = new CachedPlayer(uuid, player);
-            cachedPlayer.getPlayer().getSkin().populatePartUrls(player.getUniqueId().toString());
-
             playerCacheRepository.save(cachedPlayer);
             cachedPlayer.setCached(false);
             return cachedPlayer;

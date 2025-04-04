@@ -1,7 +1,9 @@
 package xyz.mcutils.backend.model.player;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import xyz.mcutils.backend.common.Tuple;
@@ -10,22 +12,32 @@ import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.player.history.CapeHistoryEntry;
 import xyz.mcutils.backend.model.player.history.SkinHistoryEntry;
 import xyz.mcutils.backend.model.player.history.UsernameHistoryEntry;
+import xyz.mcutils.backend.model.response.SkinResponse;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.model.token.MojangProfileToken;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
+import xyz.mcutils.backend.service.CapeService;
 import xyz.mcutils.backend.service.MojangService;
 import xyz.mcutils.backend.service.PlayerService;
+import xyz.mcutils.backend.service.SkinService;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @AllArgsConstructor
-@Getter @EqualsAndHashCode @ToString
+@Getter
+@EqualsAndHashCode
+@ToString
 @Document("players")
+@Log4j2(topic = "Player")
 public class Player {
     /**
      * The UUID of the player
      */
-    @Id private UUID uniqueId;
+    @Id
+    private UUID uniqueId;
 
     /**
      * The trimmed UUID of the player
@@ -35,7 +47,8 @@ public class Player {
     /**
      * The username of the player
      */
-    @Setter private String username;
+    @Setter
+    private String username;
 
     /**
      * Is this profile legacy?
@@ -44,24 +57,38 @@ public class Player {
      * has not yet migrated to a Mojang account.
      * </p>
      */
-    @Setter private boolean legacyAccount;
+    @Setter
+    private boolean legacyAccount;
 
     /**
      * The number of uuids contributed by this player
      */
-    @Setter private int uuidsContributed = 0; // Default to 0
+    @Setter
+    private int uuidsContributed = 0; // Default to 0
 
     /**
      * The UUID of the player who contributed
      * this account to be tracked
      */
-    @JsonIgnore @Setter private UUID contributedBy;
+    @JsonIgnore
+    @Setter
+    private UUID contributedBy;
 
     /**
      * The skin of the player, null if the
      * player does not have a skin
      */
-    @Setter private Skin skin;
+    @JsonIgnore
+    @Setter
+    private String skinId;
+
+    /**
+     * The cape of the player, null if the
+     * player does not have a cape
+     */
+    @JsonIgnore
+    @Setter
+    private String capeId;
 
     /**
      * The usernames this player has used previously,
@@ -85,7 +112,7 @@ public class Player {
      * The timestamp when this player last had
      * their information (username, skin history, etc...) updated.
      */
-    @Setter @JsonIgnore
+    @Setter @JsonProperty("lastRefreshed")
     private long lastUpdated;
 
     public Player(MojangProfileToken profile) {
@@ -94,41 +121,44 @@ public class Player {
         this.username = profile.getName();
         this.legacyAccount = profile.isLegacy();
 
+        this.usernameHistory = new ArrayList<>();
+        this.skinHistory = new ArrayList<>();
+        this.capes = new ArrayList<>();
+
         // Get the skin and cape
         Tuple<Skin, Cape> skinAndCape = profile.getSkinAndCape();
-        this.skin = skinAndCape != null ? skinAndCape.getLeft() : null;
+        Skin skin = skinAndCape.getLeft();
+        Cape cape = skinAndCape.getRight();
 
-        this.usernameHistory = new ArrayList<>();
+        if (skin != null) {
+            this.skinId = skin.getId();
+            SkinService.INSTANCE.createSkin(skin);
+
+            this.skinHistory.add(new SkinHistoryEntry(
+                    skin.getId(),
+                    skin.isLegacy(),
+                    skin.getModel(),
+                    -1,
+                    -1
+            ));
+        }
+
+        if (cape != null) {
+            this.capeId = cape.getId();
+            CapeService.INSTANCE.createCape(cape);
+
+            String[] capeUrlParts = cape.getUrl().split("/");
+            this.capes.add(new CapeHistoryEntry(
+                    capeUrlParts[capeUrlParts.length - 1],
+                    -1,
+                    -1
+            ));
+        }
+
         this.usernameHistory.add(new UsernameHistoryEntry(
                 profile.getName(),
                 -1
         ));
-
-        if (skinAndCape != null) {
-            Cape cape = skinAndCape.getRight();
-            Skin skin = skinAndCape.getLeft();
-
-            this.skinHistory = new ArrayList<>();
-            if (skin != null) {
-                this.skinHistory.add(new SkinHistoryEntry(
-                        skin.getId(),
-                        skin.isLegacy(),
-                        skin.getModel(),
-                        -1,
-                        -1
-                ));
-            }
-
-            this.capes = new ArrayList<>();
-            if (cape != null) {
-                String[] capeUrlParts = cape.getUrl().split("/");
-                this.capes.add(new CapeHistoryEntry(
-                        capeUrlParts[capeUrlParts.length - 1],
-                        -1,
-                        -1
-                ));
-            }
-        }
 
         this.lastUpdated = System.currentTimeMillis();
     }
@@ -151,22 +181,32 @@ public class Player {
      * @return the cape, or null if they have no cape
      */
     public Cape getCape() {
-        this.capes.sort(Comparator.comparingLong(CapeHistoryEntry::getLastUsed).reversed());
-        Optional<CapeHistoryEntry> historyEntry = this.capes.stream().findFirst();
-        if (historyEntry.isEmpty()) {
+        return this.capeId != null ? CapeService.INSTANCE.getCape(this.capeId) : null;
+    }
+
+    /**
+     * Gets the player's skin, if available.
+     *
+     * @return the player's skin, or null if no skin
+     */
+    public SkinResponse getSkin() {
+        if (this.skinId == null) {
             return null;
         }
-        CapeHistoryEntry entry = historyEntry.get();
-        return new Cape(
-                "https://textures.minecraft.net/texture/" + entry.getId(),
-                entry.getId()
-        );
+        Skin skin = SkinService.INSTANCE.getSkin(this.skinId);
+        if (skin == null) {
+            return null;
+        }
+
+        SkinResponse skinResponse = new SkinResponse(skin);
+        skinResponse.populatePartUrls(this.uniqueId.toString());
+        return skinResponse;
     }
 
     /**
      * Updates the player's username history.
      *
-     * @param player the player to update
+     * @param player          the player to update
      * @param currentUsername the current username
      */
     public void updateUsernameHistory(Player player, String currentUsername) {
@@ -182,12 +222,11 @@ public class Player {
     /**
      * Updates the player's skin history.
      *
-     * @param player the player to update
+     * @param player      the player to update
      * @param currentSkin the current skin
      */
     public void updateSkinHistory(Player player, Skin currentSkin) {
-        Skin previousSkin = player.getSkin();
-        String previousSkinId = previousSkin != null ? previousSkin.getId() : null;
+        String previousSkinId = player.getSkinId();
         List<SkinHistoryEntry> skinHistory = player.getSkinHistory();
 
         if (previousSkinId == null || !previousSkinId.equals(currentSkin.getId())) {
@@ -213,7 +252,7 @@ public class Player {
     /**
      * Updates the player's cape history.
      *
-     * @param player the player to update
+     * @param player      the player to update
      * @param currentCape the current cape
      */
     public void updateCapeHistory(Player player, Cape currentCape) {
@@ -230,11 +269,13 @@ public class Player {
             if (existingEntry.isPresent()) {
                 existingEntry.get().setLastUsed(currentTime);
             } else {
-                capes.add(new CapeHistoryEntry(
-                        currentCape.getId(),
-                        currentTime,
-                        currentTime
-                ));
+                if (currentCape != null) {
+                    capes.add(new CapeHistoryEntry(
+                            currentCape.getId(),
+                            currentTime,
+                            currentTime
+                    ));
+                }
             }
         }
     }
@@ -248,16 +289,17 @@ public class Player {
     public boolean shouldRefresh(boolean fastRefresh) {
         if (fastRefresh && this.lastUpdated < System.currentTimeMillis() - (6 * 60 * 60 * 1000)) { // 6 hours ago or more
             return true;
-        } else return !fastRefresh && this.lastUpdated < System.currentTimeMillis() - (24 * 60 * 60 * 1000); // 24 hours ago or more
+        } else
+            return !fastRefresh && this.lastUpdated < System.currentTimeMillis() - (24 * 60 * 60 * 1000); // 24 hours ago or more
     }
 
     /**
      * Refreshes the player's information from Mojang.
      *
-     * @param mojangService the mojang service to use
-     * @param playerService the player service to use
+     * @param mojangService    the mojang service to use
+     * @param playerService    the player service to use
      * @param playerRepository the player repository to use
-     * @param fastRefresh whether to fast refresh the player information (6 hours instead of 24 hours)
+     * @param fastRefresh      whether to fast refresh the player information (6 hours instead of 24 hours)
      */
     public void refresh(@NonNull MojangService mojangService, @NonNull PlayerService playerService,
                         @NonNull PlayerRepository playerRepository, boolean fastRefresh) {
@@ -286,8 +328,23 @@ public class Player {
         }
 
         // Update skin if it's different
-        if (currentSkin != null && !currentSkin.equals(player.getSkin())) {
-            player.setSkin(currentSkin);
+        if (currentSkin != null && !currentSkin.getId().equals(player.getSkinId())) {
+            player.setSkinId(currentSkin.getId());
+        }
+
+        // Update cape if it's different
+        if (currentCape != null && !currentCape.getId().equals(player.getCapeId())) {
+            player.setCapeId(currentCape.getId());
+        }
+
+        // Create the skin if it doesn't exist
+        if (currentSkin != null && !SkinService.INSTANCE.skinExists(currentSkin.getId())) {
+            SkinService.INSTANCE.createSkin(currentSkin);
+        }
+
+        // Create the cape if it doesn't exist
+        if (currentCape != null && !CapeService.INSTANCE.capeExists(currentCape.getId())) {
+            CapeService.INSTANCE.createCape(currentCape);
         }
 
         player.setLastUpdated(System.currentTimeMillis());
