@@ -12,7 +12,6 @@ import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.cache.CachedPlayerName;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.player.UUIDSubmission;
-import xyz.mcutils.backend.repository.redis.PlayerUpdateQueueRepository;
 import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.PlayerUpdateService;
 

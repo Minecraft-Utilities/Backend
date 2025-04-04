@@ -45,6 +45,12 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
         // Create the graphics for drawing
         Graphics2D graphics = texture.createGraphics();
 
+        // For pixel fonts, use these rendering hints instead
+        graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
+        graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
+        graphics.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_OFF);
+        graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+
         // Set up the font
         graphics.setFont(Fonts.MINECRAFT);
 
@@ -55,7 +61,11 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
             }
         }
 
-        int y = fontSize + 1;
+        // Add a semi-transparent overlay for more authentic Minecraft look
+        graphics.setColor(new Color(0, 0, 0, 80));
+        graphics.fillRect(0, 0, width, height);
+
+        int y = fontSize + padding;
         int x = 64 + 8;
         int initialX = x; // Store the initial value of x
 
@@ -64,13 +74,15 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
 
         // Draw the server hostname
         graphics.setColor(Color.WHITE);
-        graphics.drawString(server.getHostname(), x, y);
+        graphics.drawString(server.getHostname(), initialX, y);
 
         // Draw the server motd
+        x += 12;
         y += fontSize + (padding * 2) + 2;
         for (String line : server.getMotd().getRaw()) {
             int index = 0;
             int colorIndex = line.indexOf("§");
+
             while (colorIndex != -1) {
                 // Draw text before color code
                 String textBeforeColor = line.substring(index, colorIndex);
@@ -89,6 +101,10 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
                         break;
                     case 'o':
                         graphics.setFont(Fonts.MINECRAFT_ITALIC);
+                        break;
+                    case 'r': // Reset formatting
+                        graphics.setColor(Color.GRAY);
+                        graphics.setFont(Fonts.MINECRAFT);
                         break;
                     default: {
                         try {
@@ -112,7 +128,7 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
             // Move to the next line
             y += fontSize + padding;
             // Reset x position for the next line
-            x = initialX; // Reset x to its initial value
+            x = initialX + 12; // Reset x
         }
 
         // Ensure the font is reset
@@ -120,7 +136,7 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
 
         // Render the ping
         BufferedImage pingIcon = ImageUtils.resize(PING_ICON, 2);
-        x = width - pingIcon.getWidth() - padding;
+        x = width - pingIcon.getWidth() - padding - 2;
         graphics.drawImage(pingIcon, x, padding, null);
 
         // Reset the y position
@@ -140,7 +156,7 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
         int totalWidth = maxWidth + slashWidth + onlineWidth;
 
         // Calculate the starting x position
-        int startX = (width - totalWidth) - pingIcon.getWidth() - 6;
+        int startX = (width - totalWidth) - pingIcon.getWidth() - 12;
 
         // Render the player count elements
         graphics.setColor(Color.LIGHT_GRAY);

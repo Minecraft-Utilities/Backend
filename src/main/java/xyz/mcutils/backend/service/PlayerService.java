@@ -14,7 +14,6 @@ import xyz.mcutils.backend.exception.impl.ResourceNotFoundException;
 import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.cache.CachedPlayerName;
 import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
-import xyz.mcutils.backend.model.player.UUIDSubmission;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.token.MojangProfileToken;
