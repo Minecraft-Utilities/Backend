@@ -236,11 +236,13 @@ public class PlayerUpdateService {
             added++;
         }
 
-        memoryQueue.addAll(queueItems);
-        playerUpdateQueueRepository.saveAll(queueItems);
+        if (added > 0) {
+            memoryQueue.addAll(queueItems);
+            playerUpdateQueueRepository.saveAll(queueItems);
 
-        Player player = submission.getAccountUuid() != null ? playerService.getCachedPlayer(submission.getAccountUuid().toString()).getPlayer() : null;
-        log.info("{} UUIDs have been submitted{}", added, player != null ? " by " + player.getUsername() : "");
+            Player player = submission.getAccountUuid() != null ? playerService.getCachedPlayer(submission.getAccountUuid().toString()).getPlayer() : null;
+            log.info("{} UUIDs have been submitted{}", added, player != null ? " by " + player.getUsername() : "");
+        }
         return added;
     }
 }
