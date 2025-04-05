@@ -8,17 +8,14 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
-import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.player.history.CapeHistoryEntry;
 import xyz.mcutils.backend.model.player.history.SkinHistoryEntry;
 import xyz.mcutils.backend.model.player.history.UsernameHistoryEntry;
 import xyz.mcutils.backend.model.response.SkinResponse;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.model.token.MojangProfileToken;
-import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.service.CapeService;
 import xyz.mcutils.backend.service.MojangService;
-import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.SkinService;
 
 import java.util.ArrayList;
@@ -270,6 +267,13 @@ public class Player {
                             currentTime,
                             currentTime
                     ));
+
+                    // Update the cape
+                    Cape cape = CapeService.INSTANCE.getCape(currentCape.getId());
+                    if (cape != null) {
+                        cape.setAccounts(cape.getAccounts() + 1);
+                        CapeService.INSTANCE.save(cape);
+                    }
                 }
             }
         }

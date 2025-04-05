@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import xyz.mcutils.backend.model.skin.Skin;
 
 @AllArgsConstructor
 @NoArgsConstructor

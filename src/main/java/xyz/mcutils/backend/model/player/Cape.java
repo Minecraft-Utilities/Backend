@@ -1,25 +1,28 @@
 package xyz.mcutils.backend.model.player;
 
 import com.google.gson.JsonObject;
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-@AllArgsConstructor @Document("capes")
+@AllArgsConstructor @NoArgsConstructor
+@Document("capes")
 @Getter @EqualsAndHashCode
 public class Cape {
     /**
      * The ID of the cape
      */
-    @Id private final String id;
+    @Id private String id;
 
     /**
      * The name of the cape
      */
-    @Setter private String name;
+    @Setter private String name = null;
+
+    /**
+     * The amount of accounts that have this cape
+     */
+    @Setter private int accounts = -1;
 
     /**
      * Gets the cape from a {@link JsonObject}.
@@ -34,7 +37,7 @@ public class Cape {
         String url = json.get("url").getAsString();
         String[] capeUrlParts = url.split("/");
 
-        return new Cape(capeUrlParts[capeUrlParts.length - 1], null);
+        return new Cape(capeUrlParts[capeUrlParts.length - 1], null, -1);
     }
 
     /**

@@ -6,11 +6,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.model.player.Cape;
 import xyz.mcutils.backend.repository.mongo.CapeRepository;
+import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 @Log4j2(topic = "Cape Service")
@@ -48,7 +48,7 @@ public class CapeService {
         CAPE_NAMES.put("56c35628fe1c4d59dd52561a3d03bfa4e1a76d397c8b9c476c2f77cb6aebb1df", "MCC 15th Year");
         CAPE_NAMES.put("dbc21e222528e30dc88445314f7be6ff12d3aeebc3c192054fba7e3b3f8c77b1", "Menace");
         CAPE_NAMES.put("5c29410057e32abec02d870ecb52ec25fb45ea81e785a7854ae8429d7236ca26", "Mojang Office");
-        CAPE_NAMES.put("719f820d513dc22f5f788a46e8ea3aa7", "Follower's");
+        CAPE_NAMES.put("569b7f2a1d00d26f30efe3f9ab9ac817b1e6d35f4f3cfb0324ef2d328223d350", "Follower's");
         CAPE_NAMES.put("cb40a92e32b57fd732a00fc325e7afb00a7ca74936ad50d8e860152e482cfbde", "Purple Heart");
         CAPE_NAMES.put("afd553b39358a24edfe3b8a9a939fa5fa4faa4d9a9c3d6af8eafb377fa05c2bb", "Cherry Blossom");
         CAPE_NAMES.put("f9a76537647989f9a0b6d001e320dac591c359e9e61a31f4ce11c88f207f0ad4", "Vanilla");
@@ -58,10 +58,26 @@ public class CapeService {
 
 
     private final CapeRepository capeRepository;
+    private final PlayerRepository playerRepository;
 
     @Autowired
-    public CapeService(CapeRepository capeRepository) {
+    public CapeService(CapeRepository capeRepository, PlayerRepository playerRepository) {
         this.capeRepository = capeRepository;
+        this.playerRepository = playerRepository;
+
+        List<Cape> capes = this.capeRepository.findAll();
+        for (Cape cape : capes) {
+            if (cape.getAccounts() != -1) {
+                continue;
+            }
+            log.info("Updating cape {} accounts", cape.getId());
+            int count = this.playerRepository.countByCapeId(cape.getId());
+            Long historyCount = this.playerRepository.countByCapeIdInHistory(cape.getId());
+
+            cape.setAccounts((int) (count + (historyCount == null ? 0 : historyCount)));
+            this.capeRepository.save(cape);
+            log.info("Updated cape {} accounts to {}", cape.getId(), cape.getAccounts());
+        }
     }
 
     @PostConstruct
@@ -127,6 +143,15 @@ public class CapeService {
      */
     public boolean capeExists(String id) {
         return capeRepository.existsById(id);
+    }
+
+    /**
+     * Saves a cape.
+     *
+     * @param cape the cape to save
+     */
+    public void save(Cape cape) {
+        this.capeRepository.save(cape);
     }
 
     /**

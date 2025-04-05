@@ -42,4 +42,21 @@ public interface PlayerRepository extends MongoRepository<Player, UUID> {
      */
     @Query("{ 'uuidsContributed': { $gt: 0 } }")
     List<Player> findTopContributors(int limit);
+
+    /**
+     * Gets the number of players with the given cape ID.
+     *
+     * @param capeId The ID of the cape
+     * @return The number of players with the given cape ID
+     */
+    int countByCapeId(String capeId);
+
+    /**
+     * Gets the number of players with the given cape ID in their skin history.
+     *
+     * @param capeId The ID of the cape
+     * @return The number of players with the given cape ID in their skin history
+     */
+    @Query(value = "{ 'skinHistory.id': ?0 }", count = true)
+    Long countByCapeIdInHistory(String capeId);
 }
