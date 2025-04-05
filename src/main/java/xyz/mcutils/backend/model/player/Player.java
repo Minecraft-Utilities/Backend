@@ -149,8 +149,6 @@ public class Player {
                     -1
             ));
 
-            log.info(cape);
-
             // Update the cape
             if (cape != null) {
                 cape.setAccounts(cape.getAccounts() + 1);
