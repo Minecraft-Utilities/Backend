@@ -56,7 +56,6 @@ public class PlayerService {
      * @return the player
      */
     public Player getPlayer(String id, boolean enableRefresh) {
-        log.info("Getting player: {}", id);
         return getPlayerInternal(id, enableRefresh);
     }
 
@@ -104,7 +103,7 @@ public class PlayerService {
             playerRepository.save(player);
         }
 
-        if (shouldRefreshPlayer(player, enableRefresh)) {
+        if (player.shouldRefresh(enableRefresh)) {
             player.refresh(mojangService);
             playerRepository.save(player);
         }
@@ -122,15 +121,6 @@ public class PlayerService {
         }
         return uuid;
     }
-
-    /**
-     * Determines if a player should be refreshed based on last update time.
-     */
-    private boolean shouldRefreshPlayer(Player player, boolean enableRefresh) {
-        return enableRefresh &&
-                player.getLastUpdated() < System.currentTimeMillis() - (3 * 60 * 60 * 1000);
-    }
-
 
     /**
      * Gets the player's uuid from their username.

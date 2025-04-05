@@ -288,6 +288,14 @@ public class Player {
     }
 
     /**
+     * Determines if a player should be refreshed based on last update time.
+     */
+    public boolean shouldRefresh(boolean enableRefresh) {
+        return enableRefresh &&
+                this.getLastUpdated() < System.currentTimeMillis() - (3 * 60 * 60 * 1000);
+    }
+
+    /**
      * Refreshes the player's information from Mojang.
      *
      * @param mojangService    the mojang service to use
