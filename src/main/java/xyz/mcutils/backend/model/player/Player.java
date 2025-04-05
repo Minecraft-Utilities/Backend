@@ -124,30 +124,37 @@ public class Player {
 
         // Get the skin and cape
         Tuple<Skin, Cape> skinAndCape = profile.getSkinAndCape();
-        Skin skin = skinAndCape.getLeft();
-        Cape cape = skinAndCape.getRight();
+        Skin currentSkin = skinAndCape.getLeft();
+        Cape currentCape = skinAndCape.getRight();
 
-        if (skin != null) {
-            this.skinId = skin.getId();
-            SkinService.INSTANCE.createSkin(skin);
+        if (currentSkin != null) {
+            this.skinId = currentSkin.getId();
+            SkinService.INSTANCE.createSkin(currentSkin);
 
             this.skinHistory.add(new SkinHistoryEntry(
-                    skin.getId(),
+                    currentSkin.getId(),
                     -1,
                     -1
             ));
         }
 
-        if (cape != null) {
-            this.capeId = cape.getId();
-            CapeService.INSTANCE.createCape(cape);
+        if (currentCape != null) {
+            this.capeId = currentCape.getId();
+            CapeService.INSTANCE.createCape(currentCape);
 
-            String[] capeUrlParts = cape.getUrl().split("/");
+            String[] capeUrlParts = currentCape.getUrl().split("/");
             this.capes.add(new CapeHistoryEntry(
                     capeUrlParts[capeUrlParts.length - 1],
                     -1,
                     -1
             ));
+
+            // Update the cape
+            Cape cape = CapeService.INSTANCE.getCape(currentCape.getId());
+            if (cape != null) {
+                cape.setAccountsOwned(cape.getAccountsOwned() + 1);
+                CapeService.INSTANCE.save(cape);
+            }
         }
 
         this.usernameHistory.add(new UsernameHistoryEntry(
@@ -271,7 +278,7 @@ public class Player {
                     // Update the cape
                     Cape cape = CapeService.INSTANCE.getCape(currentCape.getId());
                     if (cape != null) {
-                        cape.setAccounts(cape.getAccounts() + 1);
+                        cape.setAccountsOwned(cape.getAccountsOwned() + 1);
                         CapeService.INSTANCE.save(cape);
                     }
                 }

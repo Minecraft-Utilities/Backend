@@ -22,7 +22,7 @@ public class Cape {
     /**
      * The amount of accounts that have this cape
      */
-    @Setter private int accounts = -1;
+    @Setter private int accountsOwned = 0;
 
     /**
      * Gets the cape from a {@link JsonObject}.

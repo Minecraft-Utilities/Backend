@@ -20,8 +20,8 @@ public class CapeService {
     static {
         CAPE_NAMES.put("d8f8d13a1adf9636a16c31d47f3ecc9bb8d8533108aa5ad2a01b13b1a0c55eac", "Prismarine");
         CAPE_NAMES.put("bcfbe84c6542a4a5c213c1cacf8979b5e913dcb4ad783a8b80e3c4a7d5c8bdac", "dB");
-        CAPE_NAMES.put("47d30b5dd95e65e696fc9ff186d8ee33", "Millionth Customer");
-        CAPE_NAMES.put("6206c2b3261ba9b033aae57e32121a86", "Snowman");
+        CAPE_NAMES.put("70efffaf86fe5bc089608d3cb297d3e276b9eb7a8f9f2fe6659c23a2d8b18edf", "Millionth Customer");
+        CAPE_NAMES.put("23ec737f18bfe4b547c95935fc297dd767bb84ee55bfd855144d279ac9bfd9fe", "Snowman");
         CAPE_NAMES.put("f0b8db3ae2d2857c6d262fcbc2aa4737", "Spade");
         CAPE_NAMES.put("008daa52d7b3e61b686f7cafa3680c0f", "Translator (Japanese)");
         CAPE_NAMES.put("04ddcbd316ec68364238697174fb1c61", "Birthday");
@@ -67,16 +67,16 @@ public class CapeService {
 
         List<Cape> capes = this.capeRepository.findAll();
         for (Cape cape : capes) {
-            if (cape.getAccounts() != -1) {
+            if (cape.getAccountsOwned() != -1) {
                 continue;
             }
             log.info("Updating cape {} accounts", cape.getId());
             int count = this.playerRepository.countByCapeId(cape.getId());
             Long historyCount = this.playerRepository.countByCapeIdInHistory(cape.getId());
 
-            cape.setAccounts((int) (count + (historyCount == null ? 0 : historyCount)));
+            cape.setAccountsOwned((int) (count + (historyCount == null ? 0 : historyCount)));
             this.capeRepository.save(cape);
-            log.info("Updated cape {} accounts to {}", cape.getId(), cape.getAccounts());
+            log.info("Updated cape {} accounts to {}", cape.getId(), cape.getAccountsOwned());
         }
     }
 
