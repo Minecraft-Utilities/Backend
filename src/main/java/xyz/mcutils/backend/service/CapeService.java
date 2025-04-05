@@ -67,16 +67,16 @@ public class CapeService {
 
         List<Cape> capes = this.capeRepository.findAll();
         for (Cape cape : capes) {
-            if (cape.getAccountsOwned() != -1) {
+            if (cape.getAccounts() != 0) {
                 continue;
             }
             log.info("Updating cape {} accounts", cape.getId());
             int count = this.playerRepository.countByCapeId(cape.getId());
             Long historyCount = this.playerRepository.countByCapeIdInHistory(cape.getId());
 
-            cape.setAccountsOwned((int) (count + (historyCount == null ? 0 : historyCount)));
+            cape.setAccounts((int) (count + (historyCount == null ? 0 : historyCount)));
             this.capeRepository.save(cape);
-            log.info("Updated cape {} accounts to {}", cape.getId(), cape.getAccountsOwned());
+            log.info("Updated cape {} accounts to {}", cape.getId(), cape.getAccounts());
         }
     }
 
@@ -121,9 +121,8 @@ public class CapeService {
      */
     public Cape getCape(String id, Cape initialCape) {
         Cape cape = this.capeRepository.findById(id).orElse(null);
-        if (cape != null && initialCape != null) {
+        if (cape == null && initialCape != null) {
             cape = createCape(initialCape);
-            return cape;
         }
 
         if (cape == null) {

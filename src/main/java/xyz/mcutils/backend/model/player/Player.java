@@ -140,7 +140,7 @@ public class Player {
 
         if (currentCape != null) {
             this.capeId = currentCape.getId();
-            CapeService.INSTANCE.createCape(currentCape);
+            Cape cape = CapeService.INSTANCE.getCape(currentCape.getId(), currentCape);
 
             String[] capeUrlParts = currentCape.getUrl().split("/");
             this.capes.add(new CapeHistoryEntry(
@@ -149,10 +149,11 @@ public class Player {
                     -1
             ));
 
+            log.info(cape);
+
             // Update the cape
-            Cape cape = CapeService.INSTANCE.getCape(currentCape.getId());
             if (cape != null) {
-                cape.setAccountsOwned(cape.getAccountsOwned() + 1);
+                cape.setAccounts(cape.getAccounts() + 1);
                 CapeService.INSTANCE.save(cape);
             }
         }
@@ -278,7 +279,7 @@ public class Player {
                     // Update the cape
                     Cape cape = CapeService.INSTANCE.getCape(currentCape.getId());
                     if (cape != null) {
-                        cape.setAccountsOwned(cape.getAccountsOwned() + 1);
+                        cape.setAccounts(cape.getAccounts() + 1);
                         CapeService.INSTANCE.save(cape);
                     }
                 }

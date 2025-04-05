@@ -7,7 +7,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 @AllArgsConstructor @NoArgsConstructor
 @Document("capes")
-@Getter @EqualsAndHashCode
+@Getter @EqualsAndHashCode @ToString
 public class Cape {
     /**
      * The ID of the cape
@@ -22,7 +22,7 @@ public class Cape {
     /**
      * The amount of accounts that have this cape
      */
-    @Setter private int accountsOwned = 0;
+    @Setter private int accounts = 0;
 
     /**
      * Gets the cape from a {@link JsonObject}.
@@ -37,7 +37,7 @@ public class Cape {
         String url = json.get("url").getAsString();
         String[] capeUrlParts = url.split("/");
 
-        return new Cape(capeUrlParts[capeUrlParts.length - 1], null, -1);
+        return new Cape(capeUrlParts[capeUrlParts.length - 1], null, 0);
     }
 
     /**
