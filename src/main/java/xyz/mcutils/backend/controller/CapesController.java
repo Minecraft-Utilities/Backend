@@ -10,7 +10,7 @@ import xyz.mcutils.backend.model.response.CapesResponse;
 import xyz.mcutils.backend.service.CapeService;
 
 @Controller
-@RequestMapping(value = "/capes/")
+@RequestMapping(value = "/capes")
 public class CapesController {
     private final CapeService capeService;
 
@@ -19,7 +19,7 @@ public class CapesController {
         this.capeService = capeService;
     }
 
-    @GetMapping(value = "/")
+    @GetMapping
     public ResponseEntity<CapesResponse> getCapes() {
         return ResponseEntity.ok(new CapesResponse(capeService.getAllCapes().toArray(Cape[]::new)));
     }
