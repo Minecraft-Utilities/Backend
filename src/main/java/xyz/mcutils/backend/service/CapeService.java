@@ -68,7 +68,7 @@ public class CapeService {
 
         List<Cape> capes = this.capeRepository.findAll();
         for (Cape cape : capes) {
-            if (cape.getAccounts() != 0) {
+            if (cape.getAccounts() != 0 && cape.getAccounts() != -1) {
                 continue;
             }
             log.info("Updating cape {} accounts", cape.getId());
