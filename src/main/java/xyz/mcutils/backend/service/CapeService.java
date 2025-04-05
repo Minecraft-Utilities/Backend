@@ -8,6 +8,7 @@ import xyz.mcutils.backend.model.player.Cape;
 import xyz.mcutils.backend.repository.mongo.CapeRepository;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -161,6 +162,7 @@ public class CapeService {
     public List<Cape> getAllCapes() {
         List<Cape> capes = capeRepository.findAll();
         capes.forEach(cape -> cape.setName(CAPE_NAMES.getOrDefault(cape.getId(), null)));
+        capes.sort(Comparator.comparingInt(Cape::getAccounts).reversed()); // Sort from most accounts to least
         return capes;
     }
 }
