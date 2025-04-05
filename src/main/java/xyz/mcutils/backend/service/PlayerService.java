@@ -102,13 +102,11 @@ public class PlayerService {
      * @return the uuid of the player
      */
     public CachedPlayerName usernameToUuid(String username) {
-        log.info("Getting UUID from username: {}", username);
         String id = username.toUpperCase();
 
         // First check Redis cache
         Optional<CachedPlayerName> cachedPlayerName = playerNameCacheRepository.findById(id);
         if (cachedPlayerName.isPresent() && AppConfig.isProduction()) {
-            log.info("UUID for {} is cached", username);
             return cachedPlayerName.get();
         }
 
@@ -119,7 +117,6 @@ public class PlayerService {
             UUID uuid = player.getUniqueId();
             CachedPlayerName playerName = new CachedPlayerName(id, username, uuid);
             playerNameCacheRepository.save(playerName); // Cache it for future use
-            log.info("Found UUID in database: {} -> {}", username, uuid);
             playerName.setCached(false);
             return playerName;
         }
@@ -128,13 +125,11 @@ public class PlayerService {
         try {
             MojangUsernameToUuidToken mojangUsernameToUuid = mojangService.getUuidFromUsername(username);
             if (mojangUsernameToUuid == null) {
-                log.info("Player with username '{}' not found", username);
                 throw new ResourceNotFoundException("Player with username '%s' not found".formatted(username));
             }
             UUID uuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
             CachedPlayerName player = new CachedPlayerName(id, username, uuid);
             playerNameCacheRepository.save(player);
-            log.info("Got UUID from Mojang API: {} -> {}", username, uuid);
             player.setCached(false);
             return player;
         } catch (RateLimitException exception) {
