@@ -278,42 +278,38 @@ public class Player {
     /**
      * Refreshes the player's information from Mojang.
      *
-     * @param cachedPlayer     the cached player to update
      * @param mojangService    the mojang service to use
-     * @param playerRepository the player repository to use
      */
-    public void refresh(CachedPlayer cachedPlayer, @NonNull MojangService mojangService, @NonNull PlayerRepository playerRepository) {
+    public void refresh(@NonNull MojangService mojangService) {
         MojangProfileToken profileToken = mojangService.getProfile(this.getUniqueId().toString());
         Tuple<Skin, Cape> skinAndCape = profileToken.getSkinAndCape();
         Skin currentSkin = skinAndCape.getLeft();
         Cape currentCape = skinAndCape.getRight();
         String currentUsername = profileToken.getName();
 
-        Player player = cachedPlayer.getPlayer();
-
         // Update player
-        player.updateUsernameHistory(player, currentUsername);
+        this.updateUsernameHistory(this, currentUsername);
 
         if (currentSkin != null) {
-            player.updateSkinHistory(player, currentSkin);
+            this.updateSkinHistory(this, currentSkin);
         }
         if (currentCape != null) {
-            player.updateCapeHistory(player, currentCape);
+            this.updateCapeHistory(this, currentCape);
         }
 
         // Update username if it's different
-        if (!currentUsername.equals(player.getUsername())) {
-            player.setUsername(currentUsername);
+        if (!currentUsername.equals(this.getUsername())) {
+            this.setUsername(currentUsername);
         }
 
         // Update skin if it's different
-        if (currentSkin != null && !currentSkin.getId().equals(player.getSkinId())) {
-            player.setSkinId(currentSkin.getId());
+        if (currentSkin != null && !currentSkin.getId().equals(this.getSkinId())) {
+            this.setSkinId(currentSkin.getId());
         }
 
         // Update cape if it's different
-        if (currentCape != null && !currentCape.getId().equals(player.getCapeId())) {
-            player.setCapeId(currentCape.getId());
+        if (currentCape != null && !currentCape.getId().equals(this.getCapeId())) {
+            this.setCapeId(currentCape.getId());
         }
 
         // Create the skin if it doesn't exist
@@ -326,6 +322,6 @@ public class Player {
             CapeService.INSTANCE.createCape(currentCape);
         }
 
-        player.setLastUpdated(System.currentTimeMillis());
+        this.setLastUpdated(System.currentTimeMillis());
     }
 }

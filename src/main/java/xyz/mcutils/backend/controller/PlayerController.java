@@ -42,6 +42,12 @@ public class PlayerController {
     }
 
     @ResponseBody
+    @GetMapping(value = "top-contributors")
+    public ResponseEntity<?> getTopContributors() {
+        return ResponseEntity.ok(playerService.getTopContributors());
+    }
+
+    @ResponseBody
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPlayer(
             @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String id) {

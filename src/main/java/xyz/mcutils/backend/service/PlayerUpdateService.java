@@ -114,14 +114,11 @@ public class PlayerUpdateService {
         log.info("Processing queue item \"{}\"", queueItem.getUuid());
         try {
             boolean playerExists = playerRepository.existsById(queueItem.getUuid());
-
-            // getCachedPlayer will create the player if it doesn't exist
-            CachedPlayer cachedPlayer = playerService.getCachedPlayer(queueItem.getUuid().toString(), false);
-            Player player = cachedPlayer.getPlayer();
+            Player player = playerService.getPlayer(queueItem.getUuid().toString(), false);
 
             // Refresh data (Mojang API) if the player exists
             if (playerExists) {
-                player.refresh(cachedPlayer, mojangService, playerRepository);
+                player.refresh(mojangService);
             }
 
             // Update submitter stats
@@ -129,11 +126,9 @@ public class PlayerUpdateService {
                     && !playerExists // Player has not existed before
                     && !queueItem.getSubmitterUuid().equals(queueItem.getUuid()) // Submitter is not the same as the player
             ) {
-                CachedPlayer cachedSubmitter = playerService.getCachedPlayer(queueItem.getSubmitterUuid().toString(), false);
-                Player submitter = cachedSubmitter.getPlayer();
+                Player submitter = playerService.getPlayer(queueItem.getSubmitterUuid().toString(), false);
                 submitter.setUuidsContributed(submitter.getUuidsContributed() + 1);
                 playerRepository.save(submitter);
-                playerCacheRepository.save(cachedSubmitter);
                 log.info("Incremented contributions for {} to {}", submitter.getUsername(), submitter.getUuidsContributed());
 
                 // Set the contributed by for the player
@@ -141,7 +136,6 @@ public class PlayerUpdateService {
             }
 
             // Save the player
-            playerCacheRepository.save(cachedPlayer);
             playerRepository.save(player);
         } catch (Exception ex) {
             log.error("Failed to update player {}: {}", queueItem.getUuid(), ex.getMessage());

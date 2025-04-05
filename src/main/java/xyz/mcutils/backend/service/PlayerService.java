@@ -48,6 +48,19 @@ public class PlayerService {
     }
 
     /**
+     * Get a player from the database or
+     * from the Mojang API.
+     *
+     * @param id the id of the player
+     * @param enableRefresh whether to enable refreshing
+     * @return the player
+     */
+    public Player getPlayer(String id, boolean enableRefresh) {
+        log.info("Getting player: {}", id);
+        return getPlayerInternal(id, enableRefresh);
+    }
+
+    /**
      * Get a player from the cache or
      * from the Mojang API.
      *
@@ -55,48 +68,16 @@ public class PlayerService {
      * @return the player
      */
     public CachedPlayer getCachedPlayer(String id, boolean enableRefresh) {
-        // Convert the id to uppercase to prevent case sensitivity
-        log.info("Getting player: {}", id);
-        UUID uuid = PlayerUtils.getUuidFromString(id);
-        if (uuid == null) { // If the id is not a valid uuid, get the uuid from the username
-            uuid = usernameToUuid(id).getUniqueId();
-        }
+        UUID uuid = resolvePlayerUuid(id);
 
         Optional<CachedPlayer> optionalCachedPlayer = playerCacheRepository.findById(uuid);
-        if (optionalCachedPlayer.isPresent() && AppConfig.isProduction()) { // Return the cached player if it exists
-            log.info("Player {} is cached", id);
+        if (optionalCachedPlayer.isPresent() && AppConfig.isProduction()) {
             return optionalCachedPlayer.get();
         }
 
-        Player player = playerRepository.findById(uuid).orElse(null);
-        if (player != null) {
-            log.info("Found player {} in the database", uuid);
-        }
         try {
-            if (player == null) {
-                log.info("Getting player profile from Mojang: {}", id);
-                MojangProfileToken mojangProfile = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
-                if (mojangProfile == null) {
-                    throw new ResourceNotFoundException("Player with UUID '%s' not found".formatted(uuid));
-                }
-                log.info("Got player profile from Mojang: {}", id);
-
-                player = new Player(mojangProfile);
-                playerRepository.save(player);
-            }
-
+            Player player = getPlayerInternal(id, enableRefresh);
             CachedPlayer cachedPlayer = new CachedPlayer(uuid, player);
-
-            // If the last refresh was more than 3 hour ago, refresh the player
-            if (player.getLastUpdated() < System.currentTimeMillis() - (3 * 60 * 60 * 1000) && enableRefresh) {
-                log.info("Refreshing player: {}", id);
-                player.refresh(cachedPlayer, mojangService, playerRepository);
-
-                // Update the last refreshed time
-                player.setLastUpdated(System.currentTimeMillis());
-                playerRepository.save(player); // Save the player
-            }
-
             playerCacheRepository.save(cachedPlayer);
             cachedPlayer.setCached(false);
             return cachedPlayer;
@@ -104,6 +85,52 @@ public class PlayerService {
             throw new MojangAPIRateLimitException();
         }
     }
+
+    /**
+     * Internal method to get a player from the database or Mojang API.
+     * Handles the common logic for both getPlayer and getCachedPlayer.
+     */
+    private Player getPlayerInternal(String id, boolean enableRefresh) {
+        UUID uuid = resolvePlayerUuid(id);
+        Player player = playerRepository.findById(uuid).orElse(null);
+
+        if (player == null) {
+            MojangProfileToken mojangProfile = mojangService.getProfile(uuid.toString());
+            if (mojangProfile == null) {
+                throw new ResourceNotFoundException("Player with UUID '%s' not found".formatted(uuid));
+            }
+
+            player = new Player(mojangProfile);
+            playerRepository.save(player);
+        }
+
+        if (shouldRefreshPlayer(player, enableRefresh)) {
+            player.refresh(mojangService);
+            playerRepository.save(player);
+        }
+
+        return player;
+    }
+
+    /**
+     * Resolves a player ID (either UUID or username) to a UUID.
+     */
+    private UUID resolvePlayerUuid(String id) {
+        UUID uuid = PlayerUtils.getUuidFromString(id);
+        if (uuid == null) {
+            uuid = usernameToUuid(id).getUniqueId();
+        }
+        return uuid;
+    }
+
+    /**
+     * Determines if a player should be refreshed based on last update time.
+     */
+    private boolean shouldRefreshPlayer(Player player, boolean enableRefresh) {
+        return enableRefresh &&
+                player.getLastUpdated() < System.currentTimeMillis() - (3 * 60 * 60 * 1000);
+    }
+
 
     /**
      * Gets the player's uuid from their username.
@@ -198,8 +225,8 @@ public class PlayerService {
      *
      * @return A map of UUIDs to the number of contributions
      */
-    public Map<UUID, Integer> getTopContributors() {
+    public Map<String, Integer> getTopContributors() {
         return playerRepository.findTopContributors(10).stream()
-                .collect(Collectors.toMap(Player::getUniqueId, Player::getUuidsContributed));
+                .collect(Collectors.toMap(Player::getUsername, Player::getUuidsContributed));
     }
 }

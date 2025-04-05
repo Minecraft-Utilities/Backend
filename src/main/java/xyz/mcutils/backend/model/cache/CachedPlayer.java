@@ -20,7 +20,7 @@ import java.util.UUID;
  * @author Braydon
  */
 @Setter @Getter @EqualsAndHashCode(callSuper = false) @ToString
-@RedisHash(value = "player", timeToLive = 60L * 15L) // 15 minutes (in seconds)
+@RedisHash(value = "player", timeToLive = 60L * 10L) // 10 minutes (in seconds)
 public class CachedPlayer extends CachedResponse implements Serializable {
     /**
      * The unique id of the player.
