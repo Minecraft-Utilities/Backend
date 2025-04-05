@@ -178,7 +178,6 @@ public class PlayerUpdateService {
      * Inserts all players in the queue into the memory queue.
      */
     public void insertToQueue() {
-        log.info("Inserting players to queue...");
         PageRequest pageRequest = PageRequest.of(
                 0,
                 200,
