@@ -116,7 +116,7 @@ public class PlayerUpdateService {
             boolean playerExists = playerRepository.existsById(queueItem.getUuid());
 
             // getCachedPlayer will create the player if it doesn't exist
-            CachedPlayer cachedPlayer = playerService.getCachedPlayer(queueItem.getUuid().toString());
+            CachedPlayer cachedPlayer = playerService.getCachedPlayer(queueItem.getUuid().toString(), false);
             Player player = cachedPlayer.getPlayer();
 
             // Refresh data (Mojang API) if the player exists
@@ -129,7 +129,7 @@ public class PlayerUpdateService {
                     && !playerExists // Player has not existed before
                     && !queueItem.getSubmitterUuid().equals(queueItem.getUuid()) // Submitter is not the same as the player
             ) {
-                CachedPlayer cachedSubmitter = playerService.getCachedPlayer(queueItem.getSubmitterUuid().toString());
+                CachedPlayer cachedSubmitter = playerService.getCachedPlayer(queueItem.getSubmitterUuid().toString(), false);
                 Player submitter = cachedSubmitter.getPlayer();
                 submitter.setUuidsContributed(submitter.getUuidsContributed() + 1);
                 playerRepository.save(submitter);
@@ -239,7 +239,7 @@ public class PlayerUpdateService {
             memoryQueue.addAll(queueItems);
             playerUpdateQueueRepository.saveAll(queueItems);
 
-            Player player = submission.getAccountUuid() != null ? playerService.getCachedPlayer(submission.getAccountUuid().toString()).getPlayer() : null;
+            Player player = submission.getAccountUuid() != null ? playerService.getCachedPlayer(submission.getAccountUuid().toString(), false).getPlayer() : null;
             log.info("{} UUIDs have been submitted{}", added, player != null ? " by " + player.getUsername() : "");
         }
         return added;

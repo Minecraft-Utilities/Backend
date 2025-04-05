@@ -49,7 +49,7 @@ public class CapeService {
         CAPE_NAMES.put("dbc21e222528e30dc88445314f7be6ff12d3aeebc3c192054fba7e3b3f8c77b1", "Menace");
         CAPE_NAMES.put("5c29410057e32abec02d870ecb52ec25fb45ea81e785a7854ae8429d7236ca26", "Mojang Office");
         CAPE_NAMES.put("719f820d513dc22f5f788a46e8ea3aa7", "Follower's");
-        CAPE_NAMES.put("bfd10540b531afbcbec285293d17b358", "Purple Heart");
+        CAPE_NAMES.put("cb40a92e32b57fd732a00fc325e7afb00a7ca74936ad50d8e860152e482cfbde", "Purple Heart");
         CAPE_NAMES.put("afd553b39358a24edfe3b8a9a939fa5fa4faa4d9a9c3d6af8eafb377fa05c2bb", "Cherry Blossom");
         CAPE_NAMES.put("f9a76537647989f9a0b6d001e320dac591c359e9e61a31f4ce11c88f207f0ad4", "Vanilla");
         CAPE_NAMES.put("cd9d82ab17fd92022dbd4a86cde4c382a7540e117fae7b9a2853658505a80625", "15th Anniversary");

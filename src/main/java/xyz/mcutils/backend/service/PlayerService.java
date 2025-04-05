@@ -31,7 +31,6 @@ import java.util.stream.Collectors;
 
 @Service @Log4j2(topic = "Player Service")
 public class PlayerService {
-
     private final MojangService mojangService;
     private final PlayerRepository playerRepository;
     private final PlayerCacheRepository playerCacheRepository;
@@ -55,7 +54,7 @@ public class PlayerService {
      * @param id the id of the player
      * @return the player
      */
-    public CachedPlayer getCachedPlayer(String id) {
+    public CachedPlayer getCachedPlayer(String id, boolean enableRefresh) {
         // Convert the id to uppercase to prevent case sensitivity
         log.info("Getting player: {}", id);
         UUID uuid = PlayerUtils.getUuidFromString(id);
@@ -87,6 +86,17 @@ public class PlayerService {
             }
 
             CachedPlayer cachedPlayer = new CachedPlayer(uuid, player);
+
+            // If the last refresh was more than 3 hour ago, refresh the player
+            if (player.getLastUpdated() < System.currentTimeMillis() - (3 * 60 * 60 * 1000) && enableRefresh) {
+                log.info("Refreshing player: {}", id);
+                player.refresh(cachedPlayer, mojangService, playerRepository);
+
+                // Update the last refreshed time
+                player.setLastUpdated(System.currentTimeMillis());
+                playerRepository.save(player); // Save the player
+            }
+
             playerCacheRepository.save(cachedPlayer);
             cachedPlayer.setCached(false);
             return cachedPlayer;
