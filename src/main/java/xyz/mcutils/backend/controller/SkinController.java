@@ -5,7 +5,6 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.player.Player;

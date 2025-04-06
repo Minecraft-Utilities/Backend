@@ -5,15 +5,8 @@ import lombok.*;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-import xyz.mcutils.backend.common.AppConfig;
 import xyz.mcutils.backend.common.EnumUtils;
-import xyz.mcutils.backend.common.ImageUtils;
-import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.config.Config;
-
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 
 @AllArgsConstructor @NoArgsConstructor @Document("skins")
 @Getter @Log4j2(topic = "Skin") @EqualsAndHashCode

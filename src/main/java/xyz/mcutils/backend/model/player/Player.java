@@ -18,10 +18,7 @@ import xyz.mcutils.backend.service.CapeService;
 import xyz.mcutils.backend.service.MojangService;
 import xyz.mcutils.backend.service.SkinService;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @AllArgsConstructor
 @Getter
@@ -86,6 +83,12 @@ public class Player {
     @JsonIgnore
     @Setter
     private String capeId;
+
+    /**
+     * The views of the player in the last 30 days for each day.
+     */
+    @JsonIgnore
+    private Map<String, Integer> dailyViews = new HashMap<>();
 
     /**
      * The usernames this player has used previously,

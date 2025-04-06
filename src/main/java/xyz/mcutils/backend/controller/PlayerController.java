@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @RestController
-@RequestMapping(value = "/player/")
+@RequestMapping(value = "/player")
 @Tag(name = "Player Controller", description = "The Player Controller is used to get information about a player.")
 public class PlayerController {
 
@@ -42,7 +42,7 @@ public class PlayerController {
     }
 
     @ResponseBody
-    @GetMapping(value = "top-contributors")
+    @GetMapping(value = "/top-contributors")
     public ResponseEntity<?> getTopContributors() {
         return ResponseEntity.ok(playerService.getTopContributors());
     }
