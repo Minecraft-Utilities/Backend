@@ -1,12 +1,16 @@
 package xyz.mcutils.backend.service;
 
 import jakarta.annotation.PostConstruct;
+import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.repository.mongo.SkinRepository;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.util.Optional;
 
 @Service
@@ -32,11 +36,17 @@ public class SkinService {
      * @param skin the skin object
      * @return the skin
      */
+    @SneakyThrows
     public Skin createSkin(Skin skin) {
         // Check if the skin already exists
         if (this.skinRepository.existsById(skin.getId())) {
             return skin;
         }
+
+        // Check if the skin is legacy
+        byte[] skinImage = skin.getSkinImage();
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(skinImage));
+        skin.setLegacy(image.getWidth() == 64 && image.getHeight() == 32);
 
         // Create the skin
         this.skinRepository.save(skin);

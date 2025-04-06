@@ -1,14 +1,12 @@
 package xyz.mcutils.backend.model.skin;
 
 import com.google.gson.JsonObject;
-import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import xyz.mcutils.backend.common.EnumUtils;
+import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.PlayerUtils;
 
 import javax.imageio.ImageIO;
@@ -31,7 +29,7 @@ public class Skin {
     /**
      * The legacy status of the skin
      */
-    private boolean legacy;
+    @Setter private boolean legacy;
 
     public Skin(String url, Model model) {
         this.model = model;
@@ -49,18 +47,13 @@ public class Skin {
         return "https://textures.minecraft.net/texture/" + this.id;
     }
 
+    /**
+     * Gets the skin image.
+     *
+     * @return the skin image
+     */
     public byte[] getSkinImage() {
-        byte[] skinImage = PlayerUtils.getSkinImage(this.getUrl());
-        if (skinImage == null) {
-            return null;
-        }
-
-        try {
-            BufferedImage image = ImageIO.read(new ByteArrayInputStream(skinImage));
-            this.legacy = image.getWidth() == 64 && image.getHeight() == 32;
-        } catch (Exception ignored) {}
-
-        return null;
+        return PlayerUtils.getSkinImage(this.getUrl());
     }
 
     /**
