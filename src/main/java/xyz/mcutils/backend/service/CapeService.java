@@ -41,9 +41,9 @@ public class CapeService {
         // Mojang
         CAPE_NAMES.put("8fb7780634ea6c0729fea7a7e6f50c28", "Mojang Studios");
         CAPE_NAMES.put("6390c54ca1e541a75235dadf23555ed2", "Mojang");
+        CAPE_NAMES.put("8f120319222a9f4a104e2f5cb97b2cda93199a2ee9e1585cb8d09d6f687cb761", "Mojang (Classic)");
 
         // Mojira
-        CAPE_NAMES.put("7c07865bdc148efb0d1eb95829eaf11a", "Mojang Classic");
         CAPE_NAMES.put("172e4e9fd6c0afdf086b8bdb58c0bad5", "Mojira Moderator");
 
         // Minecraft Movie
