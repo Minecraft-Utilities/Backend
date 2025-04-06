@@ -5,6 +5,7 @@ import lombok.extern.log4j.Log4j2;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
+import xyz.mcutils.backend.service.SkinService;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -35,7 +36,7 @@ public abstract class SkinRenderer<T extends ISkinPart> {
         if (skin.getModel() == Skin.Model.SLIM && part.isFrontArm()) {
             width--;
         }
-        BufferedImage skinImage = ImageIO.read(new ByteArrayInputStream(skin.getSkinImage())); // The skin texture
+        BufferedImage skinImage = ImageIO.read(new ByteArrayInputStream(SkinService.INSTANCE.getSkinImage(skin))); // The skin texture
         BufferedImage partTexture = getSkinPartTexture(skinImage, coordinates.getX(), coordinates.getY(), width, part.getHeight(), size);
         if (coordinates instanceof ISkinPart.Vanilla.LegacyCoordinates legacyCoordinates && legacyCoordinates.isFlipped()) {
             partTexture = ImageUtils.flip(partTexture);

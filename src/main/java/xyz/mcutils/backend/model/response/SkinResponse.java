@@ -16,7 +16,7 @@ public class SkinResponse extends Skin {
     private Map<String, String> urls;
 
     public SkinResponse(Skin skin) {
-        super(skin.getUrl(), skin.getModel());
+        super(skin.getMojangTextureUrl(), skin.getModel());
     }
 
     /**

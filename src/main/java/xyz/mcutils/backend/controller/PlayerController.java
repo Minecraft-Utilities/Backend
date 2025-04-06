@@ -70,7 +70,7 @@ public class PlayerController {
     }
 
     @GetMapping(value = "/{id}/skin/{part}.{extension}")
-    public ResponseEntity<?> getPlayerHead(
+    public ResponseEntity<?> getPlayerSkinPart(
             @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String id,
             @Parameter(description = "The part of the skin", example = "head") @PathVariable String part,
             @Parameter(description = "The file extension of the image", example = "png") @PathVariable String extension,
