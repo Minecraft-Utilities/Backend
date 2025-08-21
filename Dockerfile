@@ -19,8 +19,8 @@ COPY src/ ./src/
 
 # Copy any other necessary project files
 COPY ["*.xml", "./"]
-# Optionally copy properties files if they exist (in a separate command)
-COPY ["*.properties", "./"] 2>/dev/null || echo "No properties files found"
+# Copy properties files if they exist
+COPY *.properties ./
 
 # Build the jar
 RUN mvn package -q -Dmaven.test.skip -DskipTests -T2C
