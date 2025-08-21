@@ -12,6 +12,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @Log4j2(topic = "Cape Service")
@@ -162,13 +163,20 @@ public class CapeService {
      */
     public List<Cape> getAllCapes(boolean addUsage) {
         List<Cape> capes = capeRepository.findAll();
-        for (Cape cape : capes) {
-            cape.setName(CAPE_NAMES.getOrDefault(cape.getId(), null));
+        
+        // Set names for all capes
+        capes.forEach(cape -> cape.setName(CAPE_NAMES.getOrDefault(cape.getId(), null)));
 
-            // Add per cape account usage
-            if (addUsage) {
-                cape.setAccounts(playerRepository.countByCapeId(cape.getId()));
-            }
+        // Add per cape account usage
+        if (addUsage) {
+            List<CompletableFuture<Void>> futures = capes.stream()
+                .map(cape -> CompletableFuture.runAsync(() -> 
+                    cape.setAccounts(playerRepository.countByCapeId(cape.getId()))
+                ))
+                .toList();
+            
+            // Wait for all futures to complete
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
         }
 
         return capes.stream().sorted(Comparator.comparing(Cape::getAccounts).reversed()).toList();
