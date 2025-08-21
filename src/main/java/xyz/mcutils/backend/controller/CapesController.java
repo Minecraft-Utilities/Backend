@@ -21,6 +21,6 @@ public class CapesController {
 
     @GetMapping
     public ResponseEntity<CapesResponse> getCapes() {
-        return ResponseEntity.ok(new CapesResponse(capeService.getAllCapes().toArray(Cape[]::new)));
+        return ResponseEntity.ok(new CapesResponse(capeService.getAllCapes(true).toArray(Cape[]::new)));
     }
 }

@@ -1,5 +1,6 @@
 package xyz.mcutils.backend.model.skin;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.gson.JsonObject;
 import lombok.*;
 import lombok.extern.log4j.Log4j2;
@@ -38,7 +39,7 @@ public class Skin {
      *
      * @return the url for the skin
      */
-    public String getUrl() {
+    public String getTextureUrl() {
         return Config.INSTANCE.getWebPublicUrl() + "/skin/" + this.id + ".png";
     }
 
@@ -47,6 +48,7 @@ public class Skin {
      *
      * @return the Mojang texture URL for the skin
      */
+    @JsonIgnore
     public String getMojangTextureUrl() {
         return "https://textures.minecraft.net/texture/" + this.id;
     }

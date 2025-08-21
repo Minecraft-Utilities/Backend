@@ -198,7 +198,7 @@ public class PlayerService {
         }
 
         long before = System.currentTimeMillis();
-        BufferedImage renderedPart = part.render(player.getSkin(), renderOverlay, size); // Render the skin part
+        BufferedImage renderedPart = part.render(player.getCurrentSkin(), renderOverlay, size); // Render the skin part
         log.info("Took {}ms to render skin part {} for player: {}", System.currentTimeMillis() - before, name, player.getUniqueId());
 
         CachedPlayerSkinPart skinPart = new CachedPlayerSkinPart(

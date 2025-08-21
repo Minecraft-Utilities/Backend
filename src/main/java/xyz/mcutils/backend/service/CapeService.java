@@ -79,20 +79,6 @@ public class CapeService {
     public CapeService(CapeRepository capeRepository, PlayerRepository playerRepository) {
         this.capeRepository = capeRepository;
         this.playerRepository = playerRepository;
-
-        List<Cape> capes = this.capeRepository.findAll();
-        for (Cape cape : capes) {
-            if (cape.getAccounts() != 0 && cape.getAccounts() != -1) {
-                continue;
-            }
-            log.info("Updating cape {} accounts", cape.getId());
-            int count = this.playerRepository.countByCapeId(cape.getId());
-            Long historyCount = this.playerRepository.countByCapeIdInHistory(cape.getId());
-
-            cape.setAccounts((int) (count + (historyCount == null ? 0 : historyCount)));
-            this.capeRepository.save(cape);
-            log.info("Updated cape {} accounts to {}", cape.getId(), cape.getAccounts());
-        }
     }
 
     @PostConstruct
@@ -169,14 +155,22 @@ public class CapeService {
     }
 
     /**
-     * Gets all capes.
+     * Gets all capes from the database.
      *
+     * @param addUsage adds the amount of accounts using each cape
      * @return all capes
      */
-    public List<Cape> getAllCapes() {
+    public List<Cape> getAllCapes(boolean addUsage) {
         List<Cape> capes = capeRepository.findAll();
-        capes.forEach(cape -> cape.setName(CAPE_NAMES.getOrDefault(cape.getId(), null)));
-        capes.sort(Comparator.comparingInt(Cape::getAccounts).reversed()); // Sort from most accounts to least
-        return capes;
+        for (Cape cape : capes) {
+            cape.setName(CAPE_NAMES.getOrDefault(cape.getId(), null));
+
+            // Add per cape account usage
+            if (addUsage) {
+                cape.setAccounts(playerRepository.countByCapeId(cape.getId()));
+            }
+        }
+
+        return capes.stream().sorted(Comparator.comparing(Cape::getAccounts).reversed()).toList();
     }
 }

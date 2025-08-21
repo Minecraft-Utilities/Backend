@@ -22,6 +22,8 @@ import java.util.Map.Entry;
 @Slf4j(topic = "Req Transaction")
 public class TransactionLogger implements ResponseBodyAdvice<Object> {
 
+    private static final String START_TIME_ATTRIBUTE = "requestStartTime";
+
     @Override
     public Object beforeBodyWrite(Object body, @NonNull MethodParameter returnType, @NonNull MediaType selectedContentType,
                                   @NonNull Class<? extends HttpMessageConverter<?>> selectedConverterType, @NonNull ServerHttpRequest rawRequest,
@@ -37,11 +39,16 @@ public class TransactionLogger implements ResponseBodyAdvice<Object> {
             params.put(entry.getKey(), Arrays.toString(entry.getValue()));
         }
 
+        // Calculate processing time
+        Long startTime = (Long) request.getAttribute(START_TIME_ATTRIBUTE);
+        long processingTime = startTime != null ? System.currentTimeMillis() - startTime : -1;
+
         // Logging the request
-        log.info(String.format("[Req] %s | %s | '%s', params=%s",
+        log.info(String.format("[Req] %s | %s | '%s' | %dms | params=%s",
                 request.getMethod(),
                 ip,
                 request.getRequestURI(),
+                processingTime,
                 params
         ));
 

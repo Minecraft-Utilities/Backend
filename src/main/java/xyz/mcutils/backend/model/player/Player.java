@@ -34,11 +34,6 @@ public class Player {
     private UUID uniqueId;
 
     /**
-     * The trimmed UUID of the player
-     */
-    private String trimmedUniqueId;
-
-    /**
      * The username of the player
      */
     @Setter
@@ -117,7 +112,6 @@ public class Player {
 
     public Player(MojangProfileToken profile) {
         this.uniqueId = UUIDUtils.addDashes(profile.getId());
-        this.trimmedUniqueId = UUIDUtils.removeDashes(this.uniqueId);
         this.username = profile.getName();
         this.legacyAccount = profile.isLegacy();
 
@@ -184,7 +178,7 @@ public class Player {
      *
      * @return the cape, or null if they have no cape
      */
-    public Cape getCape() {
+    public Cape getCurrentCape() {
         return this.capeId != null ? CapeService.INSTANCE.getCape(this.capeId) : null;
     }
 
@@ -193,7 +187,7 @@ public class Player {
      *
      * @return the player's skin, or null if no skin
      */
-    public SkinResponse getSkin() {
+    public SkinResponse getCurrentSkin() {
         if (this.skinId == null) {
             return null;
         }

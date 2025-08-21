@@ -56,7 +56,7 @@ public class SkinController {
         String dispositionHeader = download ? "attachment; filename=%s.png" : "inline; filename=%s.png";
 
         // Return the part image
-        SkinResponse skin = player.getSkin();
+        SkinResponse skin = player.getCurrentSkin();
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .contentType(extension.equals("png") ? MediaType.IMAGE_PNG : MediaType.IMAGE_JPEG)
