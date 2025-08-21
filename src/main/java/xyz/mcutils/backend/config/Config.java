@@ -13,6 +13,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import xyz.mcutils.backend.log.RequestTimingFilter;
 
 @Getter @Log4j2(topic = "Config")
 @Configuration
@@ -31,9 +32,19 @@ public class Config {
     }
 
     @Bean
+    public FilterRegistrationBean<RequestTimingFilter> requestTimingFilter() {
+        FilterRegistrationBean<RequestTimingFilter> filterRegistrationBean = new FilterRegistrationBean<>(new RequestTimingFilter());
+        filterRegistrationBean.addUrlPatterns("/*");
+        filterRegistrationBean.setOrder(1);
+        filterRegistrationBean.setName("requestTimingFilter");
+        return filterRegistrationBean;
+    }
+
+    @Bean
     public FilterRegistrationBean<ShallowEtagHeaderFilter> shallowEtagHeaderFilter() {
         FilterRegistrationBean<ShallowEtagHeaderFilter> filterRegistrationBean = new FilterRegistrationBean<>(new ShallowEtagHeaderFilter());
         filterRegistrationBean.addUrlPatterns("/*");
+        filterRegistrationBean.setOrder(2);
         filterRegistrationBean.setName("etagFilter");
         return filterRegistrationBean;
     }
