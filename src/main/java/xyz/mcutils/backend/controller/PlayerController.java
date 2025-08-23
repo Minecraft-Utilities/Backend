@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.model.cache.CachedPlayerName;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.player.UUIDSubmission;
+import xyz.mcutils.backend.model.response.UUIDSubmissionResponse;
 import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.PlayerUpdateService;
 
@@ -34,10 +35,7 @@ public class PlayerController {
     @ResponseBody
     @PostMapping(value = "/submit-uuids")
     public ResponseEntity<?> submitUUIDs(@RequestBody UUIDSubmission submission) {
-        int added = playerUpdateService.submitUUIDs(submission);
-        return ResponseEntity.ok(Map.of(
-                "added", added
-        ));
+        return ResponseEntity.ok(playerUpdateService.submitUUIDs(submission));
     }
 
     @ResponseBody

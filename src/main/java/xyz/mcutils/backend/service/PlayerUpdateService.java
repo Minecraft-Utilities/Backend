@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.player.PlayerUpdateQueueItem;
 import xyz.mcutils.backend.model.player.UUIDSubmission;
+import xyz.mcutils.backend.model.response.UUIDSubmissionResponse;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.mongo.history.CapeHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.history.SkinHistoryRepository;
@@ -211,7 +212,7 @@ public class PlayerUpdateService {
      * @param submission the object containing the UUIDs to ingest
      * @return the number of UUIDs added
      */
-    public int submitUUIDs(UUIDSubmission submission) {
+    public UUIDSubmissionResponse submitUUIDs(UUIDSubmission submission) {
         List<PlayerUpdateQueueItem> queueItems = new ArrayList<>();
 
         int added = 0;
@@ -233,13 +234,14 @@ public class PlayerUpdateService {
             added++;
         }
 
+        Player player = submission.getAccountUuid() != null ? playerService.getPlayer(submission.getAccountUuid().toString(), false) : null;
         if (added > 0) {
             memoryQueue.addAll(queueItems);
             playerUpdateQueueRepository.saveAll(queueItems);
 
-            Player player = submission.getAccountUuid() != null ? playerService.getPlayer(submission.getAccountUuid().toString(), false) : null;
             log.info("{} UUIDs have been submitted{}", added, player != null ? " by " + player.getUsername() : "");
         }
-        return added;
+
+        return new UUIDSubmissionResponse(added, player != null ? player.getUuidsContributed() : 0);
     }
 }
