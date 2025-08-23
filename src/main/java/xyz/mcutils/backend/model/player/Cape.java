@@ -3,6 +3,7 @@ package xyz.mcutils.backend.model.player;
 import com.google.gson.JsonObject;
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 @AllArgsConstructor @NoArgsConstructor
@@ -12,17 +13,20 @@ public class Cape {
     /**
      * The ID of the cape
      */
-    @Id private String id;
+    @Id
+    private String id;
 
     /**
      * The name of the cape
      */
-    @Setter private String name = null;
+    @Setter
+    private String name = null;
 
     /**
      * The amount of accounts that have this cape
      */
-    @Setter private int accounts = 0;
+    @Setter @Transient
+    private int accounts = 0;
 
     /**
      * Gets the cape from a {@link JsonObject}.
