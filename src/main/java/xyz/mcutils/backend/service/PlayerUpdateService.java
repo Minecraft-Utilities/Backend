@@ -24,15 +24,15 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
+import xyz.mcutils.backend.common.Cooldown;
+import xyz.mcutils.backend.common.CooldownPriority;
 
 @Service @Log4j2(topic = "Player Update Service")
 public class PlayerUpdateService {
     private static final ThreadPoolExecutor EXECUTOR = (ThreadPoolExecutor) Executors.newFixedThreadPool(Proxies.getTotalProxies() * 4);
     
-    // Rate limit queue processing to match total API capacity
-    // 150 requests/minute per proxy, so total capacity = 150 * proxy_count
-    private static final int QUEUE_INTERVAL_MS = (60_000 / (150 * Proxies.getTotalProxies())); // Time between queue items
-    private long lastQueueTime = -1;
+    // Rate limiting: 150 requests per minute per proxy
+    private final Cooldown cooldown = new Cooldown(Cooldown.cooldownRequestsPerMinute(150 * Proxies.getTotalProxies()));
 
     private final PlayerRepository playerRepository;
     private final PlayerUpdateQueueRepository playerUpdateQueueRepository;
@@ -58,17 +58,12 @@ public class PlayerUpdateService {
 
     @Scheduled(fixedRate = 50) // Run every 50ms
     public void runQueue() {
-        if (lastQueueTime == -1) {
-            lastQueueTime = System.currentTimeMillis();
-        }
-
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - lastQueueTime < QUEUE_INTERVAL_MS) {
+        if (EXECUTOR.getActiveCount() >= EXECUTOR.getMaximumPoolSize()) {
             return;
         }
-        lastQueueTime = currentTime;
 
-        if (EXECUTOR.getActiveCount() >= EXECUTOR.getMaximumPoolSize()) {
+        // Check if we can process a queue item (rate limiting)
+        if (!cooldown.isReady()) {
             return;
         }
 
@@ -88,6 +83,13 @@ public class PlayerUpdateService {
      * Gets the oldest item from the queue and updates the player.
      */
     public void processQueue() {
+        // Use the cooldown to respect rate limits
+        try {
+            cooldown.waitAndUse();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
         
         // Find the oldest item in Redis queue
         PlayerUpdateQueueItem queueItem = playerUpdateQueueRepository.findFirstByOrderByTimeAddedAsc();
