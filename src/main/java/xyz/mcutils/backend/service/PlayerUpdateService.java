@@ -28,7 +28,11 @@ import java.util.stream.Collectors;
 @Service @Log4j2(topic = "Player Update Service")
 public class PlayerUpdateService {
     private static final ThreadPoolExecutor EXECUTOR = (ThreadPoolExecutor) Executors.newFixedThreadPool(Proxies.getTotalProxies() * 4);
-    private static final int QUEUE_INTERVAL_MS = (60_000 / 150) / Proxies.getTotalProxies(); // 150 executions per minute * proxy count
+    
+    // Rate limit queue processing to match total API capacity
+    // 150 requests/minute per proxy, so total capacity = 150 * proxy_count
+    private static final int QUEUE_INTERVAL_MS = (60_000 / (150 * Proxies.getTotalProxies())); // Time between queue items
+    private long lastQueueTime = -1;
 
     private final PlayerRepository playerRepository;
     private final PlayerUpdateQueueRepository playerUpdateQueueRepository;
@@ -38,8 +42,6 @@ public class PlayerUpdateService {
     private final SkinHistoryRepository skinHistoryRepository;
     private final CapeHistoryRepository capeHistoryRepository;
     private final UsernameHistoryRepository usernameHistoryRepository;
-
-    private long lastQueueTime = -1;
 
     @Autowired
     public PlayerUpdateService(@NonNull PlayerRepository playerRepository, @NonNull PlayerUpdateQueueRepository playerUpdateQueueRepository, @NonNull PlayerService playerService,
