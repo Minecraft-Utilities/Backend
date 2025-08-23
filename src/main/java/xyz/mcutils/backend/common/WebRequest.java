@@ -10,7 +10,6 @@ import xyz.mcutils.backend.exception.impl.RateLimitException;
 
 @UtilityClass
 public class WebRequest {
-
     /**
      * The web client.
      */

@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.service;
 
-import jakarta.annotation.PostConstruct;
 import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +7,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import xyz.mcutils.backend.common.Proxies;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.player.PlayerUpdateQueueItem;
 import xyz.mcutils.backend.model.player.UUIDSubmission;
@@ -18,14 +18,15 @@ import xyz.mcutils.backend.repository.mongo.history.SkinHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.history.UsernameHistoryRepository;
 import xyz.mcutils.backend.repository.redis.PlayerUpdateQueueRepository;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service @Log4j2(topic = "Player Update Service")
 public class PlayerUpdateService {
-    private static final int QUEUE_INTERVAL_MS = 400; // 150 executions per minute (60,000ms / 150 = 400ms)
+    private static final int QUEUE_INTERVAL_MS = (60_000 / 150) / Proxies.getTotalProxies(); // 150 executions per minute * proxy count
+    private static int processingItems = 0;
 
     private final PlayerRepository playerRepository;
     private final PlayerUpdateQueueRepository playerUpdateQueueRepository;
@@ -36,8 +37,6 @@ public class PlayerUpdateService {
     private final CapeHistoryRepository capeHistoryRepository;
     private final UsernameHistoryRepository usernameHistoryRepository;
 
-    private final Queue<PlayerUpdateQueueItem> memoryQueue = new ConcurrentLinkedQueue<>();
-    private final ReentrantLock queueLock = new ReentrantLock();
     private long lastQueueTime = -1;
 
     @Autowired
@@ -53,21 +52,14 @@ public class PlayerUpdateService {
         this.usernameHistoryRepository = usernameHistoryRepository;
     }
 
-    @PostConstruct
-    public void init() {
-        // On startup, load the queue from Redis into memory
-        queueLock.lock();
-        try {
-            Iterable<PlayerUpdateQueueItem> redisQueue = playerUpdateQueueRepository.findAll();
-            redisQueue.forEach(memoryQueue::add);
-            log.info("Loaded {} items from Redis queue into memory", memoryQueue.size());
-        } finally {
-            queueLock.unlock();
-        }
-    }
-
     @Scheduled(fixedRate = 50) // Run every 50ms
     public void runQueue() {
+        // TODO: change this?
+        // 4 items per proxy
+        if (processingItems >= 4 * Proxies.getTotalProxies()) {
+            return;
+        }
+
         if (lastQueueTime == -1) {
             lastQueueTime = System.currentTimeMillis();
         }
@@ -78,25 +70,13 @@ public class PlayerUpdateService {
         }
         lastQueueTime = currentTime;
 
-        if (memoryQueue.isEmpty()) {
-            return;
-        }
-
-        // Add lock to ensure only one thread processes the queue at a time
-        if (queueLock.tryLock()) {
-            try {
-                processQueue();
-            } finally {
-                queueLock.unlock();
-            }
-        } else {
-            log.debug("Queue is already being processed by another thread");
-        }
+        // Run it async so we don't block the thread
+        new Thread(this::processQueue).start();
     }
 
     @Scheduled(fixedRate = 30_000)
     public void refreshQueue() {
-        if (!memoryQueue.isEmpty()) {
+        if (playerUpdateQueueRepository.count() > 0) {
             return;
         }
         insertToQueue();
@@ -106,17 +86,19 @@ public class PlayerUpdateService {
      * Gets the oldest item from the queue and updates the player.
      */
     public void processQueue() {
-        if (memoryQueue.isEmpty()) {
-            return;
-        }
+        processingItems++;
 
-        PlayerUpdateQueueItem queueItem = memoryQueue.peek();
+        // Find the oldest item in Redis queue
+        PlayerUpdateQueueItem queueItem = playerUpdateQueueRepository.findFirstByOrderByTimeAddedAsc();
         if (queueItem == null) {
             return;
         }
-
+        // Remove from Redis queue after fetching it
+        playerUpdateQueueRepository.delete(queueItem);
+        
         long start = System.currentTimeMillis();
         log.info("Processing queue item \"{}\"", queueItem.getUuid());
+        
         try {
             boolean playerExists = playerRepository.existsById(queueItem.getUuid());
             Player player = playerService.getPlayer(queueItem.getUuid().toString(), false);
@@ -142,44 +124,26 @@ public class PlayerUpdateService {
 
             // Save the player
             playerRepository.save(player);
-        } catch (Exception ex) {
-            log.error("Failed to update player {}: {}", queueItem.getUuid(), ex.getMessage());
-            ex.printStackTrace();
-        } finally {
-            // Remove from queues
-            memoryQueue.poll();
-            playerUpdateQueueRepository.delete(queueItem);
 
             log.info("Finished processing queue item \"{}\" in {}ms ({} left)",
                     queueItem.getUuid(),
                     System.currentTimeMillis() - start,
-                    memoryQueue.size()
+                    playerUpdateQueueRepository.count()
             );
-        }
-    }
-
-    /**
-     * Reloads the memory queue from Redis.
-     */
-    private void reloadMemoryQueueFromRedis() {
-        queueLock.lock();
-        try {
-            memoryQueue.clear();
-            Iterable<PlayerUpdateQueueItem> redisQueue = playerUpdateQueueRepository.findAll();
-            redisQueue.forEach(memoryQueue::add);
-            log.info("Reloaded {} items from queues", memoryQueue.size());
+        } catch (Exception ex) {
+            log.error("Failed to update player {}: {}", queueItem.getUuid(), ex.getMessage());
         } finally {
-            queueLock.unlock();
+            processingItems--;
         }
     }
 
     /**
-     * Inserts all players in the queue into the memory queue.
+     * Inserts all players in the queue into Redis.
      */
     public void insertToQueue() {
         PageRequest pageRequest = PageRequest.of(
                 0,
-                200,
+                500,
                 Sort.by(Sort.Direction.ASC, "lastUpdated")
         );
         List<Player> players = playerRepository.findPlayersLastUpdatedBefore(
@@ -187,22 +151,16 @@ public class PlayerUpdateService {
                 pageRequest
         );
 
-        queueLock.lock();
-        try {
-            List<PlayerUpdateQueueItem> newItems = players.stream()
-                    .map(player -> new PlayerUpdateQueueItem(player.getUniqueId(), null, System.currentTimeMillis()))
-                    .collect(Collectors.toList());
+        List<PlayerUpdateQueueItem> newItems = players.stream()
+                .map(player -> new PlayerUpdateQueueItem(player.getUniqueId(), null, System.currentTimeMillis()))
+                .collect(Collectors.toList());
 
-            // Add to both queues
-            memoryQueue.addAll(newItems);
-            playerUpdateQueueRepository.saveAll(newItems);
+        // Add to Redis queue
+        playerUpdateQueueRepository.saveAll(newItems);
 
-            int size = newItems.size();
-            if (size > 0) {
-                log.info("Added {} items to queues", size);
-            }
-        } finally {
-            queueLock.unlock();
+        int size = newItems.size();
+        if (size > 0) {
+            log.info("Added {} items to Redis queue", size);
         }
     }
 
@@ -222,11 +180,8 @@ public class PlayerUpdateService {
                 continue;
             }
 
-            // Check if the player is already in the queue
-            Optional<PlayerUpdateQueueItem> existingQueueItem = memoryQueue.stream()
-                    .filter(item -> item.getUuid().equals(uuid))
-                    .findFirst();
-            if (existingQueueItem.isPresent()) {
+            // Check if the player is already in the Redis queue
+            if (playerUpdateQueueRepository.existsById(uuid)) {
                 continue;
             }
 
@@ -236,7 +191,6 @@ public class PlayerUpdateService {
 
         Player player = submission.getAccountUuid() != null ? playerService.getPlayer(submission.getAccountUuid().toString(), false) : null;
         if (added > 0) {
-            memoryQueue.addAll(queueItems);
             playerUpdateQueueRepository.saveAll(queueItems);
 
             log.info("{} UUIDs have been submitted{}", added, player != null ? " by " + player.getUsername() : "");

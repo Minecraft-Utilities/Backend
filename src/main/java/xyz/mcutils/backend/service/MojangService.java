@@ -11,6 +11,7 @@ import lombok.extern.log4j.Log4j2;
 import net.jodah.expiringmap.ExpirationPolicy;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.ExpiringSet;
+import xyz.mcutils.backend.common.Proxies;
 import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.model.token.MojangProfileToken;
 import xyz.mcutils.backend.model.token.MojangUsernameToUuidToken;
@@ -26,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 @Log4j2(topic = "Mojang Service")
 @Getter
 public class MojangService {
-
     /**
      * The splitter and joiner for dots.
      */
@@ -173,7 +173,7 @@ public class MojangService {
      * @return the profile
      */
     public MojangProfileToken getProfile(String id) {
-        return WebRequest.getAsEntity(SESSION_SERVER_ENDPOINT + "/session/minecraft/profile/" + id, MojangProfileToken.class);
+        return WebRequest.getAsEntity(Proxies.getNextProxy() + "/" + SESSION_SERVER_ENDPOINT + "/session/minecraft/profile/" + id, MojangProfileToken.class);
     }
 
     /**
@@ -184,6 +184,6 @@ public class MojangService {
      * @return the profile
      */
     public MojangUsernameToUuidToken getUuidFromUsername(String id) {
-        return WebRequest.getAsEntity(API_ENDPOINT + "/users/profiles/minecraft/" + id, MojangUsernameToUuidToken.class);
+        return WebRequest.getAsEntity(Proxies.getNextProxy() + "/" + API_ENDPOINT + "/users/profiles/minecraft/" + id, MojangUsernameToUuidToken.class);
     }
 }

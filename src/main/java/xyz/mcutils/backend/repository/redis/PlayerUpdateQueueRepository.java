@@ -10,4 +10,10 @@ import java.util.UUID;
  *
  * @author Fascinated
  */
-public interface PlayerUpdateQueueRepository extends CrudRepository<PlayerUpdateQueueItem, UUID> { }
+public interface PlayerUpdateQueueRepository extends CrudRepository<PlayerUpdateQueueItem, UUID> {
+    
+    /**
+     * Find the oldest item in the queue by timeAdded.
+     */
+    PlayerUpdateQueueItem findFirstByOrderByTimeAddedAsc();
+}
