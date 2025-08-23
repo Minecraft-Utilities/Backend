@@ -20,10 +20,10 @@ public class SkinService {
     public static SkinService INSTANCE;
 
     private final SkinRepository skinRepository;
-    private final MinioService minioService;
+    private final StorageService minioService;
 
     @Autowired
-    public SkinService(SkinRepository skinRepository, MinioService minioService) {
+    public SkinService(SkinRepository skinRepository, StorageService minioService) {
         this.skinRepository = skinRepository;
         this.minioService = minioService;
     }
@@ -105,14 +105,14 @@ public class SkinService {
      * @return the skin image
      */
     public byte[] getSkinImage(Skin skin) {
-        byte[] skinImage = minioService.get(MinioService.Bucket.SKINS, skin.getId() + ".png");
+        byte[] skinImage = minioService.get(StorageService.Bucket.SKINS, skin.getId() + ".png");
         if (skinImage == null) {
             log.info("Downloading skin image for skin {}", skin.getId());
             skinImage = PlayerUtils.getSkinImage(skin.getMojangTextureUrl());
             if (skinImage == null) {
                 throw new IllegalStateException("Skin image not found for skin " + skin.getId());
             }
-            minioService.upload(MinioService.Bucket.SKINS, skin.getId() + ".png", skinImage);
+            minioService.upload(StorageService.Bucket.SKINS, skin.getId() + ".png", skinImage);
             log.info("Saved skin image for skin {}", skin.getId());
         }
 

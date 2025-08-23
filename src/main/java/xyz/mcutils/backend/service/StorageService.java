@@ -12,15 +12,15 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayInputStream;
 
 @Service
-@Log4j2(topic = "Minio Service")
-public class MinioService {
+@Log4j2(topic = "Storage Service")
+public class StorageService {
     private final MinioClient minioClient;
 
     @SneakyThrows
     @Autowired
-    public MinioService(@Value("${minio.endpoint}") String endpoint,
-                        @Value("${minio.accessKey}") String accessKey,
-                        @Value("${minio.secretKey}") String secretKey) {
+    public StorageService(@Value("${s3.endpoint}") String endpoint,
+                          @Value("${s3.accessKey}") String accessKey,
+                          @Value("${s3.secretKey}") String secretKey) {
         this.minioClient = MinioClient.builder()
                 .endpoint(endpoint)
                 .credentials(accessKey, secretKey)
