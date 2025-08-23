@@ -171,7 +171,7 @@ public class CapeService {
         if (addUsage) {
             List<CompletableFuture<Void>> futures = capes.stream()
                 .map(cape -> CompletableFuture.runAsync(() -> 
-                    cape.setAccounts(playerRepository.countByCapeId(cape.getId()))
+                    cape.setAccounts(playerRepository.countByCurrentCapeId(cape.getId()))
                 ))
                 .toList();
             

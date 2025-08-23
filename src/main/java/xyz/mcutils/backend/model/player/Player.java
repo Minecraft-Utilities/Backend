@@ -1,10 +1,10 @@
 package xyz.mcutils.backend.model.player;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
@@ -14,11 +14,17 @@ import xyz.mcutils.backend.model.player.history.UsernameHistoryEntry;
 import xyz.mcutils.backend.model.response.SkinResponse;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.model.token.MojangProfileToken;
+import xyz.mcutils.backend.repository.mongo.history.CapeHistoryRepository;
+import xyz.mcutils.backend.repository.mongo.history.SkinHistoryRepository;
+import xyz.mcutils.backend.repository.mongo.history.UsernameHistoryRepository;
 import xyz.mcutils.backend.service.CapeService;
 import xyz.mcutils.backend.service.MojangService;
 import xyz.mcutils.backend.service.SkinService;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @AllArgsConstructor
 @Getter
@@ -69,7 +75,7 @@ public class Player {
      */
     @JsonIgnore
     @Setter
-    private String skinId;
+    private String currentSkinId;
 
     /**
      * The cape of the player, null if the
@@ -77,40 +83,46 @@ public class Player {
      */
     @JsonIgnore
     @Setter
-    private String capeId;
-
-    /**
-     * The views of the player in the last 30 days for each day.
-     */
-    @JsonIgnore
-    private Map<String, Integer> dailyViews = new HashMap<>();
+    private String currentCapeId;
 
     /**
      * The usernames this player has used previously,
      * includes the current skin.
      */
+    @Setter
+    @Transient
     private List<UsernameHistoryEntry> usernameHistory;
 
     /**
      * The skins this player has used previously,
      * includes the current skin.
      */
+    @Setter
+    @Transient
     private List<SkinHistoryEntry> skinHistory;
 
     /**
      * The capes this player has used previously,
      * includes the current skin.
      */
+    @Setter
+    @Transient
     private List<CapeHistoryEntry> capes;
 
     /**
      * The timestamp when this player last had
      * their information (username, skin history, etc...) updated.
      */
-    @Setter @JsonProperty("lastRefreshed")
-    private long lastUpdated;
+    @Setter
+    private long lastRefreshed;
 
-    public Player(MojangProfileToken profile) {
+    /**
+     * The timestamp of when this player was added to McUtils.
+     */
+    private long timestampTracked;
+
+    public Player(MojangProfileToken profile, SkinHistoryRepository skinHistoryRepository, CapeHistoryRepository capeHistoryRepository,
+                  UsernameHistoryRepository usernameHistoryRepository) {
         this.uniqueId = UUIDUtils.addDashes(profile.getId());
         this.username = profile.getName();
         this.legacyAccount = profile.isLegacy();
@@ -125,24 +137,28 @@ public class Player {
         Cape currentCape = skinAndCape.getRight();
 
         if (currentSkin != null) {
-            this.skinId = currentSkin.getId();
+            this.currentSkinId = currentSkin.getId();
             SkinService.INSTANCE.createSkin(currentSkin);
 
-            this.skinHistory.add(new SkinHistoryEntry(
+            skinHistoryRepository.insert(new SkinHistoryEntry(
+                    UUID.randomUUID(),
+                    this.uniqueId,
                     currentSkin.getId(),
-                    -1,
+                    System.currentTimeMillis(),
                     -1
             ));
         }
 
         if (currentCape != null) {
-            this.capeId = currentCape.getId();
+            this.currentCapeId = currentCape.getId();
             Cape cape = CapeService.INSTANCE.getCape(currentCape.getId(), currentCape);
 
             String[] capeUrlParts = currentCape.getUrl().split("/");
-            this.capes.add(new CapeHistoryEntry(
+            capeHistoryRepository.insert(new CapeHistoryEntry(
+                    UUID.randomUUID(),
+                    this.uniqueId,
                     capeUrlParts[capeUrlParts.length - 1],
-                    -1,
+                    System.currentTimeMillis(),
                     -1
             ));
 
@@ -153,25 +169,18 @@ public class Player {
             }
         }
 
-        this.usernameHistory.add(new UsernameHistoryEntry(
+        usernameHistoryRepository.insert(new UsernameHistoryEntry(
+                UUID.randomUUID(),
+                this.uniqueId,
                 profile.getName(),
                 -1
         ));
 
-        this.lastUpdated = System.currentTimeMillis();
+        this.lastRefreshed = System.currentTimeMillis();
+        this.timestampTracked = System.currentTimeMillis();
     }
 
-    public Player() {
-        if (this.usernameHistory == null) {
-            this.usernameHistory = new ArrayList<>();
-        }
-        if (this.skinHistory == null) {
-            this.skinHistory = new ArrayList<>();
-        }
-        if (this.capes == null) {
-            this.capes = new ArrayList<>();
-        }
-    }
+    public Player() {}
 
     /**
      * Gets the current cape for the player.
@@ -179,7 +188,7 @@ public class Player {
      * @return the cape, or null if they have no cape
      */
     public Cape getCurrentCape() {
-        return this.capeId != null ? CapeService.INSTANCE.getCape(this.capeId) : null;
+        return this.currentCapeId != null ? CapeService.INSTANCE.getCape(this.currentCapeId) : null;
     }
 
     /**
@@ -188,10 +197,10 @@ public class Player {
      * @return the player's skin, or null if no skin
      */
     public SkinResponse getCurrentSkin() {
-        if (this.skinId == null) {
+        if (this.currentSkinId == null) {
             return null;
         }
-        Skin skin = SkinService.INSTANCE.getSkin(this.skinId);
+        Skin skin = SkinService.INSTANCE.getSkin(this.currentSkinId);
         if (skin == null) {
             return null;
         }
@@ -207,10 +216,12 @@ public class Player {
      * @param player          the player to update
      * @param currentUsername the current username
      */
-    public void updateUsernameHistory(Player player, String currentUsername) {
-        List<UsernameHistoryEntry> usernameHistory = player.getUsernameHistory();
-        if (usernameHistory.stream().noneMatch(s -> s.getUsername().equals(currentUsername))) {
-            usernameHistory.add(new UsernameHistoryEntry(
+    public void updateUsernameHistory(Player player, String currentUsername, UsernameHistoryRepository repository) {
+        Optional<UsernameHistoryEntry> entry = repository.findByUsername(player.getUniqueId(), currentUsername);
+        if (entry.isEmpty()) {
+            repository.insert(new UsernameHistoryEntry(
+                    UUID.randomUUID(),
+                    player.getUniqueId(),
                     currentUsername,
                     usernameHistory.isEmpty() ? -1 : System.currentTimeMillis()
             ));
@@ -223,20 +234,21 @@ public class Player {
      * @param player      the player to update
      * @param currentSkin the current skin
      */
-    public void updateSkinHistory(Player player, Skin currentSkin) {
-        String previousSkinId = player.getSkinId();
-        List<SkinHistoryEntry> skinHistory = player.getSkinHistory();
+    public void updateSkinHistory(Player player, Skin currentSkin, SkinHistoryRepository repository) {
+        String previousSkinId = player.getCurrentSkinId();
 
         if (previousSkinId == null || !previousSkinId.equals(currentSkin.getId())) {
-            Optional<SkinHistoryEntry> existingEntry = skinHistory.stream()
-                    .filter(entry -> entry.getId().equals(currentSkin.getId()))
-                    .findFirst();
+            Optional<SkinHistoryEntry> optionalEntry = repository.findBySkinId(player.getUniqueId(), previousSkinId);
 
             long currentTime = System.currentTimeMillis();
-            if (existingEntry.isPresent()) {
-                existingEntry.get().setLastUsed(currentTime);
+            if (optionalEntry.isPresent()) {
+                SkinHistoryEntry entry = optionalEntry.get();
+                entry.setLastUsed(currentTime);
+                repository.save(entry);
             } else {
-                skinHistory.add(new SkinHistoryEntry(
+                repository.insert(new SkinHistoryEntry(
+                        UUID.randomUUID(),
+                        player.getUniqueId(),
                         currentSkin.getId(),
                         currentTime,
                         currentTime
@@ -251,21 +263,22 @@ public class Player {
      * @param player      the player to update
      * @param currentCape the current cape
      */
-    public void updateCapeHistory(Player player, Cape currentCape) {
-        String previousCapeId = player.getCapeId();
-        List<CapeHistoryEntry> capes = player.getCapes();
+    public void updateCapeHistory(Player player, Cape currentCape, CapeHistoryRepository repository) {
+        String previousCapeId = player.getCurrentCapeId();
 
         if (previousCapeId == null || !previousCapeId.equals(currentCape.getId())) {
-            Optional<CapeHistoryEntry> existingEntry = capes.stream()
-                    .filter(entry -> entry.getId().equals(currentCape.getId()))
-                    .findFirst();
+            Optional<CapeHistoryEntry> optionalEntry = repository.findByCapeId(player.getUniqueId(), previousCapeId);
 
             long currentTime = System.currentTimeMillis();
-            if (existingEntry.isPresent()) {
-                existingEntry.get().setLastUsed(currentTime);
+            if (optionalEntry.isPresent()) {
+                CapeHistoryEntry entry = optionalEntry.get();
+                entry.setLastUsed(currentTime);
+                repository.save(entry);
             } else {
                 if (currentCape != null) {
-                    capes.add(new CapeHistoryEntry(
+                    repository.insert(new CapeHistoryEntry(
+                            UUID.randomUUID(),
+                            player.getUniqueId(),
                             currentCape.getId(),
                             currentTime,
                             currentTime
@@ -287,7 +300,7 @@ public class Player {
      */
     public boolean shouldRefresh(boolean enableRefresh) {
         return enableRefresh &&
-                this.getLastUpdated() < System.currentTimeMillis() - (3 * 60 * 60 * 1000);
+                this.getLastRefreshed() < System.currentTimeMillis() - (3 * 60 * 60 * 1000);
     }
 
     /**
@@ -295,7 +308,8 @@ public class Player {
      *
      * @param mojangService    the mojang service to use
      */
-    public void refresh(@NonNull MojangService mojangService) {
+    public void refresh(@NonNull MojangService mojangService, SkinHistoryRepository skinHistoryRepository, CapeHistoryRepository capeHistoryRepository,
+                        UsernameHistoryRepository usernameHistoryRepository) {
         MojangProfileToken profileToken = mojangService.getProfile(this.getUniqueId().toString());
         Tuple<Skin, Cape> skinAndCape = profileToken.getSkinAndCape();
         Skin currentSkin = skinAndCape.getLeft();
@@ -303,13 +317,13 @@ public class Player {
         String currentUsername = profileToken.getName();
 
         // Update player
-        this.updateUsernameHistory(this, currentUsername);
+        this.updateUsernameHistory(this, currentUsername, usernameHistoryRepository);
 
         if (currentSkin != null) {
-            this.updateSkinHistory(this, currentSkin);
+            this.updateSkinHistory(this, currentSkin, skinHistoryRepository);
         }
         if (currentCape != null) {
-            this.updateCapeHistory(this, currentCape);
+            this.updateCapeHistory(this, currentCape, capeHistoryRepository);
         }
 
         // Update username if it's different
@@ -318,13 +332,13 @@ public class Player {
         }
 
         // Update skin if it's different
-        if (currentSkin != null && !currentSkin.getId().equals(this.getSkinId())) {
-            this.setSkinId(currentSkin.getId());
+        if (currentSkin != null && !currentSkin.getId().equals(this.getCurrentSkinId())) {
+            this.setCurrentSkinId(currentSkin.getId());
         }
 
         // Update cape if it's different
-        if (currentCape != null && !currentCape.getId().equals(this.getCapeId())) {
-            this.setCapeId(currentCape.getId());
+        if (currentCape != null && !currentCape.getId().equals(this.getCurrentCapeId())) {
+            this.setCurrentCapeId(currentCape.getId());
         }
 
         // Create the skin if it doesn't exist
@@ -337,6 +351,6 @@ public class Player {
             CapeService.INSTANCE.createCape(currentCape);
         }
 
-        this.setLastUpdated(System.currentTimeMillis());
+        this.setLastRefreshed(System.currentTimeMillis());
     }
 }

@@ -12,7 +12,9 @@ import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.player.PlayerUpdateQueueItem;
 import xyz.mcutils.backend.model.player.UUIDSubmission;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
-import xyz.mcutils.backend.repository.redis.PlayerCacheRepository;
+import xyz.mcutils.backend.repository.mongo.history.CapeHistoryRepository;
+import xyz.mcutils.backend.repository.mongo.history.SkinHistoryRepository;
+import xyz.mcutils.backend.repository.mongo.history.UsernameHistoryRepository;
 import xyz.mcutils.backend.repository.redis.PlayerUpdateQueueRepository;
 
 import java.util.*;
@@ -25,26 +27,29 @@ public class PlayerUpdateService {
     private static final int QUEUE_INTERVAL_MS = 400; // 150 executions per minute (60,000ms / 150 = 400ms)
 
     private final PlayerRepository playerRepository;
-    private final PlayerCacheRepository playerCacheRepository;
     private final PlayerUpdateQueueRepository playerUpdateQueueRepository;
     private final PlayerService playerService;
     private final MojangService mojangService;
+
+    private final SkinHistoryRepository skinHistoryRepository;
+    private final CapeHistoryRepository capeHistoryRepository;
+    private final UsernameHistoryRepository usernameHistoryRepository;
 
     private final Queue<PlayerUpdateQueueItem> memoryQueue = new ConcurrentLinkedQueue<>();
     private final ReentrantLock queueLock = new ReentrantLock();
     private long lastQueueTime = -1;
 
     @Autowired
-    public PlayerUpdateService(@NonNull PlayerRepository playerRepository,
-                               @NonNull PlayerCacheRepository playerCacheRepository,
-                               @NonNull PlayerUpdateQueueRepository playerUpdateQueueRepository,
-                               @NonNull PlayerService playerService,
-                               @NonNull MojangService mojangService) {
+    public PlayerUpdateService(@NonNull PlayerRepository playerRepository, @NonNull PlayerUpdateQueueRepository playerUpdateQueueRepository, @NonNull PlayerService playerService,
+                               @NonNull MojangService mojangService, @NonNull SkinHistoryRepository skinHistoryRepository, @NonNull CapeHistoryRepository capeHistoryRepository,
+                               @NonNull UsernameHistoryRepository usernameHistoryRepository) {
         this.playerRepository = playerRepository;
-        this.playerCacheRepository = playerCacheRepository;
         this.playerUpdateQueueRepository = playerUpdateQueueRepository;
         this.playerService = playerService;
         this.mojangService = mojangService;
+        this.skinHistoryRepository = skinHistoryRepository;
+        this.capeHistoryRepository = capeHistoryRepository;
+        this.usernameHistoryRepository = usernameHistoryRepository;
     }
 
     @PostConstruct
@@ -117,7 +122,7 @@ public class PlayerUpdateService {
 
             // Refresh data (Mojang API) if the player exists
             if (playerExists) {
-                player.refresh(mojangService);
+                player.refresh(mojangService, skinHistoryRepository, capeHistoryRepository, usernameHistoryRepository);
             }
 
             // Update submitter stats

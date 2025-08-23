@@ -9,11 +9,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * A repository for {@link Player}s.
- *
- * @author Fascinated
- */
 public interface PlayerRepository extends MongoRepository<Player, UUID> {
     /**
      * Finds players that were last updated more than 24 hours ago,
@@ -46,17 +41,8 @@ public interface PlayerRepository extends MongoRepository<Player, UUID> {
     /**
      * Gets the number of players with the given cape ID.
      *
-     * @param capeId The ID of the cape
+     * @param currentCapeId The ID of the cape
      * @return The number of players with the given cape ID
      */
-    int countByCapeId(String capeId);
-
-    /**
-     * Gets the number of players with the given cape ID in their skin history.
-     *
-     * @param capeId The ID of the cape
-     * @return The number of players with the given cape ID in their skin history
-     */
-    @Query(value = "{ 'skinHistory.id': ?0 }", count = true)
-    Long countByCapeIdInHistory(String capeId);
+    int countByCurrentCapeId(String currentCapeId);
 }

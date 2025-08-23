@@ -1,5 +1,6 @@
 package xyz.mcutils.backend.service;
 
+import lombok.NonNull;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -7,26 +8,32 @@ import xyz.mcutils.backend.common.AppConfig;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.UUIDUtils;
-import xyz.mcutils.backend.exception.impl.BadRequestException;
-import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
-import xyz.mcutils.backend.exception.impl.RateLimitException;
-import xyz.mcutils.backend.exception.impl.ResourceNotFoundException;
+import xyz.mcutils.backend.exception.impl.*;
 import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.cache.CachedPlayerName;
 import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
 import xyz.mcutils.backend.model.player.Player;
+import xyz.mcutils.backend.model.player.history.CapeHistoryEntry;
+import xyz.mcutils.backend.model.player.history.SkinHistoryEntry;
+import xyz.mcutils.backend.model.player.history.UsernameHistoryEntry;
 import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.token.MojangProfileToken;
 import xyz.mcutils.backend.model.token.MojangUsernameToUuidToken;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
+import xyz.mcutils.backend.repository.mongo.history.CapeHistoryRepository;
+import xyz.mcutils.backend.repository.mongo.history.SkinHistoryRepository;
+import xyz.mcutils.backend.repository.mongo.history.UsernameHistoryRepository;
 import xyz.mcutils.backend.repository.redis.PlayerCacheRepository;
 import xyz.mcutils.backend.repository.redis.PlayerNameCacheRepository;
 import xyz.mcutils.backend.repository.redis.PlayerSkinPartCacheRepository;
 
 import java.awt.image.BufferedImage;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 @Service @Log4j2(topic = "Player Service")
@@ -37,14 +44,23 @@ public class PlayerService {
     private final PlayerNameCacheRepository playerNameCacheRepository;
     private final PlayerSkinPartCacheRepository playerSkinPartCacheRepository;
 
+    private final SkinHistoryRepository skinHistoryRepository;
+    private final CapeHistoryRepository capeHistoryRepository;
+    private final UsernameHistoryRepository usernameHistoryRepository;
+
     @Autowired
-    public PlayerService(MojangService mojangService, PlayerRepository playerRepository, PlayerCacheRepository playerCacheRepository,
-                         PlayerNameCacheRepository playerNameCacheRepository, PlayerSkinPartCacheRepository playerSkinPartCacheRepository) {
+    public PlayerService(@NonNull MojangService mojangService, @NonNull PlayerRepository playerRepository, @NonNull PlayerCacheRepository playerCacheRepository,
+                         @NonNull PlayerNameCacheRepository playerNameCacheRepository, @NonNull PlayerSkinPartCacheRepository playerSkinPartCacheRepository,
+                         @NonNull SkinHistoryRepository skinHistoryRepository, @NonNull CapeHistoryRepository capeHistoryRepository,
+                         @NonNull UsernameHistoryRepository usernameHistoryRepository) {
         this.mojangService = mojangService;
         this.playerRepository = playerRepository;
         this.playerCacheRepository = playerCacheRepository;
         this.playerNameCacheRepository = playerNameCacheRepository;
         this.playerSkinPartCacheRepository = playerSkinPartCacheRepository;
+        this.skinHistoryRepository = skinHistoryRepository;
+        this.capeHistoryRepository = capeHistoryRepository;
+        this.usernameHistoryRepository = usernameHistoryRepository;
     }
 
     /**
@@ -99,12 +115,30 @@ public class PlayerService {
                 throw new ResourceNotFoundException("Player with UUID '%s' not found".formatted(uuid));
             }
 
-            player = new Player(mojangProfile);
+            player = new Player(mojangProfile, skinHistoryRepository, capeHistoryRepository, usernameHistoryRepository);
             playerRepository.save(player);
         }
 
+        // Execute history queries in parallel
+        UUID playerId = player.getUniqueId();
+        try {
+            CompletableFuture<List<SkinHistoryEntry>> skinFuture = CompletableFuture.supplyAsync(() -> skinHistoryRepository.findByPlayerId(playerId));
+            CompletableFuture<List<CapeHistoryEntry>> capeFuture = CompletableFuture.supplyAsync(() -> capeHistoryRepository.findByPlayerId(playerId));
+            CompletableFuture<List<UsernameHistoryEntry>> usernameFuture = CompletableFuture.supplyAsync(() -> usernameHistoryRepository.findByPlayerId(playerId));
+            
+            CompletableFuture.allOf(skinFuture, capeFuture, usernameFuture).get();
+            
+            // Set results after all queries complete
+            player.setSkinHistory(skinFuture.get());
+            player.setCapes(capeFuture.get());
+            player.setUsernameHistory(usernameFuture.get());
+        } catch (InterruptedException | ExecutionException e) {
+            log.error("Error fetching player history data", e);
+            throw new InternalServerErrorException("Failed to fetch player history data");
+        }
+
         if (player.shouldRefresh(enableRefresh)) {
-            player.refresh(mojangService);
+            player.refresh(mojangService, skinHistoryRepository, capeHistoryRepository, usernameHistoryRepository);
             playerRepository.save(player);
         }
 
