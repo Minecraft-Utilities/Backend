@@ -3,15 +3,6 @@ package xyz.mcutils.backend.common;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Priority levels for cooldown usage
- */
-public enum CooldownPriority {
-    NORMAL,
-    LOW,
-    BACKGROUND
-}
-
-/**
  * A cooldown system for rate limiting with burst support and priority levels
  */
 public class Cooldown {
