@@ -86,13 +86,14 @@ public class PlayerUpdateService {
      * Gets the oldest item from the queue and updates the player.
      */
     public void processQueue() {
-        processingItems++;
-
+        
         // Find the oldest item in Redis queue
         PlayerUpdateQueueItem queueItem = playerUpdateQueueRepository.findFirstByOrderByTimeAddedAsc();
         if (queueItem == null) {
             return;
         }
+        processingItems++;
+        
         // Remove from Redis queue after fetching it
         playerUpdateQueueRepository.delete(queueItem);
         
