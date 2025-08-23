@@ -18,9 +18,9 @@ import java.util.Objects;
 @SpringBootApplication
 @EnableScheduling
 public class Main {
-        public static final Gson GSON = new GsonBuilder()
-                .setDateFormat("MM-dd-yyyy HH:mm:ss")
-                .create();
+    public static final Gson GSON = new GsonBuilder()
+            .setDateFormat("MM-dd-yyyy HH:mm:ss")
+            .create();
     public static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
 
     @SneakyThrows

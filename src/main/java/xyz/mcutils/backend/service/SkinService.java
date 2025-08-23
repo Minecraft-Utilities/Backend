@@ -5,9 +5,16 @@ import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import xyz.mcutils.backend.common.AppConfig;
+import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.PlayerUtils;
+import xyz.mcutils.backend.exception.impl.BadRequestException;
+import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
+import xyz.mcutils.backend.model.player.Player;
+import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.repository.mongo.SkinRepository;
+import xyz.mcutils.backend.repository.redis.PlayerSkinPartCacheRepository;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -20,11 +27,13 @@ public class SkinService {
     public static SkinService INSTANCE;
 
     private final SkinRepository skinRepository;
+    private final PlayerSkinPartCacheRepository skinPartRepository;
     private final StorageService minioService;
 
     @Autowired
-    public SkinService(SkinRepository skinRepository, StorageService minioService) {
+    public SkinService(SkinRepository skinRepository, PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService) {
         this.skinRepository = skinRepository;
+        this.skinPartRepository = skinPartRepository;
         this.minioService = minioService;
     }
 
@@ -117,5 +126,51 @@ public class SkinService {
         }
 
         return skinImage;
+    }
+
+    /**
+     * Gets a skin part from the player's skin.
+     *
+     * @param player the player
+     * @param partName the name of the part
+     * @param renderOverlay whether to render the overlay
+     * @return the skin part
+     */
+    public CachedPlayerSkinPart getSkinPart(Player player, String partName, boolean renderOverlay, int size) {
+        if (size > 512) {
+            throw new BadRequestException("Size cannot be larger than 512");
+        }
+        if (size < 32) {
+            throw new BadRequestException("Size cannot be smaller than 32");
+        }
+
+        ISkinPart part = ISkinPart.getByName(partName); // The skin part to get
+        if (part == null) {
+            throw new BadRequestException("Invalid skin part: %s".formatted(partName));
+        }
+
+        String name = part.name();
+        log.info("Getting skin part {} for player: {} (size: {}, overlays: {})", name, player.getUniqueId(), size, renderOverlay);
+        String key = "%s-%s-%s-%s".formatted(player.getUniqueId(), name, size, renderOverlay);
+
+        Optional<CachedPlayerSkinPart> cache = skinPartRepository.findById(key);
+
+        // The skin part is cached
+        if (cache.isPresent() && AppConfig.isProduction()) {
+            log.info("Skin part {} for player {} is cached", name, player.getUniqueId());
+            return cache.get();
+        }
+
+        long before = System.currentTimeMillis();
+        BufferedImage renderedPart = part.render(player.getCurrentSkin(), renderOverlay, size); // Render the skin part
+        log.info("Took {}ms to render skin part {} for player: {}", System.currentTimeMillis() - before, name, player.getUniqueId());
+
+        CachedPlayerSkinPart skinPart = new CachedPlayerSkinPart(
+                key,
+                ImageUtils.imageToBytes(renderedPart)
+        );
+        log.info("Fetched skin part {} for player: {}", name, player.getUniqueId());
+        skinPartRepository.save(skinPart);
+        return skinPart;
     }
 }

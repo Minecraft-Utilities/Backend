@@ -5,17 +5,14 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.AppConfig;
-import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.*;
 import xyz.mcutils.backend.model.cache.CachedPlayerName;
-import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.player.history.CapeHistoryEntry;
 import xyz.mcutils.backend.model.player.history.SkinHistoryEntry;
 import xyz.mcutils.backend.model.player.history.UsernameHistoryEntry;
-import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.token.MojangProfileToken;
 import xyz.mcutils.backend.model.token.MojangUsernameToUuidToken;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
@@ -23,9 +20,7 @@ import xyz.mcutils.backend.repository.mongo.history.CapeHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.history.SkinHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.history.UsernameHistoryRepository;
 import xyz.mcutils.backend.repository.redis.PlayerNameCacheRepository;
-import xyz.mcutils.backend.repository.redis.PlayerSkinPartCacheRepository;
 
-import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,21 +34,17 @@ public class PlayerService {
     private final MojangService mojangService;
     private final PlayerRepository playerRepository;
     private final PlayerNameCacheRepository playerNameCacheRepository;
-    private final PlayerSkinPartCacheRepository playerSkinPartCacheRepository;
 
     private final SkinHistoryRepository skinHistoryRepository;
     private final CapeHistoryRepository capeHistoryRepository;
     private final UsernameHistoryRepository usernameHistoryRepository;
 
     @Autowired
-    public PlayerService(@NonNull MojangService mojangService, @NonNull PlayerRepository playerRepository,
-                         @NonNull PlayerNameCacheRepository playerNameCacheRepository, @NonNull PlayerSkinPartCacheRepository playerSkinPartCacheRepository,
-                         @NonNull SkinHistoryRepository skinHistoryRepository, @NonNull CapeHistoryRepository capeHistoryRepository,
-                         @NonNull UsernameHistoryRepository usernameHistoryRepository) {
+    public PlayerService(@NonNull MojangService mojangService, @NonNull PlayerRepository playerRepository, @NonNull PlayerNameCacheRepository playerNameCacheRepository,
+                         @NonNull SkinHistoryRepository skinHistoryRepository, @NonNull CapeHistoryRepository capeHistoryRepository, @NonNull UsernameHistoryRepository usernameHistoryRepository) {
         this.mojangService = mojangService;
         this.playerRepository = playerRepository;
         this.playerNameCacheRepository = playerNameCacheRepository;
-        this.playerSkinPartCacheRepository = playerSkinPartCacheRepository;
         this.skinHistoryRepository = skinHistoryRepository;
         this.capeHistoryRepository = capeHistoryRepository;
         this.usernameHistoryRepository = usernameHistoryRepository;
@@ -80,12 +71,12 @@ public class PlayerService {
         Player player = playerRepository.findById(uuid).orElse(null);
 
         if (player == null) {
-            MojangProfileToken mojangProfile = mojangService.getProfile(uuid.toString());
-            if (mojangProfile == null) {
+            MojangProfileToken token = mojangService.getProfile(uuid.toString());
+            if (token == null) {
                 throw new ResourceNotFoundException("Player with UUID '%s' not found".formatted(uuid));
             }
 
-            player = new Player(mojangProfile, skinHistoryRepository, capeHistoryRepository, usernameHistoryRepository);
+            player = new Player(token, skinHistoryRepository, capeHistoryRepository, usernameHistoryRepository);
             playerRepository.save(player);
         }
 
@@ -166,52 +157,6 @@ public class PlayerService {
         } catch (RateLimitException exception) {
             throw new MojangAPIRateLimitException();
         }
-    }
-
-    /**
-     * Gets a skin part from the player's skin.
-     *
-     * @param player the player
-     * @param partName the name of the part
-     * @param renderOverlay whether to render the overlay
-     * @return the skin part
-     */
-    public CachedPlayerSkinPart getSkinPart(Player player, String partName, boolean renderOverlay, int size) {
-        if (size > 512) {
-            throw new BadRequestException("Size cannot be larger than 512");
-        }
-        if (size < 32) {
-            throw new BadRequestException("Size cannot be smaller than 32");
-        }
-
-        ISkinPart part = ISkinPart.getByName(partName); // The skin part to get
-        if (part == null) {
-            throw new BadRequestException("Invalid skin part: %s".formatted(partName));
-        }
-
-        String name = part.name();
-        log.info("Getting skin part {} for player: {} (size: {}, overlays: {})", name, player.getUniqueId(), size, renderOverlay);
-        String key = "%s-%s-%s-%s".formatted(player.getUniqueId(), name, size, renderOverlay);
-
-        Optional<CachedPlayerSkinPart> cache = playerSkinPartCacheRepository.findById(key);
-
-        // The skin part is cached
-        if (cache.isPresent() && AppConfig.isProduction()) {
-            log.info("Skin part {} for player {} is cached", name, player.getUniqueId());
-            return cache.get();
-        }
-
-        long before = System.currentTimeMillis();
-        BufferedImage renderedPart = part.render(player.getCurrentSkin(), renderOverlay, size); // Render the skin part
-        log.info("Took {}ms to render skin part {} for player: {}", System.currentTimeMillis() - before, name, player.getUniqueId());
-
-        CachedPlayerSkinPart skinPart = new CachedPlayerSkinPart(
-                key,
-                ImageUtils.imageToBytes(renderedPart)
-        );
-        log.info("Fetched skin part {} for player: {}", name, player.getUniqueId());
-        playerSkinPartCacheRepository.save(skinPart);
-        return skinPart;
     }
 
     /**
