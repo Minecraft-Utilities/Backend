@@ -32,7 +32,7 @@ public class PlayerUpdateService {
     private static final ThreadPoolExecutor EXECUTOR = (ThreadPoolExecutor) Executors.newFixedThreadPool(Proxies.getTotalProxies() * 4);
     
     // Rate limiting: 150 requests per minute per proxy
-    private final Cooldown cooldown = new Cooldown(Cooldown.cooldownRequestsPerMinute(150 * Proxies.getTotalProxies()));
+    private final Cooldown cooldown = new Cooldown(Cooldown.cooldownRequestsPerMinute(150 * Proxies.getTotalProxies()), 30);
 
     private final PlayerRepository playerRepository;
     private final PlayerUpdateQueueRepository playerUpdateQueueRepository;

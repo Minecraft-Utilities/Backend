@@ -51,13 +51,6 @@ public class Cooldown {
     }
     
     /**
-     * Creates a simple cooldown with no burst support
-     */
-    public Cooldown(long cooldownMs) {
-        this(cooldownMs, 1);
-    }
-    
-    /**
      * Use the cooldown. Will use a burst if available, otherwise updates the last used time.
      *
      * @param priority the priority level
