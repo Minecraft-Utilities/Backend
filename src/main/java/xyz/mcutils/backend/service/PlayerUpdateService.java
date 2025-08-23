@@ -237,7 +237,7 @@ public class PlayerUpdateService {
             memoryQueue.addAll(queueItems);
             playerUpdateQueueRepository.saveAll(queueItems);
 
-            Player player = submission.getAccountUuid() != null ? playerService.getCachedPlayer(submission.getAccountUuid().toString(), false).getPlayer() : null;
+            Player player = submission.getAccountUuid() != null ? playerService.getPlayer(submission.getAccountUuid().toString(), false) : null;
             log.info("{} UUIDs have been submitted{}", added, player != null ? " by " + player.getUsername() : "");
         }
         return added;

@@ -9,7 +9,6 @@ import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.*;
-import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.cache.CachedPlayerName;
 import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
 import xyz.mcutils.backend.model.player.Player;
@@ -23,7 +22,6 @@ import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.mongo.history.CapeHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.history.SkinHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.history.UsernameHistoryRepository;
-import xyz.mcutils.backend.repository.redis.PlayerCacheRepository;
 import xyz.mcutils.backend.repository.redis.PlayerNameCacheRepository;
 import xyz.mcutils.backend.repository.redis.PlayerSkinPartCacheRepository;
 
@@ -40,7 +38,6 @@ import java.util.stream.Collectors;
 public class PlayerService {
     private final MojangService mojangService;
     private final PlayerRepository playerRepository;
-    private final PlayerCacheRepository playerCacheRepository;
     private final PlayerNameCacheRepository playerNameCacheRepository;
     private final PlayerSkinPartCacheRepository playerSkinPartCacheRepository;
 
@@ -49,13 +46,12 @@ public class PlayerService {
     private final UsernameHistoryRepository usernameHistoryRepository;
 
     @Autowired
-    public PlayerService(@NonNull MojangService mojangService, @NonNull PlayerRepository playerRepository, @NonNull PlayerCacheRepository playerCacheRepository,
+    public PlayerService(@NonNull MojangService mojangService, @NonNull PlayerRepository playerRepository,
                          @NonNull PlayerNameCacheRepository playerNameCacheRepository, @NonNull PlayerSkinPartCacheRepository playerSkinPartCacheRepository,
                          @NonNull SkinHistoryRepository skinHistoryRepository, @NonNull CapeHistoryRepository capeHistoryRepository,
                          @NonNull UsernameHistoryRepository usernameHistoryRepository) {
         this.mojangService = mojangService;
         this.playerRepository = playerRepository;
-        this.playerCacheRepository = playerCacheRepository;
         this.playerNameCacheRepository = playerNameCacheRepository;
         this.playerSkinPartCacheRepository = playerSkinPartCacheRepository;
         this.skinHistoryRepository = skinHistoryRepository;
@@ -73,32 +69,6 @@ public class PlayerService {
      */
     public Player getPlayer(String id, boolean enableRefresh) {
         return getPlayerInternal(id, enableRefresh);
-    }
-
-    /**
-     * Get a player from the cache or
-     * from the Mojang API.
-     *
-     * @param id the id of the player
-     * @return the player
-     */
-    public CachedPlayer getCachedPlayer(String id, boolean enableRefresh) {
-        UUID uuid = resolvePlayerUuid(id);
-
-        Optional<CachedPlayer> optionalCachedPlayer = playerCacheRepository.findById(uuid);
-        if (optionalCachedPlayer.isPresent() && AppConfig.isProduction()) {
-            return optionalCachedPlayer.get();
-        }
-
-        try {
-            Player player = getPlayerInternal(id, enableRefresh);
-            CachedPlayer cachedPlayer = new CachedPlayer(uuid, player);
-            playerCacheRepository.save(cachedPlayer);
-            cachedPlayer.setCached(false);
-            return cachedPlayer;
-        } catch (RateLimitException exception) {
-            throw new MojangAPIRateLimitException();
-        }
     }
 
     /**

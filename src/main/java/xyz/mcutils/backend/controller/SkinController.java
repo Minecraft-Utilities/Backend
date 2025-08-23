@@ -6,7 +6,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.response.SkinResponse;
 import xyz.mcutils.backend.model.skin.Skin;
@@ -51,8 +50,7 @@ public class SkinController {
             @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String id,
             @Parameter(description = "The file extension of the image", example = "png") @PathVariable String extension,
             @Parameter(description = "Whether to download the image") @RequestParam(required = false, defaultValue = "false") boolean download) {
-        CachedPlayer cachedPlayer = playerService.getCachedPlayer(id, true);
-        Player player = cachedPlayer.getPlayer();
+        Player player = playerService.getPlayer(id, true);
         String dispositionHeader = download ? "attachment; filename=%s.png" : "inline; filename=%s.png";
 
         // Return the part image
