@@ -21,12 +21,14 @@ import xyz.mcutils.backend.repository.redis.PlayerUpdateQueueRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 
 @Service @Log4j2(topic = "Player Update Service")
 public class PlayerUpdateService {
+    private static final ThreadPoolExecutor EXECUTOR = (ThreadPoolExecutor) Executors.newFixedThreadPool(Proxies.getTotalProxies() * 4);
     private static final int QUEUE_INTERVAL_MS = (60_000 / 150) / Proxies.getTotalProxies(); // 150 executions per minute * proxy count
-    private static int processingItems = 0;
 
     private final PlayerRepository playerRepository;
     private final PlayerUpdateQueueRepository playerUpdateQueueRepository;
@@ -54,12 +56,6 @@ public class PlayerUpdateService {
 
     @Scheduled(fixedRate = 50) // Run every 50ms
     public void runQueue() {
-        // TODO: change this?
-        // 4 items per proxy
-        if (processingItems >= 4 * Proxies.getTotalProxies()) {
-            return;
-        }
-
         if (lastQueueTime == -1) {
             lastQueueTime = System.currentTimeMillis();
         }
@@ -70,8 +66,12 @@ public class PlayerUpdateService {
         }
         lastQueueTime = currentTime;
 
+        if (EXECUTOR.getActiveCount() >= EXECUTOR.getMaximumPoolSize()) {
+            return;
+        }
+
         // Run it async so we don't block the thread
-        new Thread(this::processQueue).start();
+        EXECUTOR.execute(this::processQueue);
     }
 
     @Scheduled(fixedRate = 30_000)
@@ -92,8 +92,7 @@ public class PlayerUpdateService {
         if (queueItem == null) {
             return;
         }
-        processingItems++;
-        
+
         // Remove from Redis queue after fetching it
         playerUpdateQueueRepository.delete(queueItem);
         
@@ -133,8 +132,6 @@ public class PlayerUpdateService {
             );
         } catch (Exception ex) {
             log.error("Failed to update player {}: {}", queueItem.getUuid(), ex.getMessage());
-        } finally {
-            processingItems--;
         }
     }
 
