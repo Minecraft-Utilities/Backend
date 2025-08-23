@@ -13,6 +13,7 @@ import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.player.UUIDSubmission;
 import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.PlayerUpdateService;
+import xyz.mcutils.backend.service.SkinService;
 
 import java.util.concurrent.TimeUnit;
 
@@ -22,11 +23,13 @@ import java.util.concurrent.TimeUnit;
 public class PlayerController {
 
     private final PlayerService playerService;
+    private final SkinService skinService;
     private final PlayerUpdateService playerUpdateService;
 
     @Autowired
-    public PlayerController(PlayerService playerManagerService, PlayerUpdateService playerUpdateService) {
+    public PlayerController(PlayerService playerManagerService, SkinService skinService, PlayerUpdateService playerUpdateService) {
         this.playerService = playerManagerService;
+        this.skinService = skinService;
         this.playerUpdateService = playerUpdateService;
     }
 
@@ -80,6 +83,6 @@ public class PlayerController {
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .contentType(extension.equals("png") ? MediaType.IMAGE_PNG : MediaType.IMAGE_JPEG)
                 .header(HttpHeaders.CONTENT_DISPOSITION, dispositionHeader.formatted(player.getUsername()))
-                .body(playerService.getSkinPart(player, part, overlays, size).getBytes());
+                .body(skinService.getSkinPart(player, part, overlays, size).getBytes());
     }
 }

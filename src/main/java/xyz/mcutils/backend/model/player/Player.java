@@ -217,7 +217,7 @@ public class Player {
      * @param currentUsername the current username
      */
     public void updateUsernameHistory(Player player, String currentUsername, UsernameHistoryRepository repository) {
-        Optional<UsernameHistoryEntry> entry = repository.findByUsername(player.getUniqueId(), currentUsername);
+        Optional<UsernameHistoryEntry> entry = repository.findByPlayerIdAndUsername(player.getUniqueId(), currentUsername);
         if (entry.isEmpty()) {
             repository.insert(new UsernameHistoryEntry(
                     UUID.randomUUID(),
@@ -238,7 +238,7 @@ public class Player {
         String previousSkinId = player.getCurrentSkinId();
 
         if (previousSkinId == null || !previousSkinId.equals(currentSkin.getId())) {
-            Optional<SkinHistoryEntry> optionalEntry = repository.findBySkinId(player.getUniqueId(), previousSkinId);
+            Optional<SkinHistoryEntry> optionalEntry = repository.findByPlayerIdAndSkinId(player.getUniqueId(), previousSkinId);
 
             long currentTime = System.currentTimeMillis();
             if (optionalEntry.isPresent()) {
@@ -267,7 +267,7 @@ public class Player {
         String previousCapeId = player.getCurrentCapeId();
 
         if (previousCapeId == null || !previousCapeId.equals(currentCape.getId())) {
-            Optional<CapeHistoryEntry> optionalEntry = repository.findByCapeId(player.getUniqueId(), previousCapeId);
+            Optional<CapeHistoryEntry> optionalEntry = repository.findByPlayerIdAndCapeId(player.getUniqueId(), previousCapeId);
 
             long currentTime = System.currentTimeMillis();
             if (optionalEntry.isPresent()) {

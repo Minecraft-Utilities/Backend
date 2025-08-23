@@ -15,7 +15,7 @@ public interface CapeHistoryRepository extends MongoRepository<CapeHistoryEntry,
      * @param capeId the id of the cape
      * @return the cape entry
      */
-    Optional<CapeHistoryEntry> findByCapeId(UUID playerId, String capeId);
+    Optional<CapeHistoryEntry> findByPlayerIdAndCapeId(UUID playerId, String capeId);
 
     /**
      * Finds all cape history entries for a player

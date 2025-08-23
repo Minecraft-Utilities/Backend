@@ -15,7 +15,7 @@ public interface SkinHistoryRepository extends MongoRepository<SkinHistoryEntry,
      * @param skinId the id of the skin
      * @return the skin entry
      */
-    Optional<SkinHistoryEntry> findBySkinId(UUID playerId, String skinId);
+    Optional<SkinHistoryEntry> findByPlayerIdAndSkinId(UUID playerId, String skinId);
 
     /**
      * Finds all skin history entries for a player

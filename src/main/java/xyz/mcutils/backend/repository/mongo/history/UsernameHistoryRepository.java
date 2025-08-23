@@ -15,7 +15,7 @@ public interface UsernameHistoryRepository extends MongoRepository<UsernameHisto
      * @param username the username
      * @return the username entry
      */
-    Optional<UsernameHistoryEntry> findByUsername(UUID playerId, String username);
+    Optional<UsernameHistoryEntry> findByPlayerIdAndUsername(UUID playerId, String username);
 
     /**
      * Finds all username history entries for a player
