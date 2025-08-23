@@ -1,5 +1,6 @@
 package xyz.mcutils.backend.model.player;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.gson.JsonObject;
 import lombok.*;
 import org.springframework.data.annotation.Id;
@@ -25,7 +26,7 @@ public class Cape {
     /**
      * The amount of accounts that have this cape
      */
-    @Setter @Transient
+    @Setter @Transient @JsonIgnore
     private int accounts = 0;
 
     /**
