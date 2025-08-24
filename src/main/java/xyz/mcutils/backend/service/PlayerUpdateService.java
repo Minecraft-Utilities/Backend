@@ -7,6 +7,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import xyz.mcutils.backend.common.NumberUtils;
 import xyz.mcutils.backend.common.Proxies;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.player.PlayerUpdateQueueItem;
@@ -71,7 +72,7 @@ public class PlayerUpdateService {
         EXECUTOR.execute(this::processQueue);
     }
 
-    @Scheduled(fixedRate = 30_000)
+    @Scheduled(fixedRate = 30_000) // Run every 30 seconds
     public void refreshQueue() {
         if (playerUpdateQueueRepository.count() > 0) {
             return;
@@ -101,7 +102,7 @@ public class PlayerUpdateService {
         playerUpdateQueueRepository.delete(queueItem);
         
         long start = System.currentTimeMillis();
-        log.info("Processing queue item \"{}\"", queueItem.getUuid());
+        log.info("Processing player update \"{}\"{}", queueItem.getUuid(), queueItem.getSubmitterUuid() != null ? " (Submitter: " + queueItem.getSubmitterUuid() + ")" : "");
         
         try {
             boolean playerExists = playerRepository.existsById(queueItem.getUuid());
@@ -114,13 +115,13 @@ public class PlayerUpdateService {
 
             // Update submitter stats
             if (queueItem.getSubmitterUuid() != null // Submitter is not null
-                    && !playerExists // Player has not existed before
+                    && !playerExists                 // Player has not existed before
                     && !queueItem.getSubmitterUuid().equals(queueItem.getUuid()) // Submitter is not the same as the player
             ) {
                 Player submitter = playerService.getPlayer(queueItem.getSubmitterUuid().toString(), false);
                 submitter.setUuidsContributed(submitter.getUuidsContributed() + 1);
                 playerRepository.save(submitter);
-                log.info("Incremented contributions for {} to {}", submitter.getUsername(), submitter.getUuidsContributed());
+                log.info("Incremented contributions for {} to {}", submitter.getUsername(), NumberUtils.formatNumber(submitter.getUuidsContributed()));
 
                 // Set the contributed by for the player
                 player.setContributedBy(submitter.getUniqueId());
@@ -129,10 +130,10 @@ public class PlayerUpdateService {
             // Save the player
             playerRepository.save(player);
 
-            log.info("Finished processing queue item \"{}\" in {}ms ({} left)",
+            log.info("Finished processing queue item \"{}\" in {}ms{}",
                     queueItem.getUuid(),
                     System.currentTimeMillis() - start,
-                    playerUpdateQueueRepository.count()
+                    playerExists ? " [Refreshed]" : " [New Player]"
             );
         } catch (Exception ex) {
             log.error("Failed to update player {}: {}", queueItem.getUuid(), ex.getMessage());
@@ -152,6 +153,10 @@ public class PlayerUpdateService {
                 System.currentTimeMillis() - (24 * 60 * 60 * 1000), // 24 hours ago or more
                 pageRequest
         );
+
+        if (players.isEmpty()) {
+            return;
+        }
 
         List<PlayerUpdateQueueItem> newItems = players.stream()
                 .map(player -> new PlayerUpdateQueueItem(player.getUniqueId(), null, System.currentTimeMillis()))
