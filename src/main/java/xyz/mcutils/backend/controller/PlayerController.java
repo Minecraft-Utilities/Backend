@@ -21,7 +21,6 @@ import java.util.concurrent.TimeUnit;
 @RequestMapping(value = "/player")
 @Tag(name = "Player Controller", description = "The Player Controller is used to get information about a player.")
 public class PlayerController {
-
     private final PlayerService playerService;
     private final SkinService skinService;
     private final PlayerUpdateService playerUpdateService;

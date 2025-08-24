@@ -198,6 +198,6 @@ public class PlayerUpdateService {
             log.info("{} UUIDs have been submitted{}", added, player != null ? " by " + player.getUsername() : "");
         }
 
-        return new UUIDSubmissionResponse(added, player != null ? player.getUuidsContributed() : 0);
+        return new UUIDSubmissionResponse(added, player != null ? player.getUuidsContributed() : 0, (int) playerRepository.count());
     }
 }

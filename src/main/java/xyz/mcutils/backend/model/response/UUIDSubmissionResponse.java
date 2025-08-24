@@ -11,12 +11,17 @@ import lombok.ToString;
 @EqualsAndHashCode
 public class UUIDSubmissionResponse {
     /**
-     * The amount of new UUIDs tracked.
+     * The amount of new UUIDs submitted to the queue.
      */
-    private int added;
+    private int addedToQueue;
 
     /**
-     * The tota; amount of UUIDs tracked by the player.
+     * The total amount of UUIDs tracked by the player.
      */
-    private int totalTracked;
+    private int playerSubmissionCount;
+
+    /**
+     * The amount of players tracked on McUtils.
+     */
+    private int playersTracked;
 }
