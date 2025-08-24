@@ -104,7 +104,7 @@ public class PlayerUpdateService {
         playerUpdateQueueRepository.delete(queueItem);
         
         long start = System.currentTimeMillis();
-        log.info("Processing player update \"{}\"{}", queueItem.getUuid(), queueItem.getSubmitterUuid() != null ? " (Submitter: " + queueItem.getSubmitterUuid() + ")" : "");
+//        log.info("Processing player update \"{}\"{}", queueItem.getUuid(), queueItem.getSubmitterUuid() != null ? " (Submitter: " + queueItem.getSubmitterUuid() + ")" : "");
         
         try {
             boolean playerExists = playerRepository.existsById(queueItem.getUuid());
@@ -123,7 +123,7 @@ public class PlayerUpdateService {
                 Player submitter = playerService.getPlayer(queueItem.getSubmitterUuid().toString(), false);
                 submitter.setUuidsContributed(submitter.getUuidsContributed() + 1);
                 playerRepository.save(submitter);
-                log.info("Incremented contributions for {} to {}", submitter.getUsername(), NumberUtils.formatNumber(submitter.getUuidsContributed()));
+//                log.info("Incremented contributions for {} to {}", submitter.getUsername(), NumberUtils.formatNumber(submitter.getUuidsContributed()));
 
                 // Set the contributed by for the player
                 player.setContributedBy(submitter.getUniqueId());
