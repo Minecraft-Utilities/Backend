@@ -1,15 +1,16 @@
 package xyz.mcutils.backend.websocket;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
+import xyz.mcutils.backend.Main;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,10 +35,21 @@ public abstract class WebSocket extends TextWebSocketHandler {
      *
      * @param session the session to send the message to
      * @param message the message to send
-     * @throws IOException if an error occurs while sending the message
      */
-    public void sendMessage(WebSocketSession session, String message) throws IOException {
-        session.sendMessage(new TextMessage(message));
+    @SneakyThrows
+    public void sendMessage(WebSocketSession session, Object message) {
+        session.sendMessage(new TextMessage(message instanceof String ? (String) message : Main.GSON.toJson(message)));
+    }
+
+    /**
+     * Sends a message to all connected clients.
+     *
+     * @param message the message to send
+     */
+    public void sendMessageToAll(Object message) {
+        for (WebSocketSession session : this.sessions) {
+            this.sendMessage(session, message);
+        }
     }
 
     /**

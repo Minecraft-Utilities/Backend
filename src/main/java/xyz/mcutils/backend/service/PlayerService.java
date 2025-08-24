@@ -7,7 +7,10 @@ import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.AppConfig;
 import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.UUIDUtils;
-import xyz.mcutils.backend.exception.impl.*;
+import xyz.mcutils.backend.exception.impl.InternalServerErrorException;
+import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
+import xyz.mcutils.backend.exception.impl.RateLimitException;
+import xyz.mcutils.backend.exception.impl.ResourceNotFoundException;
 import xyz.mcutils.backend.model.cache.CachedPlayerName;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.player.history.CapeHistoryEntry;
@@ -31,6 +34,8 @@ import java.util.stream.Collectors;
 
 @Service @Log4j2(topic = "Player Service")
 public class PlayerService {
+    public static PlayerService INSTANCE;
+
     private final MojangService mojangService;
     private final PlayerRepository playerRepository;
     private final PlayerNameCacheRepository playerNameCacheRepository;
@@ -42,6 +47,7 @@ public class PlayerService {
     @Autowired
     public PlayerService(@NonNull MojangService mojangService, @NonNull PlayerRepository playerRepository, @NonNull PlayerNameCacheRepository playerNameCacheRepository,
                          @NonNull SkinHistoryRepository skinHistoryRepository, @NonNull CapeHistoryRepository capeHistoryRepository, @NonNull UsernameHistoryRepository usernameHistoryRepository) {
+        INSTANCE = this;
         this.mojangService = mojangService;
         this.playerRepository = playerRepository;
         this.playerNameCacheRepository = playerNameCacheRepository;
@@ -167,5 +173,14 @@ public class PlayerService {
     public Map<String, Integer> getTopContributors() {
         return playerRepository.findTopContributors(10).stream()
                 .collect(Collectors.toMap(Player::getUsername, Player::getUuidsContributed));
+    }
+
+    /**
+     * Gets the total number of players in the database.
+     *
+     * @return the total number of players
+     */
+    public int getTotalPlayers() {
+        return (int) playerRepository.count();
     }
 }

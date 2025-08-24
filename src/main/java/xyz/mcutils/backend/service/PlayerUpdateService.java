@@ -7,17 +7,21 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import xyz.mcutils.backend.common.Cooldown;
 import xyz.mcutils.backend.common.NumberUtils;
 import xyz.mcutils.backend.common.Proxies;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.player.PlayerUpdateQueueItem;
 import xyz.mcutils.backend.model.player.UUIDSubmission;
 import xyz.mcutils.backend.model.response.UUIDSubmissionResponse;
+import xyz.mcutils.backend.model.websocket.TrackedAccountsMessage;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.mongo.history.CapeHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.history.SkinHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.history.UsernameHistoryRepository;
 import xyz.mcutils.backend.repository.redis.PlayerUpdateQueueRepository;
+import xyz.mcutils.backend.websocket.impl.TrackedAccountsWebsocket;
+import xyz.mcutils.backend.websocket.WebSocketManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,8 +29,6 @@ import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
-import xyz.mcutils.backend.common.Cooldown;
-import xyz.mcutils.backend.common.CooldownPriority;
 
 @Service @Log4j2(topic = "Player Update Service")
 public class PlayerUpdateService {
@@ -135,6 +137,9 @@ public class PlayerUpdateService {
                     System.currentTimeMillis() - start,
                     playerExists ? " [Refreshed]" : " [New Player]"
             );
+
+            // Send message to websocket clients
+            WebSocketManager.getWebsocket(TrackedAccountsWebsocket.class).sendMessageToAll(new TrackedAccountsMessage((int) playerRepository.count()));
         } catch (Exception ex) {
             log.error("Failed to update player {}: {}", queueItem.getUuid(), ex.getMessage());
         }

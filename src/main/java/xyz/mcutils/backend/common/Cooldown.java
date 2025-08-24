@@ -1,7 +1,5 @@
 package xyz.mcutils.backend.common;
 
-import java.util.concurrent.TimeUnit;
-
 /**
  * A cooldown system for rate limiting with burst support and priority levels
  */
