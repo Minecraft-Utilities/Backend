@@ -5,6 +5,7 @@ import lombok.*;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
@@ -75,6 +76,7 @@ public class Player {
      */
     @JsonIgnore
     @Setter
+    @Indexed(background = true)
     private String currentSkinId;
 
     /**
