@@ -45,4 +45,23 @@ public interface PlayerRepository extends MongoRepository<Player, UUID> {
      * @return The number of players with the given cape ID
      */
     int countByCurrentCapeId(String currentCapeId);
+
+    /**
+     * Gets the most popular skin IDs by counting current usage.
+     * Much more efficient than aggregating on the skin collection.
+     * 
+     * @param limit maximum number of skins to return
+     * @return list of skin IDs with their usage counts, ordered by popularity
+     */
+    @Query(value = "{}", fields = "{ 'currentSkinId': 1 }")
+    List<Player> findAllCurrentSkinIds();
+
+    /**
+     * Gets the number of players using each skin ID.
+     * 
+     * @param skinIds list of skin IDs to count
+     * @return map of skin ID to usage count
+     */
+    @Query(value = "{ 'currentSkinId': { $in: ?0 } }", fields = "{ 'currentSkinId': 1 }")
+    List<Player> findByCurrentSkinIdIn(List<String> skinIds);
 }

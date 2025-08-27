@@ -5,6 +5,7 @@ import java.io.ByteArrayInputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
@@ -25,6 +26,7 @@ import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.repository.mongo.SkinRepository;
+import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.redis.PlayerSkinPartCacheRepository;
 
 @Service
@@ -33,12 +35,14 @@ public class SkinService {
     public static SkinService INSTANCE;
 
     private final SkinRepository skinRepository;
+    private final PlayerRepository playerRepository;
     private final PlayerSkinPartCacheRepository skinPartRepository;
     private final StorageService minioService;
 
     @Autowired
-    public SkinService(SkinRepository skinRepository, PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService) {
+    public SkinService(SkinRepository skinRepository, PlayerRepository playerRepository, PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService) {
         this.skinRepository = skinRepository;
+        this.playerRepository = playerRepository;
         this.skinPartRepository = skinPartRepository;
         this.minioService = minioService;
     }
@@ -182,6 +186,7 @@ public class SkinService {
 
     /**
      * Gets the most popular skins based on current usage count.
+     * Much more efficient: counts usage on player side, only fetches needed skins.
      *
      * @param limit the maximum number of skins to return
      * @return list of popular skins with their current usage counts
@@ -194,29 +199,41 @@ public class SkinService {
             throw new BadRequestException("Limit cannot be greater than 100");
         }
 
-        Pageable pageable = PageRequest.of(0, limit);
-        List<Map<String, Object>> rawResults = skinRepository.findMostPopularSkinsRaw(pageable);
+        // Get all current skin IDs from players (much faster than aggregation)
+        List<Player> players = playerRepository.findAllCurrentSkinIds();
         
-        return rawResults.stream()
-                .map(result -> {
-                    try {
-                        String skinId = (String) result.get("skinId");
-                        Integer count = (Integer) result.get("currentUsageCount");
-                        
-                        if (skinId != null && count != null) {
-                            Skin skin = getSkin(skinId);
-                            if (skin != null) {
-                                return new PopularSkinInfo(skin, count);
-                            }
-                        }
-                        return null;
-                    } catch (Exception e) {
-                        log.warn("Failed to process result: {}", result, e);
-                        return null;
-                    }
-                })
-                .filter(info -> info != null)
-                .toList();
+        // Count usage for each skin ID
+        Map<String, Long> skinUsageCounts = players.stream()
+            .filter(player -> player.getCurrentSkinId() != null)
+            .collect(Collectors.groupingBy(
+                Player::getCurrentSkinId,
+                Collectors.counting()
+            ));
+        
+        // Sort by usage count and get top N
+        List<String> popularSkinIds = skinUsageCounts.entrySet().stream()
+            .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
+            .limit(limit)
+            .map(Map.Entry::getKey)
+            .toList();
+        
+        // Only fetch the skins we actually need
+        List<Skin> skins = skinRepository.findByIdIn(popularSkinIds);
+        Map<String, Skin> skinMap = skins.stream()
+            .collect(Collectors.toMap(Skin::getId, skin -> skin));
+        
+        // Build result in correct order
+        return popularSkinIds.stream()
+            .map(skinId -> {
+                Skin skin = skinMap.get(skinId);
+                Long count = skinUsageCounts.get(skinId);
+                if (skin != null && count != null) {
+                    return new PopularSkinInfo(skin, count.intValue());
+                }
+                return null;
+            })
+            .filter(info -> info != null)
+            .toList();
     }
 
     /**
