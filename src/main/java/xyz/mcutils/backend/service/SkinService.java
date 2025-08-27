@@ -1,10 +1,21 @@
 package xyz.mcutils.backend.service;
 
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import javax.imageio.ImageIO;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
 import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.AppConfig;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.PlayerUtils;
@@ -15,11 +26,6 @@ import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.repository.mongo.SkinRepository;
 import xyz.mcutils.backend.repository.redis.PlayerSkinPartCacheRepository;
-
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.util.Optional;
 
 @Service
 @Log4j2(topic = "Skin Service")
@@ -172,5 +178,65 @@ public class SkinService {
         log.info("Fetched skin part {} for player: {}", name, player.getUniqueId());
         skinPartRepository.save(skinPart);
         return skinPart;
+    }
+
+    /**
+     * Gets the most popular skins based on current usage count.
+     *
+     * @param limit the maximum number of skins to return
+     * @return list of popular skins with their current usage counts
+     */
+    public List<PopularSkinInfo> getMostPopularSkins(int limit) {
+        if (limit <= 0) {
+            throw new BadRequestException("Limit must be greater than 0");
+        }
+        if (limit > 100) {
+            throw new BadRequestException("Limit cannot be greater than 100");
+        }
+
+        Pageable pageable = PageRequest.of(0, limit);
+        List<Map<String, Object>> rawResults = skinRepository.findMostPopularSkinsRaw(pageable);
+        
+        return rawResults.stream()
+                .map(result -> {
+                    try {
+                        String skinId = (String) result.get("skinId");
+                        Integer count = (Integer) result.get("currentUsageCount");
+                        
+                        if (skinId != null && count != null) {
+                            Skin skin = getSkin(skinId);
+                            if (skin != null) {
+                                return new PopularSkinInfo(skin, count);
+                            }
+                        }
+                        return null;
+                    } catch (Exception e) {
+                        log.warn("Failed to process result: {}", result, e);
+                        return null;
+                    }
+                })
+                .filter(info -> info != null)
+                .toList();
+    }
+
+    /**
+     * Information about a popular skin including current usage count
+     */
+    public static class PopularSkinInfo {
+        private final Skin skin;
+        private final int currentUsageCount;
+
+        public PopularSkinInfo(Skin skin, int currentUsageCount) {
+            this.skin = skin;
+            this.currentUsageCount = currentUsageCount;
+        }
+
+        public Skin getSkin() {
+            return skin;
+        }
+
+        public int getCurrentUsageCount() {
+            return currentUsageCount;
+        }
     }
 }
