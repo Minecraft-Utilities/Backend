@@ -199,22 +199,13 @@ public class SkinService {
             throw new BadRequestException("Limit cannot be greater than 100");
         }
 
-        // Get all current skin IDs from players (much faster than aggregation)
-        List<Player> players = playerRepository.findAllCurrentSkinIds();
+        // Get popular skin IDs with counts directly from database aggregation
+        List<Map<String, Object>> popularSkinData = playerRepository.findMostPopularSkinIds(limit);
         
-        // Count usage for each skin ID
-        Map<String, Long> skinUsageCounts = players.stream()
-            .filter(player -> player.getCurrentSkinId() != null)
-            .collect(Collectors.groupingBy(
-                Player::getCurrentSkinId,
-                Collectors.counting()
-            ));
-        
-        // Sort by usage count and get top N
-        List<String> popularSkinIds = skinUsageCounts.entrySet().stream()
-            .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-            .limit(limit)
-            .map(Map.Entry::getKey)
+        // Extract skin IDs
+        List<String> popularSkinIds = popularSkinData.stream()
+            .map(data -> (String) data.get("skinId"))
+            .filter(skinId -> skinId != null)
             .toList();
         
         // Only fetch the skins we actually need
@@ -223,12 +214,14 @@ public class SkinService {
             .collect(Collectors.toMap(Skin::getId, skin -> skin));
         
         // Build result in correct order
-        return popularSkinIds.stream()
-            .map(skinId -> {
+        return popularSkinData.stream()
+            .map(data -> {
+                String skinId = (String) data.get("skinId");
+                Integer count = (Integer) data.get("currentUsageCount");
                 Skin skin = skinMap.get(skinId);
-                Long count = skinUsageCounts.get(skinId);
+                
                 if (skin != null && count != null) {
-                    return new PopularSkinInfo(skin, count.intValue());
+                    return new PopularSkinInfo(skin, count);
                 }
                 return null;
             })

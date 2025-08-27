@@ -3,9 +3,11 @@ package xyz.mcutils.backend.repository.mongo;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
+import org.springframework.data.mongodb.repository.Aggregation;
 import xyz.mcutils.backend.model.player.Player;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -47,21 +49,18 @@ public interface PlayerRepository extends MongoRepository<Player, UUID> {
     int countByCurrentCapeId(String currentCapeId);
 
     /**
-     * Gets the most popular skin IDs by counting current usage.
-     * Much more efficient than aggregating on the skin collection.
+     * Gets the most popular skin IDs by counting current usage directly in the database.
+     * This aggregation does the counting and sorting on the database side.
      * 
      * @param limit maximum number of skins to return
      * @return list of skin IDs with their usage counts, ordered by popularity
      */
-    @Query(value = "{}", fields = "{ 'currentSkinId': 1 }")
-    List<Player> findAllCurrentSkinIds();
-
-    /**
-     * Gets the number of players using each skin ID.
-     * 
-     * @param skinIds list of skin IDs to count
-     * @return map of skin ID to usage count
-     */
-    @Query(value = "{ 'currentSkinId': { $in: ?0 } }", fields = "{ 'currentSkinId': 1 }")
-    List<Player> findByCurrentSkinIdIn(List<String> skinIds);
+    @Aggregation(pipeline = {
+        "{ $match: { currentSkinId: { $exists: true, $ne: null, $ne: '' } } }",
+        "{ $group: { _id: '$currentSkinId', count: { $sum: 1 } } }",
+        "{ $sort: { count: -1, _id: 1 } }",
+        "{ $limit: ?0 }",
+        "{ $project: { skinId: '$_id', currentUsageCount: '$count' } }"
+    })
+    List<Map<String, Object>> findMostPopularSkinIds(int limit);
 }
