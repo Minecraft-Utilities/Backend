@@ -54,12 +54,12 @@ public class MinecraftServer {
     /**
      * The location of the server.
      */
-    private final GeoLocation location;
+    private GeoLocation location;
 
     /**
      * The server's ASN information.
      */
-    private final ServerAsn asn;
+    private ServerAsn asn;
 
     public MinecraftServer(String hostname, String ip, int port, DNSRecord[] records, MOTD motd, Players players) {
         this.hostname = hostname;
