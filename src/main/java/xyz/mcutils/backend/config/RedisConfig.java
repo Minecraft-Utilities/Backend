@@ -15,7 +15,7 @@ import org.springframework.data.redis.repository.configuration.EnableRedisReposi
  */
 @Configuration
 @Log4j2(topic = "Redis")
-@EnableRedisRepositories(basePackages = "xyz.mcutils.backend.repository.redis")
+@EnableRedisRepositories(basePackages = "xyz.mcutils.backend.repository")
 public class RedisConfig {
     /**
      * The Redis server host.

@@ -37,7 +37,6 @@ public class ServerController {
         CachedMinecraftServer server = serverService.getServer(platform, hostname);
 
         return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES).cachePublic())
                 .body(server);
     }
 
@@ -50,7 +49,6 @@ public class ServerController {
         byte[] favicon = serverService.getServerFavicon(hostname);
 
         return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .contentType(MediaType.IMAGE_PNG)
                 .header(HttpHeaders.CONTENT_DISPOSITION, dispositionHeader.formatted(hostname))
                 .body(favicon);
@@ -67,7 +65,6 @@ public class ServerController {
         CachedMinecraftServer server = serverService.getServer(platform, hostname);
 
         return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES).cachePublic())
                 .contentType(MediaType.IMAGE_PNG)
                 .header(HttpHeaders.CONTENT_DISPOSITION, dispositionHeader.formatted(hostname))
                 .body(serverService.getServerPreview(server, platform, size));
@@ -78,7 +75,6 @@ public class ServerController {
     public ResponseEntity<?> getServerBlockedStatus(
             @Parameter(description = "The hostname of the server", example = "aetheria.cc") @PathVariable String hostname) {
         return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .body(Map.of(
                         "blocked", mojangService.isServerBlocked(hostname)
                 ));

@@ -8,11 +8,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.cache.CachedPlayerName;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.player.UUIDSubmission;
 import xyz.mcutils.backend.service.PlayerService;
-import xyz.mcutils.backend.service.PlayerUpdateService;
 import xyz.mcutils.backend.service.SkinService;
 
 import java.util.concurrent.TimeUnit;
@@ -23,32 +23,18 @@ import java.util.concurrent.TimeUnit;
 public class PlayerController {
     private final PlayerService playerService;
     private final SkinService skinService;
-    private final PlayerUpdateService playerUpdateService;
 
     @Autowired
-    public PlayerController(PlayerService playerManagerService, SkinService skinService, PlayerUpdateService playerUpdateService) {
+    public PlayerController(PlayerService playerManagerService, SkinService skinService) {
         this.playerService = playerManagerService;
         this.skinService = skinService;
-        this.playerUpdateService = playerUpdateService;
-    }
-
-    @ResponseBody
-    @PostMapping(value = "/submit-uuids")
-    public ResponseEntity<?> submitUUIDs(@RequestBody UUIDSubmission submission) {
-        return ResponseEntity.ok(playerUpdateService.submitUUIDs(submission));
-    }
-
-    @ResponseBody
-    @GetMapping(value = "/top-contributors")
-    public ResponseEntity<?> getTopContributors() {
-        return ResponseEntity.ok(playerService.getTopContributors());
     }
 
     @ResponseBody
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getPlayer(
             @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String id) {
-        Player player = playerService.getPlayer(id, true);
+        CachedPlayer player = playerService.getPlayer(id);
 
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
@@ -59,11 +45,11 @@ public class PlayerController {
     @GetMapping(value = "/uuid/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<CachedPlayerName> getPlayerUuid(
             @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String id) {
-        CachedPlayerName player = playerService.usernameToUuid(id);
+        CachedPlayerName cachedPlayerName = playerService.usernameToUuid(id);
 
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic())
-                .body(player);
+                .body(cachedPlayerName);
     }
 
     @GetMapping(value = "/{id}/skin/{part}.{extension}")
@@ -74,14 +60,15 @@ public class PlayerController {
             @Parameter(description = "The size of the image", example = "256") @RequestParam(required = false, defaultValue = "256") int size,
             @Parameter(description = "Whether to render the skin overlay (skin layers)", example = "false") @RequestParam(required = false, defaultValue = "false") boolean overlays,
             @Parameter(description = "Whether to download the image") @RequestParam(required = false, defaultValue = "false") boolean download) {
-        Player player = playerService.getPlayer(id, true);
+        CachedPlayer cachedPlayer
+                = playerService.getPlayer(id);
         String dispositionHeader = download ? "attachment; filename=%s.png" : "inline; filename=%s.png";
 
         // Return the part image
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .contentType(extension.equals("png") ? MediaType.IMAGE_PNG : MediaType.IMAGE_JPEG)
-                .header(HttpHeaders.CONTENT_DISPOSITION, dispositionHeader.formatted(player.getUsername()))
-                .body(skinService.getSkinPart(player, part, overlays, size).getBytes());
+                .header(HttpHeaders.CONTENT_DISPOSITION, dispositionHeader.formatted(cachedPlayer.getPlayer().getUsername()))
+                .body(skinService.getSkinPart(cachedPlayer.getPlayer(), part, overlays, size).getBytes());
     }
 }

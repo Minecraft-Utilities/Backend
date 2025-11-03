@@ -6,110 +6,77 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.AppConfig;
 import xyz.mcutils.backend.common.PlayerUtils;
+import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
-import xyz.mcutils.backend.exception.impl.InternalServerErrorException;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
 import xyz.mcutils.backend.exception.impl.RateLimitException;
 import xyz.mcutils.backend.exception.impl.ResourceNotFoundException;
+import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.cache.CachedPlayerName;
+import xyz.mcutils.backend.model.player.Cape;
 import xyz.mcutils.backend.model.player.Player;
-import xyz.mcutils.backend.model.player.history.CapeHistoryEntry;
-import xyz.mcutils.backend.model.player.history.SkinHistoryEntry;
-import xyz.mcutils.backend.model.player.history.UsernameHistoryEntry;
+import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.model.token.MojangProfileToken;
 import xyz.mcutils.backend.model.token.MojangUsernameToUuidToken;
-import xyz.mcutils.backend.repository.mongo.PlayerRepository;
-import xyz.mcutils.backend.repository.mongo.history.CapeHistoryRepository;
-import xyz.mcutils.backend.repository.mongo.history.SkinHistoryRepository;
-import xyz.mcutils.backend.repository.mongo.history.UsernameHistoryRepository;
-import xyz.mcutils.backend.repository.redis.PlayerNameCacheRepository;
+import xyz.mcutils.backend.repository.PlayerCacheRepository;
+import xyz.mcutils.backend.repository.PlayerNameCacheRepository;
 
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 @Service @Log4j2(topic = "Player Service")
 public class PlayerService {
     public static PlayerService INSTANCE;
 
     private final MojangService mojangService;
-    private final PlayerRepository playerRepository;
     private final PlayerNameCacheRepository playerNameCacheRepository;
-
-    private final SkinHistoryRepository skinHistoryRepository;
-    private final CapeHistoryRepository capeHistoryRepository;
-    private final UsernameHistoryRepository usernameHistoryRepository;
+    private final PlayerCacheRepository playerCacheRepository;
 
     @Autowired
-    public PlayerService(@NonNull MojangService mojangService, @NonNull PlayerRepository playerRepository, @NonNull PlayerNameCacheRepository playerNameCacheRepository,
-                         @NonNull SkinHistoryRepository skinHistoryRepository, @NonNull CapeHistoryRepository capeHistoryRepository, @NonNull UsernameHistoryRepository usernameHistoryRepository) {
+    public PlayerService(@NonNull MojangService mojangService, @NonNull PlayerNameCacheRepository playerNameCacheRepository, @NonNull PlayerCacheRepository playerCacheRepository) {
         INSTANCE = this;
         this.mojangService = mojangService;
-        this.playerRepository = playerRepository;
         this.playerNameCacheRepository = playerNameCacheRepository;
-        this.skinHistoryRepository = skinHistoryRepository;
-        this.capeHistoryRepository = capeHistoryRepository;
-        this.usernameHistoryRepository = usernameHistoryRepository;
+        this.playerCacheRepository = playerCacheRepository;
     }
 
     /**
      * Get a player from the database or
      * from the Mojang API.
      *
-     * @param id the id of the player
-     * @param enableRefresh whether to enable refreshing
+     * @param query the query to look up the player by
      * @return the player
      */
-    public Player getPlayer(String id, boolean enableRefresh) {
-        return getPlayerInternal(id, enableRefresh);
-    }
-
-    /**
-     * Internal method to get a player from the database or Mojang API.
-     * Handles the common logic for both getPlayer and getCachedPlayer.
-     */
-    private Player getPlayerInternal(String id, boolean enableRefresh) {
-        UUID uuid = resolvePlayerUuid(id);
-        Player player = playerRepository.findById(uuid).orElse(null);
-
-        if (player == null) {
-            MojangProfileToken token = mojangService.getProfile(uuid.toString());
-            if (token == null) {
-                throw new ResourceNotFoundException("Player with UUID '%s' not found".formatted(uuid));
-            }
-
-            player = new Player(token, skinHistoryRepository, capeHistoryRepository, usernameHistoryRepository);
-            playerRepository.save(player);
+    public CachedPlayer getPlayer(String query) {
+        // Convert the id to uppercase to prevent case sensitivity
+        UUID uuid = PlayerUtils.getUuidFromString(query);
+        if (uuid == null) { // If the id is not a valid uuid, get the uuid from the username
+            log.info("Getting player uuid for {}", query);
+            uuid = usernameToUuid(query).getUniqueId();
+            log.info("Found uuid {} for {}", uuid.toString(), query);
         }
 
-        // Execute history queries in parallel
-        UUID playerId = player.getUniqueId();
+        Optional<CachedPlayer> cachedPlayer = playerCacheRepository.findById(uuid);
+        if (cachedPlayer.isPresent() && AppConfig.isProduction()) { // Return the cached player if it exists
+            log.info("Player {} is cached", query);
+            return cachedPlayer.get();
+        }
+
         try {
-            CompletableFuture<List<SkinHistoryEntry>> skinFuture = CompletableFuture.supplyAsync(() -> skinHistoryRepository.findByPlayerId(playerId));
-            CompletableFuture<List<CapeHistoryEntry>> capeFuture = CompletableFuture.supplyAsync(() -> capeHistoryRepository.findByPlayerId(playerId));
-            CompletableFuture<List<UsernameHistoryEntry>> usernameFuture = CompletableFuture.supplyAsync(() -> usernameHistoryRepository.findByPlayerId(playerId));
-            
-            CompletableFuture.allOf(skinFuture, capeFuture, usernameFuture).get();
-            
-            // Set results after all queries complete
-            player.setSkinHistory(skinFuture.get());
-            player.setCapes(capeFuture.get());
-            player.setUsernameHistory(usernameFuture.get());
-        } catch (InterruptedException | ExecutionException e) {
-            log.error("Error fetching player history data", e);
-            throw new InternalServerErrorException("Failed to fetch player history data");
-        }
+            log.info("Getting player profile from Mojang for {}", query);
+            MojangProfileToken mojangProfile = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
+            log.info("Got player profile from Mojang for {}", query);
+            CachedPlayer player = new CachedPlayer(
+                    uuid, // Player UUID
+                    new Player(mojangProfile)
+            );
 
-        if (player.shouldRefresh(enableRefresh)) {
-            player.refresh(mojangService, skinHistoryRepository, capeHistoryRepository, usernameHistoryRepository);
-            playerRepository.save(player);
+            playerCacheRepository.save(player);
+            player.setCached(false);
+            return player;
+        } catch (RateLimitException exception) {
+            throw new MojangAPIRateLimitException();
         }
-
-        return player;
     }
 
     /**
@@ -138,18 +105,7 @@ public class PlayerService {
             return cachedPlayerName.get();
         }
 
-        // Then check the database
-        Optional<Player> existingPlayer = playerRepository.findByUsernameIgnoreCase(username);
-        if (existingPlayer.isPresent()) {
-            Player player = existingPlayer.get();
-            UUID uuid = player.getUniqueId();
-            CachedPlayerName playerName = new CachedPlayerName(id, username, uuid);
-            playerNameCacheRepository.save(playerName); // Cache it for future use
-            playerName.setCached(false);
-            return playerName;
-        }
-
-        // Finally resort to Mojang API
+        // Check the Mojang API
         try {
             MojangUsernameToUuidToken mojangUsernameToUuid = mojangService.getUuidFromUsername(username);
             if (mojangUsernameToUuid == null) {
@@ -163,24 +119,5 @@ public class PlayerService {
         } catch (RateLimitException exception) {
             throw new MojangAPIRateLimitException();
         }
-    }
-
-    /**
-     * Gets the top contributors to the server.
-     *
-     * @return A map of UUIDs to the number of contributions
-     */
-    public Map<String, Integer> getTopContributors() {
-        return playerRepository.findTopContributors(10).stream()
-                .collect(Collectors.toMap(Player::getUsername, Player::getUuidsContributed));
-    }
-
-    /**
-     * Gets the total number of players in the database.
-     *
-     * @return the total number of players
-     */
-    public int getTotalPlayers() {
-        return (int) playerRepository.count();
     }
 }

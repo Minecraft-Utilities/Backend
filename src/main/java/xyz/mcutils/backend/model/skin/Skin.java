@@ -4,18 +4,16 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.gson.JsonObject;
 import lombok.*;
 import lombok.extern.log4j.Log4j2;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
 import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.config.Config;
 
-@AllArgsConstructor @NoArgsConstructor @Document("skins")
+@AllArgsConstructor @NoArgsConstructor
 @Getter @Log4j2(topic = "Skin") @EqualsAndHashCode
 public class Skin {
     /**
      * The ID for the skin
      */
-    @Id private String id;
+    private String id;
 
     /**
      * The model for the skin

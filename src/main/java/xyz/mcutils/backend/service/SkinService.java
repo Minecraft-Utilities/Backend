@@ -1,22 +1,10 @@
 package xyz.mcutils.backend.service;
 
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import javax.imageio.ImageIO;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-
 import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.AppConfig;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.PlayerUtils;
@@ -25,24 +13,26 @@ import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
-import xyz.mcutils.backend.repository.mongo.SkinRepository;
-import xyz.mcutils.backend.repository.mongo.PlayerRepository;
-import xyz.mcutils.backend.repository.redis.PlayerSkinPartCacheRepository;
+import xyz.mcutils.backend.repository.PlayerSkinPartCacheRepository;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Log4j2(topic = "Skin Service")
 public class SkinService {
     public static SkinService INSTANCE;
 
-    private final SkinRepository skinRepository;
-    private final PlayerRepository playerRepository;
     private final PlayerSkinPartCacheRepository skinPartRepository;
     private final StorageService minioService;
 
     @Autowired
-    public SkinService(SkinRepository skinRepository, PlayerRepository playerRepository, PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService) {
-        this.skinRepository = skinRepository;
-        this.playerRepository = playerRepository;
+    public SkinService(PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService) {
         this.skinPartRepository = skinPartRepository;
         this.minioService = minioService;
     }
@@ -50,71 +40,6 @@ public class SkinService {
     @PostConstruct
     public void init() {
         INSTANCE = this;
-    }
-
-    /**
-     * Creates a skin from a skin.
-     *
-     * @param skin the skin object
-     * @return the skin
-     */
-    @SneakyThrows
-    public Skin createSkin(Skin skin) {
-        // Check if the skin already exists
-        if (this.skinRepository.existsById(skin.getId())) {
-            return skin;
-        }
-
-        // Get the skin image
-        byte[] skinImage = this.getSkinImage(skin);
-
-        // Check if the skin is legacy
-        BufferedImage image = ImageIO.read(new ByteArrayInputStream(skinImage));
-        skin.setLegacy(image.getWidth() == 64 && image.getHeight() == 32);
-
-        // Create the skin
-        this.skinRepository.save(skin);
-        return skin;
-    }
-
-    /**
-     * Gets a skin for the given id.
-     *
-     * @param id the id of the skin
-     * @return the skin
-     */
-    public Skin getSkin(String id) {
-        return getSkin(id, null);
-    }
-
-    /**
-     * Gets a skin for the given id.
-     *
-     * @param id the id of the skin
-     * @param skin the json data to create the skin with (optional)
-     * @return the skin
-     */
-    public Skin getSkin(String id, Skin skin) {
-        Optional<Skin> optionalSkin = this.skinRepository.findById(id);
-        if (optionalSkin.isEmpty() && skin != null) {
-            return createSkin(skin);
-        }
-
-        if (optionalSkin.isEmpty()) {
-            log.info("Skin {} not found", id);
-            return null;
-        }
-        return optionalSkin.get();
-    }
-
-    /**
-     * Checks if a skin exists.
-     *
-     * @param id the id of the skin
-     * @return whether the skin exists
-     */
-    public boolean skinExists(String id) {
-        return skinRepository.existsById(id);
     }
 
     /**
@@ -172,7 +97,7 @@ public class SkinService {
         }
 
         long before = System.currentTimeMillis();
-        BufferedImage renderedPart = part.render(player.getCurrentSkin(), renderOverlay, size); // Render the skin part
+        BufferedImage renderedPart = part.render(player.getSkin(), renderOverlay, size); // Render the skin part
         log.info("Took {}ms to render skin part {} for player: {}", System.currentTimeMillis() - before, name, player.getUniqueId());
 
         CachedPlayerSkinPart skinPart = new CachedPlayerSkinPart(
@@ -182,71 +107,5 @@ public class SkinService {
         log.info("Fetched skin part {} for player: {}", name, player.getUniqueId());
         skinPartRepository.save(skinPart);
         return skinPart;
-    }
-
-    /**
-     * Gets the most popular skins based on current usage count.
-     * Much more efficient: counts usage on player side, only fetches needed skins.
-     *
-     * @param limit the maximum number of skins to return
-     * @return list of popular skins with their current usage counts
-     */
-    public List<PopularSkinInfo> getMostPopularSkins(int limit) {
-        if (limit <= 0) {
-            throw new BadRequestException("Limit must be greater than 0");
-        }
-        if (limit > 100) {
-            throw new BadRequestException("Limit cannot be greater than 100");
-        }
-
-        // Get popular skin IDs with counts directly from database aggregation
-        List<Map<String, Object>> popularSkinData = playerRepository.findMostPopularSkinIds(limit);
-        
-        // Extract skin IDs
-        List<String> popularSkinIds = popularSkinData.stream()
-            .map(data -> (String) data.get("skinId"))
-            .filter(skinId -> skinId != null)
-            .toList();
-        
-        // Only fetch the skins we actually need
-        List<Skin> skins = skinRepository.findByIdIn(popularSkinIds);
-        Map<String, Skin> skinMap = skins.stream()
-            .collect(Collectors.toMap(Skin::getId, skin -> skin));
-        
-        // Build result in correct order
-        return popularSkinData.stream()
-            .map(data -> {
-                String skinId = (String) data.get("skinId");
-                Integer count = (Integer) data.get("currentUsageCount");
-                Skin skin = skinMap.get(skinId);
-                
-                if (skin != null && count != null) {
-                    return new PopularSkinInfo(skin, count);
-                }
-                return null;
-            })
-            .filter(info -> info != null)
-            .toList();
-    }
-
-    /**
-     * Information about a popular skin including current usage count
-     */
-    public static class PopularSkinInfo {
-        private final Skin skin;
-        private final int currentUsageCount;
-
-        public PopularSkinInfo(Skin skin, int currentUsageCount) {
-            this.skin = skin;
-            this.currentUsageCount = currentUsageCount;
-        }
-
-        public Skin getSkin() {
-            return skin;
-        }
-
-        public int getCurrentUsageCount() {
-            return currentUsageCount;
-        }
     }
 }

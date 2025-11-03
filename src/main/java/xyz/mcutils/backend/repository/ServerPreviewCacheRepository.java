@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.repository.redis;
+package xyz.mcutils.backend.repository;
 
 import org.springframework.data.repository.CrudRepository;
 import xyz.mcutils.backend.model.cache.CachedServerPreview;

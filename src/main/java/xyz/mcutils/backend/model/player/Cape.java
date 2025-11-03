@@ -5,10 +5,8 @@ import com.google.gson.JsonObject;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
-import org.springframework.data.mongodb.core.mapping.Document;
 
 @AllArgsConstructor @NoArgsConstructor
-@Document("capes")
 @Getter @EqualsAndHashCode @ToString
 public class Cape {
     /**
