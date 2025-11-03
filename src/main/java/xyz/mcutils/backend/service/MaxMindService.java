@@ -3,6 +3,7 @@ package xyz.mcutils.backend.service;
 import com.maxmind.db.CHMCache;
 import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.exception.AddressNotFoundException;
+import com.maxmind.geoip2.model.AsnResponse;
 import com.maxmind.geoip2.model.CityResponse;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -69,6 +70,13 @@ public final class MaxMindService {
         // Download missing databases
         for (Database database : Database.values()) {
             File databaseFile = new File(DATABASES_DIRECTORY, database.getEdition() + ".mmdb");
+
+            // Check the database isn't too old (>3 months old)
+            if (databaseFile.lastModified() < System.currentTimeMillis() - 90L * 24L * 60L * 60L * 1000L) {
+                log.info("MaxMind Database {} is older than 3 months, re-downloading...", database.getEdition());
+                FileUtils.deleteQuietly(databaseFile);
+            }
+
             if (!databaseFile.exists()) { // Doesn't exist, download it
                 downloadDatabase(database, databaseFile);
             }
@@ -85,14 +93,31 @@ public final class MaxMindService {
     /**
      * Lookup a city by the given address.
      *
-     * @param address the address
+     * @param ip the address
      * @return the city response, null if none
      */
     @SneakyThrows
-    public static CityResponse lookupCity(@NonNull String address) {
+    public static CityResponse lookupCity(@NonNull String ip) {
         DatabaseReader database = getDatabase(Database.CITY);
         try {
-            return database == null ? null : database.city(InetAddress.getByName(address));
+            return database == null ? null : database.city(InetAddress.getByName(ip));
+        } catch (AddressNotFoundException ignored) {
+            // Safely ignore this and return null instead
+            return null;
+        }
+    }
+
+    /**
+     * Lookup an ASN by the given address.
+     *
+     * @param ip the address
+     * @return the asn response, null if none
+     */
+    @SneakyThrows
+    public static AsnResponse lookupAsn(@NonNull String ip) {
+        DatabaseReader database = getDatabase(Database.ASN);
+        try {
+            return database == null ? null : database.asn(InetAddress.getByName(ip));
         } catch (AddressNotFoundException ignored) {
             // Safely ignore this and return null instead
             return null;
@@ -187,7 +212,8 @@ public final class MaxMindService {
      */
     @AllArgsConstructor @Getter @ToString
     public enum Database {
-        CITY("GeoLite2-City");
+        CITY("GeoLite2-City"),
+        ASN("GeoLite2-ASN");
 
         /**
          * The edition of this database.

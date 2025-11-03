@@ -1,7 +1,6 @@
 package xyz.mcutils.backend.service;
 
 import jakarta.annotation.PostConstruct;
-import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,13 +14,8 @@ import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.repository.PlayerSkinPartCacheRepository;
 
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @Log4j2(topic = "Skin Service")

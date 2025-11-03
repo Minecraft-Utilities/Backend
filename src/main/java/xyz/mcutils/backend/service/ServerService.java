@@ -70,10 +70,12 @@ public class ServerService {
         log.info("Getting server: {}:{}", hostname, port);
 
         // Check if the server is cached
-        Optional<CachedMinecraftServer> cached = serverCacheRepository.findById(key);
-        if (cached.isPresent() && AppConfig.isProduction()) {
+        if (AppConfig.isProduction()) {
+            Optional<CachedMinecraftServer> cached = serverCacheRepository.findById(key);
+            if (cached.isPresent()) {
                 log.info("Server {}:{} is cached", hostname, port);
-            return cached.get();
+                return cached.get();
+            }
         }
 
         List<DNSRecord> records = new ArrayList<>(); // The resolved DNS records for the server

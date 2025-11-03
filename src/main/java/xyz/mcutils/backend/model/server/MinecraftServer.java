@@ -1,11 +1,13 @@
 package xyz.mcutils.backend.model.server;
 
+import com.maxmind.geoip2.model.AsnResponse;
 import com.maxmind.geoip2.model.CityResponse;
 import io.micrometer.common.lang.NonNull;
 import lombok.*;
 import xyz.mcutils.backend.common.ColorUtils;
 import xyz.mcutils.backend.config.Config;
 import xyz.mcutils.backend.model.dns.DNSRecord;
+import xyz.mcutils.backend.service.MaxMindService;
 import xyz.mcutils.backend.service.pinger.MinecraftServerPinger;
 import xyz.mcutils.backend.service.pinger.impl.BedrockMinecraftServerPinger;
 import xyz.mcutils.backend.service.pinger.impl.JavaMinecraftServerPinger;
@@ -16,7 +18,6 @@ import java.util.UUID;
 /**
  * @author Braydon
  */
-@AllArgsConstructor
 @Getter @Setter @EqualsAndHashCode
 public class MinecraftServer {
 
@@ -54,6 +55,23 @@ public class MinecraftServer {
      * The location of the server.
      */
     private final GeoLocation location;
+
+    /**
+     * The server's ASN information.
+     */
+    private final ServerAsn asn;
+
+    public MinecraftServer(String hostname, String ip, int port, DNSRecord[] records, MOTD motd, Players players) {
+        this.hostname = hostname;
+        this.ip = ip;
+        this.port = port;
+        this.records = records;
+        this.motd = motd;
+        this.players = players;
+
+        this.location = GeoLocation.fromMaxMind(MaxMindService.lookupCity(ip));
+        this.asn = ServerAsn.fromMaxMind(MaxMindService.lookupAsn(ip));
+    }
 
     /**
      * A platform a Minecraft
@@ -208,6 +226,38 @@ public class MinecraftServer {
                     response.getCity().getName(),
                     response.getLocation().getLatitude(),
                     response.getLocation().getLongitude()
+            );
+        }
+    }
+
+    /**
+     * The ASN information for this server.
+     */
+    @AllArgsConstructor @Getter
+    public static class ServerAsn {
+        /**
+         * The ASN number.
+         */
+        private final String asn;
+
+        /**
+         * The name of the Organization who owns the ASN.
+         */
+        private final String asnOrg;
+
+        /**
+         * Gets the location of the server from Maxmind.
+         *
+         * @param response the response from Maxmind
+         * @return the location of the server
+         */
+        public static ServerAsn fromMaxMind(AsnResponse response) {
+            if (response == null) {
+                return null;
+            }
+            return new ServerAsn(
+                    "AS%s".formatted(response.getAutonomousSystemNumber()),
+                    response.getAutonomousSystemOrganization()
             );
         }
     }

@@ -28,10 +28,3 @@ public-url: http://localhost
 # This is used for IP Geolocation
 maxmind:
   license: ""
-
-# Set the embedded MongoDB version
-de:
-  flapdoodle:
-    mongodb:
-      embedded:
-        version: 7.0.8

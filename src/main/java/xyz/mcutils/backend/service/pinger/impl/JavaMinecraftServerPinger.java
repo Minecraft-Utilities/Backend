@@ -9,9 +9,7 @@ import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.ResourceNotFoundException;
 import xyz.mcutils.backend.model.dns.DNSRecord;
 import xyz.mcutils.backend.model.server.JavaMinecraftServer;
-import xyz.mcutils.backend.model.server.MinecraftServer;
 import xyz.mcutils.backend.model.token.JavaServerStatusToken;
-import xyz.mcutils.backend.service.MaxMindService;
 import xyz.mcutils.backend.service.pinger.MinecraftServerPinger;
 
 import java.io.DataInputStream;
@@ -52,8 +50,7 @@ public final class JavaMinecraftServerPinger implements MinecraftServerPinger<Ja
                 JavaPacketStatusInStart packetStatusInStart = new JavaPacketStatusInStart();
                 packetStatusInStart.process(inputStream, outputStream);
                 JavaServerStatusToken token = Main.GSON.fromJson(packetStatusInStart.getResponse(), JavaServerStatusToken.class);
-                return JavaMinecraftServer.create(hostname, ip, port, records,
-                        MinecraftServer.GeoLocation.fromMaxMind(MaxMindService.lookupCity(ip)), token);
+                return JavaMinecraftServer.create(hostname, ip, port, records, token);
             }
         } catch (IOException ex) {
             if (ex instanceof UnknownHostException) {
