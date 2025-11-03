@@ -69,8 +69,12 @@ public class MinecraftServer {
         this.motd = motd;
         this.players = players;
 
-        this.location = GeoLocation.fromMaxMind(MaxMindService.lookupCity(ip));
-        this.asn = ServerAsn.fromMaxMind(MaxMindService.lookupAsn(ip));
+        try {
+            this.location = GeoLocation.fromMaxMind(MaxMindService.lookupCity(ip));
+        } catch (Exception ignored) {}
+        try {
+            this.asn = ServerAsn.fromMaxMind(MaxMindService.lookupAsn(ip));
+        } catch (Exception ignored) {}
     }
 
     /**
