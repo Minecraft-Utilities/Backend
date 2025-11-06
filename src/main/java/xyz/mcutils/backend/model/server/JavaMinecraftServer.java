@@ -1,5 +1,6 @@
 package xyz.mcutils.backend.model.server;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.gson.annotations.SerializedName;
 import lombok.*;
 import net.md_5.bungee.api.chat.TextComponent;
@@ -161,6 +162,7 @@ public final class JavaMinecraftServer extends MinecraftServer {
         /**
          * The raw base64 of the favicon.
          */
+        @JsonIgnore
         private final String base64;
 
         /**
