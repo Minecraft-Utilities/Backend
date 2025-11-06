@@ -195,6 +195,11 @@ public class MinecraftServer {
         private final String country;
 
         /**
+         * The country code for the country.
+         */
+        private final String countryCode;
+
+        /**
          * The region of the server.
          */
         private final String region;
@@ -226,6 +231,7 @@ public class MinecraftServer {
             }
             return new GeoLocation(
                     response.getCountry().getName(),
+                    response.getCountry().getIsoCode(),
                     response.getMostSpecificSubdivision().getName(),
                     response.getCity().getName(),
                     response.getLocation().getLatitude(),
