@@ -1,23 +1,36 @@
 package xyz.mcutils.backend.controller;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.info.BuildProperties;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import xyz.mcutils.backend.config.Config;
 
-@Controller
+import java.util.Map;
+
+@RestController
 @RequestMapping(value = "/")
 public class IndexController {
-    @GetMapping(value = "/")
-    public String home(Model model) {
-        String publicUrl = Config.INSTANCE.getWebPublicUrl();
+    /**
+     * The build properties of the
+     * app, null if the app is not built.
+     */
+    private final BuildProperties buildProperties;
 
-        model.addAttribute("public_url", publicUrl);
-        model.addAttribute("player_example_url", publicUrl + "/player/Notch");
-        model.addAttribute("java_server_example_url", publicUrl + "/server/java/aetheria.cc");
-        model.addAttribute("bedrock_server_example_url", publicUrl + "/server/bedrock/geo.hivebedrock.network");
-        model.addAttribute("swagger_url", publicUrl + "/swagger-ui.html");
-        return "index";
+    @Autowired
+    public IndexController(BuildProperties buildProperties) {
+        this.buildProperties = buildProperties;
+    }
+
+    @GetMapping(value = "/")
+    public Object index() {
+        return Map.of(
+                "app", "Minecraft Utilities API",
+                "version", buildProperties == null ? "dev" : buildProperties.getVersion()
+        );
     }
 }

@@ -42,7 +42,7 @@ public class MojangService {
     /**
      * The interval to fetch the blocked servers from Mojang.
      */
-    private static final long FETCH_BLOCKED_SERVERS_INTERVAL = TimeUnit.HOURS.toMillis(6L);
+    private static final long FETCH_BLOCKED_SERVERS_INTERVAL = TimeUnit.HOURS.toMillis(3L);
 
     /**
      * A list of banned server hashes provided by Mojang.
