@@ -28,9 +28,12 @@ public class IndexController {
 
     @GetMapping(value = "/")
     public Object index() {
+        String publicUrl = Config.INSTANCE.getWebPublicUrl();
+
         return Map.of(
                 "app", "Minecraft Utilities API",
-                "version", buildProperties == null ? "dev" : buildProperties.getVersion()
+                "version", buildProperties == null ? "dev" : buildProperties.getVersion(),
+                "docs", publicUrl + "/swagger-ui.html"
         );
     }
 }
