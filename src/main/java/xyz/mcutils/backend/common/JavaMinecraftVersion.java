@@ -7,14 +7,23 @@ import lombok.ToString;
 import lombok.extern.log4j.Log4j2;
 
 /**
- * @author Braydon
- * @see <a href="https://wiki.vg/Protocol_version_numbers">Protocol Version Numbers</a>
- * @see <a href="https://www.spigotmc.org/wiki/spigot-nms-and-minecraft-versions-1-16">Spigot NMS (1.16+)</a>
+ * @author Braydon & Fascinated
+ * @see <a href="https://github.com/PrismarineJS/minecraft-data/blob/master/data/pc">Protocol Version Numbers</a>
+ * @see <a href="https://www.spigotmc.org/wiki/spigot-nms-and-minecraft-versions-1-21">Spigot NMS (1.21+)</a>
+ * @see <a href="https://www.spigotmc.org/wiki/spigot-nms-and-minecraft-versions-1-16">Spigot NMS (1.16-1.20)</a>
  * @see <a href="https://www.spigotmc.org/wiki/spigot-nms-and-minecraft-versions-1-10-1-15">Spigot NMS (1.10 - 1.15)</a>
  * @see <a href="https://www.spigotmc.org/wiki/spigot-nms-and-minecraft-versions-legacy">Spigot NMS (1.8 - 1.9)</a>
  */
 @RequiredArgsConstructor @Getter @ToString @Log4j2(topic = "Minecraft Version")
 public enum JavaMinecraftVersion {
+    V1_21_8(772, "1_21_R5"), // 1.21.8
+    V1_21_6(771, "1_21_R5"), // 1.21.6 & 1.21.7
+    V1_21_5(770, "1_21_R4"), // 1.21.5
+    V1_21_4(769, "1_21_R3"), // 1.21.4
+    V1_21_3(768, "1_21_R2"), // 1.21.3
+    V1_21(767, "v1_21_R1"), // 1.21, 1.21.1 & 1.21.2
+
+    V1_20_5(766, "v1_20_R4"), // 1.20.5
     V1_20_3(765, "v1_20_R3"), // 1.20.3 & 1.20.4
     V1_20_2(764, "v1_20_R2"), // 1.20.2
     V1_20(763, "v1_20_R1"), // 1.20 & 1.20.1
@@ -70,21 +79,6 @@ public enum JavaMinecraftVersion {
 
     UNKNOWN(-1, "Unknown");
 
-    // Game Updates
-    public static final JavaMinecraftVersion TRAILS_AND_TALES = JavaMinecraftVersion.V1_20;
-    public static final JavaMinecraftVersion THE_WILD_UPDATE = JavaMinecraftVersion.V1_19;
-    public static final JavaMinecraftVersion CAVES_AND_CLIFFS_PT_2 = JavaMinecraftVersion.V1_18;
-    public static final JavaMinecraftVersion CAVES_AND_CLIFFS_PT_1 = JavaMinecraftVersion.V1_17;
-    public static final JavaMinecraftVersion NETHER_UPDATE = JavaMinecraftVersion.V1_16;
-    public static final JavaMinecraftVersion BUZZY_BEES = JavaMinecraftVersion.V1_15;
-    public static final JavaMinecraftVersion VILLAGE_AND_PILLAGE = JavaMinecraftVersion.V1_14;
-    public static final JavaMinecraftVersion UPDATE_AQUATIC = JavaMinecraftVersion.V1_13;
-    public static final JavaMinecraftVersion WORLD_OF_COLOR_UPDATE = JavaMinecraftVersion.V1_12;
-    public static final JavaMinecraftVersion EXPLORATION_UPDATE = JavaMinecraftVersion.V1_11;
-    public static final JavaMinecraftVersion FROSTBURN_UPDATE = JavaMinecraftVersion.V1_10;
-    public static final JavaMinecraftVersion THE_COMBAT_UPDATE = JavaMinecraftVersion.V1_9;
-    public static final JavaMinecraftVersion BOUNTIFUL_UPDATE = JavaMinecraftVersion.V1_8;
-
     private static final JavaMinecraftVersion[] VALUES = JavaMinecraftVersion.values();
 
     /**
@@ -128,7 +122,7 @@ public enum JavaMinecraftVersion {
      * @return whether this version is legacy
      */
     public boolean isLegacy() {
-        return this.isBelow(JavaMinecraftVersion.V1_16);
+        return this.isBelow(JavaMinecraftVersion.V1_20);
     }
 
     /**
