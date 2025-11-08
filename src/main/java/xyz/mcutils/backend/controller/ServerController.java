@@ -28,13 +28,13 @@ public class ServerController {
         this.mojangService = mojangService;
     }
 
-    @ResponseBody @Async
+    @ResponseBody
     @GetMapping(value = "/{platform}/{hostname}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<CachedMinecraftServer> getServer(
             @Parameter(description = "The platform of the server", example = "java") @PathVariable String platform,
             @Parameter(description = "The hostname and port of the server", example = "aetheria.cc") @PathVariable String hostname) {
         CachedMinecraftServer server = serverService.getServer(platform, hostname);
-        
+
         return ResponseEntity.ok()
                 .body(server);
     }
