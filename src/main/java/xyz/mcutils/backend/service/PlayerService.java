@@ -77,17 +77,6 @@ public class PlayerService {
     }
 
     /**
-     * Resolves a player ID (either UUID or username) to a UUID.
-     */
-    private UUID resolvePlayerUuid(String id) {
-        UUID uuid = PlayerUtils.getUuidFromString(id);
-        if (uuid == null) {
-            uuid = usernameToUuid(id).getUniqueId();
-        }
-        return uuid;
-    }
-
-    /**
      * Gets the player's uuid from their username.
      *
      * @param username the username of the player
