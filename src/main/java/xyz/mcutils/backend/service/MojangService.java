@@ -105,6 +105,10 @@ public class MojangService {
      * @return whether the hostname is blocked
      */
     public boolean isServerBlocked(@NonNull String hostname) {
+        if (hostname.isEmpty()) {
+            return false;
+        }
+      
         // Remove trailing dots
         while (hostname.charAt(hostname.length() - 1) == '.') {
             hostname = hostname.substring(0, hostname.length() - 1);
@@ -152,6 +156,10 @@ public class MojangService {
      * @return whether the hostname is blocked
      */
     private boolean isServerHostnameBlocked(@NonNull String hostname) {
+        if (blockedServersCache == null) {
+            return false;
+        }
+      
         // Check the cache first for the hostname
         if (blockedServersCache.contains(hostname)) {
             return true;
