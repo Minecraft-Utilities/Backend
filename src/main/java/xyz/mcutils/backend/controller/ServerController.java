@@ -12,6 +12,7 @@ import xyz.mcutils.backend.service.MojangService;
 import xyz.mcutils.backend.service.ServerService;
 
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 @RestController
 @RequestMapping(value = "/server/")
@@ -29,13 +30,14 @@ public class ServerController {
 
     @ResponseBody
     @GetMapping(value = "/{platform}/{hostname}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<CachedMinecraftServer> getServer(
+    public Callable<ResponseEntity<CachedMinecraftServer>> getServer(
             @Parameter(description = "The platform of the server", example = "java") @PathVariable String platform,
             @Parameter(description = "The hostname and port of the server", example = "aetheria.cc") @PathVariable String hostname) {
-        CachedMinecraftServer server = serverService.getServer(platform, hostname);
-
-        return ResponseEntity.ok()
-                .body(server);
+        return () -> {
+            CachedMinecraftServer server = serverService.getServer(platform, hostname);
+            return ResponseEntity.ok()
+                    .body(server);
+        };
     }
 
     @ResponseBody
