@@ -6,13 +6,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.model.cache.CachedMinecraftServer;
 import xyz.mcutils.backend.service.MojangService;
 import xyz.mcutils.backend.service.ServerService;
 
 import java.util.Map;
-import java.util.concurrent.Callable;
 
 @RestController
 @RequestMapping(value = "/server/")
@@ -28,16 +28,15 @@ public class ServerController {
         this.mojangService = mojangService;
     }
 
-    @ResponseBody
+    @ResponseBody @Async
     @GetMapping(value = "/{platform}/{hostname}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Callable<ResponseEntity<CachedMinecraftServer>> getServer(
+    public ResponseEntity<CachedMinecraftServer> getServer(
             @Parameter(description = "The platform of the server", example = "java") @PathVariable String platform,
             @Parameter(description = "The hostname and port of the server", example = "aetheria.cc") @PathVariable String hostname) {
-        return () -> {
-            CachedMinecraftServer server = serverService.getServer(platform, hostname);
-            return ResponseEntity.ok()
-                    .body(server);
-        };
+        CachedMinecraftServer server = serverService.getServer(platform, hostname);
+        
+        return ResponseEntity.ok()
+                .body(server);
     }
 
     @ResponseBody
