@@ -34,7 +34,7 @@ public class CachedPlayer extends CachedResponse implements Serializable {
     private Player player;
 
     public CachedPlayer(UUID uniqueId, Player player) {
-        super();
+        super(true, System.currentTimeMillis());
         this.uniqueId = uniqueId;
         this.player = player;
     }
