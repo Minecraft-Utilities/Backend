@@ -87,7 +87,7 @@ public class PlayerService {
 
         // First check Redis cache
         Optional<CachedPlayerName> cachedPlayerName = playerNameCacheRepository.findById(id);
-        if (cachedPlayerName.isPresent() && AppConfig.isProduction()) {
+        if (cachedPlayerName.isPresent()) {
             return cachedPlayerName.get();
         }
 

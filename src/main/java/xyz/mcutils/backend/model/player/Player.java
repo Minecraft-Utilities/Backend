@@ -64,6 +64,7 @@ public class Player {
         Tuple<Skin, Cape> skinAndCape = profile.getSkinAndCape();
         if (skinAndCape != null) {
             this.skin = skinAndCape.getLeft();
+            this.skin.populateSkinData(this);
             this.cape = skinAndCape.getRight();
         }
     }

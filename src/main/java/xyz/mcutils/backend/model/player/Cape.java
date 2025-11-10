@@ -3,8 +3,6 @@ package xyz.mcutils.backend.model.player;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.gson.JsonObject;
 import lombok.*;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.Transient;
 
 @AllArgsConstructor @NoArgsConstructor
 @Getter @EqualsAndHashCode @ToString
@@ -12,20 +10,7 @@ public class Cape {
     /**
      * The ID of the cape
      */
-    @Id
-    private String id;
-
-    /**
-     * The name of the cape
-     */
-    @Setter
-    private String name = null;
-
-    /**
-     * The amount of accounts that have this cape
-     */
-    @Setter @Transient @JsonIgnore
-    private int accounts = 0;
+    @JsonIgnore private String id;
 
     /**
      * Gets the cape from a {@link JsonObject}.
@@ -40,7 +25,7 @@ public class Cape {
         String url = json.get("url").getAsString();
         String[] capeUrlParts = url.split("/");
 
-        return new Cape(capeUrlParts[capeUrlParts.length - 1], null, 0);
+        return new Cape(capeUrlParts[capeUrlParts.length - 1]);
     }
 
     /**
