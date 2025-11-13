@@ -53,14 +53,14 @@ public final class BedrockMinecraftServerPinger implements MinecraftServerPinger
             unconnectedPong.process(socket);
             String response = unconnectedPong.getResponse();
             if (response == null) { // No pong response
-                throw new ResourceNotFoundException("Server '%s' didn't respond to ping".formatted(hostname));
+                throw new BadRequestException("Server '%s' didn't respond to ping".formatted(hostname));
             }
             return BedrockMinecraftServer.create(hostname, ip, port, records, response); // Return the server
         } catch (IOException ex ) {
             if (ex instanceof UnknownHostException) {
                 throw new BadRequestException("Unknown hostname '%s'".formatted(hostname));
             } else if (ex instanceof SocketTimeoutException) {
-                throw new ResourceNotFoundException("Server '%s' didn't respond to ping".formatted(hostname));
+                throw new BadRequestException("Server '%s' didn't respond to ping".formatted(hostname));
             } else {
                 log.error("An error occurred pinging %s:%s:".formatted(hostname, port), ex);
                 throw new BadRequestException("An error occurred pinging '%s:%s'".formatted(hostname, port));
