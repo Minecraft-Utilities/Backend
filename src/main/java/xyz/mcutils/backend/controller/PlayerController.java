@@ -51,7 +51,7 @@ public class PlayerController {
                 .body(cachedPlayerName);
     }
 
-    @GetMapping(value = "/{id}.{extension}")
+    @GetMapping(value = "/{id}/skin.{extension}")
     public ResponseEntity<?> getPlayerSkin(
             @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String id,
             @Parameter(description = "The file extension of the image", example = "png") @PathVariable String extension,

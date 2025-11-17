@@ -53,7 +53,7 @@ public class Skin {
      * @param player the player to populate the skin data for
      */
     public void populateSkinData(Player player) {
-        this.setUrl(Config.INSTANCE.getWebPublicUrl() + "/skin/" + player.getUniqueId() + ".png");
+        this.setUrl(Config.INSTANCE.getWebPublicUrl() + "/player/%s/skin.png".formatted(player.getUniqueId()));
 
         for (Enum<?>[] types : ISkinPart.TYPES) {
             for (Enum<?> enumValue : types) {
@@ -61,7 +61,11 @@ public class Skin {
                 if (part.hidden()) {
                     continue;
                 }
-                this.parts.put(part.name(), Config.INSTANCE.getWebPublicUrl() + "/player/" + player.getUniqueId() + "/skin/" + part.name().toLowerCase() + ".png");
+                this.parts.put(part.name(), "%s/player/%s/skin/%s.png".formatted(
+                        Config.INSTANCE.getWebPublicUrl(),
+                        player.getUniqueId(),
+                        part.name().toLowerCase()
+                ));
             }
         }
     }
