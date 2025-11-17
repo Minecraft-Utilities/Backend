@@ -12,6 +12,7 @@ import lombok.extern.log4j.Log4j2;
 import org.apache.commons.io.FileUtils;
 import org.codehaus.plexus.archiver.tar.TarGZipUnArchiver;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedInputStream;
@@ -56,38 +57,24 @@ public final class MaxMindService {
     }
 
     /**
-     * Load the databases.
+     * Cleanup when the app is destroyed.
      */
+    @PreDestroy @SneakyThrows
+    public void cleanup() {
+        for (DatabaseReader database : DATABASES.values()) {
+            database.close();
+        }
+        DATABASES.clear();
+    }
+
+    /**
+     * Scheduled task to check and update databases every 3 days.
+     * Runs at 2 AM daily to check if databases need updating.
+     */
+    @Scheduled(cron = "0 0 2 * * *")
     @SneakyThrows
-    private void loadDatabases() {
-        log.info("Loading databases...");
-
-        // Create the directory if it doesn't exist
-        if (!DATABASES_DIRECTORY.exists()) {
-            DATABASES_DIRECTORY.mkdirs();
-        }
-
-        // Download missing databases
-        for (Database database : Database.values()) {
-            File databaseFile = new File(DATABASES_DIRECTORY, database.getEdition() + ".mmdb");
-
-            // Check the database isn't too old (>3 months old)
-            if (databaseFile.lastModified() < System.currentTimeMillis() - 90L * 24L * 60L * 60L * 1000L) {
-                log.info("MaxMind Database {} is older than 3 months, re-downloading...", database.getEdition());
-                FileUtils.deleteQuietly(databaseFile);
-            }
-
-            if (!databaseFile.exists()) { // Doesn't exist, download it
-                downloadDatabase(database, databaseFile);
-            }
-            // Load the database and store it
-            DATABASES.put(database, new DatabaseReader.Builder(databaseFile)
-                    .withCache(new CHMCache()) // Enable caching
-                    .build()
-            );
-            log.info("Loaded database {}", database.getEdition());
-        }
-        log.info("Loaded {} database(s)", DATABASES.size());
+    public void scheduledDatabaseUpdate() {
+        loadDatabases(true);
     }
 
     /**
@@ -121,6 +108,112 @@ public final class MaxMindService {
         } catch (AddressNotFoundException ignored) {
             // Safely ignore this and return null instead
             return null;
+        }
+    }
+
+    /**
+     * Load the databases.
+     */
+    @SneakyThrows
+    private void loadDatabases() {
+        loadDatabases(false);
+    }
+
+    /**
+     * Get the reader for the given database.
+     *
+     * @param database the database to get
+     * @return the database reader, null if none
+     */
+    public static DatabaseReader getDatabase(@NonNull Database database) {
+        return DATABASES.get(database);
+    }
+
+    /**
+     * Load the databases.
+     *
+     * @param isScheduled whether this is a scheduled update
+     */
+    @SneakyThrows
+    private void loadDatabases(boolean isScheduled) {
+        if (isScheduled) {
+            log.info("Starting scheduled database check...");
+        }
+        if (!isScheduled) {
+            log.info("Initializing MaxMind databases...");
+        }
+
+        // Create the directory if it doesn't exist
+        if (!DATABASES_DIRECTORY.exists()) {
+            DATABASES_DIRECTORY.mkdirs();
+            log.debug("Created databases directory at {}", DATABASES_DIRECTORY.getAbsolutePath());
+        }
+
+        int updatedCount = 0;
+        int loadedCount = 0;
+
+        // Download missing databases
+        for (Database database : Database.values()) {
+            File databaseFile = new File(DATABASES_DIRECTORY, database.getEdition() + ".mmdb");
+            boolean needsUpdate = false;
+
+            // Check if database exists and needs update
+            if (databaseFile.exists()) {
+                long ageInMillis = System.currentTimeMillis() - databaseFile.lastModified();
+                long daysOld = ageInMillis / (24L * 60L * 60L * 1000L);
+
+                if (ageInMillis > 3L * 24L * 60L * 60L * 1000L) {
+                    needsUpdate = true;
+                    log.info("Database {} is {} days old (max 3 days), updating...", database.getEdition(), daysOld);
+
+                    // Close the existing database reader before deleting
+                    DatabaseReader existingReader = DATABASES.get(database);
+                    if (existingReader != null) {
+                        existingReader.close();
+                        DATABASES.remove(database);
+                        log.debug("Closed existing database reader for {}", database.getEdition());
+                    }
+
+                    FileUtils.deleteQuietly(databaseFile);
+                    updatedCount++;
+                }
+
+                if (!needsUpdate && isScheduled) {
+                    log.debug("Database {} is {} days old, no update needed", database.getEdition(), daysOld);
+                }
+            }
+
+            // Handle first-time download
+            if (!databaseFile.exists() && !needsUpdate) {
+                log.info("Database {} not found, downloading for the first time...", database.getEdition());
+                loadedCount++;
+            }
+
+            // Download if needed
+            if (!databaseFile.exists()) {
+                downloadDatabase(database, databaseFile);
+            }
+
+            // Load the database if not already loaded
+            if (DATABASES.containsKey(database)) {
+                continue;
+            }
+
+            DATABASES.put(database, new DatabaseReader.Builder(databaseFile)
+                    .withCache(new CHMCache()) // Enable caching
+                    .build()
+            );
+            log.info("Successfully loaded database: {}", database.getEdition());
+        }
+
+        // Log completion summary
+        if (isScheduled && updatedCount > 0) {
+            log.info("Scheduled check complete: {} database(s) updated", updatedCount);
+            return;
+        }
+
+        if (!isScheduled) {
+            log.info("Initialization complete: {} database(s) active ({} new, {} updated)", DATABASES.size(), loadedCount, updatedCount);
         }
     }
 
@@ -184,27 +277,6 @@ public final class MaxMindService {
                 }
             }
         }
-    }
-
-    /**
-     * Get the reader for the given database.
-     *
-     * @param database the database to get
-     * @return the database reader, null if none
-     */
-    public static DatabaseReader getDatabase(@NonNull Database database) {
-        return DATABASES.get(database);
-    }
-
-    /**
-     * Cleanup when the app is destroyed.
-     */
-    @PreDestroy @SneakyThrows
-    public void cleanup() {
-        for (DatabaseReader database : DATABASES.values()) {
-            database.close();
-        }
-        DATABASES.clear();
     }
 
     /**
