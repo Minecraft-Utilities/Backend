@@ -42,12 +42,16 @@ public final class JavaMinecraftServerPinger implements MinecraftServerPinger<Ja
 
             // Open data streams to begin packet transaction
             try (DataInputStream inputStream = new DataInputStream(socket.getInputStream()); DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream())) {
-                // Begin handshaking with the server
-                new JavaPacketHandshakingInSetProtocol(hostname, port, JavaMinecraftVersion.getMinimumVersion().getProtocol()).process(inputStream, outputStream);
+                // Send the handshake packet
+                JavaPacketHandshakingInSetProtocol handshakePacket = new JavaPacketHandshakingInSetProtocol(hostname, port, JavaMinecraftVersion.getMinimumVersion().getProtocol());
+                handshakePacket.process(inputStream, outputStream);
+                outputStream.flush();
 
-                // Send the status request to the server, and await back the response
+                // Send the status request and await the response
                 JavaPacketStatusInStart packetStatusInStart = new JavaPacketStatusInStart();
                 packetStatusInStart.process(inputStream, outputStream);
+                outputStream.flush();
+
                 JavaServerStatusToken token = Main.GSON.fromJson(packetStatusInStart.getResponse(), JavaServerStatusToken.class);
                 return JavaMinecraftServer.create(hostname, ip, port, records, token);
             }
@@ -57,8 +61,7 @@ public final class JavaMinecraftServerPinger implements MinecraftServerPinger<Ja
             } else if (ex instanceof ConnectException || ex instanceof SocketTimeoutException) {
                 throw new BadRequestException("Server '%s' didn't respond to ping".formatted(hostname));
             } else {
-                log.error("An error occurred pinging %s:%s:".formatted(hostname, port), ex);
-                throw new BadRequestException("An error occurred pinging '%s:%s'".formatted(hostname, port));
+                throw new BadRequestException("An error occurred pinging '%s:%s': %s".formatted(hostname, port, ex.getLocalizedMessage()));
             }
         }
     }
