@@ -28,6 +28,11 @@ public final class SRVRecord extends DNSRecord {
     private int port;
 
     /**
+     * The name of this record.
+     */
+    @NonNull private String name;
+
+    /**
      * The target of this record.
      */
     @NonNull private String target;
@@ -37,6 +42,7 @@ public final class SRVRecord extends DNSRecord {
         priority = bootstrap.getPriority();
         weight = bootstrap.getWeight();
         port = bootstrap.getPort();
+        name = bootstrap.getName().toString().replaceFirst("\\.$", "");
         target = bootstrap.getTarget().toString().replaceFirst("\\.$", "");
     }
 
