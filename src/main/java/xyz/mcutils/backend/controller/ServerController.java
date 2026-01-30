@@ -41,14 +41,11 @@ public class ServerController {
     @ResponseBody
     @GetMapping(value = "/icon/{hostname}", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getServerIcon(
-            @Parameter(description = "The hostname and port of the server", example = "aetheria.cc") @PathVariable String hostname,
-            @Parameter(description = "Whether to download the image") @RequestParam(required = false, defaultValue = "false") boolean download) {
-        String dispositionHeader = download ? "attachment; filename=%s.png" : "inline; filename=%s.png";
+            @Parameter(description = "The hostname and port of the server", example = "aetheria.cc") @PathVariable String hostname) {
         byte[] favicon = serverService.getServerFavicon(hostname);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.IMAGE_PNG)
-                .header(HttpHeaders.CONTENT_DISPOSITION, dispositionHeader.formatted(hostname))
                 .body(favicon);
     }
 
@@ -57,14 +54,11 @@ public class ServerController {
     public ResponseEntity<byte[]> getServerPreview(
             @Parameter(description = "The platform of the server", example = "java") @PathVariable String platform,
             @Parameter(description = "The hostname and port of the server", example = "aetheria.cc") @PathVariable String hostname,
-            @Parameter(description = "Whether to download the image") @RequestParam(required = false, defaultValue = "false") boolean download,
             @Parameter(description = "The size of the image", example = "768") @RequestParam(required = false, defaultValue = "768") int size) {
-        String dispositionHeader = download ? "attachment; filename=%s.png" : "inline; filename=%s.png";
         CachedMinecraftServer server = serverService.getServer(platform, hostname);
 
         return ResponseEntity.ok()
                 .contentType(MediaType.IMAGE_PNG)
-                .header(HttpHeaders.CONTENT_DISPOSITION, dispositionHeader.formatted(hostname))
                 .body(serverService.getServerPreview(server, platform, size));
     }
 

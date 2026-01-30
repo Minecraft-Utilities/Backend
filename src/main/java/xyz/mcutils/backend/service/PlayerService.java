@@ -9,7 +9,7 @@ import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
 import xyz.mcutils.backend.exception.impl.RateLimitException;
-import xyz.mcutils.backend.exception.impl.ResourceNotFoundException;
+import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.cache.CachedPlayerName;
 import xyz.mcutils.backend.model.player.Player;
@@ -62,6 +62,9 @@ public class PlayerService {
         try {
             log.info("Getting player profile from Mojang for {}", query);
             MojangProfileToken mojangProfile = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
+            if (mojangProfile == null) {
+                throw new NotFoundException("Player with uuid '%s' not found".formatted(uuid));
+            }
             log.info("Got player profile from Mojang for {}", query);
             CachedPlayer player = new CachedPlayer(
                     uuid, // Player UUID
@@ -95,7 +98,7 @@ public class PlayerService {
         try {
             MojangUsernameToUuidToken mojangUsernameToUuid = mojangService.getUuidFromUsername(username);
             if (mojangUsernameToUuid == null) {
-                throw new ResourceNotFoundException("Player with username '%s' not found".formatted(username));
+                throw new NotFoundException("Player with username '%s' not found".formatted(username));
             }
             UUID uuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
             CachedPlayerName player = new CachedPlayerName(id, username, uuid);

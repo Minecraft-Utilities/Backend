@@ -9,7 +9,7 @@ import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.renderer.impl.server.ServerPreviewRenderer;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
-import xyz.mcutils.backend.exception.impl.ResourceNotFoundException;
+import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.cache.CachedMinecraftServer;
 import xyz.mcutils.backend.model.cache.CachedServerPreview;
 import xyz.mcutils.backend.model.dns.DNSRecord;
@@ -125,7 +125,7 @@ public class ServerService {
                 icon = favicon.getBase64();
                 icon = icon.substring(icon.indexOf(",") + 1); // Remove the data type from the server icon
             }
-        } catch (BadRequestException | ResourceNotFoundException ignored) {
+        } catch (BadRequestException | NotFoundException ignored) {
             // Safely ignore these, we will use the default server icon
         }
         if (icon == null) { // Use the default server icon
