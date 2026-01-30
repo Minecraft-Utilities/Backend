@@ -162,7 +162,6 @@ public final class JavaMinecraftServer extends MinecraftServer {
         /**
          * The raw base64 of the favicon.
          */
-        @JsonIgnore
         private final String base64;
 
         /**
