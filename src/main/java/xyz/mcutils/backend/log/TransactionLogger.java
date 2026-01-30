@@ -11,6 +11,7 @@ import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
+import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.common.IPUtils;
 
 import java.util.Arrays;
@@ -21,8 +22,6 @@ import java.util.Map.Entry;
 @ControllerAdvice
 @Slf4j(topic = "Req Transaction")
 public class TransactionLogger implements ResponseBodyAdvice<Object> {
-
-    private static final String START_TIME_ATTRIBUTE = "requestStartTime";
 
     @Override
     public Object beforeBodyWrite(Object body, @NonNull MethodParameter returnType, @NonNull MediaType selectedContentType,
@@ -40,17 +39,11 @@ public class TransactionLogger implements ResponseBodyAdvice<Object> {
         }
 
         // Calculate processing time
-        Long startTime = (Long) request.getAttribute(START_TIME_ATTRIBUTE);
+        Long startTime = (Long) request.getAttribute(Constants.REQUEST_START_TIME_ATTRIBUTE);
         long processingTime = startTime != null ? System.currentTimeMillis() - startTime : -1;
 
         // Logging the request
-        log.info(String.format("[Req] %s | %s | '%s' | %dms | params=%s",
-                request.getMethod(),
-                ip,
-                request.getRequestURI(),
-                processingTime,
-                params
-        ));
+        log.info("[Req] {} | {} | '{}' | {}ms | params={}", request.getMethod(), ip, request.getRequestURI(), processingTime, params);
 
         return body;
     }
