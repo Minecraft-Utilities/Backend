@@ -181,6 +181,14 @@ public class MinecraftServer {
              * The name of this player.
              */
             @NonNull private final String name;
+
+            /**
+             * The URL to the player.
+             */
+            @NonNull
+            public String getUrl() {
+                return Config.INSTANCE.getWebPublicUrl() + "/player/" + this.id;
+            }
         }
     }
 
