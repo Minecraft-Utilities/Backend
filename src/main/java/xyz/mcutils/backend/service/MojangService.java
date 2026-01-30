@@ -62,11 +62,6 @@ public class MojangService {
      */
     private final ExpiringSet<String> blockedServersCache = new ExpiringSet<>(ExpirationPolicy.CREATED, 10L, TimeUnit.MINUTES);
 
-    /**
-     * The status of the Mojang API.
-     */
-    private final List<Map<String, Object>> mojangServerStatus = new ArrayList<>();
-
     public MojangService() {
         new Timer().scheduleAtFixedRate(new TimerTask() {
             @Override
@@ -156,10 +151,6 @@ public class MojangService {
      * @return whether the hostname is blocked
      */
     private boolean isServerHostnameBlocked(@NonNull String hostname) {
-        if (blockedServersCache == null) {
-            return false;
-        }
-      
         // Check the cache first for the hostname
         if (blockedServersCache.contains(hostname)) {
             return true;
