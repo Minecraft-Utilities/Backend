@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.model.server;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.gson.annotations.SerializedName;
 import lombok.*;
 import net.md_5.bungee.api.chat.TextComponent;

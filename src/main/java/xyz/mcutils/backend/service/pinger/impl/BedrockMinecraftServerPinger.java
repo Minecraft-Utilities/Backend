@@ -4,7 +4,6 @@ import lombok.extern.log4j.Log4j2;
 import xyz.mcutils.backend.common.packet.impl.bedrock.BedrockPacketUnconnectedPing;
 import xyz.mcutils.backend.common.packet.impl.bedrock.BedrockPacketUnconnectedPong;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
-import xyz.mcutils.backend.exception.impl.ResourceNotFoundException;
 import xyz.mcutils.backend.model.dns.DNSRecord;
 import xyz.mcutils.backend.model.server.BedrockMinecraftServer;
 import xyz.mcutils.backend.service.pinger.MinecraftServerPinger;
