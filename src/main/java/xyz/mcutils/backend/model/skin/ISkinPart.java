@@ -213,8 +213,8 @@ public interface ISkinPart {
     @AllArgsConstructor @Getter
     enum Custom implements ISkinPart {
         HEAD(IsometricHeadRenderer.INSTANCE),
-        BODY(BodyRenderer.INSTANCE),
-        FULLBODYISO(IsometricFullBodyRenderer.INSTANCE);
+        FULLBODY(IsometricFullBodyRenderer.INSTANCE),
+        BODY(BodyRenderer.INSTANCE);
 
         /**
          * The renderer to use for this part
