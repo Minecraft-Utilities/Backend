@@ -28,6 +28,9 @@ s3:
 # The URL of the API
 public-url: http://localhost
 
+# Bearer token required for /metrics (leave empty to disable auth)
+metrics-token:
+
 # MaxMind Configuration
 # This is used for IP Geolocation
 maxmind:

@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.common.IPUtils;
+import xyz.mcutils.backend.metric.impl.api.RequestsMetric;
+import xyz.mcutils.backend.service.MetricService;
 
 @ControllerAdvice
 @Slf4j(topic = "Req Transaction")
@@ -38,6 +40,8 @@ public class TransactionLogger implements ResponseBodyAdvice<Object> {
                 request.getRequestURI(),
                 processingTime
         );
+
+        MetricService.getMetric(RequestsMetric.class).getValue().inc();
         return body;
     }
 
