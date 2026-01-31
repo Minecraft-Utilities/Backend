@@ -30,9 +30,9 @@ public class Skin {
     @Setter private boolean legacy;
 
     /**
-     * The URL to the skin
+     * The texture URL to the skin
      */
-    @Setter private String url;
+    @Setter private String textureUrl;
 
     /**
      * The parts of the skin
@@ -53,7 +53,7 @@ public class Skin {
      * @param player the player to populate the skin data for
      */
     public void populateSkinData(Player player) {
-        this.setUrl(Config.INSTANCE.getWebPublicUrl() + "/player/%s/skin.png".formatted(player.getUniqueId()));
+        this.setTextureUrl(Config.INSTANCE.getWebPublicUrl() + "/skin/texture/%s.png".formatted(player.getUniqueId()));
 
         for (Enum<?>[] types : ISkinPart.TYPES) {
             for (Enum<?> enumValue : types) {
@@ -61,7 +61,7 @@ public class Skin {
                 if (part.hidden()) {
                     continue;
                 }
-                this.parts.put(part.name(), "%s/player/%s/skin/%s.png".formatted(
+                this.parts.put(part.name(), "%s/skin/%s/%s.png".formatted(
                         Config.INSTANCE.getWebPublicUrl(),
                         player.getUniqueId(),
                         part.name().toLowerCase()

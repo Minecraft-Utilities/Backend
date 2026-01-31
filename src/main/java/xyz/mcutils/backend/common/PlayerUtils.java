@@ -36,15 +36,17 @@ public class PlayerUtils {
     }
 
     /**
-     * Gets the skin data from the URL.
+     * Gets the image data from the URL.
      *
-     * @return the skin data
+     * @return the image data
      */
-    @SneakyThrows
-    @JsonIgnore
-    public static byte[] getSkinImage(String url) {
+    @SneakyThrows @JsonIgnore
+    public static byte[] getImage(String url) {
         HttpResponse<byte[]> response = Main.HTTP_CLIENT.send(HttpRequest.newBuilder(URI.create(url)).build(),
                 HttpResponse.BodyHandlers.ofByteArray());
-        return response.body();
+        if (response.statusCode() == 200) {
+            return response.body();
+        }
+        return null;
     }
 }

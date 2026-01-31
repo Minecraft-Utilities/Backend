@@ -54,7 +54,7 @@ public class SkinService {
             byte[] skinImage = minioService.get(StorageService.Bucket.SKINS, skin.getId() + ".png");
             if (skinImage == null) {
                 log.info("Downloading skin image for skin {}", skin.getId());
-                skinImage = PlayerUtils.getSkinImage(skin.getMojangTextureUrl());
+                skinImage = PlayerUtils.getImage(skin.getMojangTextureUrl());
                 if (skinImage == null) {
                     throw new IllegalStateException("Skin image not found for skin " + skin.getId());
                 }

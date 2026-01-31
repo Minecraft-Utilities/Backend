@@ -3,6 +3,7 @@ package xyz.mcutils.backend.service;
 import io.minio.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -88,7 +89,8 @@ public class StorageService {
     @AllArgsConstructor
     @Getter
     public enum Bucket {
-        SKINS("mcutils-skins");
+        SKINS("mcutils-skins"),
+        CAPES("mcutils-capes");
 
         private final String name;
     }

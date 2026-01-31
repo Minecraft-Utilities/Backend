@@ -3,6 +3,7 @@ package xyz.mcutils.backend.model.player;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.gson.JsonObject;
 import lombok.*;
+import xyz.mcutils.backend.config.Config;
 
 @AllArgsConstructor @NoArgsConstructor
 @Getter @EqualsAndHashCode @ToString
@@ -13,7 +14,12 @@ public class Cape {
     @JsonIgnore private String id;
 
     /**
-     * Gets the cape from a {@link JsonObject}.
+     * The texture URL to the cape.
+     */
+    private String textureUrl;
+
+    /**
+     * Creates a cape from an {@link JsonObject}.
      *
      * @param json the JSON object
      * @return the cape
@@ -25,15 +31,33 @@ public class Cape {
         String url = json.get("url").getAsString();
         String[] capeUrlParts = url.split("/");
 
-        return new Cape(capeUrlParts[capeUrlParts.length - 1]);
+        String id = capeUrlParts[capeUrlParts.length - 1];
+        return new Cape(
+                id,
+                Config.INSTANCE.getWebPublicUrl() + "/cape/texture/" + id + ".png"
+        );
     }
 
     /**
-     * Gets the URL for this cape.
+     * Creates a cape from its texture id
      *
-     * @return the url for the cape
+     * @param id the texture id
+     * @return the cape
      */
-    public String getUrl() {
+     public static Cape fromId(String id) {
+        return new Cape(
+                id,
+                Config.INSTANCE.getWebPublicUrl() + "/cape/texture/" + id
+        );
+    }
+
+    /**
+     * Gets the Mojang texture URL for this skin.
+     *
+     * @return the Mojang texture URL for the skin
+     */
+    @JsonIgnore
+    public String getMojangTextureUrl() {
         return "https://textures.minecraft.net/texture/" + this.id;
     }
 }

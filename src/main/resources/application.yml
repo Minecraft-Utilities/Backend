@@ -2,7 +2,6 @@ server:
   address: 0.0.0.0
   port: 80
   servlet:
-    forward-headers-strategy: framework
     context-path: /
 
 # Spring Configuration
@@ -19,6 +18,12 @@ spring:
       port: 6379
       database: 1
       auth: "" # Leave blank for no auth
+
+# S3 Storage
+s3:
+  endpoint: ""
+  accessKey: ""
+  secretKey: ""
 
 # The URL of the API
 public-url: http://localhost
