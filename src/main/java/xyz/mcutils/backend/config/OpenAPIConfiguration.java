@@ -31,7 +31,7 @@ public class OpenAPIConfiguration {
         server.setUrl(Config.INSTANCE.getWebPublicUrl());
 
         Contact contact = new Contact();
-        contact.setName("Liam");
+        contact.setName("Fascinated");
         contact.setEmail("liam@fascinated.cc");
         contact.setUrl("https://fascinated.cc");
 
