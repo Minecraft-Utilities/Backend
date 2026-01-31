@@ -70,11 +70,14 @@ public class StorageService {
     @SneakyThrows
     public byte[] get(Bucket bucket, String fileName) {
         try {
-            return minioClient.getObject(GetObjectArgs.builder()
+            long before = System.currentTimeMillis();
+            byte[] bytes = minioClient.getObject(GetObjectArgs.builder()
                             .bucket(bucket.getName())
                             .object(fileName)
                             .build())
                     .readAllBytes();
+            log.info("Get object {} from bucket {} in {}ms", fileName, bucket.getName(), System.currentTimeMillis() - before);
+            return bytes;
         } catch (Exception ex) {
             return null;
         }
