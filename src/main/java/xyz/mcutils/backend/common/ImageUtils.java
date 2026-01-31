@@ -30,6 +30,22 @@ public class ImageUtils {
     }
 
     /**
+     * Scale the given image to the exact target dimensions.
+     *
+     * @param image the image to scale
+     * @param targetWidth the target width
+     * @param targetHeight the target height
+     * @return the scaled image
+     */
+    public static BufferedImage resize(BufferedImage image, int targetWidth, int targetHeight) {
+        BufferedImage scaled = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = scaled.createGraphics();
+        graphics.drawImage(image, 0, 0, targetWidth, targetHeight, null);
+        graphics.dispose();
+        return scaled;
+    }
+
+    /**
      * Flip the given image.
      *
      * @param image the image to flip

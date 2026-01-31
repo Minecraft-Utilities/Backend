@@ -14,6 +14,8 @@ import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
 import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
+
+import static xyz.mcutils.backend.model.skin.ISkinPart.Custom.FULLBODYISO;
 import xyz.mcutils.backend.repository.PlayerSkinPartCacheRepository;
 
 import java.awt.image.BufferedImage;
@@ -72,11 +74,12 @@ public class SkinService {
      * @param skin the players skin
      * @param partName the name of the part
      * @param renderOverlay whether to render the overlay
+     * @param size the output size (height; width derived per part)
      * @return the skin part
      */
     public CachedPlayerSkinPart getSkinPart(Skin skin, String partName, boolean renderOverlay, int size) {
-        if (size > 512) {
-            throw new BadRequestException("Size must not be larger than 512");
+        if (size > 1024) {
+            throw new BadRequestException("Size must not be larger than 1024");
         }
         if (size < 32) {
             throw new BadRequestException("Size must not be smaller than 32");

@@ -46,7 +46,7 @@ public class SkinController {
     public ResponseEntity<?> getPlayerSkinPart(
             @Parameter(description = "The texture id or Player UUID/name for the Skin", example = "ImFascinated") @PathVariable String query,
             @Parameter(description = "The part of the skin", example = "head") @PathVariable String part,
-            @Parameter(description = "The size of the image", example = "256") @RequestParam(required = false, defaultValue = "256") int size,
+            @Parameter(description = "The size of the image (height; width derived per part)", example = "256") @RequestParam(required = false, defaultValue = "256") int size,
             @Parameter(description = "Whether to render the skin overlay (skin layers)", example = "false") @RequestParam(required = false, defaultValue = "false") boolean overlays) {
         Skin skin;
         if (query.length() == 64) { // Texture id

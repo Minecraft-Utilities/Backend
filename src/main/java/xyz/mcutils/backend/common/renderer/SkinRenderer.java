@@ -102,7 +102,7 @@ public abstract class SkinRenderer<T extends ISkinPart> {
      * @param skin the player's skin
      * @param part the skin part to render
      * @param renderOverlays should the overlays be rendered
-     * @param size the size of the part
+     * @param size the output size (height; width derived per part)
      * @return the rendered skin part
      */
     public abstract BufferedImage render(Skin skin, T part, boolean renderOverlays, int size);

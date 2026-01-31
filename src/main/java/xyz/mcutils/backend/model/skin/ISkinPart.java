@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.BodyRenderer;
+import xyz.mcutils.backend.common.renderer.impl.skin.IsometricFullBodyRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.IsometricHeadRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.VanillaSkinPartRenderer;
 
@@ -32,7 +33,7 @@ public interface ISkinPart {
      *
      * @param skin the skin
      * @param renderOverlays should the overlays be rendered
-     * @param size the size of the part
+     * @param size the output size (height; width derived per part)
      * @return the rendered skin part
      */
     BufferedImage render(Skin skin, boolean renderOverlays, int size);
@@ -79,6 +80,10 @@ public interface ISkinPart {
 
         // Body
         BODY_FRONT(true, new Coordinates(20, 20), 8, 12),
+        BODY_TOP(true, new Coordinates(20, 16), 8, 4),
+        BODY_LEFT(true, new Coordinates(36, 20), 4, 12),
+        BODY_RIGHT(true, new Coordinates(28, 20), 4, 12),
+        BODY_BACK(true, new Coordinates(44, 20), 8, 12),
 
         // Arms
         LEFT_ARM_TOP(true, new Coordinates(36, 48), 4, 4),
@@ -89,7 +94,9 @@ public interface ISkinPart {
 
         // Legs
         LEFT_LEG_FRONT(true, new Coordinates(4, 20), 4, 12), // Front
-        RIGHT_LEG_FRONT(true, new Coordinates(20, 52), new LegacyCoordinates(4, 20, true), 4, 12); // Front
+        RIGHT_LEG_FRONT(true, new Coordinates(20, 52), new LegacyCoordinates(4, 20, true), 4, 12), // Front
+        LEFT_LEG_TOP(true, new Coordinates(4, 16), 4, 4),
+        RIGHT_LEG_TOP(true, new Coordinates(20, 48), 4, 4);
 
         /**
          * Should this part be hidden from the
@@ -187,7 +194,8 @@ public interface ISkinPart {
     @AllArgsConstructor @Getter
     enum Custom implements ISkinPart {
         HEAD(IsometricHeadRenderer.INSTANCE),
-        BODY(BodyRenderer.INSTANCE);
+        BODY(BodyRenderer.INSTANCE),
+        FULLBODYISO(IsometricFullBodyRenderer.INSTANCE);
 
         /**
          * The renderer to use for this part

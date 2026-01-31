@@ -25,7 +25,6 @@ public class VanillaSkinPartRenderer extends SkinRenderer<ISkinPart.Vanilla> {
         BufferedImage texture = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB); // The texture to return
         Graphics2D graphics = texture.createGraphics(); // Create the graphics for drawing
         graphics.drawImage(partImage, 0, 0, null);
-
         graphics.dispose();
         return texture;
     }
