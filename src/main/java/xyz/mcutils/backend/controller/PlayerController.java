@@ -31,7 +31,7 @@ public class PlayerController {
 
     @ResponseBody
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getPlayer(
+    public ResponseEntity<CachedPlayer> getPlayer(
             @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String id) {
         CachedPlayer player = playerService.getPlayer(id);
 

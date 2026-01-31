@@ -6,8 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import xyz.mcutils.backend.config.Config;
-
-import java.util.Map;
+import xyz.mcutils.backend.model.response.IndexResponse;
 
 @RestController
 @RequestMapping(value = "/")
@@ -24,13 +23,13 @@ public class IndexController {
     }
 
     @GetMapping(value = "/")
-    public Object index() {
+    public IndexResponse index() {
         String publicUrl = Config.INSTANCE.getWebPublicUrl();
 
-        return Map.of(
-                "app", "Minecraft Utilities API",
-                "version", buildProperties == null ? "dev" : buildProperties.getVersion(),
-                "docs", publicUrl + "/swagger-ui.html"
+        return new IndexResponse(
+                "Minecraft Utilities API",
+                buildProperties == null ? "dev" : buildProperties.getVersion(),
+                publicUrl + "/swagger-ui.html"
         );
     }
 }

@@ -8,10 +8,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.model.cache.CachedMinecraftServer;
+import xyz.mcutils.backend.model.response.ServerBlockedResponse;
 import xyz.mcutils.backend.service.MojangService;
 import xyz.mcutils.backend.service.ServerService;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping(value = "/server/")
@@ -64,11 +63,9 @@ public class ServerController {
 
     @ResponseBody
     @GetMapping(value = "/blocked/{hostname}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> getServerBlockedStatus(
+    public ResponseEntity<ServerBlockedResponse> getServerBlockedStatus(
             @Parameter(description = "The hostname of the server", example = "aetheria.cc") @PathVariable String hostname) {
         return ResponseEntity.ok()
-                .body(Map.of(
-                        "blocked", mojangService.isServerBlocked(hostname)
-                ));
+                .body(new ServerBlockedResponse(mojangService.isServerBlocked(hostname)));
     }
 }
