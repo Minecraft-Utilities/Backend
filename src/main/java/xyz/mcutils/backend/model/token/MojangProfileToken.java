@@ -32,8 +32,18 @@ public class MojangProfileToken {
      * A "Legacy" profile is a profile that
      * has not yet migrated to a Mojang account.
      * </p>
+     * <p>
+     * May be null when omitted by the API; treated as false.
+     * </p>
      */
-    private boolean legacy;
+    private Boolean legacy;
+
+    /**
+     * Whether this profile is legacy (unmigrated). Null from API is treated as false.
+     */
+    public boolean isLegacy() {
+        return Boolean.TRUE.equals(legacy);
+    }
 
     /**
      * The properties of the player.

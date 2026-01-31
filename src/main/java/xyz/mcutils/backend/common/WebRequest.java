@@ -61,7 +61,7 @@ public class WebRequest {
 
         // Create request factory with pooled client
         HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(HTTP_CLIENT);
-        requestFactory.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_MS);
+        requestFactory.setConnectionRequestTimeout(DEFAULT_CONNECT_TIMEOUT_MS);
 
         CLIENT = RestClient.builder()
                 .requestFactory(requestFactory)
