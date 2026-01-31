@@ -42,7 +42,7 @@ public class TransactionLogger implements ResponseBodyAdvice<Object> {
         );
 
         // Ignore metrics and health check requests
-        if (!request.getRequestURI().contains("/metrics") || !request.getRequestURI().contains("/health")) {
+        if (!request.getRequestURI().contains("/metrics") && !request.getRequestURI().contains("/health")) {
             MetricService.getMetric(RequestsMetric.class).getValue().inc();
         }
         return body;
