@@ -11,8 +11,8 @@ public class MemoryNonHeapMetric extends GaugeWithCallbackMetric {
         super(GaugeWithCallback.builder()
                 .name("process_memory_non_heap_bytes")
                 .callback(callback -> {
-                    MemoryUsage heapUsage = MetricService.MEMORY_BEAN.getNonHeapMemoryUsage();
-                    callback.call(heapUsage.getUsed());
+                    MemoryUsage nonHeap = MetricService.MEMORY_BEAN.getNonHeapMemoryUsage();
+                    callback.call(nonHeap.getUsed());
                 })
                 .register(MetricService.REGISTRY));
     }
