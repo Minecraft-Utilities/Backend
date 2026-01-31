@@ -1,4 +1,4 @@
-FROM maven:3.9.11-eclipse-temurin-21-alpine
+FROM maven:3.9.12-eclipse-temurin-25-alpine
 
 # Install font dependencies
 RUN apk --update --upgrade --no-cache add fontconfig ttf-freefont font-noto terminus-font \
