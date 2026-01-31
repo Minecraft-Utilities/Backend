@@ -14,8 +14,6 @@ import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
 import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
-
-import static xyz.mcutils.backend.model.skin.ISkinPart.Custom.FULLBODYISO;
 import xyz.mcutils.backend.repository.PlayerSkinPartCacheRepository;
 
 import java.awt.image.BufferedImage;
