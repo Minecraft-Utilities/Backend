@@ -13,6 +13,16 @@ import java.net.InetSocketAddress;
 @NoArgsConstructor
 public final class SRVRecord extends DNSRecord {
     /**
+     * The name of this record.
+     */
+    @NonNull private String name;
+
+    /**
+     * The target of this record.
+     */
+    @NonNull private String target;
+
+    /**
      * The priority of this record.
      */
     private int priority;
@@ -27,23 +37,13 @@ public final class SRVRecord extends DNSRecord {
      */
     private int port;
 
-    /**
-     * The name of this record.
-     */
-    @NonNull private String name;
-
-    /**
-     * The target of this record.
-     */
-    @NonNull private String target;
-
     public SRVRecord(@NonNull org.xbill.DNS.SRVRecord bootstrap) {
         super(Type.SRV, bootstrap.getTTL());
-        priority = bootstrap.getPriority();
-        weight = bootstrap.getWeight();
-        port = bootstrap.getPort();
-        name = bootstrap.getName().toString().replaceFirst("\\.$", "");
-        target = bootstrap.getTarget().toString().replaceFirst("\\.$", "");
+        this.name = bootstrap.getName().toString().replaceFirst("\\.$", "");
+        this.target = bootstrap.getTarget().toString().replaceFirst("\\.$", "");
+        this.priority = bootstrap.getPriority();
+        this.weight = bootstrap.getWeight();
+        this.port = bootstrap.getPort();
     }
 
     /**
@@ -54,6 +54,6 @@ public final class SRVRecord extends DNSRecord {
      */
     @NonNull @JsonIgnore
     public InetSocketAddress getSocketAddress() {
-        return new InetSocketAddress(target, port);
+        return new InetSocketAddress(this.target, this.port);
     }
 }
