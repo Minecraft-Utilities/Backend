@@ -3,7 +3,6 @@ package xyz.mcutils.backend.service;
 import io.minio.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,13 +47,14 @@ public class StorageService {
      * @param data the data to upload
      */
     @SneakyThrows
-    public void upload(Bucket bucket, String fileName, byte[] data) {
+    public void upload(Bucket bucket, String fileName, String contentType, byte[] data) {
         try {
             long before = System.currentTimeMillis();
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(bucket.getName())
                     .object(fileName)
                     .stream(new ByteArrayInputStream(data), data.length, -1)
+                    .contentType(contentType)
                     .build());
             log.debug("Uploaded file {} to bucket {} in {}ms", fileName, bucket.getName(),  System.currentTimeMillis() - before);
         } catch (Exception ex) {

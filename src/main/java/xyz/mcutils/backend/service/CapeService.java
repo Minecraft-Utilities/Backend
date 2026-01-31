@@ -2,9 +2,9 @@ package xyz.mcutils.backend.service;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.model.player.Cape;
@@ -40,7 +40,7 @@ public class CapeService {
                 if (capeImage == null) {
                     throw new IllegalStateException("Cape with id '%s' was not found".formatted(cape.getId()));
                 }
-                minioService.upload(StorageService.Bucket.CAPES, cape.getId() + ".png", capeImage);
+                minioService.upload(StorageService.Bucket.CAPES, cape.getId() + ".png", MediaType.IMAGE_PNG_VALUE, capeImage);
                 log.debug("Saved cape image for skin {}", cape.getId());
             }
 

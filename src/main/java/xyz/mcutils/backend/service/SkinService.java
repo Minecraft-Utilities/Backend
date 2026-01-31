@@ -5,6 +5,7 @@ import com.google.common.cache.CacheBuilder;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.AppConfig;
 import xyz.mcutils.backend.common.ImageUtils;
@@ -58,7 +59,7 @@ public class SkinService {
                 if (skinImage == null) {
                     throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(skin.getId()));
                 }
-                minioService.upload(StorageService.Bucket.SKINS, skin.getId() + ".png", skinImage);
+                minioService.upload(StorageService.Bucket.SKINS, skin.getId() + ".png", MediaType.IMAGE_PNG_VALUE, skinImage);
                 log.debug("Saved skin image for skin {}", skin.getId());
             }
 
