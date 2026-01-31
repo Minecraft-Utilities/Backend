@@ -29,7 +29,7 @@ import java.util.Map;
  * @author Braydon
  */
 @Service @Log4j2(topic = "MaxMind")
-public final class MaxMindService {
+public class MaxMindService {
     /**
      * The directory to store databases.
      */

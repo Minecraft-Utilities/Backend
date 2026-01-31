@@ -49,11 +49,13 @@ public class StorageService {
     @SneakyThrows
     public void upload(Bucket bucket, String fileName, byte[] data) {
         try {
+            long before = System.currentTimeMillis();
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(bucket.getName())
                     .object(fileName)
                     .stream(new ByteArrayInputStream(data), data.length, -1)
                     .build());
+            log.debug("Uploaded file {} to bucket {} in {}ms", fileName, bucket.getName(),  System.currentTimeMillis() - before);
         } catch (Exception ex) {
             log.error("Failed to upload file to bucket {}: {}", bucket.getName(), ex.getMessage());
             ex.printStackTrace();
@@ -76,7 +78,7 @@ public class StorageService {
                             .object(fileName)
                             .build())
                     .readAllBytes();
-            log.info("Get object {} from bucket {} in {}ms", fileName, bucket.getName(), System.currentTimeMillis() - before);
+            log.debug("Get object {} from bucket {} in {}ms", fileName, bucket.getName(), System.currentTimeMillis() - before);
             return bytes;
         } catch (Exception ex) {
             return null;
