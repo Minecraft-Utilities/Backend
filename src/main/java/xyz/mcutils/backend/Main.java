@@ -1,7 +1,5 @@
 package xyz.mcutils.backend;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.boot.SpringApplication;
@@ -9,7 +7,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.io.File;
-import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Objects;
@@ -18,12 +15,6 @@ import java.util.Objects;
 @SpringBootApplication
 @EnableScheduling
 public class Main {
-    public static final Gson GSON = new GsonBuilder()
-            .setDateFormat("MM-dd-yyyy HH:mm:ss")
-            .setPrettyPrinting()
-            .create();
-    public static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
-
     @SneakyThrows
     public static void main(String[] args) {
         File config = new File("application.yml");

@@ -9,14 +9,11 @@ import xyz.mcutils.backend.metric.impl.jvm.MemoryHeapMaxMetric;
 import xyz.mcutils.backend.metric.impl.jvm.MemoryNonHeapMetric;
 import xyz.mcutils.backend.metric.impl.jvm.MemoryUsageMetric;
 
-import java.lang.management.ManagementFactory;
-import java.lang.management.MemoryMXBean;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service @Log4j2(topic = "Metric Service")
 public class MetricService {
-    public static final MemoryMXBean MEMORY_BEAN = ManagementFactory.getMemoryMXBean();
     public static final PrometheusRegistry REGISTRY = new PrometheusRegistry();
     private static final Map<Class<?>, Metric<?>> metrics = new ConcurrentHashMap<>();
 

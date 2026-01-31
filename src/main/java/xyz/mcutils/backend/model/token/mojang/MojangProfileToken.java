@@ -5,7 +5,7 @@ import com.google.gson.JsonObject;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.model.player.Cape;
@@ -112,7 +112,7 @@ public class MojangProfileToken {
          */
         @JsonIgnore
         public JsonObject getDecodedValue() {
-            return Main.GSON.fromJson(new String(Base64.getDecoder().decode(this.value)), JsonObject.class);
+            return Constants.GSON.fromJson(new String(Base64.getDecoder().decode(this.value)), JsonObject.class);
         }
 
         /**

@@ -6,7 +6,7 @@ import lombok.NonNull;
 import lombok.Setter;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
-import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.common.ServerUtils;
 import xyz.mcutils.backend.model.dns.DNSRecord;
 import xyz.mcutils.backend.model.server.*;
@@ -97,7 +97,7 @@ public final class JavaMinecraftServer extends MinecraftServer {
                     .hexColors()
                     .useUnusualXRepeatedCharacterHexFormat()
                     .build()
-                    .serialize(GsonComponentSerializer.gson().deserialize(Main.GSON.toJson(token.getDescription())));
+                    .serialize(GsonComponentSerializer.gson().deserialize(Constants.GSON.toJson(token.getDescription())));
         }
 
         return new JavaMinecraftServer(

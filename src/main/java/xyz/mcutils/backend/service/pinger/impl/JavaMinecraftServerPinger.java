@@ -1,7 +1,7 @@
 package xyz.mcutils.backend.service.pinger.impl;
 
 import lombok.extern.log4j.Log4j2;
-import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.common.JavaMinecraftVersion;
 import xyz.mcutils.backend.common.packet.impl.java.JavaPacketHandshakingInSetProtocol;
 import xyz.mcutils.backend.common.packet.impl.java.JavaPacketStatusInStart;
@@ -51,7 +51,7 @@ public final class JavaMinecraftServerPinger implements MinecraftServerPinger<Ja
                 packetStatusInStart.process(inputStream, outputStream);
                 outputStream.flush();
 
-                JavaServerStatusToken token = Main.GSON.fromJson(packetStatusInStart.getResponse(), JavaServerStatusToken.class);
+                JavaServerStatusToken token = Constants.GSON.fromJson(packetStatusInStart.getResponse(), JavaServerStatusToken.class);
                 return JavaMinecraftServer.create(hostname, ip, port, records, token);
             }
         } catch (IOException ex) {

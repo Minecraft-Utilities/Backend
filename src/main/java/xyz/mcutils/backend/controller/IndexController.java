@@ -7,10 +7,12 @@ import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import xyz.mcutils.backend.config.Config;
+import xyz.mcutils.backend.model.response.HealthResponse;
 import xyz.mcutils.backend.model.response.IndexResponse;
 import xyz.mcutils.backend.service.MetricService;
 
@@ -41,6 +43,11 @@ public class IndexController {
                 buildProperties == null ? "dev" : buildProperties.getVersion(),
                 publicUrl + "/swagger-ui.html"
         );
+    }
+
+    @GetMapping(value = "/health")
+    public ResponseEntity<HealthResponse> home() {
+        return ResponseEntity.ok(new HealthResponse("OK"));
     }
 
     @GetMapping(value = "/metrics", produces = MediaType.TEXT_PLAIN_VALUE) @SneakyThrows

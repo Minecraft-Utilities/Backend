@@ -41,7 +41,10 @@ public class TransactionLogger implements ResponseBodyAdvice<Object> {
                 processingTime
         );
 
-        MetricService.getMetric(RequestsMetric.class).getValue().inc();
+        // Ignore metrics and health check requests
+        if (!request.getRequestURI().contains("/metrics") || !request.getRequestURI().contains("/health")) {
+            MetricService.getMetric(RequestsMetric.class).getValue().inc();
+        }
         return body;
     }
 

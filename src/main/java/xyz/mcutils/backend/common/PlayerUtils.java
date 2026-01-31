@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import lombok.extern.log4j.Log4j2;
-import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 
 import java.net.URI;
@@ -42,7 +42,7 @@ public class PlayerUtils {
      */
     @SneakyThrows @JsonIgnore
     public static byte[] getImage(String url) {
-        HttpResponse<byte[]> response = Main.HTTP_CLIENT.send(HttpRequest.newBuilder(URI.create(url)).build(),
+        HttpResponse<byte[]> response = Constants.HTTP_CLIENT.send(HttpRequest.newBuilder(URI.create(url)).build(),
                 HttpResponse.BodyHandlers.ofByteArray());
         if (response.statusCode() == 200) {
             return response.body();
