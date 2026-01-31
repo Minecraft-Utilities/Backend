@@ -44,7 +44,7 @@ public class PlayerModel {
         addBox(faces, -4, 0, -2, 4, 12, 4, boxUv(20, 52, 4, 12, 4));
         addBox(faces, 0, 0, -2, 4, 12, 4, boxUv(4, 20, 4, 12, 4));
 
-        if (renderOverlays) {
+        if (renderOverlays && !skin.isLegacy()) {
             // Overlay layer: slightly larger boxes with second-layer UVs
             addBox(faces, -4.5, 23.5, -4.5, 9, 9, 9, boxUv(40, 8, 8, 8, 8));
             addBox(faces, -4.25, 11.75, -2.25, 8.5, 12.5, 4.5, boxUv(20, 36, 8, 12, 4));

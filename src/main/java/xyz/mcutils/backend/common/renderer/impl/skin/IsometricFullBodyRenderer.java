@@ -13,6 +13,7 @@ import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -111,7 +112,7 @@ public class IsometricFullBodyRenderer extends SkinRenderer<ISkinPart.Custom> {
         int width = (int) Math.round(size * ASPECT_RATIO);
 
         // Load and normalize skin to 64x64
-        byte[] skinBytes = SkinService.INSTANCE.getSkinImage(skin);
+        byte[] skinBytes = SkinService.INSTANCE.getSkinImage(skin, true);
         BufferedImage skinImage = ImageIO.read(new ByteArrayInputStream(skinBytes));
         if (skinImage == null) {
             throw new IllegalStateException("Failed to load skin image");
@@ -136,7 +137,7 @@ public class IsometricFullBodyRenderer extends SkinRenderer<ISkinPart.Custom> {
 
         Vector3 modelCenter = new Vector3(0, 16.5, 0);
         // Rotate model by yaw/pitch, then project each face to 2D
-        List<ProjectedFace> projected = new java.util.ArrayList<>();
+        List<ProjectedFace> projected = new ArrayList<>();
         for (PlayerModel.Face face : faces) {
             Vector3 v0 = rotAround(face.getV0(), modelCenter, YAW_DEG, PITCH_DEG);
             Vector3 v1 = rotAround(face.getV1(), modelCenter, YAW_DEG, PITCH_DEG);

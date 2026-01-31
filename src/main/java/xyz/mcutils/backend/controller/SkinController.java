@@ -39,7 +39,7 @@ public class SkinController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .contentType(MediaType.IMAGE_PNG)
-                .body(skinService.getSkinImage(skin));
+                .body(skinService.getSkinImage(skin, false));
     }
 
     @GetMapping(value = "/{query}/{part}.png", produces = MediaType.IMAGE_PNG_VALUE)
@@ -47,7 +47,7 @@ public class SkinController {
             @Parameter(description = "The texture id or Player UUID/name for the Skin", example = "ImFascinated") @PathVariable String query,
             @Parameter(description = "The part of the skin", example = "head") @PathVariable String part,
             @Parameter(description = "The size of the image (height; width derived per part)", example = "512") @RequestParam(required = false, defaultValue = "512") int size,
-            @Parameter(description = "Whether to render the skin overlay (skin layers)", example = "false") @RequestParam(required = false, defaultValue = "false") boolean overlays) {
+            @Parameter(description = "Whether to render the skin overlay (skin layers)", example = "false") @RequestParam(required = false, defaultValue = "true") boolean overlays) {
         Skin skin;
         if (query.length() == 64) { // Texture id
             skin = Skin.fromId(query);

@@ -54,8 +54,8 @@ public class SkinService {
      * @param skin the skin to get the image for
      * @return the skin image
      */
-    public byte[] getSkinImage(Skin skin) {
-        return this.skinCache.asMap().computeIfAbsent(skin.getId(), _ -> {
+    public byte[] getSkinImage(Skin skin, boolean upgrade) {
+        byte[] skinBytes = this.skinCache.asMap().computeIfAbsent(skin.getId(), _ -> {
             byte[] skinImage = minioService.get(StorageService.Bucket.SKINS, skin.getId() + ".png");
             if (skinImage == null) {
                 log.debug("Downloading skin image for skin {}", skin.getId());
@@ -66,8 +66,10 @@ public class SkinService {
                 minioService.upload(StorageService.Bucket.SKINS, skin.getId() + ".png", MediaType.IMAGE_PNG_VALUE, skinImage);
                 log.debug("Saved skin image for skin {}", skin.getId());
             }
-            return upgradeLegacySkinIfNeeded(skin, skinImage);
+            return skinImage;
         });
+
+        return upgrade ? upgradeLegacySkin(skin, skinBytes) : skinBytes;
     }
 
     /**
@@ -76,7 +78,7 @@ public class SkinService {
      * @param skin the skin to upgrade
      * @return PNG bytes (64×64 if input was 64×32, otherwise unchanged)
      */
-    private byte[] upgradeLegacySkinIfNeeded(Skin skin, byte[] skinImage) {
+    private byte[] upgradeLegacySkin(Skin skin, byte[] skinImage) {
         try {
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(skinImage));
             if (image == null || image.getWidth() != 64 || image.getHeight() != 32) {
