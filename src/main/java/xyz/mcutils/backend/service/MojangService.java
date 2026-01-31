@@ -171,7 +171,6 @@ public class MojangService {
      * @return the profile
      */
     public MojangProfileToken getProfile(String id) {
-        log.info(SESSION_SERVER_ENDPOINT + "/session/minecraft/profile/" + id);
         return WebRequest.getAsEntity(SESSION_SERVER_ENDPOINT + "/session/minecraft/profile/" + id, MojangProfileToken.class);
     }
 
