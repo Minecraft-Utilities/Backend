@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.log;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.MethodParameter;
@@ -9,6 +10,7 @@ import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
 import org.springframework.http.server.ServletServerHttpRequest;
+import org.springframework.http.server.ServletServerHttpResponse;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 import xyz.mcutils.backend.Constants;
@@ -28,23 +30,19 @@ public class TransactionLogger implements ResponseBodyAdvice<Object> {
                                   @NonNull Class<? extends HttpMessageConverter<?>> selectedConverterType, @NonNull ServerHttpRequest rawRequest,
                                   @NonNull ServerHttpResponse rawResponse) {
         HttpServletRequest request = ((ServletServerHttpRequest) rawRequest).getServletRequest();
-
-        // Get the request ip ip
-        String ip = IPUtils.getRealIp(request);
-
-        // Getting params
-        Map<String, String> params = new HashMap<>();
-        for (Entry<String, String[]> entry : request.getParameterMap().entrySet()) {
-            params.put(entry.getKey(), Arrays.toString(entry.getValue()));
-        }
+        HttpServletResponse response = ((ServletServerHttpResponse) rawResponse).getServletResponse();
 
         // Calculate processing time
         Long startTime = (Long) request.getAttribute(Constants.REQUEST_START_TIME_ATTRIBUTE);
         long processingTime = startTime != null ? System.currentTimeMillis() - startTime : -1;
 
-        // Logging the request
-        log.info("[Req] {} | {} | '{}' | {}ms | params={}", request.getMethod(), ip, request.getRequestURI(), processingTime, params);
-
+        log.info("[{}] {} | {} | '{}' | {}ms",
+                response.getStatus(),
+                request.getMethod(),
+                IPUtils.getRealIp(request),
+                request.getRequestURI(),
+                processingTime
+        );
         return body;
     }
 
