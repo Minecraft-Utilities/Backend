@@ -1,9 +1,9 @@
 package xyz.mcutils.backend.model.dns.impl;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import io.micrometer.common.lang.NonNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.NonNull;
 import lombok.Setter;
 import xyz.mcutils.backend.model.dns.DNSRecord;
 

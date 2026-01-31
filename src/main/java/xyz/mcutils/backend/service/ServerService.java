@@ -15,7 +15,9 @@ import xyz.mcutils.backend.model.cache.CachedServerPreview;
 import xyz.mcutils.backend.model.dns.DNSRecord;
 import xyz.mcutils.backend.model.dns.impl.ARecord;
 import xyz.mcutils.backend.model.dns.impl.SRVRecord;
-import xyz.mcutils.backend.model.server.JavaMinecraftServer;
+import xyz.mcutils.backend.model.server.Favicon;
+import xyz.mcutils.backend.model.server.Platform;
+import xyz.mcutils.backend.model.server.impl.JavaMinecraftServer;
 import xyz.mcutils.backend.model.server.MinecraftServer;
 import xyz.mcutils.backend.repository.MinecraftServerCacheRepository;
 import xyz.mcutils.backend.repository.ServerPreviewCacheRepository;
@@ -50,7 +52,7 @@ public class ServerService {
      * @return the server
      */
     public CachedMinecraftServer getServer(String platformName, String hostname) {
-        MinecraftServer.Platform platform = EnumUtils.getEnumConstant(MinecraftServer.Platform.class, platformName.toUpperCase());
+        Platform platform = EnumUtils.getEnumConstant(Platform.class, platformName.toUpperCase());
         if (platform == null) {
             log.info("Invalid platform: {} for server {}", platformName, hostname);
             throw new BadRequestException("Invalid platform: %s".formatted(platformName));
@@ -80,7 +82,7 @@ public class ServerService {
 
         List<DNSRecord> records = new ArrayList<>(); // The resolved DNS records for the server
 
-        SRVRecord srvRecord = platform == MinecraftServer.Platform.JAVA ? DNSUtils.resolveSRV(hostname) : null; // Resolve the SRV record
+        SRVRecord srvRecord = platform == Platform.JAVA ? DNSUtils.resolveSRV(hostname) : null; // Resolve the SRV record
         if (srvRecord != null) { // SRV was resolved, use the hostname and port
             records.add(srvRecord); // Going to need this for later
             InetSocketAddress socketAddress = srvRecord.getSocketAddress();
@@ -101,7 +103,7 @@ public class ServerService {
         );
 
         // Check if the server is blocked by Mojang
-        if (platform == MinecraftServer.Platform.JAVA) {
+        if (platform == Platform.JAVA) {
             ((JavaMinecraftServer) server.getServer()).setMojangBlocked(mojangService.isServerBlocked(hostname));
         }
 
@@ -120,7 +122,7 @@ public class ServerService {
     public byte[] getServerFavicon(String hostname) {
         String icon = null; // The server base64 icon
         try {
-            JavaMinecraftServer.Favicon favicon = ((JavaMinecraftServer) getServer(MinecraftServer.Platform.JAVA.name(), hostname).getServer()).getFavicon();
+            Favicon favicon = ((JavaMinecraftServer) getServer(Platform.JAVA.name(), hostname).getServer()).getFavicon();
             if (favicon != null) { // Use the server's favicon
                 icon = favicon.getBase64();
                 icon = icon.substring(icon.indexOf(",") + 1); // Remove the data type from the server icon

@@ -4,8 +4,10 @@ import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
-import xyz.mcutils.backend.model.server.JavaMinecraftServer;
-import xyz.mcutils.backend.model.server.MinecraftServer;
+import xyz.mcutils.backend.model.server.Players;
+import xyz.mcutils.backend.model.server.java.ForgeData;
+import xyz.mcutils.backend.model.server.java.ForgeModInfo;
+import xyz.mcutils.backend.model.server.java.JavaVersion;
 
 /**
  * @author Braydon
@@ -16,18 +18,18 @@ public final class JavaServerStatusToken {
     /**
      * The version of the server.
      */
-    private final JavaMinecraftServer.Version version;
+    private final JavaVersion version;
 
     /**
      * The players on the server.
      */
-    private final MinecraftServer.Players players;
+    private final Players players;
 
     /**
      * The mods running on this server.
      */
     @SerializedName("modinfo")
-    private JavaMinecraftServer.ForgeModInfo modInfo;
+    private ForgeModInfo modInfo;
 
     /**
      * The mods running on this server.
@@ -36,7 +38,7 @@ public final class JavaServerStatusToken {
      *     running 1.13 and above.
      * </p>
      */
-    private JavaMinecraftServer.ForgeData forgeData;
+    private ForgeData forgeData;
 
     /**
      * The motd of the server.

@@ -6,7 +6,8 @@ import xyz.mcutils.backend.common.ColorUtils;
 import xyz.mcutils.backend.common.Fonts;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.renderer.Renderer;
-import xyz.mcutils.backend.model.server.JavaMinecraftServer;
+import xyz.mcutils.backend.model.server.Players;
+import xyz.mcutils.backend.model.server.impl.JavaMinecraftServer;
 import xyz.mcutils.backend.model.server.MinecraftServer;
 import xyz.mcutils.backend.service.ServerService;
 
@@ -143,7 +144,7 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
         y = fontSize + padding;
 
         // Render the player count
-        MinecraftServer.Players players = server.getPlayers();
+        Players players = server.getPlayers();
         String playersOnline = players.getOnline() + "";
         String playersMax = players.getMax() + "";
 

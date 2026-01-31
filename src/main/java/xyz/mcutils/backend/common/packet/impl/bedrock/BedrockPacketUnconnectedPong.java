@@ -3,7 +3,7 @@ package xyz.mcutils.backend.common.packet.impl.bedrock;
 import lombok.Getter;
 import lombok.NonNull;
 import xyz.mcutils.backend.common.packet.MinecraftBedrockPacket;
-import xyz.mcutils.backend.model.server.BedrockMinecraftServer;
+import xyz.mcutils.backend.model.server.bedrock.BedrockEdition;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -49,7 +49,7 @@ public final class BedrockPacketUnconnectedPong implements MinecraftBedrockPacke
 
             // Trim the length of the response (short) from the
             // start of the string, which begins with the edition name
-            for (BedrockMinecraftServer.Edition edition : BedrockMinecraftServer.Edition.values()) {
+            for (BedrockEdition edition : BedrockEdition.values()) {
                 int startIndex = response.indexOf(edition.name());
                 if (startIndex != -1) {
                     response = response.substring(startIndex);

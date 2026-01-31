@@ -1,6 +1,6 @@
 package xyz.mcutils.backend.model.dns;
 
-import io.micrometer.common.lang.NonNull;
+
 import lombok.*;
 
 @NoArgsConstructor @AllArgsConstructor

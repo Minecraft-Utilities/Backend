@@ -1,8 +1,9 @@
 package xyz.mcutils.backend.model.response;
 
-import io.micrometer.common.lang.NonNull;
+
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.ToString;
 import org.springframework.http.HttpStatus;
 

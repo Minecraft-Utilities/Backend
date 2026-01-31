@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.common;
 
-import io.micrometer.common.lang.NonNull;
+
+import lombok.NonNull;
 import lombok.experimental.UtilityClass;
 
 import java.util.UUID;

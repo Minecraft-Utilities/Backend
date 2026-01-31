@@ -1,7 +1,17 @@
-package xyz.mcutils.backend.model.server;
+package xyz.mcutils.backend.model.server.impl;
 
-import lombok.*;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.ToString;
 import xyz.mcutils.backend.model.dns.DNSRecord;
+import xyz.mcutils.backend.model.server.MOTD;
+import xyz.mcutils.backend.model.server.MinecraftServer;
+import xyz.mcutils.backend.model.server.Platform;
+import xyz.mcutils.backend.model.server.Players;
+import xyz.mcutils.backend.model.server.bedrock.BedrockEdition;
+import xyz.mcutils.backend.model.server.bedrock.BedrockGameMode;
+import xyz.mcutils.backend.model.server.bedrock.BedrockVersion;
 
 /**
  * A Bedrock edition {@link MinecraftServer}.
@@ -18,21 +28,21 @@ public final class BedrockMinecraftServer extends MinecraftServer {
     /**
      * The edition of this server.
      */
-    @NonNull private final Edition edition;
+    @NonNull private final BedrockEdition edition;
 
     /**
      * The version information of this server.
      */
-    @NonNull private final Version version;
+    @NonNull private final BedrockVersion version;
 
     /**
      * The gamemode of this server.
      */
-    @NonNull private final GameMode gamemode;
+    @NonNull private final BedrockGameMode gamemode;
 
     private BedrockMinecraftServer(@NonNull String id, @NonNull String hostname, String ip, int port, @NonNull DNSRecord[] records,
-                                   @NonNull Edition edition, @NonNull Version version, @NonNull Players players, @NonNull MOTD motd,
-                                   @NonNull GameMode gamemode) {
+                                   @NonNull BedrockEdition edition, @NonNull BedrockVersion version, @NonNull Players players, @NonNull MOTD motd,
+                                   @NonNull BedrockGameMode gamemode) {
         super(hostname, ip, port, records, motd, players);
         this.id = id;
         this.edition = edition;
@@ -55,11 +65,11 @@ public final class BedrockMinecraftServer extends MinecraftServer {
     @NonNull
     public static BedrockMinecraftServer create(@NonNull String hostname, String ip, int port, DNSRecord[] records, @NonNull String token) {
         String[] split = token.split(";"); // Split the token
-        Edition edition = Edition.valueOf(split[0]);
-        Version version = new Version(Integer.parseInt(split[2]), split[3]);
+        BedrockEdition edition = BedrockEdition.valueOf(split[0]);
+        BedrockVersion version = new BedrockVersion(Integer.parseInt(split[2]), split[3]);
         Players players = new Players(Integer.parseInt(split[4]), Integer.parseInt(split[5]), null);
         MOTD motd = MOTD.create(hostname, Platform.BEDROCK, split[1] + "\n" + split[7]);
-        GameMode gameMode = new GameMode(split[8], split.length > 9 ? Integer.parseInt(split[9]) : -1);
+        BedrockGameMode gameMode = new BedrockGameMode(split[8], split.length > 9 ? Integer.parseInt(split[9]) : -1);
         return new BedrockMinecraftServer(
                 split[6],
                 hostname,
@@ -72,53 +82,5 @@ public final class BedrockMinecraftServer extends MinecraftServer {
                 motd,
                 gameMode
         );
-    }
-
-    /**
-     * The edition of a Bedrock server.
-     */
-    @AllArgsConstructor @Getter
-    public enum Edition {
-        /**
-         * Minecraft: Pocket Edition.
-         */
-        MCPE,
-
-        /**
-         * Minecraft: Education Edition.
-         */
-        MCEE
-    }
-
-    /**
-     * Version information for a server.
-     */
-    @AllArgsConstructor @Getter @ToString
-    public static class Version {
-        /**
-         * The protocol version of the server.
-         */
-        private final int protocol;
-
-        /**
-         * The version name of the server.
-         */
-        @NonNull private final String name;
-    }
-
-    /**
-     * The gamemode of a server.
-     */
-    @AllArgsConstructor @Getter @ToString
-    public static class GameMode {
-        /**
-         * The name of this gamemode.
-         */
-        @NonNull private final String name;
-
-        /**
-         * The numeric of this gamemode.
-         */
-        private final int numericId;
     }
 }
