@@ -4,28 +4,28 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
-import lombok.extern.log4j.Log4j2;
 
 /**
- * @author Braydon & Fascinated
- * @see <a href="https://github.com/PrismarineJS/minecraft-data/blob/master/data/pc">Protocol Version Numbers</a>
+ * @author Braydon
+ * @see <a href="https://minecraft.fandom.com/wiki/Protocol_version">Protocol Version Numbers</a>
  * @see <a href="https://www.spigotmc.org/wiki/spigot-nms-and-minecraft-versions-1-21">Spigot NMS (1.21+)</a>
- * @see <a href="https://www.spigotmc.org/wiki/spigot-nms-and-minecraft-versions-1-16">Spigot NMS (1.16-1.20)</a>
+ * @see <a href="https://www.spigotmc.org/wiki/spigot-nms-and-minecraft-versions-1-16">Spigot NMS (1.16 - 1.20)</a>
  * @see <a href="https://www.spigotmc.org/wiki/spigot-nms-and-minecraft-versions-1-10-1-15">Spigot NMS (1.10 - 1.15)</a>
  * @see <a href="https://www.spigotmc.org/wiki/spigot-nms-and-minecraft-versions-legacy">Spigot NMS (1.8 - 1.9)</a>
  */
-@RequiredArgsConstructor @Getter @ToString @Log4j2(topic = "Minecraft Version")
+@RequiredArgsConstructor @Getter @ToString
 public enum JavaMinecraftVersion {
-    V1_21_9(773, "1_21_R3"), // 1.21.9 & 1.21.10
-    V1_21_7(772, "1_21_R3"), // 1.21.7 & 1.21.8
-    V1_21_6(771, "1_21_R3"), // 1.21.6
-    V1_21_5(770, "1_21_R3"), // 1.21.5
+    V1_21_11(774, "1_21_R5"), // 1.21.11
+    V1_21_9(773, "1_21_R5"), // 1.21.9 & 1.21.10
+    V1_21_7(772, "1_21_R5"), // 1.21.7 & 1.21.8
+    V1_21_6(771, "1_21_R5"), // 1.21.6
+    V1_21_5(770, "1_21_R4"), // 1.21.5
     V1_21_4(769, "1_21_R3"), // 1.21.4
     V1_21_2(768, "1_21_R2"), // 1.21.2 & 1.21.3
     V1_21(767, "1_21_R1"), // 1.21 & 1.21.1
 
-    V1_20_5(766, "v1_20_R4"), // 1.20.5
-    V1_20_3(765, "v1_20_R3"), // 1.20.3 & 1.20.4
+    V1_20_5(766, "v1_20_R2"), // 1.20.5 & 1.20.6
+    V1_20_3(765, "v1_20_R2"), // 1.20.3 & 1.20.4
     V1_20_2(764, "v1_20_R2"), // 1.20.2
     V1_20(763, "v1_20_R1"), // 1.20 & 1.20.1
 
@@ -118,56 +118,13 @@ public enum JavaMinecraftVersion {
     }
 
     /**
-     * Is this version legacy?
+     * Get the latest version of Minecraft.
      *
-     * @return whether this version is legacy
+     * @return te latest version
      */
-    public boolean isLegacy() {
-        return this.isBelow(JavaMinecraftVersion.V1_20);
-    }
-
-    /**
-     * Check if this version is
-     * above the one given.
-     *
-     * @param other the other version
-     * @return true if above, otherwise false
-     */
-    public boolean isAbove(JavaMinecraftVersion other) {
-        return this.protocol > other.getProtocol();
-    }
-
-    /**
-     * Check if this version is
-     * or above the one given.
-     *
-     * @param other the other version
-     * @return true if is or above, otherwise false
-     */
-    public boolean isOrAbove(JavaMinecraftVersion other) {
-        return this.protocol >= other.getProtocol();
-    }
-
-    /**
-     * Check if this version is
-     * below the one given.
-     *
-     * @param other the other version
-     * @return true if below, otherwise false
-     */
-    public boolean isBelow(JavaMinecraftVersion other) {
-        return this.protocol < other.getProtocol();
-    }
-
-    /**
-     * Check if this version is
-     * or below the one given.
-     *
-     * @param other the other version
-     * @return true if is or below, otherwise false
-     */
-    public boolean isOrBelow(JavaMinecraftVersion other) {
-        return this.protocol <= other.getProtocol();
+    @NonNull
+    public static JavaMinecraftVersion getLatestVersion() {
+        return VALUES.length > 0 ? VALUES[0] : UNKNOWN;
     }
 
     /**
@@ -188,7 +145,7 @@ public enum JavaMinecraftVersion {
      */
     public static JavaMinecraftVersion byProtocol(int protocol) {
         for (JavaMinecraftVersion version : values()) {
-            if (version.getProtocol() == protocol) {
+            if (version != UNKNOWN && version.getProtocol() == protocol) {
                 return version;
             }
         }
