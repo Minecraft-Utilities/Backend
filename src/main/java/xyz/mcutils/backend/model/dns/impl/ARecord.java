@@ -12,6 +12,11 @@ import java.net.InetAddress;
 @NoArgsConstructor
 public final class ARecord extends DNSRecord {
     /**
+     * The name of this record.
+     */
+    private String name;
+
+    /**
      * The address of this record, null if unresolved.
      */
     private String address;
@@ -19,6 +24,7 @@ public final class ARecord extends DNSRecord {
     public ARecord(@NonNull org.xbill.DNS.ARecord bootstrap) {
         super(Type.A, bootstrap.getTTL());
         InetAddress address = bootstrap.getAddress();
+        this.name = bootstrap.getName().toString().replaceFirst("\\.$", "");
         this.address = address == null ? null : address.getHostAddress();
     }
 }
