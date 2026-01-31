@@ -55,7 +55,7 @@ public class ImageUtils {
             ImageIO.write(image, "png", outputStream);
             return outputStream.toByteArray();
         } catch (Exception e) {
-            throw new Exception("Failed to convert image to bytes", e);
+            throw new Exception("Image could not be converted to bytes", e);
         }
     }
 
@@ -72,7 +72,7 @@ public class ImageUtils {
         try {
             return ImageIO.read(new ByteArrayInputStream(Base64.getDecoder().decode(favicon)));
         } catch (Exception e) {
-            throw new Exception("Failed to convert base64 to image", e);
+            throw new Exception("Base64 could not be converted to image", e);
         }
     }
 }

@@ -27,7 +27,7 @@ public class Fonts {
             MINECRAFT_ITALIC = baseFont.deriveFont(Font.ITALIC, 16f);
         } catch (FontFormatException | IOException e) {
             log.error("Failed to load Minecraft font", e);
-            throw new RuntimeException("Failed to load Minecraft font", e);
+            throw new RuntimeException("Minecraft font was not loaded", e);
         }
     }
 }

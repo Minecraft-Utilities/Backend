@@ -54,7 +54,7 @@ public class ServerService {
         Platform platform = EnumUtils.getEnumConstant(Platform.class, platformName.toUpperCase());
         if (platform == null) {
             log.debug("Invalid platform: {} for server {}", platformName, hostname);
-            throw new BadRequestException("Invalid platform: %s".formatted(platformName));
+            throw new BadRequestException("Invalid platform: '%s'".formatted(platformName));
         }
         int port = platform.getDefaultPort();
         if (hostname.contains(":")) {
@@ -64,7 +64,7 @@ public class ServerService {
                 port = Integer.parseInt(parts[1]);
             } catch (NumberFormatException e) {
                 log.debug("Invalid port: {} for server {}", parts[1], hostname);
-                throw new BadRequestException("Invalid port: %s".formatted(parts[1]));
+                throw new BadRequestException("Invalid port: '%s'".formatted(parts[1]));
             }
         }
         String key = "%s-%s:%s".formatted(platformName, hostname, port);
@@ -145,10 +145,10 @@ public class ServerService {
      */
     public byte[] getServerPreview(CachedMinecraftServer cachedServer, String platform, int size) {
         if (size > 2048) {
-            throw new BadRequestException("Size cannot be greater than 2048");
+            throw new BadRequestException("Size must not be greater than 2048");
         }
         if (size < 256) {
-            throw new BadRequestException("Size cannot be smaller than 256");
+            throw new BadRequestException("Size must not be smaller than 256");
         }
         MinecraftServer server = cachedServer.getServer();
         log.debug("Getting preview for server: {}:{} (size {})", server.getHostname(), server.getPort(), size);

@@ -153,7 +153,7 @@ public final class ColorUtils {
     public static Color getMinecraftColor(char colorCode) {
         String color = COLOR_MAP.getOrDefault(colorCode, null);
         if (color == null) {
-            throw new IllegalArgumentException("Invalid color code: " + colorCode);
+            throw new IllegalArgumentException("Invalid color code: '%s'".formatted(colorCode));
         }
         return Color.decode(color);
     }

@@ -28,7 +28,7 @@ public class PlayerUtils {
             try {
                 uuid = isFullUuid ? UUID.fromString(id) : UUIDUtils.addDashes(id);
             } catch (IllegalArgumentException exception) {
-                throw new BadRequestException("Invalid UUID provided: %s".formatted(id));
+                throw new BadRequestException("Invalid UUID provided: '%s'".formatted(id));
             }
             return uuid;
         }

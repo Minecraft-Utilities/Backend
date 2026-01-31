@@ -86,7 +86,7 @@ public class WebRequest {
             return null;
         }
         if (responseEntity.getStatusCode().isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
-            throw new RateLimitException("Rate limit reached");
+            throw new RateLimitException("Rate limit was reached");
         }
         return responseEntity.getBody();
     }

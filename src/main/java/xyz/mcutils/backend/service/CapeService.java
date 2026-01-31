@@ -38,7 +38,7 @@ public class CapeService {
                 log.debug("Downloading skin image for skin {}", cape.getId());
                 capeImage = PlayerUtils.getImage(cape.getMojangTextureUrl());
                 if (capeImage == null) {
-                    throw new IllegalStateException("Cape not found with id: " + cape.getId());
+                    throw new IllegalStateException("Cape with id '%s' was not found".formatted(cape.getId()));
                 }
                 minioService.upload(StorageService.Bucket.CAPES, cape.getId() + ".png", capeImage);
                 log.debug("Saved cape image for skin {}", cape.getId());

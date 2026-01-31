@@ -56,9 +56,9 @@ public final class JavaMinecraftServerPinger implements MinecraftServerPinger<Ja
             }
         } catch (IOException ex) {
             if (ex instanceof UnknownHostException) {
-                throw new BadRequestException("Unknown hostname: %s".formatted(hostname));
+                throw new BadRequestException("Unknown hostname '%s'".formatted(hostname));
             } else if (ex instanceof ConnectException || ex instanceof SocketTimeoutException) {
-                throw new BadRequestException("Server '%s' didn't respond to ping".formatted(hostname));
+                throw new BadRequestException("Server '%s' did not respond to ping".formatted(hostname));
             } else {
                 throw new BadRequestException("An error occurred pinging '%s:%s': %s".formatted(hostname, port, ex.getLocalizedMessage()));
             }

@@ -55,7 +55,7 @@ public abstract class MinecraftJavaPacket {
             int k = inputStream.readByte();
             i |= (k & 0x7F) << j++ * 7;
             if (j > 5) {
-                throw new RuntimeException("VarInt too big");
+                throw new RuntimeException("VarInt was too big");
             }
             if ((k & 0x80) != 128) {
                 break;

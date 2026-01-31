@@ -56,7 +56,7 @@ public class SkinService {
                 log.debug("Downloading skin image for skin {}", skin.getId());
                 skinImage = PlayerUtils.getImage(skin.getMojangTextureUrl());
                 if (skinImage == null) {
-                    throw new IllegalStateException("Skin image not found for skin " + skin.getId());
+                    throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(skin.getId()));
                 }
                 minioService.upload(StorageService.Bucket.SKINS, skin.getId() + ".png", skinImage);
                 log.debug("Saved skin image for skin {}", skin.getId());
@@ -76,15 +76,15 @@ public class SkinService {
      */
     public CachedPlayerSkinPart getSkinPart(Player player, String partName, boolean renderOverlay, int size) {
         if (size > 512) {
-            throw new BadRequestException("Size cannot be larger than 512");
+            throw new BadRequestException("Size must not be larger than 512");
         }
         if (size < 32) {
-            throw new BadRequestException("Size cannot be smaller than 32");
+            throw new BadRequestException("Size must not be smaller than 32");
         }
 
         ISkinPart part = ISkinPart.getByName(partName); // The skin part to get
         if (part == null) {
-            throw new BadRequestException("Invalid skin part: %s".formatted(partName));
+            throw new BadRequestException("Invalid skin part: '%s'".formatted(partName));
         }
 
         String name = part.name();

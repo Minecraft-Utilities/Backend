@@ -60,7 +60,7 @@ public class PlayerService {
             log.debug("Getting player profile from Mojang for {}", query);
             MojangProfileToken mojangProfile = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
             if (mojangProfile == null) {
-                throw new NotFoundException("Player with uuid '%s' not found".formatted(uuid));
+                throw new NotFoundException("Player with uuid '%s' was not found".formatted(uuid));
             }
             log.debug("Got player profile from Mojang for {}", query);
             CachedPlayer player = new CachedPlayer(
@@ -95,7 +95,7 @@ public class PlayerService {
         try {
             MojangUsernameToUuidToken mojangUsernameToUuid = mojangService.getUuidFromUsername(username);
             if (mojangUsernameToUuid == null) {
-                throw new NotFoundException("Player with username '%s' not found".formatted(username));
+                throw new NotFoundException("Player with username '%s' was not found".formatted(username));
             }
             UUID uuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
             CachedPlayerName player = new CachedPlayerName(id, username, uuid);
