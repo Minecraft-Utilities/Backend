@@ -90,11 +90,11 @@ public interface ISkinPart {
         RIGHT_ARM_TOP(true, new Coordinates(44, 16), 4, 4),
 
         LEFT_ARM_FRONT(true, new Coordinates(44, 20), 4, 12),
-        RIGHT_ARM_FRONT(true, new Coordinates(36, 52), new LegacyCoordinates(44, 20, true), 4, 12),
+        RIGHT_ARM_FRONT(true, new Coordinates(36, 52), 4, 12),
 
         // Legs
-        LEFT_LEG_FRONT(true, new Coordinates(4, 20), 4, 12), // Front
-        RIGHT_LEG_FRONT(true, new Coordinates(20, 52), new LegacyCoordinates(4, 20, true), 4, 12), // Front
+        LEFT_LEG_FRONT(true, new Coordinates(4, 20), 4, 12),
+        RIGHT_LEG_FRONT(true, new Coordinates(20, 52), 4, 12),
         LEFT_LEG_TOP(true, new Coordinates(4, 16), 4, 4),
         RIGHT_LEG_TOP(true, new Coordinates(20, 48), 4, 4);
 
@@ -110,11 +110,6 @@ public interface ISkinPart {
         private final Coordinates coordinates;
 
         /**
-         * The legacy coordinates of the part.
-         */
-        private final LegacyCoordinates legacyCoordinates;
-
-        /**
          * The width and height of the part.
          */
         private final int width, height;
@@ -125,13 +120,8 @@ public interface ISkinPart {
         private final Vanilla[] overlays;
 
         Vanilla(boolean hidden, Coordinates coordinates, int width, int height, Vanilla... overlays) {
-            this(hidden, coordinates, null, width, height, overlays);
-        }
-
-        Vanilla(boolean hidden, Coordinates coordinates, LegacyCoordinates legacyCoordinates, int width, int height, Vanilla... overlays) {
             this.hidden = hidden;
             this.coordinates = coordinates;
-            this.legacyCoordinates = legacyCoordinates;
             this.width = width;
             this.height = height;
             this.overlays = overlays;
@@ -156,15 +146,6 @@ public interface ISkinPart {
             return this == LEFT_ARM_FRONT || this == RIGHT_ARM_FRONT;
         }
 
-        /**
-         * Does this part have legacy coordinates?
-         *
-         * @return whether this part has legacy coordinates
-         */
-        public boolean hasLegacyCoordinates() {
-            return legacyCoordinates != null;
-        }
-
         @AllArgsConstructor @Getter
         public static class Coordinates {
             /**
@@ -173,21 +154,59 @@ public interface ISkinPart {
             private final int x, y;
         }
 
-        @Getter
-        public static class LegacyCoordinates extends Coordinates {
+        /**
+         * Legacy 64×32 skin layout coordinates and upgrade mappings for converting
+         * to modern 64×64 format. Legacy skins have no overlays — only base layer.
+         * Left arm/leg are created by mirroring the right arm/leg.
+         * <p>
+         * Each copy rect is {@code {dx1, dy1, dx2, dy2, sx1, sy1, sx2, sy2}}.
+         * </p>
+         */
+        public static final class LegacyUpgrade {
+            private LegacyUpgrade() {}
+
             /**
-             * Should the part be flipped horizontally?
+             * Create left leg base (LEFT_LEG_* at 20,52): mirror legacy leg (4,16) → modern left leg.
+             * Legacy has one leg; we mirror it to fill the left leg base position.
              */
-            private final boolean flipped;
+            public static final int[][] LEFT_LEG_COPIES = {
+                { 24, 48, 20, 52, 4, 16, 8, 20 },   // top face
+                { 28, 48, 24, 52, 8, 16, 12, 20 },
+                { 20, 52, 16, 64, 8, 20, 12, 32 },  // front face
+                { 24, 52, 20, 64, 4, 20, 8, 32 },
+                { 28, 52, 24, 64, 0, 20, 4, 32 },
+                { 32, 52, 28, 64, 12, 20, 16, 32 },
+            };
 
-            public LegacyCoordinates(int x, int y) {
-                this(x, y, false);
-            }
+            /**
+             * Create left arm base: mirror legacy right arm (40,16)-(56,32) → modern left arm.
+             * Left arm spans two regions in 64×64; same texture as right arm, different coords.
+             */
+            public static final int[][] LEFT_ARM_COPIES = {
+                // Region (0,32)-(16,48) — left arm section (not in CLEAR_OVERLAYS)
+                { 16, 32, 0, 48, 40, 16, 56, 32 },
+                // Region (36,48)-(48,64) — left arm at LEFT_ARM_* (36,52)
+                { 40, 48, 36, 52, 44, 16, 48, 20 },   // top
+                { 44, 48, 40, 52, 48, 16, 52, 20 },
+                { 36, 52, 32, 64, 48, 20, 52, 32 },   // front
+                { 40, 52, 36, 64, 44, 20, 48, 32 },
+                { 44, 52, 40, 64, 40, 20, 44, 32 },
+                { 48, 52, 44, 64, 52, 20, 56, 32 },
+            };
 
-            public LegacyCoordinates(int x, int y, boolean flipped) {
-                super(x, y);
-                this.flipped = flipped;
-            }
+            /**
+             * Overlay regions to clear — legacy skins have no overlays.
+             * HEADZ only: (32,0,64,16) — NOT (32,0,64,32) which would wipe RA at y 16–32.
+             * Format: {x1, y1, x2, y2} in 64×64 space.
+             */
+            public static final int[][] CLEAR_OVERLAYS = {
+                { 32, 0, 64, 16 },   // HEADZ only (RA is at y 16–32, must not clear)
+                { 0, 32, 16, 48 },   // LAZ (left arm overlay)
+                { 16, 32, 40, 48 },  // BODYZ
+                { 40, 32, 56, 48 },  // RAZ (right arm overlay)
+                { 0, 48, 16, 64 },   // LLZ (left leg overlay)
+                { 48, 48, 64, 64 },  // Unused corner
+            };
         }
     }
 

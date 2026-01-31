@@ -109,7 +109,6 @@ public class IsometricFullBodyRenderer extends SkinRenderer<ISkinPart.Custom> {
     @SneakyThrows
     public BufferedImage render(Skin skin, ISkinPart.Custom part, boolean renderOverlays, int size) {
         int width = (int) Math.round(size * ASPECT_RATIO);
-        int height = size;
 
         // Load and normalize skin to 64x64
         byte[] skinBytes = SkinService.INSTANCE.getSkinImage(skin);
@@ -171,11 +170,11 @@ public class IsometricFullBodyRenderer extends SkinRenderer<ISkinPart.Custom> {
         double modelH = maxY - minY;
         if (modelW < 1) modelW = 1;
         if (modelH < 1) modelH = 1;
-        double scale = Math.min((width - 4) / modelW, (height - 4) / modelH);
+        double scale = Math.min((width - 4) / modelW, (size - 4) / modelH);
         double offsetX = (width - modelW * scale) / 2 - minX * scale;
         double offsetY = maxY * scale;
 
-        BufferedImage result = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage result = new BufferedImage(width, size, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = result.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
@@ -201,17 +200,14 @@ public class IsometricFullBodyRenderer extends SkinRenderer<ISkinPart.Custom> {
             double dy1 = offsetY - p.y1 * scale;
             double dx2 = p.x2 * scale + offsetX;
             double dy2 = offsetY - p.y2 * scale;
-            double dx3 = p.x3 * scale + offsetX;
-            double dy3 = offsetY - p.y3 * scale;
 
             BufferedImage tex = skinImage.getSubimage(sx1, sy1, tw, th);
             double m00 = (dx1 - dx0) / tw;
             double m10 = (dy1 - dy0) / tw;
             double m01 = (dx2 - dx0) / th;
             double m11 = (dy2 - dy0) / th;
-            double m02 = dx0;
-            double m12 = dy0;
-            AffineTransform at = new AffineTransform(m00, m10, m01, m11, m02, m12);
+
+            AffineTransform at = new AffineTransform(m00, m10, m01, m11, dx0, dy0);
             g.drawImage(tex, at, null);
         }
 

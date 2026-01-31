@@ -26,21 +26,13 @@ public abstract class SkinRenderer<T extends ISkinPart> {
      */
     @SneakyThrows
     public BufferedImage getVanillaSkinPart(Skin skin, ISkinPart.Vanilla part, double size, boolean renderOverlays) {
-        ISkinPart.Vanilla.Coordinates coordinates = part.getCoordinates(); // The coordinates of the part
-
-        // The skin texture is legacy, use legacy coordinates
-        if (skin.isLegacy() && part.hasLegacyCoordinates()) {
-            coordinates = part.getLegacyCoordinates();
-        }
-        int width = part.getWidth(); // The width of the part
+        ISkinPart.Vanilla.Coordinates coordinates = part.getCoordinates();
+        int width = part.getWidth();
         if (skin.getModel() == Skin.Model.SLIM && part.isFrontArm()) {
             width--;
         }
-        BufferedImage skinImage = ImageIO.read(new ByteArrayInputStream(SkinService.INSTANCE.getSkinImage(skin))); // The skin texture
+        BufferedImage skinImage = ImageIO.read(new ByteArrayInputStream(SkinService.INSTANCE.getSkinImage(skin)));
         BufferedImage partTexture = getSkinPartTexture(skinImage, coordinates.getX(), coordinates.getY(), width, part.getHeight(), size);
-        if (coordinates instanceof ISkinPart.Vanilla.LegacyCoordinates legacyCoordinates && legacyCoordinates.isFlipped()) {
-            partTexture = ImageUtils.flip(partTexture);
-        }
 
         // Draw part overlays
         ISkinPart.Vanilla[] overlayParts = part.getOverlays();

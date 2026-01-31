@@ -10,21 +10,12 @@ import java.util.List;
 
 /**
  * Minecraft player model for software 3D rendering.
- * Part positions and UVs match nmsr-rs. Coordinates: Y up, front at -Z, pos is min corner.
+ * Coordinates: Y up, front at -Z, pos is min corner.
  */
 public class PlayerModel {
 
     /**
      * A textured quad with 4 vertices and UV coordinates.
-     *
-     * @param v0   top-left vertex
-     * @param v1   top-right vertex
-     * @param v2   bottom-left vertex
-     * @param v3   bottom-right vertex
-     * @param u0   UV top-left X (skin texture pixels 0-64)
-     * @param v0_  UV top-left Y
-     * @param u1   UV bottom-right X
-     * @param v1_  UV bottom-right Y
      */
     @AllArgsConstructor
     @Getter
@@ -68,7 +59,6 @@ public class PlayerModel {
 
     /**
      * Computes UV rects for a box per face (north, south, east, west, up, down).
-     * Follows nmsr-rs box_uv layout.
      */
     private static double[][] boxUv(int x, int y, int sizeX, int sizeY, int sizeZ) {
         return new double[][]{
