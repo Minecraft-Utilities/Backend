@@ -6,7 +6,7 @@ import org.springframework.data.annotation.Id;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.model.skin.Skin;
-import xyz.mcutils.backend.model.token.MojangProfileToken;
+import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 
 import java.util.UUID;
 

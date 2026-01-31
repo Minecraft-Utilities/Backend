@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.model.token;
+package xyz.mcutils.backend.model.token.mojang;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.gson.JsonObject;
@@ -9,7 +9,6 @@ import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.model.player.Cape;
-import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.skin.Skin;
 
 import java.util.Base64;

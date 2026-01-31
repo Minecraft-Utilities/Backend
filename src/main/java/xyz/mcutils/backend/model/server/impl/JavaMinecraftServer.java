@@ -13,7 +13,7 @@ import xyz.mcutils.backend.model.server.*;
 import xyz.mcutils.backend.model.server.java.ForgeData;
 import xyz.mcutils.backend.model.server.java.ForgeModInfo;
 import xyz.mcutils.backend.model.server.java.JavaVersion;
-import xyz.mcutils.backend.model.token.JavaServerStatusToken;
+import xyz.mcutils.backend.model.token.server.JavaServerStatusToken;
 
 /**
  * @author Braydon

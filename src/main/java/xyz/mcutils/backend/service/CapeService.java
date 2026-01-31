@@ -14,8 +14,6 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Log4j2(topic = "Cape Service")
 public class CapeService {
-    public static CapeService INSTANCE;
-
     private final StorageService minioService;
 
     private final Cache<String, byte[]> capeCache =  CacheBuilder.newBuilder()
@@ -25,11 +23,6 @@ public class CapeService {
     @Autowired
     public CapeService(StorageService minioService) {
         this.minioService = minioService;
-    }
-
-    @PostConstruct
-    public void init() {
-        INSTANCE = this;
     }
 
     /**

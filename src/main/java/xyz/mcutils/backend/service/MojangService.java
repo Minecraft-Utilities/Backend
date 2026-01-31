@@ -12,8 +12,8 @@ import net.jodah.expiringmap.ExpirationPolicy;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.ExpiringSet;
 import xyz.mcutils.backend.common.WebRequest;
-import xyz.mcutils.backend.model.token.MojangProfileToken;
-import xyz.mcutils.backend.model.token.MojangUsernameToUuidToken;
+import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
+import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
 
 import java.io.IOException;
 import java.io.InputStream;

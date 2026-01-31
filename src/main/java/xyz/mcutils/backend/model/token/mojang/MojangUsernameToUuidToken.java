@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.model.token;
+package xyz.mcutils.backend.model.token.mojang;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;

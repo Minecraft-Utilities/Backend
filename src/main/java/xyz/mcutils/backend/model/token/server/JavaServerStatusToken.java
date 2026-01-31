@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.model.token;
+package xyz.mcutils.backend.model.token.server;
 
 import com.google.gson.annotations.SerializedName;
 import lombok.AllArgsConstructor;

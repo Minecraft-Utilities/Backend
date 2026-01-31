@@ -6,7 +6,7 @@ import lombok.NonNull;
 import lombok.ToString;
 import xyz.mcutils.backend.common.ColorUtils;
 import xyz.mcutils.backend.config.Config;
-import xyz.mcutils.backend.model.token.JavaServerStatusToken;
+import xyz.mcutils.backend.model.token.server.JavaServerStatusToken;
 
 import java.util.ArrayList;
 import java.util.List;

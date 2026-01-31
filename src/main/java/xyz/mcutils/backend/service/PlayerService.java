@@ -13,8 +13,8 @@ import xyz.mcutils.backend.exception.impl.RateLimitException;
 import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.cache.CachedPlayerName;
 import xyz.mcutils.backend.model.player.Player;
-import xyz.mcutils.backend.model.token.MojangProfileToken;
-import xyz.mcutils.backend.model.token.MojangUsernameToUuidToken;
+import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
+import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
 import xyz.mcutils.backend.repository.PlayerCacheRepository;
 import xyz.mcutils.backend.repository.PlayerNameCacheRepository;
 
@@ -23,15 +23,12 @@ import java.util.UUID;
 
 @Service @Log4j2(topic = "Player Service")
 public class PlayerService {
-    public static PlayerService INSTANCE;
-
     private final MojangService mojangService;
     private final PlayerNameCacheRepository playerNameCacheRepository;
     private final PlayerCacheRepository playerCacheRepository;
 
     @Autowired
     public PlayerService(@NonNull MojangService mojangService, @NonNull PlayerNameCacheRepository playerNameCacheRepository, @NonNull PlayerCacheRepository playerCacheRepository) {
-        INSTANCE = this;
         this.mojangService = mojangService;
         this.playerNameCacheRepository = playerNameCacheRepository;
         this.playerCacheRepository = playerCacheRepository;

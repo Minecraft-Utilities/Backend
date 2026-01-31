@@ -37,8 +37,7 @@ public class ServerService {
     private final ServerPreviewCacheRepository serverPreviewCacheRepository;
 
     @Autowired
-    public ServerService(MojangService mojangService, MinecraftServerCacheRepository serverCacheRepository,
-                         ServerPreviewCacheRepository serverPreviewCacheRepository) {
+    public ServerService(MojangService mojangService, MinecraftServerCacheRepository serverCacheRepository, ServerPreviewCacheRepository serverPreviewCacheRepository) {
         this.mojangService = mojangService;
         this.serverCacheRepository = serverCacheRepository;
         this.serverPreviewCacheRepository = serverPreviewCacheRepository;
