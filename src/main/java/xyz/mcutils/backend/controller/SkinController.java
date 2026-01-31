@@ -7,7 +7,6 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import xyz.mcutils.backend.model.cache.CachedPlayer;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.SkinService;
@@ -27,31 +26,38 @@ public class SkinController {
         this.skinService = skinService;
     }
 
-    @GetMapping(value = "/texture/{id}.png", produces = MediaType.IMAGE_PNG_VALUE)
+    @GetMapping(value = "/texture/{query}.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<?> getPlayerSkin(
-            @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String id) {
-        CachedPlayer cachedPlayer = playerService.getPlayer(id);
+            @Parameter(description = "The texture id or Player UUID/name for the Skin", example = "ImFascinated") @PathVariable String query) {
+        Skin skin;
+        if (query.length() == 64) { // Texture id
+            skin = Skin.fromId(query);
+        } else {
+            skin = playerService.getPlayer(query).getPlayer().getSkin();
+        }
 
-        // Return the part image
-        Skin skin = cachedPlayer.getPlayer().getSkin();
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .contentType(MediaType.IMAGE_PNG)
                 .body(skinService.getSkinImage(skin));
     }
 
-    @GetMapping(value = "/{id}/{part}.png", produces = MediaType.IMAGE_PNG_VALUE)
+    @GetMapping(value = "/{query}/{part}.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<?> getPlayerSkinPart(
-            @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String id,
+            @Parameter(description = "The texture id or Player UUID/name for the Skin", example = "ImFascinated") @PathVariable String query,
             @Parameter(description = "The part of the skin", example = "head") @PathVariable String part,
             @Parameter(description = "The size of the image", example = "256") @RequestParam(required = false, defaultValue = "256") int size,
             @Parameter(description = "Whether to render the skin overlay (skin layers)", example = "false") @RequestParam(required = false, defaultValue = "false") boolean overlays) {
-        CachedPlayer cachedPlayer = playerService.getPlayer(id);
+        Skin skin;
+        if (query.length() == 64) { // Texture id
+            skin = Skin.fromId(query);
+        } else {
+            skin = playerService.getPlayer(query).getPlayer().getSkin();
+        }
 
-        // Return the part image
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .contentType(MediaType.IMAGE_PNG)
-                .body(skinService.getSkinPart(cachedPlayer.getPlayer(), part, overlays, size).getBytes());
+                .body(skinService.getSkinPart(skin, part, overlays, size).getBytes());
     }
 }

@@ -6,8 +6,11 @@ import lombok.*;
 import lombok.extern.log4j.Log4j2;
 import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.config.Config;
-import xyz.mcutils.backend.model.player.Player;
+import xyz.mcutils.backend.service.SkinService;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -45,15 +48,15 @@ public class Skin {
 
         String[] skinUrlParts = url.split("/");
         this.id = skinUrlParts[skinUrlParts.length - 1];
+        this.populateSkinData();
+        this.legacy = Skin.isLegacySkin(this);
     }
 
     /**
      * Populates the skin data for a player.
-     *
-     * @param player the player to populate the skin data for
      */
-    public void populateSkinData(Player player) {
-        this.setTextureUrl(Config.INSTANCE.getWebPublicUrl() + "/skin/texture/%s.png".formatted(player.getUniqueId()));
+    public void populateSkinData() {
+        this.setTextureUrl(Config.INSTANCE.getWebPublicUrl() + "/skin/texture/%s.png".formatted(this.id));
 
         for (Enum<?>[] types : ISkinPart.TYPES) {
             for (Enum<?> enumValue : types) {
@@ -63,7 +66,7 @@ public class Skin {
                 }
                 this.parts.put(part.name(), "%s/skin/%s/%s.png".formatted(
                         Config.INSTANCE.getWebPublicUrl(),
-                        player.getUniqueId(),
+                        this.id,
                         part.name().toLowerCase()
                 ));
             }
@@ -96,6 +99,29 @@ public class Skin {
                 url,
                 EnumUtils.getEnumConstant(Model.class, metadata != null ? metadata.get("model").getAsString().toUpperCase() : "DEFAULT")
         );
+    }
+
+    /**
+     * Gets a skin from its texture id.
+     * This is only used for getting skin image.
+     *
+     * @param id the texture id
+     * @return the skin
+     */
+    public static Skin fromId(String id) {
+        return new Skin(
+                id,
+                Model.DEFAULT // Doesn't matter in this case
+        );
+    }
+
+    @SneakyThrows
+    private static boolean isLegacySkin(Skin skin) {
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(SkinService.INSTANCE.getSkinImage(skin)));
+        if (image == null) {
+            return false;
+        }
+        return image.getWidth() == 64 && image.getHeight() == 32;
     }
 
     /**

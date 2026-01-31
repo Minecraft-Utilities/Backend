@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.model.player.Cape;
 import xyz.mcutils.backend.service.CapeService;
+import xyz.mcutils.backend.service.PlayerService;
 
 import java.util.concurrent.TimeUnit;
 
@@ -16,19 +17,28 @@ import java.util.concurrent.TimeUnit;
 @RequestMapping(value = "/cape")
 @Tag(name = "Cape Controller", description = "The Cape Controller is used to get cape images.")
 public class CapeController {
+    private final PlayerService playerService;
     private final CapeService capeService;
 
     @Autowired
-    public CapeController(CapeService capeService) {
+    public CapeController(PlayerService playerManagerService, CapeService capeService) {
+        this.playerService = playerManagerService;
         this.capeService = capeService;
     }
 
     @ResponseBody
-    @GetMapping(value = "/texture/{id}.png", produces = MediaType.IMAGE_PNG_VALUE)
+    @GetMapping(value = "/texture/{query}.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getPlayer(
-            @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String id) {
+            @Parameter(description = "The texture id or Player UUID/name for the Cape", example = "ImFascinated") @PathVariable String query) {
+        Cape cape;
+        if (query.length() == 64) { // Texture id
+            cape = Cape.fromId(query);
+        } else {
+            cape = playerService.getPlayer(query).getPlayer().getCape();
+        }
+
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
-                .body(this.capeService.getCapeImage(Cape.fromId(id)));
+                .body(this.capeService.getCapeImage(cape));
     }
 }

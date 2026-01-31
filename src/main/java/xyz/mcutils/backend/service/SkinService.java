@@ -12,7 +12,6 @@ import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
-import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.repository.PlayerSkinPartCacheRepository;
@@ -70,12 +69,12 @@ public class SkinService {
     /**
      * Gets a skin part from the player's skin.
      *
-     * @param player the player
+     * @param skin the players skin
      * @param partName the name of the part
      * @param renderOverlay whether to render the overlay
      * @return the skin part
      */
-    public CachedPlayerSkinPart getSkinPart(Player player, String partName, boolean renderOverlay, int size) {
+    public CachedPlayerSkinPart getSkinPart(Skin skin, String partName, boolean renderOverlay, int size) {
         if (size > 512) {
             throw new BadRequestException("Size must not be larger than 512");
         }
@@ -89,26 +88,26 @@ public class SkinService {
         }
 
         String name = part.name();
-        log.debug("Getting skin part {} for player: {} (size: {}, overlays: {})", name, player.getUniqueId(), size, renderOverlay);
-        String key = "%s-%s-%s-%s".formatted(player.getUniqueId(), name, size, renderOverlay);
+        log.debug("Getting skin part {} for texture: {} (size: {}, overlays: {})", name, skin.getId(), size, renderOverlay);
+        String key = "%s-%s-%s-%s".formatted(skin.getId(), name, size, renderOverlay);
 
         Optional<CachedPlayerSkinPart> cache = skinPartRepository.findById(key);
 
         // The skin part is cached
         if (cache.isPresent() && AppConfig.isProduction()) {
-            log.debug("Skin part {} for player {} is cached", name, player.getUniqueId());
+            log.debug("Skin part {} for texture {} is cached", name, skin.getId());
             return cache.get();
         }
 
         long before = System.currentTimeMillis();
-        BufferedImage renderedPart = part.render(player.getSkin(), renderOverlay, size); // Render the skin part
-        log.debug("Took {}ms to render skin part {} for player: {}", System.currentTimeMillis() - before, name, player.getUniqueId());
+        BufferedImage renderedPart = part.render(skin, renderOverlay, size); // Render the skin part
+        log.debug("Took {}ms to render skin part {} for texture: {}", System.currentTimeMillis() - before, name, skin.getId());
 
         CachedPlayerSkinPart skinPart = new CachedPlayerSkinPart(
                 key,
                 ImageUtils.imageToBytes(renderedPart)
         );
-        log.debug("Fetched skin part {} for player: {}", name, player.getUniqueId());
+        log.debug("Fetched skin part {} for texture: {}", name, skin.getId());
         skinPartRepository.save(skinPart);
         return skinPart;
     }
