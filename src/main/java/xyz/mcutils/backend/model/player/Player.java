@@ -11,6 +11,7 @@ import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import java.util.UUID;
 
 @AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @EqualsAndHashCode
 @ToString
@@ -67,6 +68,4 @@ public class Player {
             this.cape = skinAndCape.getRight();
         }
     }
-
-    public Player() {}
 }

@@ -43,21 +43,14 @@ public class Skin {
     @Setter private Map<String, String> parts;
 
     public Skin(String url, Model model) {
-        this.model = model;
-        this.parts = new HashMap<>();
-
         String[] skinUrlParts = url.split("/");
         this.id = skinUrlParts[skinUrlParts.length - 1];
-        this.populateSkinData();
+
+        this.model = model;
         this.legacy = Skin.isLegacySkin(this);
-    }
+        this.textureUrl = Config.INSTANCE.getWebPublicUrl() + "/skin/texture/%s.png".formatted(this.id);
 
-    /**
-     * Populates the skin data for a player.
-     */
-    public void populateSkinData() {
-        this.setTextureUrl(Config.INSTANCE.getWebPublicUrl() + "/skin/texture/%s.png".formatted(this.id));
-
+        this.parts = new HashMap<>();
         for (Enum<?>[] types : ISkinPart.TYPES) {
             for (Enum<?> enumValue : types) {
                 ISkinPart part = (ISkinPart) enumValue;
@@ -103,7 +96,9 @@ public class Skin {
 
     /**
      * Gets a skin from its texture id.
-     * This is only used for getting skin image.
+     * <b>
+     * This is only used for getting skin image by texture ids.
+     * </b>
      *
      * @param id the texture id
      * @return the skin
