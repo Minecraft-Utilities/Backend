@@ -1,5 +1,6 @@
 package xyz.mcutils.backend.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,6 +11,7 @@ import xyz.mcutils.backend.model.response.IndexResponse;
 
 @RestController
 @RequestMapping(value = "/")
+@Tag(name = "Index Controller")
 public class IndexController {
     /**
      * The build properties of the
