@@ -8,7 +8,7 @@ import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.renderer.Renderer;
 import xyz.mcutils.backend.model.server.MinecraftServer;
 import xyz.mcutils.backend.model.server.Players;
-import xyz.mcutils.backend.model.server.impl.JavaMinecraftServer;
+import xyz.mcutils.backend.model.server.java.JavaMinecraftServer;
 import xyz.mcutils.backend.service.ServerService;
 
 import javax.imageio.ImageIO;

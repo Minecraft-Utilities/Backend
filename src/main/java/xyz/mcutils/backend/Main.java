@@ -20,6 +20,7 @@ import java.util.Objects;
 public class Main {
     public static final Gson GSON = new GsonBuilder()
             .setDateFormat("MM-dd-yyyy HH:mm:ss")
+            .setPrettyPrinting()
             .create();
     public static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
 

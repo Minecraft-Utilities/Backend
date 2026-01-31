@@ -5,7 +5,7 @@ import xyz.mcutils.backend.common.packet.impl.bedrock.BedrockPacketUnconnectedPi
 import xyz.mcutils.backend.common.packet.impl.bedrock.BedrockPacketUnconnectedPong;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.model.dns.DNSRecord;
-import xyz.mcutils.backend.model.server.impl.BedrockMinecraftServer;
+import xyz.mcutils.backend.model.server.bedrock.BedrockMinecraftServer;
 import xyz.mcutils.backend.service.pinger.MinecraftServerPinger;
 
 import java.io.IOException;

@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.model.dns;
 
-
 import lombok.*;
 
 @NoArgsConstructor @AllArgsConstructor

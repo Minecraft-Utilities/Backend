@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.model.server.impl;
+package xyz.mcutils.backend.model.server.bedrock;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -9,9 +9,6 @@ import xyz.mcutils.backend.model.server.MOTD;
 import xyz.mcutils.backend.model.server.MinecraftServer;
 import xyz.mcutils.backend.model.server.Platform;
 import xyz.mcutils.backend.model.server.Players;
-import xyz.mcutils.backend.model.server.bedrock.BedrockEdition;
-import xyz.mcutils.backend.model.server.bedrock.BedrockGameMode;
-import xyz.mcutils.backend.model.server.bedrock.BedrockVersion;
 
 /**
  * A Bedrock edition {@link MinecraftServer}.

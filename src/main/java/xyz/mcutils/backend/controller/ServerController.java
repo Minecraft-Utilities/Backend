@@ -61,6 +61,18 @@ public class ServerController {
     }
 
     @ResponseBody
+    @GetMapping(value = "/{platform}/html-preview/{hostname}", produces = MediaType.TEXT_HTML_VALUE)
+    public ResponseEntity<String> getServerHtmlPreview(
+            @Parameter(description = "The platform of the server", example = "java") @PathVariable String platform,
+            @Parameter(description = "The hostname and port of the server", example = "aetheria.cc") @PathVariable String hostname) {
+        CachedMinecraftServer server = serverService.getServer(platform, hostname);
+
+        return ResponseEntity.ok().body(
+                server.getServer().getMotd().generateHtmlPreview(server.getServer())
+        );
+    }
+
+    @ResponseBody
     @GetMapping(value = "/blocked/{hostname}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ServerBlockedResponse> getServerBlockedStatus(
             @Parameter(description = "The hostname of the server", example = "aetheria.cc") @PathVariable String hostname) {

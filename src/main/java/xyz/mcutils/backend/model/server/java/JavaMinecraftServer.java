@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.model.server.impl;
+package xyz.mcutils.backend.model.server.java;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -10,9 +10,6 @@ import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.ServerUtils;
 import xyz.mcutils.backend.model.dns.DNSRecord;
 import xyz.mcutils.backend.model.server.*;
-import xyz.mcutils.backend.model.server.java.ForgeData;
-import xyz.mcutils.backend.model.server.java.ForgeModInfo;
-import xyz.mcutils.backend.model.server.java.JavaVersion;
 import xyz.mcutils.backend.model.token.server.JavaServerStatusToken;
 
 /**

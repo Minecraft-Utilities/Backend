@@ -18,7 +18,7 @@ import xyz.mcutils.backend.model.dns.impl.SRVRecord;
 import xyz.mcutils.backend.model.server.Favicon;
 import xyz.mcutils.backend.model.server.MinecraftServer;
 import xyz.mcutils.backend.model.server.Platform;
-import xyz.mcutils.backend.model.server.impl.JavaMinecraftServer;
+import xyz.mcutils.backend.model.server.java.JavaMinecraftServer;
 import xyz.mcutils.backend.repository.MinecraftServerCacheRepository;
 import xyz.mcutils.backend.repository.ServerPreviewCacheRepository;
 
