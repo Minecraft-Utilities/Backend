@@ -1,6 +1,8 @@
 package xyz.mcutils.backend.model.server;
 
 import com.maxmind.geoip2.model.CityResponse;
+import com.maxmind.geoip2.record.Country;
+import com.maxmind.geoip2.record.Location;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -41,6 +43,11 @@ public class GeoLocation {
     private final double longitude;
 
     /**
+     * Direct link to a url for the country flag;
+     */
+    private final String flagUrl;
+
+    /**
      * Gets the location of the server from Maxmind.
      *
      * @param response the response from Maxmind
@@ -50,13 +57,18 @@ public class GeoLocation {
         if (response == null) {
             return null;
         }
+        Country country = response.country();
+        Location location = response.location();
+        String isoCode = country.isoCode();
+
         return new GeoLocation(
-                response.country().name(),
-                response.country().isoCode(),
+                country.name(),
+                isoCode,
                 response.mostSpecificSubdivision().name(),
                 response.city().name(),
-                response.location().latitude(),
-                response.location().longitude()
+                location.latitude(),
+                location.longitude(),
+                "https://flagcdn.com/w20/" + isoCode.toLowerCase() + ".webp"
         );
     }
 }
