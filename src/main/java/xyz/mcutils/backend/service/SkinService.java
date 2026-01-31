@@ -1,5 +1,7 @@
 package xyz.mcutils.backend.service;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +18,7 @@ import xyz.mcutils.backend.repository.PlayerSkinPartCacheRepository;
 
 import java.awt.image.BufferedImage;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Log4j2(topic = "Skin Service")
@@ -24,6 +27,10 @@ public class SkinService {
 
     private final PlayerSkinPartCacheRepository skinPartRepository;
     private final StorageService minioService;
+
+    private final Cache<String, byte[]> skinCache =  CacheBuilder.newBuilder()
+            .expireAfterAccess(30, TimeUnit.MINUTES)
+            .build();
 
     @Autowired
     public SkinService(PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService) {
@@ -43,18 +50,20 @@ public class SkinService {
      * @return the skin image
      */
     public byte[] getSkinImage(Skin skin) {
-        byte[] skinImage = minioService.get(StorageService.Bucket.SKINS, skin.getId() + ".png");
-        if (skinImage == null) {
-            log.info("Downloading skin image for skin {}", skin.getId());
-            skinImage = PlayerUtils.getSkinImage(skin.getMojangTextureUrl());
+        return this.skinCache.asMap().computeIfAbsent(skin.getId(), _ -> {
+            byte[] skinImage = minioService.get(StorageService.Bucket.SKINS, skin.getId() + ".png");
             if (skinImage == null) {
-                throw new IllegalStateException("Skin image not found for skin " + skin.getId());
+                log.info("Downloading skin image for skin {}", skin.getId());
+                skinImage = PlayerUtils.getSkinImage(skin.getMojangTextureUrl());
+                if (skinImage == null) {
+                    throw new IllegalStateException("Skin image not found for skin " + skin.getId());
+                }
+                minioService.upload(StorageService.Bucket.SKINS, skin.getId() + ".png", skinImage);
+                log.info("Saved skin image for skin {}", skin.getId());
             }
-            minioService.upload(StorageService.Bucket.SKINS, skin.getId() + ".png", skinImage);
-            log.info("Saved skin image for skin {}", skin.getId());
-        }
 
-        return skinImage;
+            return skinImage;
+        });
     }
 
     /**
