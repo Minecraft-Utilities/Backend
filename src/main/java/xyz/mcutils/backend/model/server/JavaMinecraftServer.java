@@ -2,8 +2,8 @@ package xyz.mcutils.backend.model.server;
 
 import com.google.gson.annotations.SerializedName;
 import lombok.*;
-import net.md_5.bungee.api.chat.TextComponent;
-import net.md_5.bungee.chat.ComponentSerializer;
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.JavaMinecraftVersion;
 import xyz.mcutils.backend.common.ServerUtils;
@@ -91,7 +91,12 @@ public final class JavaMinecraftServer extends MinecraftServer {
     public static JavaMinecraftServer create(@NonNull String hostname, String ip, int port, DNSRecord[] records, @NonNull JavaServerStatusToken token) {
         String motdString = token.getDescription() instanceof String ? (String) token.getDescription() : null;
         if (motdString == null) { // Not a string motd, convert from Json
-            motdString = new TextComponent(ComponentSerializer.parse(Main.GSON.toJson(token.getDescription()))).toLegacyText();
+            motdString = LegacyComponentSerializer.builder()
+                    .character(LegacyComponentSerializer.SECTION_CHAR)
+                    .hexColors()
+                    .useUnusualXRepeatedCharacterHexFormat()
+                    .build()
+                    .serialize(GsonComponentSerializer.gson().deserialize(Main.GSON.toJson(token.getDescription())));
         }
 
         return new JavaMinecraftServer(
@@ -152,12 +157,10 @@ public final class JavaMinecraftServer extends MinecraftServer {
             JavaMinecraftVersion minecraftVersion = JavaMinecraftVersion.byProtocol(protocol);
             return new Version(name, platform, protocol, minecraftVersion == null ? null : minecraftVersion.getName());
         }
-
     }
 
     @Getter @AllArgsConstructor
     public static class Favicon {
-
         /**
          * The raw base64 of the favicon.
          */
@@ -217,7 +220,6 @@ public final class JavaMinecraftServer extends MinecraftServer {
 
     @AllArgsConstructor @Getter
     public static class ForgeData {
-
         /**
          * The list of mod channels on this server, null or empty if none.
          */
