@@ -35,13 +35,13 @@ public class CapeService {
         return this.capeCache.asMap().computeIfAbsent(cape.getId(), _ -> {
             byte[] capeImage = minioService.get(StorageService.Bucket.CAPES, cape.getId() + ".png");
             if (capeImage == null) {
-                log.info("Downloading skin image for skin {}", cape.getId());
+                log.debug("Downloading skin image for skin {}", cape.getId());
                 capeImage = PlayerUtils.getImage(cape.getMojangTextureUrl());
                 if (capeImage == null) {
                     throw new IllegalStateException("Cape not found with id: " + cape.getId());
                 }
                 minioService.upload(StorageService.Bucket.CAPES, cape.getId() + ".png", capeImage);
-                log.info("Saved cape image for skin {}", cape.getId());
+                log.debug("Saved cape image for skin {}", cape.getId());
             }
 
             return capeImage;

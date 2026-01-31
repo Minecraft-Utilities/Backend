@@ -53,13 +53,13 @@ public class SkinService {
         return this.skinCache.asMap().computeIfAbsent(skin.getId(), _ -> {
             byte[] skinImage = minioService.get(StorageService.Bucket.SKINS, skin.getId() + ".png");
             if (skinImage == null) {
-                log.info("Downloading skin image for skin {}", skin.getId());
+                log.debug("Downloading skin image for skin {}", skin.getId());
                 skinImage = PlayerUtils.getImage(skin.getMojangTextureUrl());
                 if (skinImage == null) {
                     throw new IllegalStateException("Skin image not found for skin " + skin.getId());
                 }
                 minioService.upload(StorageService.Bucket.SKINS, skin.getId() + ".png", skinImage);
-                log.info("Saved skin image for skin {}", skin.getId());
+                log.debug("Saved skin image for skin {}", skin.getId());
             }
 
             return skinImage;
@@ -88,26 +88,26 @@ public class SkinService {
         }
 
         String name = part.name();
-        log.info("Getting skin part {} for player: {} (size: {}, overlays: {})", name, player.getUniqueId(), size, renderOverlay);
+        log.debug("Getting skin part {} for player: {} (size: {}, overlays: {})", name, player.getUniqueId(), size, renderOverlay);
         String key = "%s-%s-%s-%s".formatted(player.getUniqueId(), name, size, renderOverlay);
 
         Optional<CachedPlayerSkinPart> cache = skinPartRepository.findById(key);
 
         // The skin part is cached
         if (cache.isPresent() && AppConfig.isProduction()) {
-            log.info("Skin part {} for player {} is cached", name, player.getUniqueId());
+            log.debug("Skin part {} for player {} is cached", name, player.getUniqueId());
             return cache.get();
         }
 
         long before = System.currentTimeMillis();
         BufferedImage renderedPart = part.render(player.getSkin(), renderOverlay, size); // Render the skin part
-        log.info("Took {}ms to render skin part {} for player: {}", System.currentTimeMillis() - before, name, player.getUniqueId());
+        log.debug("Took {}ms to render skin part {} for player: {}", System.currentTimeMillis() - before, name, player.getUniqueId());
 
         CachedPlayerSkinPart skinPart = new CachedPlayerSkinPart(
                 key,
                 ImageUtils.imageToBytes(renderedPart)
         );
-        log.info("Fetched skin part {} for player: {}", name, player.getUniqueId());
+        log.debug("Fetched skin part {} for player: {}", name, player.getUniqueId());
         skinPartRepository.save(skinPart);
         return skinPart;
     }

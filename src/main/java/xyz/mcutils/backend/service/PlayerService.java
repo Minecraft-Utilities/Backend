@@ -45,24 +45,24 @@ public class PlayerService {
         // Convert the id to uppercase to prevent case sensitivity
         UUID uuid = PlayerUtils.getUuidFromString(query);
         if (uuid == null) { // If the id is not a valid uuid, get the uuid from the username
-            log.info("Getting player uuid for {}", query);
+            log.debug("Getting player uuid for {}", query);
             uuid = usernameToUuid(query).getUniqueId();
-            log.info("Found uuid {} for {}", uuid.toString(), query);
+            log.debug("Found uuid {} for {}", uuid.toString(), query);
         }
 
         Optional<CachedPlayer> cachedPlayer = playerCacheRepository.findById(uuid);
         if (cachedPlayer.isPresent() && AppConfig.isProduction()) { // Return the cached player if it exists
-            log.info("Player {} is cached", query);
+            log.debug("Player {} is cached", query);
             return cachedPlayer.get();
         }
 
         try {
-            log.info("Getting player profile from Mojang for {}", query);
+            log.debug("Getting player profile from Mojang for {}", query);
             MojangProfileToken mojangProfile = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
             if (mojangProfile == null) {
                 throw new NotFoundException("Player with uuid '%s' not found".formatted(uuid));
             }
-            log.info("Got player profile from Mojang for {}", query);
+            log.debug("Got player profile from Mojang for {}", query);
             CachedPlayer player = new CachedPlayer(
                     uuid, // Player UUID
                     new Player(mojangProfile)

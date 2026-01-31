@@ -45,7 +45,7 @@ public abstract class SkinRenderer<T extends ISkinPart> {
         // Draw part overlays
         ISkinPart.Vanilla[] overlayParts = part.getOverlays();
         if (overlayParts != null && renderOverlays) {
-            log.info("Applying overlays to part: {}", part.name());
+            log.debug("Applying overlays to part: {}", part.name());
             for (ISkinPart.Vanilla overlay : overlayParts) {
                 applyOverlay(partTexture.createGraphics(), getVanillaSkinPart(skin, overlay, size, false));
             }
