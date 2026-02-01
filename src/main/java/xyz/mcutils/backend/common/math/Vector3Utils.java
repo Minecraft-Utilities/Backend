@@ -4,9 +4,6 @@ package xyz.mcutils.backend.common.math;
  * Static utilities for 3D vector operations (rotation, projection, normalize, cross).
  */
 public final class Vector3Utils {
-
-    private Vector3Utils() {}
-
     /**
      * Rotates a point around the Y axis (yaw).
      *

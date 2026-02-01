@@ -3,7 +3,6 @@ package xyz.mcutils.backend.common.renderer;
 import xyz.mcutils.backend.common.math.Vector3;
 import xyz.mcutils.backend.common.math.Vector3Utils;
 import xyz.mcutils.backend.common.renderer.model.Face;
-import xyz.mcutils.backend.common.renderer.model.ViewParams;
 
 import java.awt.*;
 import java.awt.geom.AffineTransform;
@@ -18,9 +17,6 @@ import java.util.List;
  * sorts by depth, and draws quads. Used by full-body and head renderers.
  */
 public final class Isometric3DRenderer {
-
-    private Isometric3DRenderer() {}
-
     /**
      * Renders the given faces with the given view onto an image of the specified size.
      *
@@ -124,4 +120,11 @@ public final class Isometric3DRenderer {
                                  double x2, double y2, double x3, double y3,
                                  double depth,
                                  double u0, double v0_, double u1, double v1_) {}
+    
+    /**
+     * View parameters for the generic 3D isometric renderer.
+     * The target is also used as the model rotation center.
+     */
+    public static record ViewParams(Vector3 eye, Vector3 target, double yawDeg, 
+        double pitchDeg, double aspectRatio) {}
 }

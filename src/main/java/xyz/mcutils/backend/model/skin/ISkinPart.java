@@ -243,7 +243,6 @@ public interface ISkinPart {
          * </p>
          */
         public static final class LegacyUpgrade {
-            private LegacyUpgrade() {}
 
             /**
              * Create left leg base (LEFT_LEG_* at 20,52): mirror legacy leg (4,16) → modern left leg.

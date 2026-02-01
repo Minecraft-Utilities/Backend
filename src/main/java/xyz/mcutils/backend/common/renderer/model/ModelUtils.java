@@ -10,8 +10,6 @@ import java.util.List;
  */
 public final class ModelUtils {
 
-    private ModelUtils() {}
-
     /**
      * Converts ModelBox UV array (x, y, sizeX, sizeY, sizeZ) to boxUv format.
      */

@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.common.renderer.model.models;
+package xyz.mcutils.backend.common.renderer.model.impl;
 
 import xyz.mcutils.backend.common.renderer.model.Face;
 import xyz.mcutils.backend.common.renderer.model.ModelUtils;
