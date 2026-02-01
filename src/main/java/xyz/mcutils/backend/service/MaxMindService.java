@@ -8,7 +8,7 @@ import com.maxmind.geoip2.model.CityResponse;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.*;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.codehaus.plexus.archiver.tar.TarGZipUnArchiver;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,7 +28,8 @@ import java.util.Map;
 /**
  * @author Braydon
  */
-@Service @Log4j2(topic = "MaxMind")
+@Service
+@Slf4j
 public class MaxMindService {
     /**
      * The directory to store databases.

@@ -1,7 +1,7 @@
 package xyz.mcutils.backend.service;
 
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.metric.Metric;
 import xyz.mcutils.backend.metric.impl.api.RequestsMetric;
@@ -12,7 +12,8 @@ import xyz.mcutils.backend.metric.impl.jvm.MemoryUsageMetric;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-@Service @Log4j2(topic = "Metric Service")
+@Service
+@Slf4j
 public class MetricService {
     public static final PrometheusRegistry REGISTRY = new PrometheusRegistry();
     private static final Map<Class<?>, Metric<?>> metrics = new ConcurrentHashMap<>();

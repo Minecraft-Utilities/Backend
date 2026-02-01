@@ -1,12 +1,12 @@
 package xyz.mcutils.backend.common.renderer;
 
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.model.skin.SkinPart;
 
 import java.awt.image.BufferedImage;
 
-@Log4j2(topic = "Skin Renderer")
+@Slf4j
 public abstract class SkinRenderer {
     /**
      * Renders the skin part for the player's skin.

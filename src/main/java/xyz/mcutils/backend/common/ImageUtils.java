@@ -1,22 +1,17 @@
 package xyz.mcutils.backend.common;
 
+import com.pngencoder.PngEncoder;
 import lombok.SneakyThrows;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 
-import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
-import javax.imageio.ImageWriteParam;
-import javax.imageio.ImageWriter;
-import javax.imageio.stream.ImageOutputStream;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.util.Base64;
-import java.util.Iterator;
 
-@Log4j2(topic = "Image Utils")
+@Slf4j
 public class ImageUtils {
     /**
      * Scale the given image to the provided scale.
@@ -98,37 +93,23 @@ public class ImageUtils {
     }
 
     /**
-     * Convert an image to bytes (PNG). Uses explicit ImageWriter with lower compression
-     * for faster encoding; encoding speed depends on the ImageIO PNG implementation.
+     * Convert an image to bytes (PNG). Uses PngEncoder for faster encoding than ImageIO.
      *
      * @param image the image to convert
      * @return the image as bytes
      */
     @SneakyThrows
     public static byte[] imageToBytes(BufferedImage image) {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("png");
-        if (!writers.hasNext()) {
-            try (ByteArrayOutputStream fallback = new ByteArrayOutputStream()) {
-                ImageIO.write(image, "png", fallback);
-                return fallback.toByteArray();
-            } catch (Exception e) {
-                throw new Exception("Image could not be converted to bytes", e);
-            }
+        long t0 = System.nanoTime();
+        byte[] result = new PngEncoder()
+                .withBufferedImage(image)
+                .withCompressionLevel(1)  // fastest; ~2x faster than level 9, ~2.5x larger files
+                .toBytes();
+        if (log.isDebugEnabled()) {
+            log.debug("imageToBytes: {}x{} png encode took {}ms",
+                    image.getWidth(), image.getHeight(), String.format("%.2f", (System.nanoTime() - t0) / 1e6));
         }
-        ImageWriter writer = writers.next();
-        try (ImageOutputStream ios = ImageIO.createImageOutputStream(outputStream)) {
-            writer.setOutput(ios);
-            ImageWriteParam param = writer.getDefaultWriteParam();
-            if (param.canWriteCompressed()) {
-                param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
-                param.setCompressionQuality(0.2f);
-            }
-            writer.write(null, new IIOImage(image, null, null), param);
-        } finally {
-            writer.dispose();
-        }
-        return outputStream.toByteArray();
+        return result;
     }
 
     /**

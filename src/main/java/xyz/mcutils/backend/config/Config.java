@@ -3,7 +3,7 @@ package xyz.mcutils.backend.config;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -18,7 +18,8 @@ import xyz.mcutils.backend.common.renderer.Isometric3DRendererBackend;
 import xyz.mcutils.backend.filter.MetricsAuthFilter;
 import xyz.mcutils.backend.log.RequestTimingFilter;
 
-@Getter @Log4j2(topic = "Config")
+@Getter
+@Slf4j
 @Configuration
 public class Config {
     public static Config INSTANCE;

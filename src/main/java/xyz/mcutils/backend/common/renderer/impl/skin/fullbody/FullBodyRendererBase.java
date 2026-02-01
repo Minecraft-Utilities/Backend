@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.common.renderer.impl.skin.fullbody;
 
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.math.Vector3;
 import xyz.mcutils.backend.common.renderer.Isometric3DRenderer;
 import xyz.mcutils.backend.common.renderer.Isometric3DRendererBackend;
@@ -19,6 +20,7 @@ import java.util.List;
  * Coordinates loading/normalizing the skin, building full-body faces, and delegating
  * to {@link Isometric3DRenderer} with view params for FRONT or BACK.
  */
+@Slf4j
 public class FullBodyRendererBase {
     public static final FullBodyRendererBase INSTANCE = new FullBodyRendererBase();
 
@@ -39,15 +41,26 @@ public class FullBodyRendererBase {
     @SneakyThrows
     public BufferedImage render(Skin skin, SkinPart part, Side side, boolean renderOverlays, int size,
                                 double yawDeg, double pitchDeg) {
+        long tSkin = System.nanoTime();
         byte[] skinBytes = SkinService.INSTANCE.getSkinBytes(skin, true);
         BufferedImage skinImage = SkinService.getSkinImage(skinBytes);
+        double tSkinMs = (System.nanoTime() - tSkin) / 1e6;
 
+        long tFaces = System.nanoTime();
         List<Face> faces = PlayerModel.buildFaces(skin, renderOverlays);
+        double tFacesMs = (System.nanoTime() - tFaces) / 1e6;
 
+        long tRender = System.nanoTime();
         double yaw = yawDeg + (side == Side.BACK ? 180.0 : 0.0);
         ViewParams view = new ViewParams(EYE, TARGET, yaw, pitchDeg, ASPECT_RATIO);
+        BufferedImage result = Isometric3DRendererBackend.get().render(skinImage, faces, view, size);
+        double tRenderMs = (System.nanoTime() - tRender) / 1e6;
 
-        return Isometric3DRendererBackend.get().render(skinImage, faces, view, size);
+        if (log.isDebugEnabled()) {
+            log.debug("FullBody render: skin={}ms faces={}ms draw={}ms",
+                    String.format("%.2f", tSkinMs), String.format("%.2f", tFacesMs), String.format("%.2f", tRenderMs));
+        }
+        return result;
     }
 
     /**

@@ -1,6 +1,6 @@
 package xyz.mcutils.backend.common.renderer.impl.server;
 
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.ColorUtils;
 import xyz.mcutils.backend.common.Fonts;
@@ -16,7 +16,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 
-@Log4j2
+@Slf4j
 public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
     public static final ServerPreviewRenderer INSTANCE = new ServerPreviewRenderer();
 

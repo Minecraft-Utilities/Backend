@@ -3,7 +3,7 @@ package xyz.mcutils.backend.service;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import jakarta.annotation.PostConstruct;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -13,7 +13,7 @@ import xyz.mcutils.backend.model.player.Cape;
 import java.util.concurrent.TimeUnit;
 
 @Service
-@Log4j2(topic = "Cape Service")
+@Slf4j
 public class CapeService {
     public static CapeService INSTANCE;
 

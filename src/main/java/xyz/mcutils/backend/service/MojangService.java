@@ -7,7 +7,7 @@ import com.google.common.hash.Hashing;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import net.jodah.expiringmap.ExpirationPolicy;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.ExpiringSet;
@@ -23,7 +23,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
-@Log4j2(topic = "Mojang Service")
+@Slf4j
 @Getter
 public class MojangService {
     /**

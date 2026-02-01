@@ -1,8 +1,10 @@
 package xyz.mcutils.backend.common.renderer.impl.software;
 
+import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.math.Vector3;
 import xyz.mcutils.backend.common.math.Vector3Utils;
 import xyz.mcutils.backend.common.renderer.BrightnessComposite;
+import xyz.mcutils.backend.common.renderer.IsometricLighting;
 import xyz.mcutils.backend.common.renderer.Isometric3DRenderer;
 import xyz.mcutils.backend.common.renderer.model.Face;
 
@@ -16,14 +18,14 @@ import java.util.List;
 /**
  * Software (CPU/Graphics2D) implementation of the 3D isometric renderer.
  * Rotates by yaw/pitch, orthographically projects, depth-sorts, and draws quads.
+ * Uses IsometricLighting for sun-based lighting (same as GPU path).
  */
+@Slf4j
 public class SoftwareIsometric3DRenderer implements Isometric3DRenderer {
-
-    /** Minimum face brightness (back/side faces); range [0, 1]. */
-    private static final double MIN_BRIGHT = 0.78;
 
     @Override
     public BufferedImage render(List<TexturedFaces> batches, ViewParams view, int size) {
+        long t0 = System.nanoTime();
         int width = (int) Math.round(size * view.aspectRatio());
 
         Vector3 eye = view.eye();
@@ -48,9 +50,9 @@ public class SoftwareIsometric3DRenderer implements Isometric3DRenderer {
             int texH = texture.getHeight();
 
             for (Face face : batch.faces()) {
-                Vector3 rotatedNormal = Vector3Utils.normalize(
-                        Vector3Utils.rotateX(Vector3Utils.rotateY(face.normal(), yaw), pitch));
-                double dot = Vector3Utils.dot(rotatedNormal, fwd);
+                var rotatedNormal = Vector3Utils.rotateX(Vector3Utils.rotateY(face.normal(), yaw), pitch);
+                double brightness = IsometricLighting.computeBrightness(
+                        rotatedNormal, IsometricLighting.SUN_DIRECTION, IsometricLighting.MIN_BRIGHTNESS);
 
                 Vector3 v0 = Vector3Utils.rotAround(face.v0(), target, yaw, pitch);
                 Vector3 v1 = Vector3Utils.rotAround(face.v1(), target, yaw, pitch);
@@ -62,7 +64,6 @@ public class SoftwareIsometric3DRenderer implements Isometric3DRenderer {
                 double[] p3 = Vector3Utils.project(v3, eye, fwd, right, up);
 
                 double depth = (p0[2] + p1[2] + p2[2] + p3[2]) / 4.0;
-                double brightness = Math.max(0, Math.min(1, MIN_BRIGHT + (1.0 - MIN_BRIGHT) * (1 + dot) / 2));
 
                 double x0 = p0[0], y0 = p0[1], x1 = p1[0], y1 = p1[1], x2 = p2[0], y2 = p2[1], x3 = p3[0], y3 = p3[1];
                 projected.add(new ProjectedFaceWithTexture(
@@ -79,8 +80,11 @@ public class SoftwareIsometric3DRenderer implements Isometric3DRenderer {
                 maxY = Math.max(maxY, Math.max(Math.max(y0, y1), Math.max(y2, y3)));
             }
         }
+        double tProject = (System.nanoTime() - t0) / 1e6;
 
+        long tSort = System.nanoTime();
         projected.sort(Comparator.comparingDouble((ProjectedFaceWithTexture p) -> p.depth).reversed());
+        double tSortMs = (System.nanoTime() - tSort) / 1e6;
         double modelW = maxX - minX;
         double modelH = maxY - minY;
         if (modelW < 1) modelW = 1;
@@ -95,6 +99,7 @@ public class SoftwareIsometric3DRenderer implements Isometric3DRenderer {
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 
+        long tDraw = System.nanoTime();
         for (ProjectedFaceWithTexture p : projected) {
             BufferedImage texture = batches.get(p.textureIndex).texture();
             int texW = p.texW;
@@ -135,8 +140,14 @@ public class SoftwareIsometric3DRenderer implements Isometric3DRenderer {
                 g.drawImage(subimage, at, null);
             }
         }
+        double tDrawMs = (System.nanoTime() - tDraw) / 1e6;
 
         g.dispose();
+
+        if (log.isDebugEnabled()) {
+            log.debug("Software render profile: project={}ms sort={}ms draw={}ms",
+                    String.format("%.2f", tProject), String.format("%.2f", tSortMs), String.format("%.2f", tDrawMs));
+        }
         return result;
     }
 

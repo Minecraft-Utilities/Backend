@@ -1,13 +1,13 @@
 package xyz.mcutils.backend.common;
 
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.Main;
 
 import java.awt.*;
 import java.io.IOException;
 import java.util.Objects;
 
-@Log4j2(topic = "Fonts")
+@Slf4j
 public class Fonts {
     public static final Font MINECRAFT;
     public static final Font MINECRAFT_BOLD;

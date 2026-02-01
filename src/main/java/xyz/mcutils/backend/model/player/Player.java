@@ -1,7 +1,7 @@
 package xyz.mcutils.backend.model.player;
 
 import lombok.*;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.annotation.Id;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
@@ -15,7 +15,7 @@ import java.util.UUID;
 @Getter
 @EqualsAndHashCode
 @ToString
-@Log4j2(topic = "Player")
+@Slf4j
 public class Player {
     /**
      * The UUID of the player

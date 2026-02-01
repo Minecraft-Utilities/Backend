@@ -1,20 +1,22 @@
 package xyz.mcutils.backend.config;
 
 import lombok.NonNull;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
+import redis.clients.jedis.JedisPoolConfig;
 
 /**
  * @author Braydon
  */
 @Configuration
-@Log4j2(topic = "Redis")
+@Slf4j
 @EnableRedisRepositories(basePackages = "xyz.mcutils.backend.repository")
 public class RedisConfig {
     /**
@@ -63,13 +65,21 @@ public class RedisConfig {
      */
     @Bean @NonNull
     public JedisConnectionFactory jedisConnectionFactory() {
-        log.info("Connecting to Redis at {}:{}/{}", host, port, database);
+        log.info("Connecting to Redis at {}:{}/{} with connection pool", host, port, database);
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(host, port);
         config.setDatabase(database);
-        if (!auth.trim().isEmpty()) { // Auth with our provided password
+        if (!auth.trim().isEmpty()) {
             log.info("Using auth...");
             config.setPassword(auth);
         }
-        return new JedisConnectionFactory(config);
+        JedisPoolConfig poolConfig = new JedisPoolConfig();
+        poolConfig.setMaxTotal(16);
+        poolConfig.setMaxIdle(8);
+        poolConfig.setMinIdle(2);
+        JedisClientConfiguration clientConfig = JedisClientConfiguration.builder()
+                .usePooling()
+                .poolConfig(poolConfig)
+                .build();
+        return new JedisConnectionFactory(config, clientConfig);
     }
 }

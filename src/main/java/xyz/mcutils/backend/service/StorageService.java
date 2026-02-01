@@ -4,7 +4,7 @@ import io.minio.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayInputStream;
 
 @Service
-@Log4j2(topic = "Storage Service")
+@Slf4j
 public class StorageService {
     private final MinioClient minioClient;
 

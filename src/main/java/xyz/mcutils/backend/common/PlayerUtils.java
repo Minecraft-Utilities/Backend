@@ -3,7 +3,7 @@ package xyz.mcutils.backend.common;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 
@@ -12,7 +12,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.UUID;
 
-@UtilityClass @Log4j2(topic = "Player Utils")
+@UtilityClass
+@Slf4j
 public class PlayerUtils {
 
     /**

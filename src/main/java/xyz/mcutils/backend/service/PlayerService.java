@@ -1,7 +1,7 @@
 package xyz.mcutils.backend.service;
 
 import lombok.NonNull;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.AppConfig;
@@ -21,7 +21,8 @@ import xyz.mcutils.backend.repository.PlayerNameCacheRepository;
 import java.util.Optional;
 import java.util.UUID;
 
-@Service @Log4j2(topic = "Player Service")
+@Service
+@Slf4j
 public class PlayerService {
     private final MojangService mojangService;
     private final PlayerNameCacheRepository playerNameCacheRepository;
@@ -42,27 +43,33 @@ public class PlayerService {
      * @return the player
      */
     public CachedPlayer getPlayer(String query) {
+        long t0 = System.nanoTime();
         // Convert the id to uppercase to prevent case sensitivity
         UUID uuid = PlayerUtils.getUuidFromString(query);
         if (uuid == null) { // If the id is not a valid uuid, get the uuid from the username
-            log.debug("Getting player uuid for {}", query);
+            long tUuid = System.nanoTime();
+            if (log.isDebugEnabled()) log.debug("Getting player uuid for {}", query);
             uuid = usernameToUuid(query).getUniqueId();
-            log.debug("Found uuid {} for {}", uuid.toString(), query);
+            if (log.isDebugEnabled()) log.debug("Found uuid {} for {} ({}ms)", uuid, query, String.format("%.2f", (System.nanoTime() - tUuid) / 1e6));
         }
 
+        long tCache = System.nanoTime();
         Optional<CachedPlayer> cachedPlayer = playerCacheRepository.findById(uuid);
+        double tCacheMs = (System.nanoTime() - tCache) / 1e6;
         if (cachedPlayer.isPresent() && AppConfig.isProduction()) { // Return the cached player if it exists
-            log.debug("Player {} is cached", query);
+            if (log.isDebugEnabled()) log.debug("Player {} cache hit (lookup={}ms)", query, String.format("%.2f", tCacheMs));
             return cachedPlayer.get();
         }
 
         try {
-            log.debug("Getting player profile from Mojang for {}", query);
+            long tMojang = System.nanoTime();
+            if (log.isDebugEnabled()) log.debug("Getting player profile from Mojang for {}", query);
             MojangProfileToken mojangProfile = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
             if (mojangProfile == null) {
                 throw new NotFoundException("Player with uuid '%s' was not found".formatted(uuid));
             }
-            log.debug("Got player profile from Mojang for {}", query);
+            if (log.isDebugEnabled()) log.debug("Got player profile from Mojang for {} (mojang={}ms total={}ms)", query,
+                    String.format("%.2f", (System.nanoTime() - tMojang) / 1e6), String.format("%.2f", (System.nanoTime() - t0) / 1e6));
             CachedPlayer player = new CachedPlayer(
                     uuid, // Player UUID
                     new Player(mojangProfile)

@@ -1,6 +1,6 @@
 package xyz.mcutils.backend.service.pinger.impl;
 
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.common.JavaMinecraftVersion;
 import xyz.mcutils.backend.common.packet.impl.java.JavaPacketHandshakingInSetProtocol;
@@ -19,7 +19,7 @@ import java.net.*;
 /**
  * @author Braydon
  */
-@Log4j2(topic = "Java Pinger")
+@Slf4j
 public final class JavaMinecraftServerPinger implements MinecraftServerPinger<JavaMinecraftServer> {
     private static final int TIMEOUT = 1500; // The timeout for the socket
 

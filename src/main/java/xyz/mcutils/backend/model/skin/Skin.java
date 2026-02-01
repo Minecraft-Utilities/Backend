@@ -3,7 +3,7 @@ package xyz.mcutils.backend.model.skin;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.gson.JsonObject;
 import lombok.*;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.config.Config;
 import xyz.mcutils.backend.model.player.Player;
@@ -16,7 +16,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 @AllArgsConstructor @NoArgsConstructor
-@Getter @Log4j2(topic = "Skin") @EqualsAndHashCode
+@Getter
+@Slf4j
+@EqualsAndHashCode
 public class Skin {
     /**
      * The ID for the skin

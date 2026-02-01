@@ -19,7 +19,7 @@ import xyz.mcutils.backend.metric.impl.api.RequestsMetric;
 import xyz.mcutils.backend.service.MetricService;
 
 @ControllerAdvice
-@Slf4j(topic = "Req Transaction")
+@Slf4j
 public class TransactionLogger implements ResponseBodyAdvice<Object> {
 
     @Override

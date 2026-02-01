@@ -1,6 +1,6 @@
 package xyz.mcutils.backend.service.pinger.impl;
 
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.packet.impl.bedrock.BedrockPacketUnconnectedPing;
 import xyz.mcutils.backend.common.packet.impl.bedrock.BedrockPacketUnconnectedPong;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
@@ -20,7 +20,7 @@ import java.net.UnknownHostException;
  *
  * @author Braydon
  */
-@Log4j2(topic = "Bedrock MC Server Pinger")
+@Slf4j
 public final class BedrockMinecraftServerPinger implements MinecraftServerPinger<BedrockMinecraftServer> {
     private static final int TIMEOUT = 1500; // The timeout for the socket
 
