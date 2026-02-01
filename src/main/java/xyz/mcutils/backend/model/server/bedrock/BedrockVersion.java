@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.model.server.bedrock;
 
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
 
 /**

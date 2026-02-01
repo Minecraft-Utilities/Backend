@@ -1,7 +1,6 @@
 package xyz.mcutils.backend.model.server;
 
 import com.maxmind.geoip2.model.AsnResponse;
-import lombok.AllArgsConstructor;
 
 /**
  * The ASN information for this server.

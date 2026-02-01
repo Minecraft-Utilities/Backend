@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.common;
 
-import jakarta.validation.constraints.NotNull;
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 
@@ -14,8 +13,8 @@ import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.util.Iterator;
 import java.util.Base64;
+import java.util.Iterator;
 
 @Log4j2(topic = "Image Utils")
 public class ImageUtils {

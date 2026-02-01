@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.model.server;
 
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import xyz.mcutils.backend.common.ColorUtils;
 import xyz.mcutils.backend.config.Config;

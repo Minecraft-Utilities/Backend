@@ -3,7 +3,6 @@ package xyz.mcutils.backend.model.server;
 import com.maxmind.geoip2.model.CityResponse;
 import com.maxmind.geoip2.record.Country;
 import com.maxmind.geoip2.record.Location;
-import lombok.AllArgsConstructor;
 
 /**
  * The location of the server.

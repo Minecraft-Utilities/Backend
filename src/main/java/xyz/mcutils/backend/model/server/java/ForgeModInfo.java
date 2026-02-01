@@ -1,7 +1,6 @@
 package xyz.mcutils.backend.model.server.java;
 
 import com.google.gson.annotations.SerializedName;
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
 
 /**

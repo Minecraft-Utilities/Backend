@@ -1,7 +1,6 @@
 package xyz.mcutils.backend.model.server;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import lombok.AllArgsConstructor;
 import lombok.NonNull;
 import xyz.mcutils.backend.common.ColorUtils;
 import xyz.mcutils.backend.config.Config;

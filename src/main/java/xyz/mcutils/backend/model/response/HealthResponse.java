@@ -1,7 +1,5 @@
 package xyz.mcutils.backend.model.response;
 
-import lombok.AllArgsConstructor;
-
 /**
  * The response for the health endpoint.
  *

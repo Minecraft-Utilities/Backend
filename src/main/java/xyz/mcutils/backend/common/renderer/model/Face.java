@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.common.renderer.model;
 
-import lombok.AllArgsConstructor;
 import xyz.mcutils.backend.common.math.Vector3;
 
 /**
