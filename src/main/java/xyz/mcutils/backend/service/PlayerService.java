@@ -56,7 +56,7 @@ public class PlayerService {
         long tCache = System.nanoTime();
         Optional<CachedPlayer> cachedPlayer = playerCacheRepository.findById(uuid);
         double tCacheMs = (System.nanoTime() - tCache) / 1e6;
-        if (cachedPlayer.isPresent() && AppConfig.isProduction()) { // Return the cached player if it exists
+        if (cachedPlayer.isPresent()) { // Return the cached player if it exists
             if (log.isDebugEnabled()) log.debug("Player {} cache hit (lookup={}ms)", query, String.format("%.2f", tCacheMs));
             return cachedPlayer.get();
         }
