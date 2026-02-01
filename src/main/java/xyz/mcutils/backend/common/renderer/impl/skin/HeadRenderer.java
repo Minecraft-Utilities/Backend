@@ -7,8 +7,8 @@ import xyz.mcutils.backend.common.renderer.Isometric3DRenderer.ViewParams;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
 import xyz.mcutils.backend.common.renderer.model.Face;
 import xyz.mcutils.backend.common.renderer.model.impl.PlayerHeadModel;
-import xyz.mcutils.backend.model.skin.SkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
+import xyz.mcutils.backend.model.skin.SkinPart;
 import xyz.mcutils.backend.service.SkinService;
 
 import java.awt.image.BufferedImage;

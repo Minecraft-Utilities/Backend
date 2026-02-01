@@ -7,7 +7,6 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.SkinService;
 

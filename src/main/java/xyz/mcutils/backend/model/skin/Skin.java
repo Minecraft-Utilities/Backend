@@ -7,7 +7,6 @@ import lombok.extern.log4j.Log4j2;
 import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.config.Config;
 import xyz.mcutils.backend.model.player.Player;
-import xyz.mcutils.backend.model.skin.SkinPart;
 import xyz.mcutils.backend.service.SkinService;
 
 import javax.imageio.ImageIO;
