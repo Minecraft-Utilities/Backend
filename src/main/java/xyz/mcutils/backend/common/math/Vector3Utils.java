@@ -72,6 +72,11 @@ public final class Vector3Utils {
         return new Vector3(v.getX() / len, v.getY() / len, v.getZ() / len);
     }
 
+    /** Dot product of two vectors. */
+    public static double dot(Vector3 a, Vector3 b) {
+        return a.getX() * b.getX() + a.getY() * b.getY() + a.getZ() * b.getZ();
+    }
+
     /** Cross product of two vectors. */
     public static Vector3 cross(Vector3 a, Vector3 b) {
         return new Vector3(

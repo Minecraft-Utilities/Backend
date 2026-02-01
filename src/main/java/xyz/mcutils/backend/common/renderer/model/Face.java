@@ -5,11 +5,12 @@ import lombok.Getter;
 import xyz.mcutils.backend.common.math.Vector3;
 
 /**
- * A textured quad with 4 vertices and UV coordinates for software 3D rendering.
+ * A textured quad with 4 vertices, UV coordinates, and outward normal for software 3D rendering.
  */
 @AllArgsConstructor
 @Getter
 public class Face {
     private final Vector3 v0, v1, v2, v3;
     private final double u0, v0_, u1, v1_;
+    private final Vector3 normal;
 }

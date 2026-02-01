@@ -45,31 +45,37 @@ public final class ModelUtils {
         faces.add(new Face(
                 new Vector3(x1, y1, z0), new Vector3(x0, y1, z0),
                 new Vector3(x1, y0, z0), new Vector3(x0, y0, z0),
-                uvs[1][0], uvs[1][1], uvs[1][2], uvs[1][3]));
+                uvs[1][0], uvs[1][1], uvs[1][2], uvs[1][3],
+                new Vector3(0, 0, -1)));
 
         faces.add(new Face(
                 new Vector3(x1, y1, z1), new Vector3(x0, y1, z1),
                 new Vector3(x1, y0, z1), new Vector3(x0, y0, z1),
-                uvs[0][0], uvs[0][1], uvs[0][2], uvs[0][3]));
+                uvs[0][0], uvs[0][1], uvs[0][2], uvs[0][3],
+                new Vector3(0, 0, 1)));
 
         faces.add(new Face(
                 new Vector3(x1, y1, z0), new Vector3(x0, y1, z0),
                 new Vector3(x1, y1, z1), new Vector3(x0, y1, z1),
-                uvs[4][0], uvs[4][1], uvs[4][2], uvs[4][3]));
+                uvs[4][0], uvs[4][1], uvs[4][2], uvs[4][3],
+                new Vector3(0, 1, 0)));
 
         faces.add(new Face(
                 new Vector3(x0, y0, z0), new Vector3(x1, y0, z0),
                 new Vector3(x0, y0, z1), new Vector3(x1, y0, z1),
-                uvs[5][2], uvs[5][1], uvs[5][0], uvs[5][3]));
+                uvs[5][2], uvs[5][1], uvs[5][0], uvs[5][3],
+                new Vector3(0, -1, 0)));
 
         faces.add(new Face(
                 new Vector3(x0, y1, z1), new Vector3(x0, y1, z0),
                 new Vector3(x0, y0, z1), new Vector3(x0, y0, z0),
-                uvs[3][0], uvs[3][1], uvs[3][2], uvs[3][3]));
+                uvs[3][0], uvs[3][1], uvs[3][2], uvs[3][3],
+                new Vector3(-1, 0, 0)));
 
         faces.add(new Face(
                 new Vector3(x1, y1, z0), new Vector3(x1, y1, z1),
                 new Vector3(x1, y0, z0), new Vector3(x1, y0, z1),
-                uvs[2][0], uvs[2][1], uvs[2][2], uvs[2][3]));
+                uvs[2][0], uvs[2][1], uvs[2][2], uvs[2][3],
+                new Vector3(1, 0, 0)));
     }
 }

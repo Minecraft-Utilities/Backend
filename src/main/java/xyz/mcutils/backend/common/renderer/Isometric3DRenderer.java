@@ -7,6 +7,7 @@ import xyz.mcutils.backend.common.renderer.model.Face;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
+import java.awt.image.RescaleOp;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -17,6 +18,10 @@ import java.util.List;
  * sorts by depth, and draws quads. Used by full-body and head renderers.
  */
 public class Isometric3DRenderer {
+
+    /** Minimum face brightness (back/side faces); range [0, 1]. */
+    private static final double MIN_BRIGHT = 0.65;
+
     /**
      * Renders the given faces with the given view onto an image of the specified size.
      *
@@ -51,10 +56,17 @@ public class Isometric3DRenderer {
             double[] p3 = Vector3Utils.project(v3, eye, fwd, right, up);
 
             double depth = (p0[2] + p1[2] + p2[2] + p3[2]) / 4.0;
+
+            Vector3 rotatedNormal = Vector3Utils.normalize(
+                    Vector3Utils.rotateX(Vector3Utils.rotateY(face.getNormal(), yaw), pitch));
+            double dot = Vector3Utils.dot(rotatedNormal, fwd);
+            double brightness = Math.max(0, Math.min(1, MIN_BRIGHT + 0.35 * (1 + dot) / 2));
+
             projected.add(new ProjectedFace(
                     p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1],
                     depth,
-                    face.getU0(), face.getV0_(), face.getU1(), face.getV1_()
+                    face.getU0(), face.getV0_(), face.getU1(), face.getV1_(),
+                    brightness
             ));
         }
 
@@ -103,6 +115,12 @@ public class Isometric3DRenderer {
             double dy2 = offsetY - p.y2 * scale;
 
             BufferedImage tex = skin64x64.getSubimage(sx1, sy1, tw, th);
+            if (p.brightness() != 1.0) {
+                RescaleOp rescale = new RescaleOp(
+                        new float[]{(float) p.brightness(), (float) p.brightness(), (float) p.brightness(), 1f},
+                        new float[]{0f, 0f, 0f, 0f}, null);
+                tex = rescale.filter(tex, null);
+            }
             double m00 = (dx1 - dx0) / tw;
             double m10 = (dy1 - dy0) / tw;
             double m01 = (dx2 - dx0) / th;
@@ -119,7 +137,8 @@ public class Isometric3DRenderer {
     private record ProjectedFace(double x0, double y0, double x1, double y1,
                                  double x2, double y2, double x3, double y3,
                                  double depth,
-                                 double u0, double v0_, double u1, double v1_) {}
+                                 double u0, double v0_, double u1, double v1_,
+                                 double brightness) {}
     
     /**
      * View parameters for the generic 3D isometric renderer.
