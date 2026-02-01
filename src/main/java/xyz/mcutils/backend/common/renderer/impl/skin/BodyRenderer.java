@@ -16,6 +16,6 @@ public class BodyRenderer extends SkinRenderer<ISkinPart.Custom> {
 
     @Override
     public BufferedImage render(Skin skin, ISkinPart.Custom part, boolean renderOverlays, int size) {
-        return FullBodyRendererBase.INSTANCE.render(skin, part, Side.FRONT, renderOverlays, size, 0, 16.5);
+        return FullBodyRendererBase.INSTANCE.render(skin, part, Side.FRONT, renderOverlays, size, 0, 14.5);
     }
 }

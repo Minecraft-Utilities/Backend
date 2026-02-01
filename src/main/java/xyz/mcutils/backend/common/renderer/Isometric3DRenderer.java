@@ -20,7 +20,7 @@ import java.util.List;
 public class Isometric3DRenderer {
 
     /** Minimum face brightness (back/side faces); range [0, 1]. */
-    private static final double MIN_BRIGHT = 0.65;
+    private static final double MIN_BRIGHT = 0.78;
 
     /**
      * Renders the given faces with the given view onto an image of the specified size.
@@ -60,7 +60,7 @@ public class Isometric3DRenderer {
             Vector3 rotatedNormal = Vector3Utils.normalize(
                     Vector3Utils.rotateX(Vector3Utils.rotateY(face.getNormal(), yaw), pitch));
             double dot = Vector3Utils.dot(rotatedNormal, fwd);
-            double brightness = Math.max(0, Math.min(1, MIN_BRIGHT + 0.35 * (1 + dot) / 2));
+            double brightness = Math.max(0, Math.min(1, MIN_BRIGHT + (1.0 - MIN_BRIGHT) * (1 + dot) / 2));
 
             projected.add(new ProjectedFace(
                     p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1],
