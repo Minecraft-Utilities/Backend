@@ -14,6 +14,6 @@ public class FaceRenderer extends SkinRenderer<ISkinPart.Custom> {
 
     @Override
     public BufferedImage render(Skin skin, ISkinPart.Custom part, boolean renderOverlays, int size) {
-        return IsometricHeadRenderer.INSTANCE.render(skin, part, renderOverlays, size, 0, 0);
+        return HeadRenderer.INSTANCE.render(skin, part, renderOverlays, size, 0, 0);
     }
 }

@@ -18,8 +18,8 @@ import java.util.List;
  * Coordinates loading/normalizing the skin, building full-body faces, and delegating
  * to {@link Isometric3DRenderer} with view params for FRONT or BACK.
  */
-public class IsometricFullBodyRendererBase {
-    public static final IsometricFullBodyRendererBase INSTANCE = new IsometricFullBodyRendererBase();
+public class FullBodyRendererBase {
+    public static final FullBodyRendererBase INSTANCE = new FullBodyRendererBase();
 
     private static final double ASPECT_RATIO = 512.0 / 869.0;
     private static final double YAW_DEG = 45.0;

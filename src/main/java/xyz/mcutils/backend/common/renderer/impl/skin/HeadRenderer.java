@@ -14,8 +14,8 @@ import xyz.mcutils.backend.service.SkinService;
 import java.awt.image.BufferedImage;
 import java.util.List;
 
-public class IsometricHeadRenderer extends SkinRenderer<ISkinPart.Custom> {
-    public static final IsometricHeadRenderer INSTANCE = new IsometricHeadRenderer();
+public class HeadRenderer extends SkinRenderer<ISkinPart.Custom> {
+    public static final HeadRenderer INSTANCE = new HeadRenderer();
 
     private static final double PITCH_DEG = 35.0;
     private static final double YAW_DEG = 45.0;

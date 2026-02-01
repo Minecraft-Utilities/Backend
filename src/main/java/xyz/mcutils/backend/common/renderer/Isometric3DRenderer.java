@@ -16,7 +16,7 @@ import java.util.List;
  * and view parameters, rotates faces by yaw/pitch, orthographically projects,
  * sorts by depth, and draws quads. Used by full-body and head renderers.
  */
-public final class Isometric3DRenderer {
+public class Isometric3DRenderer {
     /**
      * Renders the given faces with the given view onto an image of the specified size.
      *
@@ -125,6 +125,6 @@ public final class Isometric3DRenderer {
      * View parameters for the generic 3D isometric renderer.
      * The target is also used as the model rotation center.
      */
-    public static record ViewParams(Vector3 eye, Vector3 target, double yawDeg, 
+    public record ViewParams(Vector3 eye, Vector3 target, double yawDeg,
         double pitchDeg, double aspectRatio) {}
 }

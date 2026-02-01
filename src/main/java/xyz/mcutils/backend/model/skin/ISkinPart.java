@@ -5,9 +5,9 @@ import lombok.Getter;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.BodyRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.FaceRenderer;
-import xyz.mcutils.backend.common.renderer.impl.skin.IsometricHeadRenderer;
-import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.IsometricFullBodyRendererBack;
-import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.IsometricFullBodyRendererFront;
+import xyz.mcutils.backend.common.renderer.impl.skin.HeadRenderer;
+import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.FullBodyRendererBack;
+import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.FullBodyRendererFront;
 
 import java.awt.image.BufferedImage;
 
@@ -264,9 +264,9 @@ public interface ISkinPart {
     @AllArgsConstructor @Getter
     enum Custom implements ISkinPart {
         FACE(FaceRenderer.INSTANCE),
-        HEAD(IsometricHeadRenderer.INSTANCE),
-        FULLBODY_FRONT(IsometricFullBodyRendererFront.INSTANCE),
-        FULLBODY_BACK(IsometricFullBodyRendererBack.INSTANCE),
+        HEAD(HeadRenderer.INSTANCE),
+        FULLBODY_FRONT(FullBodyRendererFront.INSTANCE),
+        FULLBODY_BACK(FullBodyRendererBack.INSTANCE),
         BODY(BodyRenderer.INSTANCE);
 
         /**
