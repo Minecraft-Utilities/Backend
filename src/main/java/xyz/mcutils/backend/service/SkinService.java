@@ -34,18 +34,15 @@ public class SkinService {
 
     private final PlayerSkinPartCacheRepository skinPartRepository;
     private final StorageService minioService;
-    private final RendererService rendererService;
 
     private final Cache<String, byte[]> skinCache = CacheBuilder.newBuilder()
             .expireAfterAccess(30, TimeUnit.MINUTES)
             .build();
 
     @Autowired
-    public SkinService(PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService,
-                       RendererService rendererService) {
+    public SkinService(PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService) {
         this.skinPartRepository = skinPartRepository;
         this.minioService = minioService;
-        this.rendererService = rendererService;
     }
 
     @PostConstruct
@@ -156,7 +153,7 @@ public class SkinService {
     /**
      * Gets a skin part from the player's skin.
      *
-     * @param skin the players skin
+     * @param player the player to get the skin for
      * @param partName the name of the part
      * @param renderOverlay whether to render the overlay
      * @param size the output size (height; width derived per part)
@@ -170,7 +167,7 @@ public class SkinService {
             throw new BadRequestException("Size must not be smaller than 32");
         }
 
-        SkinPart part = rendererService.getSkinPartByName(partName);
+        SkinPart part = SkinPart.getByName(partName);
         if (part == null) {
             throw new BadRequestException("Invalid skin part: '%s'".formatted(partName));
         }
@@ -188,7 +185,7 @@ public class SkinService {
         }
 
         long before = System.currentTimeMillis();
-        BufferedImage renderedPart = rendererService.renderSkinPart(skin, part, renderOverlay, size);
+        BufferedImage renderedPart = part.render(skin, renderOverlay, size);
         log.debug("Took {}ms to render skin part {} for texture: {}", System.currentTimeMillis() - before, name, skin.getId());
 
         CachedPlayerSkinPart skinPart = new CachedPlayerSkinPart(

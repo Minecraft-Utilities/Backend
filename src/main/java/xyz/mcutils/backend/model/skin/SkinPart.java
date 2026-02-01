@@ -22,11 +22,30 @@ public enum SkinPart {
 
     private final SkinRenderer renderer;
 
+    /**
+     * Renders the skin part.
+     *
+     * @param skin the skin
+     * @param renderOverlays whether to render the overlays
+     * @param size the size of the skin part
+     * @return the rendered skin part
+     */
     public BufferedImage render(Skin skin, boolean renderOverlays, int size) {
         return renderer.render(skin, this, renderOverlays, size);
     }
 
-    public boolean isFullBody() {
-        return this == FULLBODY_FRONT || this == FULLBODY_BACK;
+    /**
+     * Gets a skin part by name.
+     *
+     * @param name the name of the skin part
+     * @return the skin part
+     */
+    public static SkinPart getByName(String name) {
+        for (SkinPart part : SkinPart.values()) {
+            if (part.name().equalsIgnoreCase(name)) {
+                return part;
+            }
+        }
+        return null;
     }
 }
