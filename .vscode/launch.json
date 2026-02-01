@@ -10,7 +10,8 @@
             "request": "launch",
             "mainClass": "xyz.mcutils.backend.Main",
             "projectName": "Minecraft-Utilities",
-            "cwd": "${workspaceFolder}/work"
+            "cwd": "${workspaceFolder}/work",
+            "vmArgs": "-Dlog4j2.rootLevel=DEBUG"
         }
     ]
 }

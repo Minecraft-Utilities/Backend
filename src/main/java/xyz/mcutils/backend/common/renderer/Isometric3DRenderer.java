@@ -7,7 +7,6 @@ import xyz.mcutils.backend.common.renderer.model.Face;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
-import java.awt.image.RescaleOp;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -18,10 +17,6 @@ import java.util.List;
  * textures (e.g. skin 64×64, cape 64×32). Used by full-body and head renderers.
  */
 public class Isometric3DRenderer {
-
-    /** Pairs a texture with its faces. Used for multi-texture rendering (skin + cape). */
-    public record TexturedFaces(BufferedImage texture, List<Face> faces) {}
-
     /** Minimum face brightness (back/side faces); range [0, 1]. */
     private static final double MIN_BRIGHT = 0.78;
 
@@ -60,7 +55,12 @@ public class Isometric3DRenderer {
         double yaw = view.yawDeg();
         double pitch = view.pitchDeg();
 
-        List<ProjectedFaceWithTexture> projected = new ArrayList<>();
+        int totalFaces = batches.stream().mapToInt(b -> b.faces().size()).sum();
+        List<ProjectedFaceWithTexture> projected = new ArrayList<>(totalFaces);
+
+        double minX = Double.MAX_VALUE, maxX = -Double.MAX_VALUE;
+        double minY = Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
+
         for (int batchIndex = 0; batchIndex < batches.size(); batchIndex++) {
             TexturedFaces batch = batches.get(batchIndex);
             BufferedImage texture = batch.texture();
@@ -68,6 +68,10 @@ public class Isometric3DRenderer {
             int texH = texture.getHeight();
 
             for (Face face : batch.faces()) {
+                Vector3 rotatedNormal = Vector3Utils.normalize(
+                        Vector3Utils.rotateX(Vector3Utils.rotateY(face.getNormal(), yaw), pitch));
+                double dot = Vector3Utils.dot(rotatedNormal, fwd);
+
                 Vector3 v0 = Vector3Utils.rotAround(face.getV0(), modelCenter, yaw, pitch);
                 Vector3 v1 = Vector3Utils.rotAround(face.getV1(), modelCenter, yaw, pitch);
                 Vector3 v2 = Vector3Utils.rotAround(face.getV2(), modelCenter, yaw, pitch);
@@ -78,33 +82,25 @@ public class Isometric3DRenderer {
                 double[] p3 = Vector3Utils.project(v3, eye, fwd, right, up);
 
                 double depth = (p0[2] + p1[2] + p2[2] + p3[2]) / 4.0;
-
-                Vector3 rotatedNormal = Vector3Utils.normalize(
-                        Vector3Utils.rotateX(Vector3Utils.rotateY(face.getNormal(), yaw), pitch));
-                double dot = Vector3Utils.dot(rotatedNormal, fwd);
                 double brightness = Math.max(0, Math.min(1, MIN_BRIGHT + (1.0 - MIN_BRIGHT) * (1 + dot) / 2));
 
+                double x0 = p0[0], y0 = p0[1], x1 = p1[0], y1 = p1[1], x2 = p2[0], y2 = p2[1], x3 = p3[0], y3 = p3[1];
                 projected.add(new ProjectedFaceWithTexture(
-                        p0[0], p0[1], p1[0], p1[1], p2[0], p2[1], p3[0], p3[1],
+                        x0, y0, x1, y1, x2, y2, x3, y3,
                         depth,
                         face.getU0(), face.getV0_(), face.getU1(), face.getV1_(),
                         brightness,
                         batchIndex,
                         texW, texH
                 ));
+                minX = Math.min(minX, Math.min(Math.min(x0, x1), Math.min(x2, x3)));
+                maxX = Math.max(maxX, Math.max(Math.max(x0, x1), Math.max(x2, x3)));
+                minY = Math.min(minY, Math.min(Math.min(y0, y1), Math.min(y2, y3)));
+                maxY = Math.max(maxY, Math.max(Math.max(y0, y1), Math.max(y2, y3)));
             }
         }
 
         projected.sort(Comparator.comparingDouble((ProjectedFaceWithTexture p) -> p.depth).reversed());
-
-        double minX = Double.MAX_VALUE, maxX = Double.MIN_VALUE;
-        double minY = Double.MAX_VALUE, maxY = Double.MIN_VALUE;
-        for (ProjectedFaceWithTexture p : projected) {
-            minX = Math.min(minX, Math.min(Math.min(p.x0, p.x1), Math.min(p.x2, p.x3)));
-            maxX = Math.max(maxX, Math.max(Math.max(p.x0, p.x1), Math.max(p.x2, p.x3)));
-            minY = Math.min(minY, Math.min(Math.min(p.y0, p.y1), Math.min(p.y2, p.y3)));
-            maxY = Math.max(maxY, Math.max(Math.max(p.y0, p.y1), Math.max(p.y2, p.y3)));
-        }
         double modelW = maxX - minX;
         double modelH = maxY - minY;
         if (modelW < 1) modelW = 1;
@@ -143,20 +139,21 @@ public class Isometric3DRenderer {
             double dx2 = p.x2 * scale + offsetX;
             double dy2 = offsetY - p.y2 * scale;
 
-            BufferedImage tex = texture.getSubimage(sx1, sy1, tw, th);
-            if (p.brightness() != 1.0) {
-                RescaleOp rescale = new RescaleOp(
-                        new float[]{(float) p.brightness(), (float) p.brightness(), (float) p.brightness(), 1f},
-                        new float[]{0f, 0f, 0f, 0f}, null);
-                tex = rescale.filter(tex, null);
-            }
             double m00 = (dx1 - dx0) / tw;
             double m10 = (dy1 - dy0) / tw;
             double m01 = (dx2 - dx0) / th;
             double m11 = (dy2 - dy0) / th;
-
             AffineTransform at = new AffineTransform(m00, m10, m01, m11, dx0, dy0);
-            g.drawImage(tex, at, null);
+
+            BufferedImage subimage = texture.getSubimage(sx1, sy1, tw, th);
+            if (p.brightness() != 1.0) {
+                Composite prevComposite = g.getComposite();
+                g.setComposite(new BrightnessComposite(p.brightness()));
+                g.drawImage(subimage, at, null);
+                g.setComposite(prevComposite);
+            } else {
+                g.drawImage(subimage, at, null);
+            }
         }
 
         g.dispose();
@@ -177,4 +174,7 @@ public class Isometric3DRenderer {
      */
     public record ViewParams(Vector3 eye, Vector3 target, double yawDeg,
         double pitchDeg, double aspectRatio) {}
+
+    /** Pairs a texture with its faces. Used for multi-texture rendering */
+    public record TexturedFaces(BufferedImage texture, List<Face> faces) {}
 }
