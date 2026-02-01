@@ -51,18 +51,12 @@ public class Skin {
         this.textureUrl = Config.INSTANCE.getWebPublicUrl() + "/skin/texture/%s.png".formatted(this.id);
 
         this.parts = new HashMap<>();
-        for (Enum<?>[] types : ISkinPart.TYPES) {
-            for (Enum<?> enumValue : types) {
-                ISkinPart part = (ISkinPart) enumValue;
-                if (part.hidden()) {
-                    continue;
-                }
-                this.parts.put(part.name(), "%s/skin/%s/%s.png".formatted(
-                        Config.INSTANCE.getWebPublicUrl(),
-                        this.id,
-                        part.name().toLowerCase()
-                ));
-            }
+        for (ISkinPart.Custom type : ISkinPart.Custom.values()) {
+            this.parts.put(type.name(), "%s/skin/%s/%s.png".formatted(
+                Config.INSTANCE.getWebPublicUrl(),
+                this.id,
+                type.name().toLowerCase()
+            ));
         }
     }
 

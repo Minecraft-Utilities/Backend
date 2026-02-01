@@ -4,30 +4,20 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.BodyRenderer;
+import xyz.mcutils.backend.common.renderer.impl.skin.FaceRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.IsometricHeadRenderer;
-import xyz.mcutils.backend.common.renderer.impl.skin.VanillaSkinPartRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.IsometricFullBodyRendererBack;
 import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.IsometricFullBodyRendererFront;
 
 import java.awt.image.BufferedImage;
 
 public interface ISkinPart {
-    Enum<?>[][] TYPES = { Vanilla.values(), Custom.values() };
-
     /**
      * The name of the part.
      *
      * @return the part name
      */
     String name();
-
-    /**
-     * Should this part be hidden from the
-     * player skin part urls list?
-     *
-     * @return whether this part should be hidden
-     */
-    boolean hidden();
 
     /**
      * Renders the skin part for the skin.
@@ -37,7 +27,9 @@ public interface ISkinPart {
      * @param size the output size (height; width derived per part)
      * @return the rendered skin part
      */
-    BufferedImage render(Skin skin, boolean renderOverlays, int size);
+    default BufferedImage render(Skin skin, boolean renderOverlays, int size) {
+        throw new UnsupportedOperationException("This part is not supported");
+    }
 
     /**
      * Get a skin part by the given name.
@@ -47,12 +39,9 @@ public interface ISkinPart {
      */
     static ISkinPart getByName(String name) {
         name = name.toUpperCase();
-        for (Enum<?>[] type : TYPES) {
-            for (Enum<?> part : type) {
-                if (!part.name().equals(name)) {
-                    continue;
-                }
-                return (ISkinPart) part;
+        for (Custom part : Custom.values()) {
+            if (part.name().equals(name)) {
+                return part;
             }
         }
         return null;
@@ -67,64 +56,58 @@ public interface ISkinPart {
     @Getter
     enum Vanilla implements ISkinPart {
         // Head overlays
-        HEAD_OVERLAY_TOP(true, new Coordinates(40, 0), 8, 8),
-        HEAD_OVERLAY_FACE(true, new Coordinates(40, 8), 8, 8),
-        HEAD_OVERLAY_LEFT(true, new Coordinates(32, 8), 8, 8),
-        HEAD_OVERLAY_RIGHT(true, new Coordinates(48, 8), 8, 8),
-        HEAD_OVERLAY_BACK(true, new Coordinates(56, 8), 8, 8),
-        HEAD_OVERLAY_BOTTOM(true, new Coordinates(48, 0), 8, 8),
+        HEAD_OVERLAY_TOP(new Coordinates(40, 0), 8, 8),
+        HEAD_OVERLAY_FACE(new Coordinates(40, 8), 8, 8),
+        HEAD_OVERLAY_LEFT(new Coordinates(32, 8), 8, 8),
+        HEAD_OVERLAY_RIGHT(new Coordinates(48, 8), 8, 8),
+        HEAD_OVERLAY_BACK(new Coordinates(56, 8), 8, 8),
+        HEAD_OVERLAY_BOTTOM(new Coordinates(48, 0), 8, 8),
 
         // Body overlays
-        BODY_OVERLAY_FRONT(true, new Coordinates(20, 36), 8, 12),
-        BODY_OVERLAY_TOP(true, new Coordinates(20, 32), 8, 4),
-        BODY_OVERLAY_LEFT(true, new Coordinates(36, 36), 4, 12),
-        BODY_OVERLAY_RIGHT(true, new Coordinates(28, 36), 4, 12),
-        BODY_OVERLAY_BACK(true, new Coordinates(44, 36), 8, 12),
+        BODY_OVERLAY_FRONT(new Coordinates(20, 36), 8, 12),
+        BODY_OVERLAY_TOP(new Coordinates(20, 32), 8, 4),
+        BODY_OVERLAY_LEFT(new Coordinates(36, 36), 4, 12),
+        BODY_OVERLAY_RIGHT(new Coordinates(28, 36), 4, 12),
+        BODY_OVERLAY_BACK(new Coordinates(44, 36), 8, 12),
 
         // Arm overlays
-        LEFT_ARM_OVERLAY_FRONT(true, new Coordinates(52, 52), 4, 12),
-        LEFT_ARM_OVERLAY_TOP(true, new Coordinates(52, 48), 4, 4),
-        RIGHT_ARM_OVERLAY_FRONT(true, new Coordinates(44, 36), 4, 12),
-        RIGHT_ARM_OVERLAY_TOP(true, new Coordinates(44, 48), 4, 4),
+        LEFT_ARM_OVERLAY_FRONT(new Coordinates(52, 52), 4, 12),
+        LEFT_ARM_OVERLAY_TOP(new Coordinates(52, 48), 4, 4),
+        RIGHT_ARM_OVERLAY_FRONT(new Coordinates(44, 36), 4, 12),
+        RIGHT_ARM_OVERLAY_TOP(new Coordinates(44, 48), 4, 4),
 
         // Leg overlays
-        LEFT_LEG_OVERLAY_FRONT(true, new Coordinates(4, 52), 4, 12),
-        LEFT_LEG_OVERLAY_TOP(true, new Coordinates(4, 48), 4, 4),
-        RIGHT_LEG_OVERLAY_FRONT(true, new Coordinates(4, 36), 4, 12),
-        RIGHT_LEG_OVERLAY_TOP(true, new Coordinates(4, 32), 4, 4),
+        LEFT_LEG_OVERLAY_FRONT(new Coordinates(4, 52), 4, 12),
+        LEFT_LEG_OVERLAY_TOP(new Coordinates(4, 48), 4, 4),
+        RIGHT_LEG_OVERLAY_FRONT(new Coordinates(4, 36), 4, 12),
+        RIGHT_LEG_OVERLAY_TOP(new Coordinates(4, 32), 4, 4),
 
         // Head
-        HEAD_TOP(true, new Coordinates(8, 0), 8, 8, HEAD_OVERLAY_TOP),
-        FACE(false, new Coordinates(8, 8), 8, 8, HEAD_OVERLAY_FACE),
-        HEAD_LEFT(true, new Coordinates(0, 8), 8, 8, HEAD_OVERLAY_LEFT),
-        HEAD_RIGHT(true, new Coordinates(16, 8), 8, 8, HEAD_OVERLAY_RIGHT),
-        HEAD_BOTTOM(true, new Coordinates(16, 0), 8, 8, HEAD_OVERLAY_BOTTOM),
-        HEAD_BACK(true, new Coordinates(24, 8), 8, 8, HEAD_OVERLAY_BACK),
+        HEAD_TOP(new Coordinates(8, 0), 8, 8, HEAD_OVERLAY_TOP),
+        FACE(new Coordinates(8, 8), 8, 8, HEAD_OVERLAY_FACE),
+        HEAD_LEFT(new Coordinates(0, 8), 8, 8, HEAD_OVERLAY_LEFT),
+        HEAD_RIGHT(new Coordinates(16, 8), 8, 8, HEAD_OVERLAY_RIGHT),
+        HEAD_BOTTOM(new Coordinates(16, 0), 8, 8, HEAD_OVERLAY_BOTTOM),
+        HEAD_BACK(new Coordinates(24, 8), 8, 8, HEAD_OVERLAY_BACK),
 
         // Body
-        BODY_FRONT(true, new Coordinates(20, 20), 8, 12, BODY_OVERLAY_FRONT),
-        BODY_TOP(true, new Coordinates(20, 16), 8, 4, BODY_OVERLAY_TOP),
-        BODY_LEFT(true, new Coordinates(36, 20), 4, 12, BODY_OVERLAY_LEFT),
-        BODY_RIGHT(true, new Coordinates(28, 20), 4, 12, BODY_OVERLAY_RIGHT),
-        BODY_BACK(true, new Coordinates(44, 20), 8, 12, BODY_OVERLAY_BACK),
+        BODY_FRONT(new Coordinates(20, 20), 8, 12, BODY_OVERLAY_FRONT),
+        BODY_TOP(new Coordinates(20, 16), 8, 4, BODY_OVERLAY_TOP),
+        BODY_LEFT(new Coordinates(36, 20), 4, 12, BODY_OVERLAY_LEFT),
+        BODY_RIGHT(new Coordinates(28, 20), 4, 12, BODY_OVERLAY_RIGHT),
+        BODY_BACK(new Coordinates(44, 20), 8, 12, BODY_OVERLAY_BACK),
 
         // Arms
-        LEFT_ARM_TOP(true, new Coordinates(36, 48), 4, 4, LEFT_ARM_OVERLAY_TOP),
-        RIGHT_ARM_TOP(true, new Coordinates(44, 16), 4, 4, RIGHT_ARM_OVERLAY_TOP),
-        LEFT_ARM_FRONT(true, new Coordinates(36, 52), 4, 12, LEFT_ARM_OVERLAY_FRONT),
-        RIGHT_ARM_FRONT(true, new Coordinates(44, 20), 4, 12, RIGHT_ARM_OVERLAY_FRONT),
+        LEFT_ARM_TOP(new Coordinates(36, 48), 4, 4, LEFT_ARM_OVERLAY_TOP),
+        RIGHT_ARM_TOP(new Coordinates(44, 16), 4, 4, RIGHT_ARM_OVERLAY_TOP),
+        LEFT_ARM_FRONT(new Coordinates(36, 52), 4, 12, LEFT_ARM_OVERLAY_FRONT),
+        RIGHT_ARM_FRONT(new Coordinates(44, 20), 4, 12, RIGHT_ARM_OVERLAY_FRONT),
 
         // Legs
-        LEFT_LEG_TOP(true, new Coordinates(20, 48), 4, 4, LEFT_LEG_OVERLAY_TOP),
-        RIGHT_LEG_TOP(true, new Coordinates(4, 16), 4, 4, RIGHT_LEG_OVERLAY_TOP),
-        LEFT_LEG_FRONT(true, new Coordinates(20, 52), 4, 12, LEFT_LEG_OVERLAY_FRONT),
-        RIGHT_LEG_FRONT(true, new Coordinates(4, 20), 4, 12, RIGHT_LEG_OVERLAY_FRONT);
-
-        /**
-         * Should this part be hidden from the
-         * player skin part urls list?
-         */
-        private final boolean hidden;
+        LEFT_LEG_TOP(new Coordinates(20, 48), 4, 4, LEFT_LEG_OVERLAY_TOP),
+        RIGHT_LEG_TOP(new Coordinates(4, 16), 4, 4, RIGHT_LEG_OVERLAY_TOP),
+        LEFT_LEG_FRONT(new Coordinates(20, 52), 4, 12, LEFT_LEG_OVERLAY_FRONT),
+        RIGHT_LEG_FRONT(new Coordinates(4, 20), 4, 12, RIGHT_LEG_OVERLAY_FRONT);
 
         /**
          * The coordinates of the part.
@@ -141,22 +124,11 @@ public interface ISkinPart {
          */
         private final Vanilla[] overlays;
 
-        Vanilla(boolean hidden, Coordinates coordinates, int width, int height, Vanilla... overlays) {
-            this.hidden = hidden;
+        Vanilla(Coordinates coordinates, int width, int height, Vanilla... overlays) {
             this.coordinates = coordinates;
             this.width = width;
             this.height = height;
             this.overlays = overlays;
-        }
-
-        @Override
-        public boolean hidden() {
-            return this.isHidden();
-        }
-
-        @Override
-        public BufferedImage render(Skin skin, boolean renderOverlays, int size) {
-            return VanillaSkinPartRenderer.INSTANCE.render(skin, this, renderOverlays, size);
         }
 
         /**
@@ -291,6 +263,7 @@ public interface ISkinPart {
 
     @AllArgsConstructor @Getter
     enum Custom implements ISkinPart {
+        FACE(FaceRenderer.INSTANCE),
         HEAD(IsometricHeadRenderer.INSTANCE),
         FULLBODY_FRONT(IsometricFullBodyRendererFront.INSTANCE),
         FULLBODY_BACK(IsometricFullBodyRendererBack.INSTANCE),
@@ -300,11 +273,6 @@ public interface ISkinPart {
          * The renderer to use for this part
          */
         private final SkinRenderer<Custom> renderer;
-
-        @Override
-        public boolean hidden() {
-            return false;
-        }
 
         @Override
         public BufferedImage render(Skin skin, boolean renderOverlays, int size) {
