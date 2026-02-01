@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.common.renderer;
+package xyz.mcutils.backend.common.renderer.model;
 
 import xyz.mcutils.backend.common.math.Vector3;
 

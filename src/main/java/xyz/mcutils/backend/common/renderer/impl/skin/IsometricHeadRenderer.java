@@ -2,7 +2,11 @@ package xyz.mcutils.backend.common.renderer.impl.skin;
 
 import lombok.SneakyThrows;
 import xyz.mcutils.backend.common.math.Vector3;
-import xyz.mcutils.backend.common.renderer.*;
+import xyz.mcutils.backend.common.renderer.Isometric3DRenderer;
+import xyz.mcutils.backend.common.renderer.SkinRenderer;
+import xyz.mcutils.backend.common.renderer.model.Face;
+import xyz.mcutils.backend.common.renderer.model.ViewParams;
+import xyz.mcutils.backend.common.renderer.model.models.PlayerHeadModel;
 import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.service.SkinService;
@@ -28,8 +32,8 @@ public class IsometricHeadRenderer extends SkinRenderer<ISkinPart.Custom> {
     @Override
     @SneakyThrows
     public BufferedImage render(Skin skin, ISkinPart.Custom part, boolean renderOverlays, int size) {
-        byte[] skinBytes = SkinService.INSTANCE.getSkinImage(skin, true);
-        BufferedImage skinImage = SkinImageLoader.load64x64(skinBytes);
+        byte[] skinBytes = SkinService.INSTANCE.getSkinBytes(skin, true);
+        BufferedImage skinImage = SkinService.getSkinImage(skinBytes);
 
         List<Face> faces = PlayerHeadModel.buildFaces(skin, renderOverlays);
         return Isometric3DRenderer.render(skinImage, faces, HEAD_VIEW, size);

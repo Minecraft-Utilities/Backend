@@ -112,7 +112,7 @@ public class Skin {
 
     @SneakyThrows
     private static boolean isLegacySkin(Skin skin) {
-        BufferedImage image = ImageIO.read(new ByteArrayInputStream(SkinService.INSTANCE.getSkinImage(skin, false)));
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(SkinService.INSTANCE.getSkinBytes(skin, false)));
         if (image == null) {
             return false;
         }

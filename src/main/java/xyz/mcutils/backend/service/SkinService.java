@@ -18,10 +18,10 @@ import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.repository.PlayerSkinPartCacheRepository;
 
 import javax.imageio.ImageIO;
-
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -54,7 +54,7 @@ public class SkinService {
      * @param skin the skin to get the image for
      * @return the skin image
      */
-    public byte[] getSkinImage(Skin skin, boolean upgrade) {
+    public byte[] getSkinBytes(Skin skin, boolean upgrade) {
         byte[] skinBytes = this.skinCache.asMap().computeIfAbsent(skin.getId(), _ -> {
             byte[] skinImage = minioService.get(StorageService.Bucket.SKINS, skin.getId() + ".png");
             if (skinImage == null) {
@@ -70,6 +70,20 @@ public class SkinService {
         });
 
         return upgrade ? upgradeLegacySkin(skin, skinBytes) : skinBytes;
+    }
+
+    /**
+     * Gets a skin image from bytes.
+     *
+     * @param skinBytes the skin bytes
+     * @return the skin image
+     */
+    public static BufferedImage getSkinImage(byte[] skinBytes) throws IOException {
+        BufferedImage skinImage = ImageIO.read(new ByteArrayInputStream(skinBytes));
+        if (skinImage == null) {
+            throw new IllegalStateException("Failed to load skin image");
+        }
+        return skinImage;
     }
 
     /**

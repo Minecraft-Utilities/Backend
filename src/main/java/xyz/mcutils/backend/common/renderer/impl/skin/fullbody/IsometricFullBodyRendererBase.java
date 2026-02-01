@@ -2,7 +2,10 @@ package xyz.mcutils.backend.common.renderer.impl.skin.fullbody;
 
 import lombok.SneakyThrows;
 import xyz.mcutils.backend.common.math.Vector3;
-import xyz.mcutils.backend.common.renderer.*;
+import xyz.mcutils.backend.common.renderer.Isometric3DRenderer;
+import xyz.mcutils.backend.common.renderer.model.Face;
+import xyz.mcutils.backend.common.renderer.model.ViewParams;
+import xyz.mcutils.backend.common.renderer.model.models.PlayerModel;
 import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.service.SkinService;
@@ -26,8 +29,8 @@ public class IsometricFullBodyRendererBase {
 
     @SneakyThrows
     public BufferedImage render(Skin skin, ISkinPart.Custom part, Side side, boolean renderOverlays, int size) {
-        byte[] skinBytes = SkinService.INSTANCE.getSkinImage(skin, true);
-        BufferedImage skinImage = SkinImageLoader.load64x64(skinBytes);
+        byte[] skinBytes = SkinService.INSTANCE.getSkinBytes(skin, true);
+        BufferedImage skinImage = SkinService.getSkinImage(skinBytes);
 
         List<Face> faces = PlayerModel.buildFaces(skin, renderOverlays);
         double yaw = YAW_DEG + (side == Side.BACK ? 180.0 : 0.0);

@@ -39,7 +39,7 @@ public class SkinController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .contentType(MediaType.IMAGE_PNG)
-                .body(skinService.getSkinImage(skin, false));
+                .body(skinService.getSkinBytes(skin, false));
     }
 
     @GetMapping(value = "/{query}/{part}.png", produces = MediaType.IMAGE_PNG_VALUE)

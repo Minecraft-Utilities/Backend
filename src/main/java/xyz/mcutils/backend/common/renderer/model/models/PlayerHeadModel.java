@@ -1,5 +1,7 @@
-package xyz.mcutils.backend.common.renderer;
+package xyz.mcutils.backend.common.renderer.model.models;
 
+import xyz.mcutils.backend.common.renderer.model.Face;
+import xyz.mcutils.backend.common.renderer.model.ModelUtils;
 import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
 

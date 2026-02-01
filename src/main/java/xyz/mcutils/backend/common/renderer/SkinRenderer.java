@@ -31,7 +31,7 @@ public abstract class SkinRenderer<T extends ISkinPart> {
         if (skin.getModel() == Skin.Model.SLIM && part.isFrontArm()) {
             width--;
         }
-        BufferedImage skinImage = ImageIO.read(new ByteArrayInputStream(SkinService.INSTANCE.getSkinImage(skin, true)));
+        BufferedImage skinImage = ImageIO.read(new ByteArrayInputStream(SkinService.INSTANCE.getSkinBytes(skin, true)));
         BufferedImage partTexture = getSkinPartTexture(skinImage, coordinates.getX(), coordinates.getY(), width, part.getHeight(), size);
 
         // Draw part overlays
