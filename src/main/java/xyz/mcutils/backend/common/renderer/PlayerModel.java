@@ -2,7 +2,7 @@ package xyz.mcutils.backend.common.renderer;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import xyz.mcutils.backend.common.renderer.math.Vector3;
+import xyz.mcutils.backend.common.math.Vector3;
 import xyz.mcutils.backend.model.skin.Skin;
 
 import java.util.ArrayList;

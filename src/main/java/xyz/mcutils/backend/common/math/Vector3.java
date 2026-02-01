@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.common.renderer.math;
+package xyz.mcutils.backend.common.math;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

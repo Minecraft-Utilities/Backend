@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.common.renderer.math;
+package xyz.mcutils.backend.common.math;
 
 /**
  * 4x4 matrix for view/projection in software 3D rendering.
@@ -30,16 +30,14 @@ public class Matrix4 {
     }
 
     /**
-     * Create view matrix for orbital camera around look_at.
-     * Yaw 45° + pitch 35.264° from front-right-above, seeing the player's face (-Z).
-     * Camera on sphere: azimuth=yaw (XZ plane), elevation=pitch (angle up from XZ).
+     * View matrix for an orbital camera around a target point (lookAt).
+     * Yaw and pitch define camera position on a sphere; forward is from camera toward the target.
+     * Camera on sphere: azimuth = yaw (XZ plane), elevation = pitch (angle up from XZ).
      */
     public static Matrix4 viewMatrix(double yawDeg, double pitchDeg, double distance, double lookAtX, double lookAtY, double lookAtZ) {
-        // nmsr look_from_yaw_pitch: (-yaw)-PI, (-pitch), FLIP_X_AND_Z (-1,1,-1)
         double yawRad = Math.toRadians(-yawDeg) - Math.PI;
         double pitchRad = Math.toRadians(-pitchDeg);
-        // Spherical: cam at look_at + distance * (cos(pitch)*sin(yaw), sin(pitch), cos(pitch)*cos(yaw))
-        // yaw=135° places cam in front-right; pitch=35° places cam above
+        // Spherical: camera at target + distance * direction
         double lx = Math.sin(yawRad) * Math.cos(pitchRad) * -1;
         double ly = Math.sin(pitchRad);
         double lz = Math.cos(yawRad) * Math.cos(pitchRad) * -1;
@@ -67,9 +65,7 @@ public class Matrix4 {
                 f.getX() * u.getY() - f.getY() * u.getX()
         );
 
-        // View matrix V: viewPos = V * worldPos. Vector3.transform uses columns for output:
-        // result.x = m00*x + m10*y + m20*z + m30, so col0 = (m00,m10,m20,m30)
-        // Need col0=(s.x,s.y,s.z,-s·eye), col1=(u.x,u.y,u.z,-u·eye), col2=(-f.x,-f.y,-f.z,f·eye)
+        // View matrix columns: right (s), up (u), -forward (-f)
         double sDotE = s.getX() * eye.getX() + s.getY() * eye.getY() + s.getZ() * eye.getZ();
         double uDotE = u.getX() * eye.getX() + u.getY() * eye.getY() + u.getZ() * eye.getZ();
         double fDotE = f.getX() * eye.getX() + f.getY() * eye.getY() + f.getZ() * eye.getZ();
@@ -84,15 +80,14 @@ public class Matrix4 {
 
     /**
      * Orthographic projection: map 3D view space to 2D with given scale.
-     * Returns (screenX, screenY) from view-space (x, y, z).
-     * We use x,y directly scaled; z for depth sorting.
+     * Returns (screenX, screenY, depth). Flip Y to screen space; third component is depth.
      */
     public static double[] orthographicProject(double viewX, double viewY, double viewZ,
                                                double scale, double centerX, double centerY) {
         return new double[]{
                 centerX + viewX * scale,
-                centerY - viewY * scale, // Flip Y for screen coords
-                viewZ // Keep for depth
+                centerY - viewY * scale,
+                viewZ
         };
     }
 }
