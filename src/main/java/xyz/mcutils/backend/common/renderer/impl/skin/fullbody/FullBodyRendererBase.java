@@ -3,6 +3,7 @@ package xyz.mcutils.backend.common.renderer.impl.skin.fullbody;
 import lombok.SneakyThrows;
 import xyz.mcutils.backend.common.math.Vector3;
 import xyz.mcutils.backend.common.renderer.Isometric3DRenderer;
+import xyz.mcutils.backend.common.renderer.Isometric3DRendererBackend;
 import xyz.mcutils.backend.common.renderer.Isometric3DRenderer.ViewParams;
 import xyz.mcutils.backend.common.renderer.model.Face;
 import xyz.mcutils.backend.common.renderer.model.impl.PlayerModel;
@@ -46,7 +47,7 @@ public class FullBodyRendererBase {
         double yaw = yawDeg + (side == Side.BACK ? 180.0 : 0.0);
         ViewParams view = new ViewParams(EYE, TARGET, yaw, pitchDeg, ASPECT_RATIO);
 
-        return Isometric3DRenderer.render(skinImage, faces, view, size);
+        return Isometric3DRendererBackend.get().render(skinImage, faces, view, size);
     }
 
     /**

@@ -3,6 +3,7 @@ package xyz.mcutils.backend.common.renderer.impl.skin;
 import lombok.SneakyThrows;
 import xyz.mcutils.backend.common.math.Vector3;
 import xyz.mcutils.backend.common.renderer.Isometric3DRenderer;
+import xyz.mcutils.backend.common.renderer.Isometric3DRendererBackend;
 import xyz.mcutils.backend.common.renderer.Isometric3DRenderer.ViewParams;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
 import xyz.mcutils.backend.common.renderer.model.Face;
@@ -49,6 +50,6 @@ public class HeadRenderer extends SkinRenderer {
 
         List<Face> faces = PlayerHeadModel.buildFaces(skin, renderOverlays);
         ViewParams view = new ViewParams(HEAD_EYE, HEAD_TARGET, yawDeg, pitchDeg, ASPECT_RATIO);
-        return Isometric3DRenderer.render(skinImage, faces, view, size);
+        return Isometric3DRendererBackend.get().render(skinImage, faces, view, size);
     }
 }

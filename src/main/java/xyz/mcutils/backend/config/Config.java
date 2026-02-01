@@ -13,6 +13,8 @@ import org.springframework.core.env.Environment;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import xyz.mcutils.backend.common.renderer.Isometric3DRenderer;
+import xyz.mcutils.backend.common.renderer.Isometric3DRendererBackend;
 import xyz.mcutils.backend.filter.MetricsAuthFilter;
 import xyz.mcutils.backend.log.RequestTimingFilter;
 
@@ -24,6 +26,9 @@ public class Config {
     @Autowired
     private Environment environment;
 
+    @Autowired
+    private Isometric3DRenderer isometric3DRenderer;
+
     @Value("${public-url}")
     private String webPublicUrl;
 
@@ -33,6 +38,7 @@ public class Config {
     @PostConstruct
     public void onInitialize() {
         INSTANCE = this;
+        Isometric3DRendererBackend.set(isometric3DRenderer);
     }
 
     @Bean
