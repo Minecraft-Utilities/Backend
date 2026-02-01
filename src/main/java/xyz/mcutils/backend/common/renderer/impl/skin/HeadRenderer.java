@@ -3,13 +3,11 @@ package xyz.mcutils.backend.common.renderer.impl.skin;
 import lombok.SneakyThrows;
 import xyz.mcutils.backend.common.math.Vector3;
 import xyz.mcutils.backend.common.renderer.Isometric3DRenderer;
-import xyz.mcutils.backend.common.renderer.Isometric3DRendererBackend;
 import xyz.mcutils.backend.common.renderer.Isometric3DRenderer.ViewParams;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
 import xyz.mcutils.backend.common.renderer.model.Face;
 import xyz.mcutils.backend.common.renderer.model.impl.PlayerHeadModel;
 import xyz.mcutils.backend.model.skin.Skin;
-import xyz.mcutils.backend.model.skin.SkinPart;
 import xyz.mcutils.backend.service.SkinService;
 
 import java.awt.image.BufferedImage;
@@ -27,15 +25,14 @@ public class HeadRenderer extends SkinRenderer {
 
     @Override
     @SneakyThrows
-    public BufferedImage render(Skin skin, SkinPart part, boolean renderOverlays, int size) {
-        return render(skin, part, renderOverlays, size, YAW_DEG, PITCH_DEG);
+    public BufferedImage render(Skin skin, boolean renderOverlays, int size) {
+        return render(skin, renderOverlays, size, YAW_DEG, PITCH_DEG);
     }
 
     /**
      * Renders the head with custom view angles for better overlay visibility.
      *
      * @param skin           the skin
-     * @param part           the part (unused, for API consistency)
      * @param renderOverlays whether to include overlay layer
      * @param size           output height in pixels
      * @param yawDeg         view yaw in degrees
@@ -43,13 +40,12 @@ public class HeadRenderer extends SkinRenderer {
      * @return the rendered image
      */
     @SneakyThrows
-    public BufferedImage render(Skin skin, SkinPart part, boolean renderOverlays, int size,
-                                double yawDeg, double pitchDeg) {
+    public BufferedImage render(Skin skin, boolean renderOverlays, int size, double yawDeg, double pitchDeg) {
         byte[] skinBytes = SkinService.INSTANCE.getSkinBytes(skin, true);
         BufferedImage skinImage = SkinService.getSkinImage(skinBytes);
 
         List<Face> faces = PlayerHeadModel.buildFaces(skin, renderOverlays);
         ViewParams view = new ViewParams(HEAD_EYE, HEAD_TARGET, yawDeg, pitchDeg, ASPECT_RATIO);
-        return Isometric3DRendererBackend.get().render(skinImage, faces, view, size);
+        return Isometric3DRenderer.INSTANCE.render(skinImage, faces, view, size);
     }
 }

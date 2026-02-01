@@ -174,29 +174,15 @@ public class SkinService {
         }
         Skin skin = player.getSkin();
         String name = part.name();
-        if (log.isDebugEnabled()) {
-            log.debug("Getting skin part {} for texture: {} (size: {}, overlays: {})", name, skin.getId(), size, renderOverlay);
-        }
         String key = "%s-%s-%s-%s".formatted(skin.getId(), name, size, renderOverlay);
 
-        long tCache = System.nanoTime();
         Optional<CachedPlayerSkinPart> cache = skinPartRepository.findById(key);
-        double tCacheMs = (System.nanoTime() - tCache) / 1e6;
-
         if (cache.isPresent() && AppConfig.isProduction()) {
-            if (log.isDebugEnabled()) {
-                log.debug("Skin part {} for texture {} cache hit (lookup={}ms)", name, skin.getId(), String.format("%.2f", tCacheMs));
-            }
             return cache.get();
         }
 
-        long tRender = System.nanoTime();
         BufferedImage renderedPart = part.render(skin, renderOverlay, size);
-        double tRenderMs = (System.nanoTime() - tRender) / 1e6;
-
-        long tPng = System.nanoTime();
         byte[] pngBytes = ImageUtils.imageToBytes(renderedPart);
-        double tPngMs = (System.nanoTime() - tPng) / 1e6;
 
         CachedPlayerSkinPart skinPart = new CachedPlayerSkinPart(key, pngBytes);
 
@@ -207,13 +193,6 @@ public class SkinService {
                     log.warn("Async cache save failed for skin part {}: {}", key, ex.getMessage());
                     return null;
                 });
-        }
-
-        if (log.isDebugEnabled()) {
-            log.debug("Skin part {} for texture {}: cache={}ms render={}ms png={}ms (save=async)",
-                    name, skin.getId(),
-                    String.format("%.2f", tCacheMs), String.format("%.2f", tRenderMs),
-                    String.format("%.2f", tPngMs));
         }
         return skinPart;
     }

@@ -100,16 +100,10 @@ public class ImageUtils {
      */
     @SneakyThrows
     public static byte[] imageToBytes(BufferedImage image) {
-        long t0 = System.nanoTime();
-        byte[] result = new PngEncoder()
+        return new PngEncoder()
                 .withBufferedImage(image)
                 .withCompressionLevel(1)  // fastest; ~2x faster than level 9, ~2.5x larger files
                 .toBytes();
-        if (log.isDebugEnabled()) {
-            log.debug("imageToBytes: {}x{} png encode took {}ms",
-                    image.getWidth(), image.getHeight(), String.format("%.2f", (System.nanoTime() - t0) / 1e6));
-        }
-        return result;
     }
 
     /**

@@ -31,7 +31,7 @@ public enum SkinPart {
      * @return the rendered skin part
      */
     public BufferedImage render(Skin skin, boolean renderOverlays, int size) {
-        return renderer.render(skin, this, renderOverlays, size);
+        return renderer.render(skin, renderOverlays, size);
     }
 
     /**

@@ -4,7 +4,6 @@ import lombok.SneakyThrows;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.FullBodyRendererBase.Side;
 import xyz.mcutils.backend.model.skin.Skin;
-import xyz.mcutils.backend.model.skin.SkinPart;
 
 import java.awt.image.BufferedImage;
 
@@ -13,7 +12,7 @@ public class FullBodyRendererFront extends SkinRenderer {
 
     @Override
     @SneakyThrows
-    public BufferedImage render(Skin skin, SkinPart part, boolean renderOverlays, int size) {
-        return FullBodyRendererBase.INSTANCE.render(skin, part, Side.FRONT, renderOverlays, size);
+    public BufferedImage render(Skin skin, boolean renderOverlays, int size) {
+        return FullBodyRendererBase.INSTANCE.render(skin, Side.FRONT, renderOverlays, size);
     }
 }

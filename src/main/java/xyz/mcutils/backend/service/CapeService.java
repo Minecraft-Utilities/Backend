@@ -12,8 +12,7 @@ import xyz.mcutils.backend.model.player.Cape;
 
 import java.util.concurrent.TimeUnit;
 
-@Service
-@Slf4j
+@Service @Slf4j
 public class CapeService {
     public static CapeService INSTANCE;
 

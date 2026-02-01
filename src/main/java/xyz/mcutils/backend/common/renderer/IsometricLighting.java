@@ -14,8 +14,6 @@ public final class IsometricLighting {
     /** Sun direction in world space (normalized). Default: top-left-front. */
     public static final Vector3 SUN_DIRECTION = Vector3Utils.normalize(new Vector3(1, -1, 0.5));
 
-    private IsometricLighting() {}
-
     /**
      * Computes brightness for a face based on its normal and sun direction.
      *

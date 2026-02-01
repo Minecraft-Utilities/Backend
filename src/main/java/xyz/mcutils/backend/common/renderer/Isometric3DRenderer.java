@@ -18,6 +18,7 @@ import java.util.List;
  */
 @Slf4j
 public class Isometric3DRenderer {
+    public static final Isometric3DRenderer INSTANCE = new Isometric3DRenderer();
 
     /**
      * Renders the given textured face batches with the given view onto an image.
@@ -28,7 +29,6 @@ public class Isometric3DRenderer {
      * @return the rendered image
      */
     public BufferedImage render(List<TexturedFaces> batches, ViewParams view, int size) {
-        long t0 = System.nanoTime();
         int width = (int) Math.round(size * view.aspectRatio());
 
         Vector3 eye = view.eye();
@@ -85,7 +85,6 @@ public class Isometric3DRenderer {
                 maxY = Math.max(maxY, Math.max(Math.max(y0, y1), Math.max(y2, y3)));
             }
         }
-        double tProject = (System.nanoTime() - t0) / 1e6;
 
         long tSort = System.nanoTime();
         // Stable sort: depth back-to-front, then by face index so coplanar faces (e.g. head/body seam) draw consistently
@@ -141,12 +140,6 @@ public class Isometric3DRenderer {
                     sx1, sy1, tw, th,
                     texPixels, texW, texH,
                     (float) p.brightness());
-        }
-        double tDrawMs = (System.nanoTime() - tDraw) / 1e6;
-
-        if (log.isDebugEnabled()) {
-            log.debug("Software render profile: project={}ms sort={}ms draw={}ms",
-                    String.format("%.2f", tProject), String.format("%.2f", tSortMs), String.format("%.2f", tDrawMs));
         }
         return result;
     }
