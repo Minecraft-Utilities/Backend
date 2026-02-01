@@ -4,9 +4,10 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.BodyRenderer;
-import xyz.mcutils.backend.common.renderer.impl.skin.IsometricFullBodyRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.IsometricHeadRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.VanillaSkinPartRenderer;
+import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.IsometricFullBodyRendererBack;
+import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.IsometricFullBodyRendererFront;
 
 import java.awt.image.BufferedImage;
 
@@ -65,38 +66,59 @@ public interface ISkinPart {
      */
     @Getter
     enum Vanilla implements ISkinPart {
-        // Overlays
+        // Head overlays
         HEAD_OVERLAY_TOP(true, new Coordinates(40, 0), 8, 8),
         HEAD_OVERLAY_FACE(true, new Coordinates(40, 8), 8, 8),
-        HEAD_OVERLAY_LEFT(true, new Coordinates(48, 8), 8, 8),
+        HEAD_OVERLAY_LEFT(true, new Coordinates(32, 8), 8, 8),
+        HEAD_OVERLAY_RIGHT(true, new Coordinates(48, 8), 8, 8),
+        HEAD_OVERLAY_BACK(true, new Coordinates(56, 8), 8, 8),
+        HEAD_OVERLAY_BOTTOM(true, new Coordinates(48, 0), 8, 8),
+
+        // Body overlays
+        BODY_OVERLAY_FRONT(true, new Coordinates(20, 36), 8, 12),
+        BODY_OVERLAY_TOP(true, new Coordinates(20, 32), 8, 4),
+        BODY_OVERLAY_LEFT(true, new Coordinates(36, 36), 4, 12),
+        BODY_OVERLAY_RIGHT(true, new Coordinates(28, 36), 4, 12),
+        BODY_OVERLAY_BACK(true, new Coordinates(44, 36), 8, 12),
+
+        // Arm overlays
+        LEFT_ARM_OVERLAY_FRONT(true, new Coordinates(52, 52), 4, 12),
+        LEFT_ARM_OVERLAY_TOP(true, new Coordinates(52, 48), 4, 4),
+        RIGHT_ARM_OVERLAY_FRONT(true, new Coordinates(44, 36), 4, 12),
+        RIGHT_ARM_OVERLAY_TOP(true, new Coordinates(44, 48), 4, 4),
+
+        // Leg overlays
+        LEFT_LEG_OVERLAY_FRONT(true, new Coordinates(4, 52), 4, 12),
+        LEFT_LEG_OVERLAY_TOP(true, new Coordinates(4, 48), 4, 4),
+        RIGHT_LEG_OVERLAY_FRONT(true, new Coordinates(4, 36), 4, 12),
+        RIGHT_LEG_OVERLAY_TOP(true, new Coordinates(4, 32), 4, 4),
 
         // Head
         HEAD_TOP(true, new Coordinates(8, 0), 8, 8, HEAD_OVERLAY_TOP),
         FACE(false, new Coordinates(8, 8), 8, 8, HEAD_OVERLAY_FACE),
         HEAD_LEFT(true, new Coordinates(0, 8), 8, 8, HEAD_OVERLAY_LEFT),
-        HEAD_RIGHT(true, new Coordinates(16, 8), 8, 8),
-        HEAD_BOTTOM(true, new Coordinates(16, 0), 8, 8),
-        HEAD_BACK(true, new Coordinates(24, 8), 8, 8),
+        HEAD_RIGHT(true, new Coordinates(16, 8), 8, 8, HEAD_OVERLAY_RIGHT),
+        HEAD_BOTTOM(true, new Coordinates(16, 0), 8, 8, HEAD_OVERLAY_BOTTOM),
+        HEAD_BACK(true, new Coordinates(24, 8), 8, 8, HEAD_OVERLAY_BACK),
 
         // Body
-        BODY_FRONT(true, new Coordinates(20, 20), 8, 12),
-        BODY_TOP(true, new Coordinates(20, 16), 8, 4),
-        BODY_LEFT(true, new Coordinates(36, 20), 4, 12),
-        BODY_RIGHT(true, new Coordinates(28, 20), 4, 12),
-        BODY_BACK(true, new Coordinates(44, 20), 8, 12),
+        BODY_FRONT(true, new Coordinates(20, 20), 8, 12, BODY_OVERLAY_FRONT),
+        BODY_TOP(true, new Coordinates(20, 16), 8, 4, BODY_OVERLAY_TOP),
+        BODY_LEFT(true, new Coordinates(36, 20), 4, 12, BODY_OVERLAY_LEFT),
+        BODY_RIGHT(true, new Coordinates(28, 20), 4, 12, BODY_OVERLAY_RIGHT),
+        BODY_BACK(true, new Coordinates(44, 20), 8, 12, BODY_OVERLAY_BACK),
 
         // Arms
-        LEFT_ARM_TOP(true, new Coordinates(36, 48), 4, 4),
-        RIGHT_ARM_TOP(true, new Coordinates(44, 16), 4, 4),
-
-        LEFT_ARM_FRONT(true, new Coordinates(44, 20), 4, 12),
-        RIGHT_ARM_FRONT(true, new Coordinates(36, 52), 4, 12),
+        LEFT_ARM_TOP(true, new Coordinates(36, 48), 4, 4, LEFT_ARM_OVERLAY_TOP),
+        RIGHT_ARM_TOP(true, new Coordinates(44, 16), 4, 4, RIGHT_ARM_OVERLAY_TOP),
+        LEFT_ARM_FRONT(true, new Coordinates(36, 52), 4, 12, LEFT_ARM_OVERLAY_FRONT),
+        RIGHT_ARM_FRONT(true, new Coordinates(44, 20), 4, 12, RIGHT_ARM_OVERLAY_FRONT),
 
         // Legs
-        LEFT_LEG_FRONT(true, new Coordinates(4, 20), 4, 12),
-        RIGHT_LEG_FRONT(true, new Coordinates(20, 52), 4, 12),
-        LEFT_LEG_TOP(true, new Coordinates(4, 16), 4, 4),
-        RIGHT_LEG_TOP(true, new Coordinates(20, 48), 4, 4);
+        LEFT_LEG_TOP(true, new Coordinates(20, 48), 4, 4, LEFT_LEG_OVERLAY_TOP),
+        RIGHT_LEG_TOP(true, new Coordinates(4, 16), 4, 4, RIGHT_LEG_OVERLAY_TOP),
+        LEFT_LEG_FRONT(true, new Coordinates(20, 52), 4, 12, LEFT_LEG_OVERLAY_FRONT),
+        RIGHT_LEG_FRONT(true, new Coordinates(4, 20), 4, 12, RIGHT_LEG_OVERLAY_FRONT);
 
         /**
          * Should this part be hidden from the
@@ -138,12 +160,13 @@ public interface ISkinPart {
         }
 
         /**
-         * Is this part a front arm?
+         * Is this part a front arm (base or overlay)?
          *
          * @return whether this part is a front arm
          */
         public boolean isFrontArm() {
-            return this == LEFT_ARM_FRONT || this == RIGHT_ARM_FRONT;
+            return this == LEFT_ARM_FRONT || this == RIGHT_ARM_FRONT
+                || this == LEFT_ARM_OVERLAY_FRONT || this == RIGHT_ARM_OVERLAY_FRONT;
         }
 
         @AllArgsConstructor @Getter
@@ -152,6 +175,63 @@ public interface ISkinPart {
              * The X and Y position of the part.
              */
             private final int x, y;
+        }
+
+        /**
+         * Model box definitions for the 3D player model. Maps each body part to its
+         * base and overlay texture regions and box dimensions.
+         */
+        public enum ModelBox {
+            HEAD(FACE, HEAD_OVERLAY_FACE, 8),
+            BODY(BODY_FRONT, BODY_OVERLAY_FRONT, 4),
+            LEFT_ARM(LEFT_ARM_FRONT, LEFT_ARM_OVERLAY_FRONT, 4),
+            RIGHT_ARM(RIGHT_ARM_FRONT, RIGHT_ARM_OVERLAY_FRONT, 4),
+            LEFT_LEG(LEFT_LEG_FRONT, LEFT_LEG_OVERLAY_FRONT, 4),
+            RIGHT_LEG(RIGHT_LEG_FRONT, RIGHT_LEG_OVERLAY_FRONT, 4);
+
+            private final Vanilla basePart;
+            private final Vanilla overlayPart;
+            private final int depth;
+
+            ModelBox(Vanilla basePart, Vanilla overlayPart, int depth) {
+                this.basePart = basePart;
+                this.overlayPart = overlayPart;
+                this.depth = depth;
+            }
+
+            /**
+             * Gets box UV params (x, y, sizeX, sizeY, sizeZ) for the base layer.
+             *
+             * @param slim whether the skin uses slim arms
+             * @return array of {x, y, sizeX, sizeY, sizeZ}
+             */
+            public int[] getBaseUv(boolean slim) {
+                return getUv(basePart, slim, depth);
+            }
+
+            /**
+             * Gets box UV params (x, y, sizeX, sizeY, sizeZ) for the overlay layer.
+             *
+             * @param slim whether the skin uses slim arms
+             * @return array of {x, y, sizeX, sizeY, sizeZ}
+             */
+            public int[] getOverlayUv(boolean slim) {
+                return getUv(overlayPart, slim, depth);
+            }
+
+            private static int[] getUv(Vanilla part, boolean slim, int sizeZ) {
+                int w = part.getWidth();
+                if (slim && part.isFrontArm()) {
+                    w--;
+                }
+                return new int[]{
+                        part.getCoordinates().getX(),
+                        part.getCoordinates().getY(),
+                        w,
+                        part.getHeight(),
+                        sizeZ
+                };
+            }
         }
 
         /**
@@ -213,7 +293,8 @@ public interface ISkinPart {
     @AllArgsConstructor @Getter
     enum Custom implements ISkinPart {
         HEAD(IsometricHeadRenderer.INSTANCE),
-        FULLBODY(IsometricFullBodyRenderer.INSTANCE),
+        FULLBODY_FRONT(IsometricFullBodyRendererFront.INSTANCE),
+        FULLBODY_BACK(IsometricFullBodyRendererBack.INSTANCE),
         BODY(BodyRenderer.INSTANCE);
 
         /**

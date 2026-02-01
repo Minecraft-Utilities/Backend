@@ -1,72 +1,52 @@
-package xyz.mcutils.backend.common.renderer.impl.skin;
+package xyz.mcutils.backend.common.renderer;
 
-import lombok.SneakyThrows;
 import xyz.mcutils.backend.common.math.Vector3;
 import xyz.mcutils.backend.common.math.Vector3Utils;
-import xyz.mcutils.backend.common.renderer.PlayerModel;
-import xyz.mcutils.backend.common.renderer.SkinRenderer;
-import xyz.mcutils.backend.model.skin.ISkinPart;
-import xyz.mcutils.backend.model.skin.Skin;
-import xyz.mcutils.backend.service.SkinService;
 
-import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
 /**
- * Renders a full Minecraft player body using software 3D rendering.
- * Uses orthographic projection with a fixed camera; the model is rotated by
- * {@link #YAW_DEG} and {@link #PITCH_DEG} to produce an isometric view.
+ * Generic 3D isometric renderer: given a 64×64 skin image, a list of faces,
+ * and view parameters, rotates faces by yaw/pitch, orthographically projects,
+ * sorts by depth, and draws quads. Used by full-body and head renderers.
  */
-public class IsometricFullBodyRenderer extends SkinRenderer<ISkinPart.Custom> {
-    public static final IsometricFullBodyRenderer INSTANCE = new IsometricFullBodyRenderer();
+public final class Isometric3DRenderer {
 
-    private static final double ASPECT_RATIO = 512.0 / 869.0;
-    private static final double YAW_DEG = 45.0;
-    private static final double PITCH_DEG = 35.0;
+    private Isometric3DRenderer() {}
 
-    @Override
-    @SneakyThrows
-    public BufferedImage render(Skin skin, ISkinPart.Custom part, boolean renderOverlays, int size) {
-        int width = (int) Math.round(size * ASPECT_RATIO);
+    /**
+     * Renders the given faces with the given view onto an image of the specified size.
+     *
+     * @param skin64x64 the skin texture (64×64)
+     * @param faces     the list of textured faces
+     * @param view      view parameters (eye, target, yaw, pitch, aspect ratio)
+     * @param size      output height in pixels; width = size * aspectRatio
+     * @return the rendered image
+     */
+    public static BufferedImage render(BufferedImage skin64x64, List<Face> faces, ViewParams view, int size) {
+        int width = (int) Math.round(size * view.aspectRatio());
 
-        // Load and normalize skin to 64x64
-        byte[] skinBytes = SkinService.INSTANCE.getSkinImage(skin, true);
-        BufferedImage skinImage = ImageIO.read(new ByteArrayInputStream(skinBytes));
-        if (skinImage == null) {
-            throw new IllegalStateException("Failed to load skin image");
-        }
-
-        if (skinImage.getWidth() != 64 || skinImage.getHeight() != 64) {
-            BufferedImage normalized = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
-            Graphics2D g = normalized.createGraphics();
-            g.drawImage(skinImage, 0, 0, 64, 64, null);
-            g.dispose();
-            skinImage = normalized;
-        }
-
-        List<PlayerModel.Face> faces = PlayerModel.buildFaces(skin, renderOverlays);
-
-        // Camera at fixed position, looking at model center
-        Vector3 eye = new Vector3(0, 28, -45);
-        Vector3 target = new Vector3(0, 16.5, 0);
+        Vector3 eye = view.eye();
+        Vector3 target = view.target();
         Vector3 fwd = Vector3Utils.normalize(target.subtract(eye));
         Vector3 right = Vector3Utils.normalize(Vector3Utils.cross(fwd, new Vector3(0, 1, 0)));
         Vector3 up = Vector3Utils.normalize(Vector3Utils.cross(right, fwd));
 
-        Vector3 modelCenter = new Vector3(0, 16.5, 0);
-        // Rotate model by yaw/pitch, then project each face to 2D
+        Vector3 modelCenter = target;
+        double yaw = view.yawDeg();
+        double pitch = view.pitchDeg();
+
         List<ProjectedFace> projected = new ArrayList<>();
-        for (PlayerModel.Face face : faces) {
-            Vector3 v0 = Vector3Utils.rotAround(face.getV0(), modelCenter, YAW_DEG, PITCH_DEG);
-            Vector3 v1 = Vector3Utils.rotAround(face.getV1(), modelCenter, YAW_DEG, PITCH_DEG);
-            Vector3 v2 = Vector3Utils.rotAround(face.getV2(), modelCenter, YAW_DEG, PITCH_DEG);
-            Vector3 v3 = Vector3Utils.rotAround(face.getV3(), modelCenter, YAW_DEG, PITCH_DEG);
+        for (Face face : faces) {
+            Vector3 v0 = Vector3Utils.rotAround(face.getV0(), modelCenter, yaw, pitch);
+            Vector3 v1 = Vector3Utils.rotAround(face.getV1(), modelCenter, yaw, pitch);
+            Vector3 v2 = Vector3Utils.rotAround(face.getV2(), modelCenter, yaw, pitch);
+            Vector3 v3 = Vector3Utils.rotAround(face.getV3(), modelCenter, yaw, pitch);
             double[] p0 = Vector3Utils.project(v0, eye, fwd, right, up);
             double[] p1 = Vector3Utils.project(v1, eye, fwd, right, up);
             double[] p2 = Vector3Utils.project(v2, eye, fwd, right, up);
@@ -82,7 +62,6 @@ public class IsometricFullBodyRenderer extends SkinRenderer<ISkinPart.Custom> {
 
         projected.sort(Comparator.comparingDouble((ProjectedFace p) -> p.depth).reversed());
 
-        // Compute bounding box and scale to fit output with padding
         double minX = Double.MAX_VALUE, maxX = Double.MIN_VALUE;
         double minY = Double.MAX_VALUE, maxY = Double.MIN_VALUE;
         for (ProjectedFace p : projected) {
@@ -105,7 +84,6 @@ public class IsometricFullBodyRenderer extends SkinRenderer<ISkinPart.Custom> {
         g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 
-        // Draw each face: sample texture region and map to screen quad via AffineTransform
         for (ProjectedFace p : projected) {
             int sx1 = (int) Math.floor(p.u0);
             int sy1 = (int) Math.floor(p.v0_);
@@ -117,7 +95,7 @@ public class IsometricFullBodyRenderer extends SkinRenderer<ISkinPart.Custom> {
             sy2 = Math.max(sy1 + 1, Math.min(sy2, 64));
             int tw = sx2 - sx1;
             int th = sy2 - sy1;
-            if (tw <= 0 || th <= 0) continue; // Skip degenerate UV regions
+            if (tw <= 0 || th <= 0) continue;
 
             double dx0 = p.x0 * scale + offsetX;
             double dy0 = offsetY - p.y0 * scale;
@@ -126,7 +104,7 @@ public class IsometricFullBodyRenderer extends SkinRenderer<ISkinPart.Custom> {
             double dx2 = p.x2 * scale + offsetX;
             double dy2 = offsetY - p.y2 * scale;
 
-            BufferedImage tex = skinImage.getSubimage(sx1, sy1, tw, th);
+            BufferedImage tex = skin64x64.getSubimage(sx1, sy1, tw, th);
             double m00 = (dx1 - dx0) / tw;
             double m10 = (dy1 - dy0) / tw;
             double m01 = (dx2 - dx0) / th;
@@ -140,9 +118,6 @@ public class IsometricFullBodyRenderer extends SkinRenderer<ISkinPart.Custom> {
         return result;
     }
 
-    /**
-     * A face after projection to 2D, with screen coordinates and UV bounds.
-     */
     private record ProjectedFace(double x0, double y0, double x1, double y1,
                                  double x2, double y2, double x3, double y3,
                                  double depth,
