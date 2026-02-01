@@ -34,7 +34,7 @@ public class Cape {
         String id = capeUrlParts[capeUrlParts.length - 1];
         return new Cape(
                 id,
-                Config.INSTANCE.getWebPublicUrl() + "/cape/texture/" + player.getUniqueId().toString() + ".png"
+                Config.INSTANCE.getWebPublicUrl() + "/cape/%s/texture.png".formatted(player.getUniqueId().toString())
         );
     }
 

@@ -27,18 +27,12 @@ public class CapeController {
     }
 
     @ResponseBody
-    @GetMapping(value = "/texture/{query}.png", produces = MediaType.IMAGE_PNG_VALUE)
+    @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getPlayer(
-            @Parameter(description = "The texture id or Player UUID/name for the Cape", example = "ImFascinated") @PathVariable String query) {
-        Cape cape;
-        if (query.length() == 64) { // Texture id
-            cape = Cape.fromId(query);
-        } else {
-            cape = playerService.getPlayer(query).getPlayer().getCape();
-        }
+            @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String query) {
 
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
-                .body(this.capeService.getCapeImage(cape));
+                .body(this.capeService.getCapeImage(this.playerService.getPlayer(query).getPlayer().getCape()));
     }
 }

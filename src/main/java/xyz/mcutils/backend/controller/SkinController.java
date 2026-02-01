@@ -25,7 +25,7 @@ public class SkinController {
         this.skinService = skinService;
     }
 
-    @GetMapping(value = "/texture/{query}.png", produces = MediaType.IMAGE_PNG_VALUE)
+    @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<?> getPlayerSkin(
             @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String query) {
         return ResponseEntity.ok()

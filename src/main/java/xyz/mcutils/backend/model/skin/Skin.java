@@ -49,7 +49,7 @@ public class Skin {
 
         this.model = model;
         this.legacy = Skin.isLegacySkin(this);
-        this.textureUrl = Config.INSTANCE.getWebPublicUrl() + "/skin/texture/%s.png".formatted(player.getUniqueId().toString());
+        this.textureUrl = Config.INSTANCE.getWebPublicUrl() + "/skin/%s/texture.png".formatted(player.getUniqueId().toString());
 
         this.parts = new HashMap<>();
         for (SkinPart type : SkinPart.values()) {
