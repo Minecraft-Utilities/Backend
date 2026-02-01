@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.common.renderer.model;
+package xyz.mcutils.backend.common.renderer.raster;
 
 import xyz.mcutils.backend.common.math.Vector3;
 

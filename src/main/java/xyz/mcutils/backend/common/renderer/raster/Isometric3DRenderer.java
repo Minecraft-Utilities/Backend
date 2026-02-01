@@ -1,9 +1,9 @@
-package xyz.mcutils.backend.common.renderer;
+package xyz.mcutils.backend.common.renderer.raster;
 
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.math.Vector3;
 import xyz.mcutils.backend.common.math.Vector3Utils;
-import xyz.mcutils.backend.common.renderer.model.Face;
+import xyz.mcutils.backend.common.renderer.IsometricLighting;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;

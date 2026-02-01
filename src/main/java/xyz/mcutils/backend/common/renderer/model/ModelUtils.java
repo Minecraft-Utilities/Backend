@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.common.renderer.model;
 
 import xyz.mcutils.backend.common.math.Vector3;
+import xyz.mcutils.backend.common.renderer.raster.Face;
 
 import java.util.List;
 
