@@ -30,7 +30,7 @@ class SoftwareIsometric3DRendererTest {
                 new Vector3(0, 28, -45), new Vector3(0, 16.5, 0),
                 45, 35, 512.0 / 869.0);
 
-        SoftwareIsometric3DRenderer renderer = new SoftwareIsometric3DRenderer();
+        Isometric3DRenderer renderer = new Isometric3DRenderer();
         BufferedImage result = renderer.render(texture, faces, view, 256);
 
         assertNotNull(result);
