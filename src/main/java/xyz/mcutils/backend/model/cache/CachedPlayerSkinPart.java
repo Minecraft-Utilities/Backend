@@ -6,7 +6,7 @@ import org.springframework.data.redis.core.RedisHash;
 
 @AllArgsConstructor
 @Setter @Getter @EqualsAndHashCode
-@RedisHash(value = "playerSkinPart", timeToLive = 60L * 60L) // 1 hour (in seconds)
+@RedisHash(value = "playerSkinPart", timeToLive = 60L * 60L * 24L) // 1 day (in seconds)
 public class CachedPlayerSkinPart {
 
     /**

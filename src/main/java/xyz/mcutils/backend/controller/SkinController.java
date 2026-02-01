@@ -28,36 +28,22 @@ public class SkinController {
 
     @GetMapping(value = "/texture/{query}.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<?> getPlayerSkin(
-            @Parameter(description = "The texture id or Player UUID/name for the Skin", example = "ImFascinated") @PathVariable String query) {
-        Skin skin;
-        if (query.length() == 64) { // Texture id
-            skin = Skin.fromId(query);
-        } else {
-            skin = playerService.getPlayer(query).getPlayer().getSkin();
-        }
-
+            @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String query) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .contentType(MediaType.IMAGE_PNG)
-                .body(skinService.getSkinBytes(skin, false));
+                .body(skinService.getSkinBytes(this.playerService.getPlayer(query).getPlayer().getSkin(), false));
     }
 
     @GetMapping(value = "/{query}/{part}.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<?> getPlayerSkinPart(
-            @Parameter(description = "The texture id or Player UUID/name for the Skin", example = "ImFascinated") @PathVariable String query,
+            @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String query,
             @Parameter(description = "The part of the skin", example = "head") @PathVariable String part,
             @Parameter(description = "The size of the image (height; width derived per part)", example = "512") @RequestParam(required = false, defaultValue = "512") int size,
             @Parameter(description = "Whether to render the skin overlay (skin layers)", example = "false") @RequestParam(required = false, defaultValue = "true") boolean overlays) {
-        Skin skin;
-        if (query.length() == 64) { // Texture id
-            skin = Skin.fromId(query);
-        } else {
-            skin = playerService.getPlayer(query).getPlayer().getSkin();
-        }
-
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .contentType(MediaType.IMAGE_PNG)
-                .body(skinService.getSkinPart(skin, part, overlays, size).getBytes());
+                .body(skinService.getSkinPart(this.playerService.getPlayer(query).getPlayer(), part, overlays, size).getBytes());
     }
 }

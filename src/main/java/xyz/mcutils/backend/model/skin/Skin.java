@@ -6,6 +6,8 @@ import lombok.*;
 import lombok.extern.log4j.Log4j2;
 import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.config.Config;
+import xyz.mcutils.backend.model.player.Player;
+import xyz.mcutils.backend.model.skin.SkinPart;
 import xyz.mcutils.backend.service.SkinService;
 
 import javax.imageio.ImageIO;
@@ -42,19 +44,19 @@ public class Skin {
      */
     @Setter private Map<String, String> parts;
 
-    public Skin(String url, Model model) {
+    public Skin(String url, Model model, Player player) {
         String[] skinUrlParts = url.split("/");
         this.id = skinUrlParts[skinUrlParts.length - 1];
 
         this.model = model;
         this.legacy = Skin.isLegacySkin(this);
-        this.textureUrl = Config.INSTANCE.getWebPublicUrl() + "/skin/texture/%s.png".formatted(this.id);
+        this.textureUrl = Config.INSTANCE.getWebPublicUrl() + "/skin/texture/%s.png".formatted(player.getUniqueId().toString());
 
         this.parts = new HashMap<>();
-        for (ISkinPart.Custom type : ISkinPart.Custom.values()) {
+        for (SkinPart type : SkinPart.values()) {
             this.parts.put(type.name(), "%s/skin/%s/%s.png".formatted(
                 Config.INSTANCE.getWebPublicUrl(),
-                this.id,
+                player.getUniqueId().toString(),
                 type.name().toLowerCase()
             ));
         }
@@ -76,7 +78,7 @@ public class Skin {
      * @param json the JSON object
      * @return the skin
      */
-    public static Skin fromJson(JsonObject json) {
+    public static Skin fromJson(JsonObject json, Player player) {
         if (json == null) {
             return null;
         }
@@ -84,23 +86,8 @@ public class Skin {
         JsonObject metadata = json.getAsJsonObject("metadata");
         return new Skin(
                 url,
-                EnumUtils.getEnumConstant(Model.class, metadata != null ? metadata.get("model").getAsString().toUpperCase() : "DEFAULT")
-        );
-    }
-
-    /**
-     * Gets a skin from its texture id.
-     * <b>
-     * This is only used for getting skin image by texture ids.
-     * </b>
-     *
-     * @param id the texture id
-     * @return the skin
-     */
-    public static Skin fromId(String id) {
-        return new Skin(
-                id,
-                Model.DEFAULT // Doesn't matter in this case
+                EnumUtils.getEnumConstant(Model.class, metadata != null ? metadata.get("model").getAsString().toUpperCase() : "DEFAULT"),
+                player
         );
     }
 

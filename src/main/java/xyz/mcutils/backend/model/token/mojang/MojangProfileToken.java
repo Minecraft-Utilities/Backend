@@ -9,6 +9,7 @@ import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.model.player.Cape;
+import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.skin.Skin;
 
 import java.util.Base64;
@@ -53,16 +54,17 @@ public class MojangProfileToken {
     /**
      * Get the skin and cape of the player.
      *
+     * @param player the player to get the skin and cape for
      * @return the skin and cape of the player
      */
-    public Tuple<Skin, Cape> getSkinAndCape() {
+    public Tuple<Skin, Cape> getSkinAndCape(Player player) {
         ProfileProperty textureProperty = getProfileProperty("textures");
         if (textureProperty == null) {
             return null;
         }
         JsonObject texturesJson = textureProperty.getDecodedValue().getAsJsonObject("textures"); // Parse the decoded JSON and get the texture object
-        return new Tuple<>(Skin.fromJson(texturesJson.getAsJsonObject("SKIN")),
-                Cape.fromJson(texturesJson.getAsJsonObject("CAPE")));
+        return new Tuple<>(Skin.fromJson(texturesJson.getAsJsonObject("SKIN"), player),
+                Cape.fromJson(texturesJson.getAsJsonObject("CAPE"), player));
     }
 
     /**

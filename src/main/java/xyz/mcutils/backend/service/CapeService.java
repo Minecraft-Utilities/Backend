@@ -2,6 +2,7 @@ package xyz.mcutils.backend.service;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -14,15 +15,22 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Log4j2(topic = "Cape Service")
 public class CapeService {
+    public static CapeService INSTANCE;
+
     private final StorageService minioService;
 
-    private final Cache<String, byte[]> capeCache =  CacheBuilder.newBuilder()
+    private final Cache<String, byte[]> capeCache = CacheBuilder.newBuilder()
             .expireAfterAccess(30, TimeUnit.MINUTES)
             .build();
 
     @Autowired
     public CapeService(StorageService minioService) {
         this.minioService = minioService;
+    }
+
+    @PostConstruct
+    public void init() {
+        INSTANCE = this;
     }
 
     /**

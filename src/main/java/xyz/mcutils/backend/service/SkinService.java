@@ -13,8 +13,10 @@ import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
-import xyz.mcutils.backend.model.skin.ISkinPart;
+import xyz.mcutils.backend.model.player.Player;
+import xyz.mcutils.backend.common.renderer.model.PlayerModelCoordinates;
 import xyz.mcutils.backend.model.skin.Skin;
+import xyz.mcutils.backend.model.skin.SkinPart;
 import xyz.mcutils.backend.repository.PlayerSkinPartCacheRepository;
 
 import javax.imageio.ImageIO;
@@ -32,15 +34,18 @@ public class SkinService {
 
     private final PlayerSkinPartCacheRepository skinPartRepository;
     private final StorageService minioService;
+    private final RendererService rendererService;
 
-    private final Cache<String, byte[]> skinCache =  CacheBuilder.newBuilder()
+    private final Cache<String, byte[]> skinCache = CacheBuilder.newBuilder()
             .expireAfterAccess(30, TimeUnit.MINUTES)
             .build();
 
     @Autowired
-    public SkinService(PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService) {
+    public SkinService(PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService,
+                       RendererService rendererService) {
         this.skinPartRepository = skinPartRepository;
         this.minioService = minioService;
+        this.rendererService = rendererService;
     }
 
     @PostConstruct
@@ -133,15 +138,15 @@ public class SkinService {
         g.dispose();
 
         // Create missing left leg and left arm (mirror from legacy right leg/arm)
-        for (int[] rect : ISkinPart.Vanilla.LegacyUpgrade.LEFT_LEG_COPIES) {
+        for (int[] rect : PlayerModelCoordinates.LegacyUpgrade.LEFT_LEG_COPIES) {
             ImageUtils.copyRect(upgraded, rect[0], rect[1], rect[2], rect[3], rect[4], rect[5], rect[6], rect[7], scale);
         }
-        for (int[] rect : ISkinPart.Vanilla.LegacyUpgrade.LEFT_ARM_COPIES) {
+        for (int[] rect : PlayerModelCoordinates.LegacyUpgrade.LEFT_ARM_COPIES) {
             ImageUtils.copyRect(upgraded, rect[0], rect[1], rect[2], rect[3], rect[4], rect[5], rect[6], rect[7], scale);
         }
 
         // Clear overlay regions (HEADZ, BODYZ, RAZ, LAZ, LLZ) — legacy skins have no overlays
-        for (int[] region : ISkinPart.Vanilla.LegacyUpgrade.CLEAR_OVERLAYS) {
+        for (int[] region : PlayerModelCoordinates.LegacyUpgrade.CLEAR_OVERLAYS) {
             ImageUtils.setAreaTransparentIfOpaque(upgraded, region[0], region[1], region[2], region[3], scale);
         }
 
@@ -157,7 +162,7 @@ public class SkinService {
      * @param size the output size (height; width derived per part)
      * @return the skin part
      */
-    public CachedPlayerSkinPart getSkinPart(Skin skin, String partName, boolean renderOverlay, int size) {
+    public CachedPlayerSkinPart getSkinPart(Player player, String partName, boolean renderOverlay, int size) {
         if (size > 1024) {
             throw new BadRequestException("Size must not be larger than 1024");
         }
@@ -165,25 +170,25 @@ public class SkinService {
             throw new BadRequestException("Size must not be smaller than 32");
         }
 
-        ISkinPart part = ISkinPart.getByName(partName); // The skin part to get
+        SkinPart part = rendererService.getSkinPartByName(partName);
         if (part == null) {
             throw new BadRequestException("Invalid skin part: '%s'".formatted(partName));
         }
-
+        Skin skin = player.getSkin();
         String name = part.name();
-        log.debug("Getting skin part {} for texture: {} (size: {}, overlays: {})", name, skin.getId(), size, renderOverlay);
+        log.debug("Getting skin part {} for texture: {} (size: {}, overlays: {})",
+                name, skin.getId(), size, renderOverlay);
         String key = "%s-%s-%s-%s".formatted(skin.getId(), name, size, renderOverlay);
 
         Optional<CachedPlayerSkinPart> cache = skinPartRepository.findById(key);
 
-        // The skin part is cached
         if (cache.isPresent() && AppConfig.isProduction()) {
             log.debug("Skin part {} for texture {} is cached", name, skin.getId());
             return cache.get();
         }
 
         long before = System.currentTimeMillis();
-        BufferedImage renderedPart = part.render(skin, renderOverlay, size); // Render the skin part
+        BufferedImage renderedPart = rendererService.renderSkinPart(skin, part, renderOverlay, size);
         log.debug("Took {}ms to render skin part {} for texture: {}", System.currentTimeMillis() - before, name, skin.getId());
 
         CachedPlayerSkinPart skinPart = new CachedPlayerSkinPart(

@@ -6,8 +6,8 @@ import xyz.mcutils.backend.common.renderer.Isometric3DRenderer;
 import xyz.mcutils.backend.common.renderer.Isometric3DRenderer.ViewParams;
 import xyz.mcutils.backend.common.renderer.model.Face;
 import xyz.mcutils.backend.common.renderer.model.impl.PlayerModel;
-import xyz.mcutils.backend.model.skin.ISkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
+import xyz.mcutils.backend.model.skin.SkinPart;
 import xyz.mcutils.backend.service.SkinService;
 
 import java.awt.image.BufferedImage;
@@ -28,29 +28,21 @@ public class FullBodyRendererBase {
     private static final Vector3 TARGET = new Vector3(0, 16.5, 0);
 
     @SneakyThrows
-    public BufferedImage render(Skin skin, ISkinPart.Custom part, Side side, boolean renderOverlays, int size) {
+    public BufferedImage render(Skin skin, SkinPart part, Side side, boolean renderOverlays, int size) {
         return render(skin, part, side, renderOverlays, size, YAW_DEG, PITCH_DEG);
     }
 
     /**
      * Renders the full body with custom view angles.
-     *
-     * @param skin           the skin
-     * @param part           the part (unused, for API consistency)
-     * @param side           FRONT or BACK
-     * @param renderOverlays whether to include overlay layer
-     * @param size           output height in pixels
-     * @param yawDeg         view yaw in degrees (added to side offset)
-     * @param pitchDeg       view pitch in degrees
-     * @return the rendered image
      */
     @SneakyThrows
-    public BufferedImage render(Skin skin, ISkinPart.Custom part, Side side, boolean renderOverlays, int size,
+    public BufferedImage render(Skin skin, SkinPart part, Side side, boolean renderOverlays, int size,
                                 double yawDeg, double pitchDeg) {
         byte[] skinBytes = SkinService.INSTANCE.getSkinBytes(skin, true);
         BufferedImage skinImage = SkinService.getSkinImage(skinBytes);
 
         List<Face> faces = PlayerModel.buildFaces(skin, renderOverlays);
+
         double yaw = yawDeg + (side == Side.BACK ? 180.0 : 0.0);
         ViewParams view = new ViewParams(EYE, TARGET, yaw, pitchDeg, ASPECT_RATIO);
 

@@ -7,14 +7,14 @@ import xyz.mcutils.backend.common.renderer.Isometric3DRenderer.ViewParams;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
 import xyz.mcutils.backend.common.renderer.model.Face;
 import xyz.mcutils.backend.common.renderer.model.impl.PlayerHeadModel;
-import xyz.mcutils.backend.model.skin.ISkinPart;
+import xyz.mcutils.backend.model.skin.SkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.service.SkinService;
 
 import java.awt.image.BufferedImage;
 import java.util.List;
 
-public class HeadRenderer extends SkinRenderer<ISkinPart.Custom> {
+public class HeadRenderer extends SkinRenderer {
     public static final HeadRenderer INSTANCE = new HeadRenderer();
 
     private static final double PITCH_DEG = 35.0;
@@ -26,7 +26,7 @@ public class HeadRenderer extends SkinRenderer<ISkinPart.Custom> {
 
     @Override
     @SneakyThrows
-    public BufferedImage render(Skin skin, ISkinPart.Custom part, boolean renderOverlays, int size) {
+    public BufferedImage render(Skin skin, SkinPart part, boolean renderOverlays, int size) {
         return render(skin, part, renderOverlays, size, YAW_DEG, PITCH_DEG);
     }
 
@@ -42,7 +42,7 @@ public class HeadRenderer extends SkinRenderer<ISkinPart.Custom> {
      * @return the rendered image
      */
     @SneakyThrows
-    public BufferedImage render(Skin skin, ISkinPart.Custom part, boolean renderOverlays, int size,
+    public BufferedImage render(Skin skin, SkinPart part, boolean renderOverlays, int size,
                                 double yawDeg, double pitchDeg) {
         byte[] skinBytes = SkinService.INSTANCE.getSkinBytes(skin, true);
         BufferedImage skinImage = SkinService.getSkinImage(skinBytes);

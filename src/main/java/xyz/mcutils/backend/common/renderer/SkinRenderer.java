@@ -3,7 +3,8 @@ package xyz.mcutils.backend.common.renderer;
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 import xyz.mcutils.backend.common.ImageUtils;
-import xyz.mcutils.backend.model.skin.ISkinPart;
+import xyz.mcutils.backend.common.renderer.model.PlayerModelCoordinates;
+import xyz.mcutils.backend.model.skin.SkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.service.SkinService;
 
@@ -13,7 +14,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 
 @Log4j2(topic = "Skin Renderer")
-public abstract class SkinRenderer<T extends ISkinPart> {
+public abstract class SkinRenderer {
 
     /**
      * Get the texture of a part of the skin.
@@ -25,8 +26,8 @@ public abstract class SkinRenderer<T extends ISkinPart> {
      * @return the texture of the skin part
      */
     @SneakyThrows
-    public BufferedImage getVanillaSkinPart(Skin skin, ISkinPart.Vanilla part, double size, boolean renderOverlays) {
-        ISkinPart.Vanilla.Coordinates coordinates = part.getCoordinates();
+    public BufferedImage getVanillaSkinPart(Skin skin, PlayerModelCoordinates.Vanilla part, double size, boolean renderOverlays) {
+        PlayerModelCoordinates.Vanilla.Coordinates coordinates = part.getCoordinates();
         int width = part.getWidth();
         if (skin.getModel() == Skin.Model.SLIM && part.isFrontArm()) {
             width--;
@@ -35,10 +36,10 @@ public abstract class SkinRenderer<T extends ISkinPart> {
         BufferedImage partTexture = getSkinPartTexture(skinImage, coordinates.getX(), coordinates.getY(), width, part.getHeight(), size);
 
         // Draw part overlays
-        ISkinPart.Vanilla[] overlayParts = part.getOverlays();
+        PlayerModelCoordinates.Vanilla[] overlayParts = part.getOverlays();
         if (overlayParts != null && renderOverlays) {
             log.debug("Applying overlays to part: {}", part.name());
-            for (ISkinPart.Vanilla overlay : overlayParts) {
+            for (PlayerModelCoordinates.Vanilla overlay : overlayParts) {
                 applyOverlay(partTexture.createGraphics(), getVanillaSkinPart(skin, overlay, size, false));
             }
         }
@@ -97,5 +98,6 @@ public abstract class SkinRenderer<T extends ISkinPart> {
      * @param size the output size (height; width derived per part)
      * @return the rendered skin part
      */
-    public abstract BufferedImage render(Skin skin, T part, boolean renderOverlays, int size);
+    public abstract BufferedImage render(Skin skin, SkinPart part, boolean renderOverlays, int size);
+
 }

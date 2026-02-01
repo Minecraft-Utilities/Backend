@@ -2,7 +2,7 @@ package xyz.mcutils.backend.common.renderer.model.impl;
 
 import xyz.mcutils.backend.common.renderer.model.Face;
 import xyz.mcutils.backend.common.renderer.model.ModelUtils;
-import xyz.mcutils.backend.model.skin.ISkinPart;
+import xyz.mcutils.backend.common.renderer.model.PlayerModelCoordinates;
 import xyz.mcutils.backend.model.skin.Skin;
 
 import java.util.ArrayList;
@@ -26,11 +26,11 @@ public class PlayerHeadModel {
         boolean slim = skin.getModel() == Skin.Model.SLIM;
 
         // Base layer: head box at -4, 24, -4, size 8×8×8
-        ModelUtils.addBox(faces, -4, 24, -4, 8, 8, 8, ModelUtils.uvFrom(ISkinPart.Vanilla.ModelBox.HEAD.getBaseUv(slim)));
+        ModelUtils.addBox(faces, -4, 24, -4, 8, 8, 8, ModelUtils.uvFrom(PlayerModelCoordinates.ModelBox.HEAD.getBaseUv(slim)));
 
         if (renderOverlays && !skin.isLegacy()) {
             // Overlay layer: slightly larger head box
-            ModelUtils.addBox(faces, -4.5, 23.5, -4.5, 9, 9, 9, ModelUtils.uvFrom(ISkinPart.Vanilla.ModelBox.HEAD.getOverlayUv(slim)));
+            ModelUtils.addBox(faces, -4.5, 23.5, -4.5, 9, 9, 9, ModelUtils.uvFrom(PlayerModelCoordinates.ModelBox.HEAD.getOverlayUv(slim)));
         }
 
         return faces;
