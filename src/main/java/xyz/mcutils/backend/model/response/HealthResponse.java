@@ -1,16 +1,10 @@
 package xyz.mcutils.backend.model.response;
 
 import lombok.AllArgsConstructor;
-import lombok.Getter;
 
 /**
  * The response for the health endpoint.
+ *
+ * @param status The health status.
  */
-@AllArgsConstructor
-@Getter
-public class HealthResponse {
-    /**
-     * The health status.
-     */
-    private final String status;
-}
+public record HealthResponse(String status) { }

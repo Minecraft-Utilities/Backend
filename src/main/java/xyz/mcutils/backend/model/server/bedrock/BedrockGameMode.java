@@ -1,25 +1,12 @@
 package xyz.mcutils.backend.model.server.bedrock;
 
 import lombok.AllArgsConstructor;
-import lombok.Getter;
 import lombok.NonNull;
-import lombok.ToString;
 
 /**
  * The gamemode of a server.
+ *
+ * @param name      The name of this gamemode.
+ * @param numericId The numeric of this gamemode.
  */
-@AllArgsConstructor
-@Getter
-@ToString
-public class BedrockGameMode {
-    /**
-     * The name of this gamemode.
-     */
-    @NonNull
-    private final String name;
-
-    /**
-     * The numeric of this gamemode.
-     */
-    private final int numericId;
-}
+public record BedrockGameMode(@NonNull String name, int numericId) { }

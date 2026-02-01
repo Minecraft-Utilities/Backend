@@ -80,7 +80,7 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
         // Draw the server motd
         x += 12;
         y += fontSize + (padding * 2) + 2;
-        for (String line : server.getMotd().getRaw()) {
+        for (String line : server.getMotd().raw()) {
             int index = 0;
             int colorIndex = line.indexOf("§");
 
@@ -145,8 +145,8 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
 
         // Render the player count
         Players players = server.getPlayers();
-        String playersOnline = players.getOnline() + "";
-        String playersMax = players.getMax() + "";
+        String playersOnline = players.online() + "";
+        String playersMax = players.max() + "";
 
         // Calculate the width of each player count element
         int maxWidth = graphics.getFontMetrics().stringWidth(playersMax);

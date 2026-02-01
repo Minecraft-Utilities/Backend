@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * Generic 3D isometric renderer: given textures and faces, rotates by yaw/pitch,
  * orthographically projects, sorts by depth, and draws quads. Supports multiple
- * textures (e.g. skin 64×64, cape 64×32). Used by full-body and head renderers.
+ * textures (e.g. skin 64×64). Used by full-body and head renderers.
  */
 public class Isometric3DRenderer {
     /** Minimum face brightness (back/side faces); range [0, 1]. */
@@ -37,7 +37,7 @@ public class Isometric3DRenderer {
      * Renders the given textured face batches with the given view onto an image.
      * Flattens all faces, depth-sorts, and draws using each face's associated texture.
      *
-     * @param batches list of (texture, faces) — e.g. skin 64×64, cape 64×32
+     * @param batches list of (texture, faces) — e.g. skin 64×64
      * @param view    view parameters (eye, target, yaw, pitch, aspect ratio)
      * @param size    output height in pixels; width = size * aspectRatio
      * @return the rendered image
@@ -51,7 +51,6 @@ public class Isometric3DRenderer {
         Vector3 right = Vector3Utils.normalize(Vector3Utils.cross(fwd, new Vector3(0, 1, 0)));
         Vector3 up = Vector3Utils.normalize(Vector3Utils.cross(right, fwd));
 
-        Vector3 modelCenter = target;
         double yaw = view.yawDeg();
         double pitch = view.pitchDeg();
 
@@ -69,13 +68,13 @@ public class Isometric3DRenderer {
 
             for (Face face : batch.faces()) {
                 Vector3 rotatedNormal = Vector3Utils.normalize(
-                        Vector3Utils.rotateX(Vector3Utils.rotateY(face.getNormal(), yaw), pitch));
+                        Vector3Utils.rotateX(Vector3Utils.rotateY(face.normal(), yaw), pitch));
                 double dot = Vector3Utils.dot(rotatedNormal, fwd);
 
-                Vector3 v0 = Vector3Utils.rotAround(face.getV0(), modelCenter, yaw, pitch);
-                Vector3 v1 = Vector3Utils.rotAround(face.getV1(), modelCenter, yaw, pitch);
-                Vector3 v2 = Vector3Utils.rotAround(face.getV2(), modelCenter, yaw, pitch);
-                Vector3 v3 = Vector3Utils.rotAround(face.getV3(), modelCenter, yaw, pitch);
+                Vector3 v0 = Vector3Utils.rotAround(face.v0(), target, yaw, pitch);
+                Vector3 v1 = Vector3Utils.rotAround(face.v1(), target, yaw, pitch);
+                Vector3 v2 = Vector3Utils.rotAround(face.v2(), target, yaw, pitch);
+                Vector3 v3 = Vector3Utils.rotAround(face.v3(), target, yaw, pitch);
                 double[] p0 = Vector3Utils.project(v0, eye, fwd, right, up);
                 double[] p1 = Vector3Utils.project(v1, eye, fwd, right, up);
                 double[] p2 = Vector3Utils.project(v2, eye, fwd, right, up);
@@ -88,7 +87,7 @@ public class Isometric3DRenderer {
                 projected.add(new ProjectedFaceWithTexture(
                         x0, y0, x1, y1, x2, y2, x3, y3,
                         depth,
-                        face.getU0(), face.getV0_(), face.getU1(), face.getV1_(),
+                        face.u0(), face.v0_(), face.u1(), face.v1_(),
                         brightness,
                         batchIndex,
                         texW, texH

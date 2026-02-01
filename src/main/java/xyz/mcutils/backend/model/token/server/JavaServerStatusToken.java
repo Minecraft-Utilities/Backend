@@ -73,38 +73,18 @@ public final class JavaServerStatusToken {
 
     /**
      * Player count data for a server.
+     *
+     * @param online The online players on this server.
+     * @param max    The maximum allowed players on this server.
+     * @param sample A sample of players on this server, null or empty if no sample.
      */
-    @AllArgsConstructor @Getter @ToString
-    public static class Players {
-        /**
-         * The online players on this server.
-         */
-        private final int online;
-
-        /**
-         * The maximum allowed players on this server.
-         */
-        private final int max;
-
-        /**
-         * A sample of players on this server, null or empty if no sample.
-         */
-        private final Sample[] sample;
-
+    public record Players(int online, int max, Sample[] sample) {
         /**
          * A sample player.
+         *
+         * @param id   The unique id of this player.
+         * @param name The name of this player.
          */
-        @AllArgsConstructor @Getter @ToString
-        public static class Sample {
-            /**
-             * The unique id of this player.
-             */
-            @NonNull private final UUID id;
-
-            /**
-             * The name of this player.
-             */
-            @NonNull private final String name;
-        }
+        public record Sample(@NonNull UUID id, @NonNull String name) { }
     }
 }

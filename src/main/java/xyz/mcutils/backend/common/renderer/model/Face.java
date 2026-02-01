@@ -1,16 +1,11 @@
 package xyz.mcutils.backend.common.renderer.model;
 
 import lombok.AllArgsConstructor;
-import lombok.Getter;
 import xyz.mcutils.backend.common.math.Vector3;
 
 /**
  * A textured quad with 4 vertices, UV coordinates, and outward normal for software 3D rendering.
  */
-@AllArgsConstructor
-@Getter
-public class Face {
-    private final Vector3 v0, v1, v2, v3;
-    private final double u0, v0_, u1, v1_;
-    private final Vector3 normal;
+public record Face(Vector3 v0, Vector3 v1, Vector3 v2, Vector3 v3, double u0, double v0_, double u1, double v1_,
+                   Vector3 normal) {
 }

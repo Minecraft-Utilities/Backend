@@ -2,41 +2,20 @@ package xyz.mcutils.backend.model.server;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
-import lombok.Getter;
 import lombok.NonNull;
 import xyz.mcutils.backend.common.ColorUtils;
 import xyz.mcutils.backend.config.Config;
 
 import java.util.Arrays;
 
-@AllArgsConstructor @Getter
-public class MOTD {
-
-    /**
-     * The raw motd lines
-     */
-    private final String[] raw;
-
-    /**
-     * The clean motd lines
-     */
-    private final String[] clean;
-
-    /**
-     * The html motd lines
-     */
-    private final String[] html;
-
-    /**
-     * The URL to the server preview image.
-     */
-    private final String preview;
-
-    /**
-     * The URL to the server HTML motd preview.
-     */
-    private final String htmlPreview;
-
+/**
+ * @param raw         The raw motd lines
+ * @param clean       The clean motd lines
+ * @param html        The html motd lines
+ * @param preview     The URL to the server preview image.
+ * @param htmlPreview The URL to the server HTML motd preview.
+ */
+public record MOTD(String[] raw, String[] clean, String[] html, String preview, String htmlPreview) {
     /**
      * Create a new MOTD from a raw string.
      *
@@ -70,39 +49,39 @@ public class MOTD {
     @JsonIgnore
     public String generateHtmlPreview(MinecraftServer server) {
         StringBuilder builder = new StringBuilder();
-        for (String line : this.getHtml()) {
+        for (String line : this.html()) {
             builder.append(line).append("<br>");
         }
 
         return """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>%s</title>
-            <style>
-                @font-face {
-                    font-family: "Minecraft";
-                    src: url("https://cdn.fascinated.cc/minecraft-font.ttf") format("truetype");
-                    font-weight: normal;
-                    font-style: normal;
-                }
-                body {
-                    margin: 0;
-                    background-image: url("https://cdn.fascinated.cc/server_background.png");
-                    background-repeat: repeat;
-                    font-family: "Minecraft", system-ui, sans-serif;
-                    font-size: 20px;
-                    line-height: 1.4;
-                }
-            </style>
-        </head>
-        <body>
-        %s
-        </body>
-        </html>
-        """.formatted(
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>%s</title>
+                    <style>
+                        @font-face {
+                            font-family: "Minecraft";
+                            src: url("https://cdn.fascinated.cc/minecraft-font.ttf") format("truetype");
+                            font-weight: normal;
+                            font-style: normal;
+                        }
+                        body {
+                            margin: 0;
+                            background-image: url("https://cdn.fascinated.cc/server_background.png");
+                            background-repeat: repeat;
+                            font-family: "Minecraft", system-ui, sans-serif;
+                            font-size: 20px;
+                            line-height: 1.4;
+                        }
+                    </style>
+                </head>
+                <body>
+                %s
+                </body>
+                </html>
+                """.formatted(
                 server.getHostname(),
                 builder.toString()
         );

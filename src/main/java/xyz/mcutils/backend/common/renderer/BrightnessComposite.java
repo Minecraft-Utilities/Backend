@@ -2,6 +2,7 @@ package xyz.mcutils.backend.common.renderer;
 
 import java.awt.*;
 import java.awt.image.ColorModel;
+import java.awt.image.DataBuffer;
 import java.awt.image.Raster;
 import java.awt.image.WritableRaster;
 
@@ -11,7 +12,6 @@ import java.awt.image.WritableRaster;
  * allocating intermediate images.
  */
 public final class BrightnessComposite implements Composite {
-
     private final float brightness;
 
     /**
@@ -37,6 +37,7 @@ public final class BrightnessComposite implements Composite {
         public void compose(Raster src, Raster dstIn, WritableRaster dstOut) {
             int w = Math.min(src.getWidth(), Math.min(dstIn.getWidth(), dstOut.getWidth()));
             int h = Math.min(src.getHeight(), Math.min(dstIn.getHeight(), dstOut.getHeight()));
+            if (w <= 0 || h <= 0) return;
             int srcMinX = src.getMinX();
             int srcMinY = src.getMinY();
             int dstInMinX = dstIn.getMinX();
@@ -44,9 +45,62 @@ public final class BrightnessComposite implements Composite {
             int dstOutMinX = dstOut.getMinX();
             int dstOutMinY = dstOut.getMinY();
 
+            if (src.getNumBands() == 1 && src.getTransferType() == DataBuffer.TYPE_INT
+                    && dstIn.getNumBands() == 1 && dstIn.getTransferType() == DataBuffer.TYPE_INT
+                    && dstOut.getNumBands() == 1 && dstOut.getTransferType() == DataBuffer.TYPE_INT) {
+                composePackedInt(src, dstIn, dstOut, w, h,
+                        srcMinX, srcMinY, dstInMinX, dstInMinY, dstOutMinX, dstOutMinY);
+                return;
+            }
+            composePerPixel(src, dstIn, dstOut, w, h,
+                    srcMinX, srcMinY, dstInMinX, dstInMinY, dstOutMinX, dstOutMinY);
+        }
+
+        private void composePackedInt(Raster src, Raster dstIn, WritableRaster dstOut,
+                                      int w, int h,
+                                      int srcMinX, int srcMinY, int dstInMinX, int dstInMinY,
+                                      int dstOutMinX, int dstOutMinY) {
+            int[] srcRow = new int[w];
+            int[] dstRow = new int[w];
+            for (int y = 0; y < h; y++) {
+                src.getSamples(srcMinX, srcMinY + y, w, 1, 0, srcRow);
+                dstIn.getSamples(dstInMinX, dstInMinY + y, w, 1, 0, dstRow);
+                for (int x = 0; x < w; x++) {
+                    int pixel = srcRow[x];
+                    int sa = (pixel >> 24) & 0xFF;
+                    int r = (pixel >> 16) & 0xFF;
+                    int g = (pixel >> 8) & 0xFF;
+                    int b = pixel & 0xFF;
+                    r = (int) (r * brightness);
+                    g = (int) (g * brightness);
+                    b = (int) (b * brightness);
+                    if (sa < 255) {
+                        int invSa = 255 - sa;
+                        int dp = dstRow[x];
+                        int dr = (dp >> 16) & 0xFF;
+                        int dg = (dp >> 8) & 0xFF;
+                        int db = dp & 0xFF;
+                        int da = (dp >> 24) & 0xFF;
+                        r = (r * sa + dr * invSa) / 255;
+                        g = (g * sa + dg * invSa) / 255;
+                        b = (b * sa + db * invSa) / 255;
+                        sa = sa + (255 - sa) * da / 255;
+                    }
+                    dstRow[x] = (Math.min(255, Math.max(0, sa)) << 24)
+                            | (Math.min(255, Math.max(0, r)) << 16)
+                            | (Math.min(255, Math.max(0, g)) << 8)
+                            | Math.min(255, Math.max(0, b));
+                }
+                dstOut.setSamples(dstOutMinX, dstOutMinY + y, w, 1, 0, dstRow);
+            }
+        }
+
+        private void composePerPixel(Raster src, Raster dstIn, WritableRaster dstOut,
+                                      int w, int h,
+                                      int srcMinX, int srcMinY, int dstInMinX, int dstInMinY,
+                                      int dstOutMinX, int dstOutMinY) {
             int[] srcPixel = null;
             int[] dstPixel = null;
-
             for (int y = 0; y < h; y++) {
                 for (int x = 0; x < w; x++) {
                     srcPixel = src.getPixel(srcMinX + x, srcMinY + y, srcPixel);

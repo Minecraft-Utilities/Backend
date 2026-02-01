@@ -84,12 +84,7 @@ public final class PlayerModelCoordinates {
                     || this == LEFT_ARM_OVERLAY_FRONT || this == RIGHT_ARM_OVERLAY_FRONT;
         }
 
-        @AllArgsConstructor
-        @Getter
-        public static class Coordinates {
-            private final int x;
-            private final int y;
-        }
+        public record Coordinates(int x, int y) {}
     }
 
     /**
@@ -128,8 +123,8 @@ public final class PlayerModelCoordinates {
                 w--;
             }
             return new int[]{
-                    part.getCoordinates().getX(),
-                    part.getCoordinates().getY(),
+                    part.getCoordinates().x(),
+                    part.getCoordinates().y(),
                     w,
                     part.getHeight(),
                     sizeZ

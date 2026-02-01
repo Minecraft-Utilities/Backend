@@ -19,6 +19,12 @@ spring:
       database: 1
       auth: "" # Leave blank for no auth
 
+logging:
+  pattern:
+    console: "%level %logger{36} - %msg%n"
+  level:
+    xyz.mcutils.backend: info
+
 # S3 Storage
 s3:
   endpoint: ""

@@ -2,24 +2,14 @@ package xyz.mcutils.backend.model.server;
 
 import com.maxmind.geoip2.model.AsnResponse;
 import lombok.AllArgsConstructor;
-import lombok.Getter;
 
 /**
  * The ASN information for this server.
+ *
+ * @param asn    The ASN number.
+ * @param asnOrg The name of the Organization who owns the ASN.
  */
-@AllArgsConstructor
-@Getter
-public class ServerAsn {
-    /**
-     * The ASN number.
-     */
-    private final String asn;
-
-    /**
-     * The name of the Organization who owns the ASN.
-     */
-    private final String asnOrg;
-
+public record ServerAsn(String asn, String asnOrg) {
     /**
      * Gets the location of the server from Maxmind.
      *

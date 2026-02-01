@@ -16,5 +16,4 @@ public class FullBodyRendererFront extends SkinRenderer {
     public BufferedImage render(Skin skin, SkinPart part, boolean renderOverlays, int size) {
         return FullBodyRendererBase.INSTANCE.render(skin, part, Side.FRONT, renderOverlays, size);
     }
-
 }

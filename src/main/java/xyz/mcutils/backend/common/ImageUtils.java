@@ -4,12 +4,17 @@ import jakarta.validation.constraints.NotNull;
 import lombok.SneakyThrows;
 import lombok.extern.log4j.Log4j2;
 
+import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.util.Iterator;
 import java.util.Base64;
 
 @Log4j2(topic = "Image Utils")
@@ -27,36 +32,6 @@ public class ImageUtils {
         graphics.drawImage(image, AffineTransform.getScaleInstance(scale, scale), null);
         graphics.dispose();
         return scaled;
-    }
-
-    /**
-     * Scale the given image to the exact target dimensions.
-     *
-     * @param image the image to scale
-     * @param targetWidth the target width
-     * @param targetHeight the target height
-     * @return the scaled image
-     */
-    public static BufferedImage resize(BufferedImage image, int targetWidth, int targetHeight) {
-        BufferedImage scaled = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D graphics = scaled.createGraphics();
-        graphics.drawImage(image, 0, 0, targetWidth, targetHeight, null);
-        graphics.dispose();
-        return scaled;
-    }
-
-    /**
-     * Flip the given image.
-     *
-     * @param image the image to flip
-     * @return the flipped image
-     */
-    public static BufferedImage flip(@NotNull final BufferedImage image) {
-        BufferedImage flipped = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
-        Graphics2D graphics = flipped.createGraphics();
-        graphics.drawImage(image, image.getWidth(), 0, 0, image.getHeight(), 0, 0, image.getWidth(), image.getHeight(), null);
-        graphics.dispose();
-        return flipped;
     }
 
     /**
@@ -124,19 +99,37 @@ public class ImageUtils {
     }
 
     /**
-     * Convert an image to bytes.
+     * Convert an image to bytes (PNG). Uses explicit ImageWriter with lower compression
+     * for faster encoding; encoding speed depends on the ImageIO PNG implementation.
      *
      * @param image the image to convert
      * @return the image as bytes
      */
     @SneakyThrows
     public static byte[] imageToBytes(BufferedImage image) {
-        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-            ImageIO.write(image, "png", outputStream);
-            return outputStream.toByteArray();
-        } catch (Exception e) {
-            throw new Exception("Image could not be converted to bytes", e);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("png");
+        if (!writers.hasNext()) {
+            try (ByteArrayOutputStream fallback = new ByteArrayOutputStream()) {
+                ImageIO.write(image, "png", fallback);
+                return fallback.toByteArray();
+            } catch (Exception e) {
+                throw new Exception("Image could not be converted to bytes", e);
+            }
         }
+        ImageWriter writer = writers.next();
+        try (ImageOutputStream ios = ImageIO.createImageOutputStream(outputStream)) {
+            writer.setOutput(ios);
+            ImageWriteParam param = writer.getDefaultWriteParam();
+            if (param.canWriteCompressed()) {
+                param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                param.setCompressionQuality(0.2f);
+            }
+            writer.write(null, new IIOImage(image, null, null), param);
+        } finally {
+            writer.dispose();
+        }
+        return outputStream.toByteArray();
     }
 
     /**
