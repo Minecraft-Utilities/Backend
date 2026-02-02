@@ -6,11 +6,17 @@ server:
 
 # Spring Configuration
 spring:
+  # Use virtual threads
+  threads:
+    virtual:
+      enabled: true
+
   # Don't serialize null values by default with Jackson
   jackson:
     default-property-inclusion: non_null
     mapper:
       sort-properties-alphabetically: false
+
   data:
     # Redis - This is used for caching
     redis:
