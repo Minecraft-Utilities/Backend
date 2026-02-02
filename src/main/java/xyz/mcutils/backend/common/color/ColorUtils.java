@@ -1,7 +1,8 @@
-package xyz.mcutils.backend.common;
+package xyz.mcutils.backend.common.color;
 
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
+import xyz.mcutils.backend.common.MinecraftColor;
 
 import java.awt.*;
 import java.util.Objects;
@@ -114,48 +115,45 @@ public final class ColorUtils {
     }
 
     /**
-     * Parses a hex color code in the format §x§R§R§G§G§B§B from the given string at the specified index.
-     * <p>
-     * This method checks if the substring starting at the given index matches the hex color format
-     * (§x followed by 6 pairs of § + hex digit). If valid, it returns the parsed Color and the
-     * number of characters consumed (14). If invalid or the string is too short, returns null.
-     * </p>
+     * Parses a hex color at the given index. Tries §x§R§R§G§G§B§B first (14 chars), then §#RRGGBB (7 chars).
+     * Returns the parsed color and characters consumed, or null if neither format is present.
      *
      * @param line  the string containing the color code
      * @param index the index of the leading § character
-     * @return the parsed Color if valid, null otherwise
+     * @return the parsed result (color + chars consumed) if valid, null otherwise
      */
-    public static Color parseHexColor(@NonNull String line, int index) {
-        // Check if we have enough characters for §x§R§R§G§G§B§B (14 characters total)
-        if (index + 14 > line.length()) {
+    public static HexColorResult parseHexColor(@NonNull String line, int index) {
+        Color xColor = parseHexColorX(line, index);
+        if (xColor != null) {
+            return new HexColorResult(xColor, 14);
+        }
+        Color sharpColor = parseSharpHexColor(line, index);
+        if (sharpColor != null) {
+            return new HexColorResult(sharpColor, 7);
+        }
+        return null;
+    }
+
+    /**
+     * Parses §x§R§R§G§G§B§B at the given index. Returns the Color if valid, null otherwise.
+     */
+    public static Color parseHexColorX(@NonNull String line, int index) {
+        if (index + 14 > line.length() || line.charAt(index) != '§' || Character.toLowerCase(line.charAt(index + 1)) != 'x') {
             return null;
         }
-
-        // Check if the character at index is § and the next is 'x' (case-insensitive)
-        if (line.charAt(index) != '§' || Character.toLowerCase(line.charAt(index + 1)) != 'x') {
-            return null;
-        }
-
-        // Build the hex string by extracting the 6 hex digits
         StringBuilder hex = new StringBuilder("#");
         for (int j = 0; j < 6; j++) {
             int idx = index + 2 + (j * 2);
-            // Check if we have enough characters and if it's a § followed by a hex digit
             if (idx + 1 >= line.length() || line.charAt(idx) != '§') {
                 return null;
             }
             char hexDigit = line.charAt(idx + 1);
-            // Validate hex digit (0-9, A-F, a-f)
-            if ((hexDigit >= '0' && hexDigit <= '9') || 
-                (hexDigit >= 'A' && hexDigit <= 'F') || 
-                (hexDigit >= 'a' && hexDigit <= 'f')) {
+            if ((hexDigit >= '0' && hexDigit <= '9') || (hexDigit >= 'A' && hexDigit <= 'F') || (hexDigit >= 'a' && hexDigit <= 'f')) {
                 hex.append(hexDigit);
             } else {
                 return null;
             }
         }
-
-        // Parse and return the color
         try {
             return Color.decode(hex.toString());
         } catch (NumberFormatException e) {
@@ -164,8 +162,7 @@ public final class ColorUtils {
     }
 
     /**
-     * Parses a §#RRGGBB hex color at the given index. Returns the Color if valid, null otherwise.
-     * Supports gradient MOTDs where each character can have its own color.
+     * Parses §#RRGGBB at the given index. Returns the Color if valid, null otherwise.
      */
     public static Color parseSharpHexColor(@NonNull String line, int index) {
         if (index + 8 > line.length() || line.charAt(index) != '§' || line.charAt(index + 1) != '#') {

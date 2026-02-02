@@ -3,6 +3,8 @@ package xyz.mcutils.backend.common.renderer.impl.server;
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.*;
+import xyz.mcutils.backend.common.color.ColorUtils;
+import xyz.mcutils.backend.common.color.HexColorResult;
 import xyz.mcutils.backend.common.renderer.Renderer;
 import xyz.mcutils.backend.model.server.MinecraftServer;
 import xyz.mcutils.backend.model.server.Players;
@@ -134,36 +136,30 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
             drawX = GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, textBeforeColor, drawX, y, true, bold, italic, SCALE);
 
             // §x§R§R§G§G§B§B or §#RRGGBB (gradient support)
-            Color hexColor = ColorUtils.parseHexColor(line, colorIndex);
-            if (hexColor != null) {
-                graphics.setColor(hexColor);
-                index = colorIndex + 14;
-            } else {
-                Color sharpHex = ColorUtils.parseSharpHexColor(line, colorIndex);
-                if (sharpHex != null) {
-                    graphics.setColor(sharpHex);
-                    index = colorIndex + 7;
-                } else if (colorIndex + 1 < line.length()) {
-                    char colorCode = Character.toLowerCase(line.charAt(colorIndex + 1));
-                    switch (colorCode) {
-                        case 'l' -> bold = true;
-                        case 'o' -> italic = true;
-                        case 'r' -> {
-                            graphics.setColor(MinecraftColor.GRAY.toAwtColor());
-                            bold = false;
-                            italic = false;
-                        }
-                        default -> {
-                            MinecraftColor mcColor = MinecraftColor.getByCode(colorCode);
-                            if (mcColor != null) {
-                                graphics.setColor(mcColor.toAwtColor());
-                            }
+            HexColorResult hexResult = ColorUtils.parseHexColor(line, colorIndex);
+            if (hexResult != null) {
+                graphics.setColor(hexResult.color());
+                index = colorIndex + hexResult.charsConsumed();
+            } else if (colorIndex + 1 < line.length()) {
+                char colorCode = Character.toLowerCase(line.charAt(colorIndex + 1));
+                switch (colorCode) {
+                    case 'l' -> bold = true;
+                    case 'o' -> italic = true;
+                    case 'r' -> {
+                        graphics.setColor(MinecraftColor.GRAY.toAwtColor());
+                        bold = false;
+                        italic = false;
+                    }
+                    default -> {
+                        MinecraftColor mcColor = MinecraftColor.getByCode(colorCode);
+                        if (mcColor != null) {
+                            graphics.setColor(mcColor.toAwtColor());
                         }
                     }
-                    index = colorIndex + 2;
-                } else {
-                    index = colorIndex + 1;
                 }
+                index = colorIndex + 2;
+            } else {
+                index = colorIndex + 1;
             }
         }
     }

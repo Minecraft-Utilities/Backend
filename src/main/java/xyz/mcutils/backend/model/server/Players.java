@@ -1,7 +1,7 @@
 package xyz.mcutils.backend.model.server;
 
 import lombok.NonNull;
-import xyz.mcutils.backend.common.ColorUtils;
+import xyz.mcutils.backend.common.color.ColorUtils;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.token.server.JavaServerStatusToken;
 

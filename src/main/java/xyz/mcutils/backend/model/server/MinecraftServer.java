@@ -3,7 +3,9 @@ package xyz.mcutils.backend.model.server;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import xyz.mcutils.backend.model.asn.AsnLookup;
 import xyz.mcutils.backend.model.dns.DNSRecord;
+import xyz.mcutils.backend.model.geo.GeoLocation;
 import xyz.mcutils.backend.service.MaxMindService;
 
 /**
@@ -50,7 +52,7 @@ public class MinecraftServer {
     /**
      * The server's ASN information.
      */
-    private ServerAsn asn;
+    private AsnLookup asn;
 
     public MinecraftServer(String hostname, String ip, int port, DNSRecord[] records, MOTD motd, Players players) {
         this.hostname = hostname;
@@ -61,10 +63,10 @@ public class MinecraftServer {
         this.players = players;
 
         try {
-            this.location = GeoLocation.fromMaxMind(MaxMindService.lookupCity(ip));
+            this.location = MaxMindService.lookupCity(ip);
         } catch (Exception ignored) {}
         try {
-            this.asn = ServerAsn.fromMaxMind(MaxMindService.lookupAsn(ip));
+            this.asn = MaxMindService.lookupAsn(ip);
         } catch (Exception ignored) {}
     }
 }

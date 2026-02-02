@@ -5,10 +5,18 @@ import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.exception.AddressNotFoundException;
 import com.maxmind.geoip2.model.AsnResponse;
 import com.maxmind.geoip2.model.CityResponse;
+import com.maxmind.geoip2.record.Country;
+import com.maxmind.geoip2.record.Location;
+
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+import xyz.mcutils.backend.exception.impl.NotFoundException;
+import xyz.mcutils.backend.model.asn.AsnLookup;
+import xyz.mcutils.backend.model.geo.GeoLocation;
+import xyz.mcutils.backend.model.response.IpLookupResponse;
+
 import org.apache.commons.io.FileUtils;
 import org.codehaus.plexus.archiver.tar.TarGZipUnArchiver;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,24 +66,18 @@ public class MaxMindService {
     }
 
     /**
-     * Cleanup when the app is destroyed.
+     * Lookup the IP address and return the response.
+     *
+     * @param ip the IP address to lookup
+     * @return the IP lookup response
      */
-    @PreDestroy @SneakyThrows
-    public void cleanup() {
-        for (DatabaseReader database : DATABASES.values()) {
-            database.close();
+    public static IpLookupResponse lookupIp(@NonNull String ip) {
+        GeoLocation location = lookupCity(ip);
+        AsnLookup asn = lookupAsn(ip);
+        if (location == null && asn == null) {
+            throw new NotFoundException("No data found for IP address: %s".formatted(ip));
         }
-        DATABASES.clear();
-    }
-
-    /**
-     * Scheduled task to check and update databases every 3 days.
-     * Runs at 2 AM daily to check if databases need updating.
-     */
-    @Scheduled(cron = "0 0 2 * * *")
-    @SneakyThrows
-    public void scheduledDatabaseUpdate() {
-        loadDatabases(true);
+        return new IpLookupResponse(ip, location, asn);
     }
 
     /**
@@ -85,10 +87,30 @@ public class MaxMindService {
      * @return the city response, null if none
      */
     @SneakyThrows
-    public static CityResponse lookupCity(@NonNull String ip) {
+    public static GeoLocation lookupCity(@NonNull String ip) {
         DatabaseReader database = getDatabase(Database.CITY);
         try {
-            return database == null ? null : database.city(InetAddress.getByName(ip));
+            if (database == null) {
+                return null;
+            }
+            CityResponse city = database.city(InetAddress.getByName(ip));
+            if (city == null) {
+                return null;
+            }
+
+            Country country = city.country();
+            Location location = city.location();
+            String isoCode = country.isoCode();
+    
+            return new GeoLocation(
+                    country.name(),
+                    isoCode,
+                    city.mostSpecificSubdivision().name(),
+                    city.city().name(),
+                    location.latitude(),
+                    location.longitude(),
+                    "https://flagcdn.com/w20/" + isoCode.toLowerCase() + ".webp"
+            );
         } catch (AddressNotFoundException ignored) {
             // Safely ignore this and return null instead
             return null;
@@ -102,14 +124,34 @@ public class MaxMindService {
      * @return the asn response, null if none
      */
     @SneakyThrows
-    public static AsnResponse lookupAsn(@NonNull String ip) {
+    public static AsnLookup lookupAsn(@NonNull String ip) {
         DatabaseReader database = getDatabase(Database.ASN);
         try {
-            return database == null ? null : database.asn(InetAddress.getByName(ip));
+            if (database == null) {
+                return null;
+            }
+            AsnResponse asn = database.asn(InetAddress.getByName(ip));
+            if (asn == null) {
+                return null;
+            }
+            return new AsnLookup(
+                "AS%s".formatted(asn.autonomousSystemNumber()), 
+                asn.autonomousSystemOrganization()
+            );
         } catch (AddressNotFoundException ignored) {
             // Safely ignore this and return null instead
             return null;
         }
+    }
+
+        /**
+     * Get the reader for the given database.
+     *
+     * @param database the database to get
+     * @return the database reader, null if none
+     */
+    public static DatabaseReader getDatabase(@NonNull Database database) {
+        return DATABASES.get(database);
     }
 
     /**
@@ -118,16 +160,6 @@ public class MaxMindService {
     @SneakyThrows
     private void loadDatabases() {
         loadDatabases(false);
-    }
-
-    /**
-     * Get the reader for the given database.
-     *
-     * @param database the database to get
-     * @return the database reader, null if none
-     */
-    public static DatabaseReader getDatabase(@NonNull Database database) {
-        return DATABASES.get(database);
     }
 
     /**
@@ -279,6 +311,27 @@ public class MaxMindService {
                 }
             }
         }
+    }
+
+    /**
+     * Cleanup when the app is destroyed.
+     */
+    @PreDestroy @SneakyThrows
+    public void cleanup() {
+        for (DatabaseReader database : DATABASES.values()) {
+            database.close();
+        }
+        DATABASES.clear();
+    }
+
+    /**
+     * Scheduled task to check and update databases every 3 days.
+     * Runs at 2 AM daily to check if databases need updating.
+     */
+    @Scheduled(cron = "0 0 2 * * *")
+    @SneakyThrows
+    public void scheduledDatabaseUpdate() {
+        loadDatabases(true);
     }
 
     /**
