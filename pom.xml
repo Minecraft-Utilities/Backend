@@ -182,7 +182,7 @@
         <dependency>
             <groupId>com.maxmind.geoip2</groupId>
             <artifactId>geoip2</artifactId>
-            <version>5.0.0</version>
+            <version>5.0.2</version>
             <scope>compile</scope>
         </dependency>
 
