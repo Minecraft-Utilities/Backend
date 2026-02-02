@@ -8,9 +8,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class GraphicsUtils {
-
-    private static final Color SHADOW_COLOR = new Color(0, 0, 0, 128);
-
     /**
      * Draws a string using the given bitmap font and returns the x position after the last character.
      */
@@ -66,16 +63,24 @@ public class GraphicsUtils {
         }
         Color savedColor = g.getColor();
         if (shadow) {
-            g.setColor(SHADOW_COLOR);
-            font.drawString(g, str, drawX + 1, drawY + 1);
+            g.setColor(new Color(
+                (int) (savedColor.getRed() * 0.25f),
+                (int) (savedColor.getGreen() * 0.25f),
+                (int) (savedColor.getBlue() * 0.25f),
+                savedColor.getAlpha()
+            ));
+            font.drawString(g, str, drawX + 1, drawY + 1, bold);
+            if (bold) {
+                font.drawString(g, str, drawX + 2, drawY + 1, bold);  // Shadow for bold copy
+            }
             g.setColor(savedColor);
         }
-        font.drawString(g, str, drawX, drawY);
+        font.drawString(g, str, drawX, drawY, bold);
         if (bold) {
-            font.drawString(g, str, drawX + 1, drawY);
+            font.drawString(g, str, drawX + 1, drawY, bold);
         }
         g.setTransform(savedTransform);
-        int advance = font.stringWidth(str) + (bold ? 1 : 0);
+        int advance = font.stringWidth(str, bold);
         return x + advance * scale;
     }
 
@@ -83,7 +88,14 @@ public class GraphicsUtils {
      * Returns the width of the string when drawn at the given scale.
      */
     public static int stringWidthAtScale(BitmapFont font, String str, int scale) {
-        return font.stringWidth(str) * scale;
+        return font.stringWidth(str, false) * scale;
+    }
+
+    /**
+     * Returns the width of the string when drawn at the given scale with bold styling.
+     */
+    public static int stringWidthAtScale(BitmapFont font, String str, int scale, boolean bold) {
+        return font.stringWidth(str, bold) * scale;
     }
 
     /**

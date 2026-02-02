@@ -11,9 +11,14 @@ import java.util.Map;
 public class BitmapFont {
 
     private final Map<Integer, Glyph> glyphs = new HashMap<>();
+    private final Map<Integer, Integer> advanceOverrides = new HashMap<>();
+    /** Bold offset for advance-only characters (no glyph), from widths file. */
+    private final Map<Integer, Double> advanceOnlyBoldOffsets = new HashMap<>();
     private final int ascent;
     private final int height;
     private final int defaultGlyphWidth;
+    /** Default bold offset when character has no entry in widths file (e.g. from missing_char). */
+    private double defaultBoldOffset = 1.0;
     private int scale = 1;
 
     public BitmapFont(int ascent, int height, int defaultGlyphWidth) {
@@ -22,8 +27,22 @@ public class BitmapFont {
         this.defaultGlyphWidth = defaultGlyphWidth;
     }
 
+    /** Set default bold offset (e.g. from widths file missing_char). */
+    void setDefaultBoldOffset(double defaultBoldOffset) {
+        this.defaultBoldOffset = defaultBoldOffset;
+    }
+
     void putGlyph(int codepoint, Glyph glyph) {
         glyphs.put(codepoint, glyph);
+    }
+
+    void putAdvance(int codepoint, int advance) {
+        advanceOverrides.put(codepoint, advance);
+    }
+
+    /** Set bold offset for an advance-only character (from widths file). */
+    void putBoldOffset(int codepoint, double boldOffset) {
+        advanceOnlyBoldOffsets.put(codepoint, boldOffset);
     }
 
     public int getScale() {
@@ -46,39 +65,70 @@ public class BitmapFont {
      * Total width of the string in pixels (scaled). Uses per-glyph advance like Minecraft, not fixed cell width.
      */
     public int stringWidth(String str) {
+        return stringWidth(str, false);
+    }
+
+    /**
+     * Total width when drawn with bold. Advance = width + boldOffset per character when bold.
+     */
+    public int stringWidth(String str, boolean bold) {
         if (str == null || str.isEmpty()) {
             return 0;
         }
         int total = 0;
         for (int i = 0; i < str.length(); ) {
             int cp = str.codePointAt(i);
-            Glyph g = glyphs.get(cp);
-            int adv = g != null ? g.advance() : defaultGlyphWidth;
-            total += adv * scale;
+            total += getAdvance(cp, bold) * scale;
             i += Character.charCount(cp);
         }
         return total;
     }
 
     /**
+     * Advance for a single codepoint. Uses glyph metrics when available, else advanceOverride, else defaultGlyphWidth.
+     * When bold, adds bold offset from widths file for advance-only characters, or 1 if not in widths file.
+     */
+    public int getAdvance(int codepoint, boolean bold) {
+        Glyph g = glyphs.get(codepoint);
+        if (g != null) {
+            return g.getAdvance(bold);
+        }
+        Integer override = advanceOverrides.get(codepoint);
+        int base = override != null ? override : defaultGlyphWidth;
+        if (!bold) return base;
+        double offset = advanceOnlyBoldOffsets.getOrDefault(codepoint, defaultBoldOffset);
+        return base + (int) Math.ceil(offset);
+    }
+
+    /**
      * Draw the string with baseline at (x, y). Glyphs are tinted by the current Graphics2D color (Minecraft-style).
+     * Advance-only chars (e.g. space) are not drawn but advance the cursor.
+     * Uses per-glyph ascent for vertical positioning - glyph top is at y - glyph.ascent().
      */
     public void drawString(Graphics2D g, String str, int x, int y) {
+        drawString(g, str, x, y, false);
+    }
+
+    /**
+     * Draw the string with optional bold. When bold, advances by getAdvance(cp, true) so spacing matches
+     * stringWidth(str, bold) and Minecraft-style bold (draw at x and x+1) lines up correctly.
+     */
+    public void drawString(Graphics2D g, String str, int x, int y, boolean bold) {
         if (str == null || str.isEmpty()) {
             return;
         }
         Color color = g.getColor();
-        int drawY = y - ascent();
         for (int i = 0; i < str.length(); ) {
             int cp = str.codePointAt(i);
             Glyph glyph = glyphs.get(cp);
             if (glyph != null) {
+                int glyphDrawY = y - glyph.ascent() * scale;
                 int w = glyph.width() * scale;
                 int h = glyph.height() * scale;
-                drawGlyphTinted(g, glyph, x, drawY, w, h, color);
-                x += glyph.advance() * scale;
+                drawGlyphTinted(g, glyph, x, glyphDrawY, w, h, color);
+                x += getAdvance(cp, bold) * scale;
             } else {
-                x += defaultGlyphWidth * scale;
+                x += getAdvance(cp, bold) * scale;
             }
             i += Character.charCount(cp);
         }
@@ -111,8 +161,13 @@ public class BitmapFont {
             }
         }
         if (scale != 1) {
-            Image scaled = tinted.getScaledInstance(w, h, Image.SCALE_FAST);
-            g.drawImage(scaled, x, y, w, h, null);
+            // Use nearest neighbor scaling to preserve thin characters like |
+            Object oldInterp = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            g.drawImage(tinted, x, y, w, h, null);
+            if (oldInterp != null) {
+                g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, oldInterp);
+            }
         } else {
             g.drawImage(tinted, x, y, null);
         }

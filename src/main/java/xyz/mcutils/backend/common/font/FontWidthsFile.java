@@ -34,16 +34,20 @@ public class FontWidthsFile {
     }
 
     public int getAdvance(int codepoint) {
-        if (chars == null) return -1;
+        CharWidthEntry e = getCharWidthEntry(codepoint);
+        return e != null ? e.getWidth() : -1;
+    }
+
+    public CharWidthEntry getCharWidthEntry(int codepoint) {
+        if (chars == null) return null;
         String key = Character.toString(codepoint);
         CharWidthEntry e = chars.get(key);
-        if (e != null) return e.getWidth();
+        if (e != null) return e;
         if (Character.isSupplementaryCodePoint(codepoint)) {
             key = new String(Character.toChars(codepoint));
-            e = chars.get(key);
-            if (e != null) return e.getWidth();
+            return chars.get(key);
         }
-        return -1;
+        return null;
     }
 
     public int getMissingCharWidth() {

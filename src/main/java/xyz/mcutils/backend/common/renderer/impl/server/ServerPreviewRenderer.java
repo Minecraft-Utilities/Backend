@@ -56,11 +56,6 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
 
         Graphics2D graphics = texture.createGraphics();
 
-        graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_OFF);
-        graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
-        graphics.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_OFF);
-        graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-
         // Draw the background
         for (int backgroundX = 0; backgroundX < width + background.getWidth(); backgroundX += background.getWidth()) {
             for (int backgroundY = 0; backgroundY < height + background.getHeight(); backgroundY += background.getHeight()) {
@@ -97,8 +92,8 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
         }
 
         // Status area: ping icon at right, status text (player count) to its left
-        BufferedImage pingIcon = ImageUtils.resize(PING_ICON, SCALE);
         int statusIconX = width - statusIconWidth - rightSpacing;
+        BufferedImage pingIcon = ImageUtils.resize(PING_ICON, SCALE);
         graphics.drawImage(pingIcon, statusIconX, 0, statusIconWidth, statusIconHeight, null);
 
         Players players = server.getPlayers();
@@ -132,12 +127,12 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
             int colorIndex = line.indexOf("§", index);
             if (colorIndex == -1) {
                 String remaining = line.substring(index);
-                drawX = GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, remaining, drawX, y, false, bold, italic, SCALE);
+                drawX = GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, remaining, drawX, y, true, bold, italic, SCALE);
                 break;
             }
 
             String textBeforeColor = line.substring(index, colorIndex);
-            drawX = GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, textBeforeColor, drawX, y, false, bold, italic, SCALE);
+            drawX = GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, textBeforeColor, drawX, y, true, bold, italic, SCALE);
 
             // §x§R§R§G§G§B§B or §#RRGGBB (gradient support)
             Color hexColor = ColorUtils.parseHexColor(line, colorIndex);

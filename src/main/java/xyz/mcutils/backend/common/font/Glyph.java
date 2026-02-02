@@ -3,16 +3,30 @@ package xyz.mcutils.backend.common.font;
 import java.awt.image.BufferedImage;
 
 /**
- * A single glyph: reference to texture, source rectangle, and horizontal advance (Minecraft-style).
+ * A single glyph: reference to texture, source rectangle, horizontal advance, and style offsets (Minecraft-style).
  * Advance is the distance to move after drawing this glyph; it can be less than width for narrow characters.
+ * boldOffset and shadowOffset default to 1 when not specified.
+ * ascent is the vertical baseline offset for this glyph (different providers have different ascents).
  */
-public record Glyph(BufferedImage texture, int srcX, int srcY, int width, int height, int advance) {
+public record Glyph(BufferedImage texture, int srcX, int srcY, int width, int height, int advance,
+                    double boldOffset, double shadowOffset, int ascent) {
+
+    public Glyph(BufferedImage texture, int srcX, int srcY, int width, int height, int advance) {
+        this(texture, srcX, srcY, width, height, advance, 1.0, 1.0, 7);
+    }
 
     /**
      * Creates a glyph with advance equal to width (monospace cell). Use when advance is not measured.
      */
     public static Glyph withCellAdvance(BufferedImage texture, int srcX, int srcY, int width, int height) {
-        return new Glyph(texture, srcX, srcY, width, height, width);
+        return new Glyph(texture, srcX, srcY, width, height, width, 20.0, 1.0, 7);
+    }
+
+    /**
+     * Advance when bold: base advance + boldOffset (Minecraft getAdvance(bold)).
+     */
+    public int getAdvance(boolean bold) {
+        return bold ? advance + (int) Math.ceil(boldOffset) : advance;
     }
 
     /**
