@@ -55,7 +55,9 @@ public class PlayerService {
         Optional<CachedPlayer> cachedPlayer = playerCacheRepository.findById(uuid);
         if (cachedPlayer.isPresent()) { // Return the cached player if it exists
             log.debug("Player {} found in cache ({}ms)", uuid, System.currentTimeMillis() - start);
-            return cachedPlayer.get();
+            CachedPlayer player = cachedPlayer.get();
+            player.setCached(true);
+            return player;
         }
 
         try {
@@ -68,12 +70,11 @@ public class PlayerService {
                     new Player(mojangProfile)
             );
 
-            CompletableFuture.runAsync(() ->  playerCacheRepository.save(player), Main.EXECUTOR)
+            CompletableFuture.runAsync(() -> playerCacheRepository.save(player), Main.EXECUTOR)
                     .exceptionally(ex -> {
                         log.warn("Save failed for player {}: {}", player.getUniqueId(), ex.getMessage());
                         return null;
                     });
-            player.setCached(false);
             log.debug("Got player {} from Mojang API in {}ms", uuid, System.currentTimeMillis() - start);
             return player;
         } catch (RateLimitException exception) {
@@ -96,7 +97,9 @@ public class PlayerService {
         Optional<CachedPlayerName> cachedPlayerName = playerNameCacheRepository.findById(id);
         if (cachedPlayerName.isPresent()) {
             log.debug("Username {} found in cache ({}ms)", username, System.currentTimeMillis() - start);
-            return cachedPlayerName.get();
+            CachedPlayerName playerName = cachedPlayerName.get();
+            playerName.setCached(true);
+            return playerName;
         }
 
         // Check the Mojang API
@@ -113,7 +116,6 @@ public class PlayerService {
                         log.warn("Save failed for player uuid lookup {}: {}", playerName.getUniqueId(), ex.getMessage());
                         return null;
                     });
-            playerName.setCached(false);
             log.debug("Got uuid for username {} in {}ms", username, System.currentTimeMillis() - start);
             return playerName;
         } catch (RateLimitException exception) {

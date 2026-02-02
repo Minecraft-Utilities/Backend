@@ -74,7 +74,7 @@ public class ServerService {
                 throw new BadRequestException("Invalid port: '%s'".formatted(parts[1]));
             }
         }
-        String key = "%s-%s:%s".formatted(platformName, hostname, port);
+        String key = "server:%s-%s-%s".formatted(platformName, hostname, port);
         log.debug("Getting server: {}:{}", hostname, port);
 
         // Check if the server is cached
@@ -82,7 +82,9 @@ public class ServerService {
             Optional<CachedMinecraftServer> cached = serverCacheRepository.findById(key);
             if (cached.isPresent()) {
                 log.debug("Server {}:{} is cached", hostname, port);
-                return cached.get();
+                CachedMinecraftServer server = cached.get();
+                server.setCached(true);
+                return server;
             }
         }
 
@@ -115,7 +117,6 @@ public class ServerService {
 
         log.debug("Found server: {}:{}", hostname, port);
         serverCacheRepository.save(server);
-        server.setCached(false);
         return server;
     }
 
@@ -151,13 +152,13 @@ public class ServerService {
      * @return the server preview
      */
     public byte[] getServerPreview(CachedMinecraftServer cachedServer, String platform, int size) {
-        if (size <=  MIN_PREVIEW_SIZE || size > MAX_PREVIEW_SIZE) {
+        if (size <= MIN_PREVIEW_SIZE || size > MAX_PREVIEW_SIZE) {
             throw new BadRequestException("Invalid server preview size. Must be between " + MIN_PREVIEW_SIZE + " and " + MAX_PREVIEW_SIZE);
         }
 
         MinecraftServer server = cachedServer.getServer();
         log.debug("Getting preview for server: {}:{} (size {})", server.getHostname(), server.getPort(), size);
-        String key = "%s-%s:%s:%s".formatted(platform, server.getHostname(), server.getPort(), size);
+        String key = "serverPreview:%s-%s-%s-%s".formatted(platform, server.getHostname(), server.getPort(), size);
 
         // Check if the server preview is cached
         Optional<CachedServerPreview> cached = serverPreviewCacheRepository.findById(key);

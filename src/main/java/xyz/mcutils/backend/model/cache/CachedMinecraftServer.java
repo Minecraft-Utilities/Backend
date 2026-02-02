@@ -32,7 +32,7 @@ public class CachedMinecraftServer extends CachedResponse implements Serializabl
     private MinecraftServer server;
 
     public CachedMinecraftServer(@NonNull String id, @NonNull MinecraftServer server) {
-        super(true, System.currentTimeMillis());
+        super(false, System.currentTimeMillis());
         this.id = id;
         this.server = server;
     }

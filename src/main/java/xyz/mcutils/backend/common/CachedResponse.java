@@ -1,11 +1,11 @@
 package xyz.mcutils.backend.common;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-@AllArgsConstructor @NoArgsConstructor
-@Getter
+@NoArgsConstructor
+@Getter @Setter
 public class CachedResponse {
     /**
      * Whether this request is cached.
@@ -17,15 +17,17 @@ public class CachedResponse {
      */
     private long cachedTime;
 
-    /**
-     * Sets if this request is cached.
-     *
-     * @param cached the new value of if this request is cached
-     */
-    public void setCached(boolean cached) {
+    public CachedResponse(boolean cached, long cachedTime) {
         this.cached = cached;
-        if (!cached) {
-            cachedTime = -1;
-        }
+        this.cachedTime = cachedTime;
+    }
+
+    /**
+     * Gets the cached time.
+     *
+     * @return the cached time
+     */
+    public long getCachedTime() {
+        return cached ? cachedTime : -1;
     }
 }
