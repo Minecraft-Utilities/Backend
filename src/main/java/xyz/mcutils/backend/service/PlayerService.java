@@ -4,6 +4,7 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
@@ -19,6 +20,7 @@ import xyz.mcutils.backend.repository.PlayerNameCacheRepository;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @Slf4j
@@ -63,7 +65,11 @@ public class PlayerService {
                     new Player(mojangProfile)
             );
 
-            playerCacheRepository.save(player);
+            CompletableFuture.runAsync(() ->  playerCacheRepository.save(player), Main.EXECUTOR)
+                    .exceptionally(ex -> {
+                        log.warn("Save failed for player {}: {}", player.getUniqueId(), ex.getMessage());
+                        return null;
+                    });
             player.setCached(false);
             return player;
         } catch (RateLimitException exception) {
@@ -93,10 +99,15 @@ public class PlayerService {
                 throw new NotFoundException("Player with username '%s' was not found".formatted(username));
             }
             UUID uuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
-            CachedPlayerName player = new CachedPlayerName(id, username, uuid);
-            playerNameCacheRepository.save(player);
-            player.setCached(false);
-            return player;
+            CachedPlayerName playerName = new CachedPlayerName(id, username, uuid);
+
+            CompletableFuture.runAsync(() ->  playerNameCacheRepository.save(playerName), Main.EXECUTOR)
+                    .exceptionally(ex -> {
+                        log.warn("Save failed for player uuid lookup {}: {}", playerName.getUniqueId(), ex.getMessage());
+                        return null;
+                    });
+            playerName.setCached(false);
+            return playerName;
         } catch (RateLimitException exception) {
             throw new MojangAPIRateLimitException();
         }

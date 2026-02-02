@@ -12,6 +12,7 @@ import xyz.mcutils.backend.common.AppConfig;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.renderer.model.PlayerModelCoordinates;
+import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
 import xyz.mcutils.backend.model.player.Player;
@@ -188,9 +189,9 @@ public class SkinService {
 
         // don't save to cache in development
         if (AppConfig.isProduction()) {
-            CompletableFuture.runAsync(() -> skinPartRepository.save(skinPart))
+            CompletableFuture.runAsync(() -> skinPartRepository.save(skinPart), Main.EXECUTOR)
                 .exceptionally(ex -> {
-                    log.warn("Async cache save failed for skin part {}: {}", key, ex.getMessage());
+                    log.warn("Save failed for skin part {}: {}", key, ex.getMessage());
                     return null;
                 });
         }

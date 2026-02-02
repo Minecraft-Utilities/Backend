@@ -10,11 +10,15 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Slf4j
 @SpringBootApplication
 @EnableScheduling
 public class Main {
+    public static final ExecutorService EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
+
     @SneakyThrows
     public static void main(String[] args) {
         File config = new File("application.yml");
