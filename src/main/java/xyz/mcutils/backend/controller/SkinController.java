@@ -33,7 +33,7 @@ public class SkinController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .contentType(MediaType.IMAGE_PNG)
-                .body(this.skinService.getSkinBytes(this.playerService.getPlayer(query).getPlayer().getSkin(), false));
+                .body(this.skinService.getSkinTexture(this.playerService.getPlayer(query).getPlayer().getSkin(), false));
     }
 
     @GetMapping(value = "/{query}/{part}.png", produces = MediaType.IMAGE_PNG_VALUE)
@@ -45,6 +45,6 @@ public class SkinController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .contentType(MediaType.IMAGE_PNG)
-                .body(this.skinService.getSkinPart(this.playerService.getPlayer(query).getPlayer(), part, overlays, size).getBytes());
+                .body(this.skinService.renderSkinPart(this.playerService.getPlayer(query).getPlayer(), part, overlays, size).getBytes());
     }
 }

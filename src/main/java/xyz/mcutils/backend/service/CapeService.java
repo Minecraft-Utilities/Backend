@@ -38,7 +38,7 @@ public class CapeService {
      * @param cape the skin to get the image for
      * @return the skin image
      */
-    public byte[] getCapeImage(Cape cape) {
+    public byte[] getCapeTexture(Cape cape) {
         return this.capeCache.asMap().computeIfAbsent(cape.getId(), _ -> {
             byte[] capeImage = minioService.get(StorageService.Bucket.CAPES, cape.getId() + ".png");
             if (capeImage == null) {

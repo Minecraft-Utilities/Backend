@@ -64,16 +64,7 @@ public class MojangProfileToken {
         }
         JsonObject texturesJson = textureProperty.getDecodedValue().getAsJsonObject("textures"); // Parse the decoded JSON and get the texture object
         return new Tuple<>(Skin.fromJson(texturesJson.getAsJsonObject("SKIN"), player),
-                Cape.fromJson(texturesJson.getAsJsonObject("CAPE"), player));
-    }
-
-    /**
-     * Gets the formatted UUID of the player.
-     *
-     * @return the formatted UUID
-     */
-    public String getFormattedUuid() {
-        return id.length() == 32 ? UUIDUtils.addDashes(id).toString() : id;
+                Cape.fromJson(texturesJson.getAsJsonObject("CAPE")));
     }
     
     /**

@@ -24,7 +24,7 @@ public class Cape {
      * @param json the JSON object
      * @return the cape
      */
-    public static Cape fromJson(JsonObject json, Player player) {
+    public static Cape fromJson(JsonObject json) {
         if (json == null) {
             return null;
         }
@@ -34,7 +34,7 @@ public class Cape {
         String id = capeUrlParts[capeUrlParts.length - 1];
         return new Cape(
                 id,
-                Config.INSTANCE.getWebPublicUrl() + "/cape/%s/texture.png".formatted(player.getUniqueId().toString())
+                Config.INSTANCE.getWebPublicUrl() + "/cape/%s/texture.png".formatted(id)
         );
     }
 
@@ -47,7 +47,7 @@ public class Cape {
      public static Cape fromId(String id) {
         return new Cape(
                 id,
-                Config.INSTANCE.getWebPublicUrl() + "/cape/texture/" + id
+                Config.INSTANCE.getWebPublicUrl() + "/cape/%s/texture.png".formatted(id)
         );
     }
 

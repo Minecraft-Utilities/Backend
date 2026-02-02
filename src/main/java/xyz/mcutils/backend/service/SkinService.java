@@ -57,7 +57,7 @@ public class SkinService {
      * @param skin the skin to get the image for
      * @return the skin image
      */
-    public byte[] getSkinBytes(Skin skin, boolean upgrade) {
+    public byte[] getSkinTexture(Skin skin, boolean upgrade) {
         byte[] skinBytes = this.skinCache.asMap().computeIfAbsent(skin.getId(), _ -> {
             byte[] skinImage = minioService.get(StorageService.Bucket.SKINS, skin.getId() + ".png");
             if (skinImage == null) {
@@ -160,7 +160,7 @@ public class SkinService {
      * @param size the output size (height; width derived per part)
      * @return the skin part
      */
-    public CachedPlayerSkinPart getSkinPart(Player player, String partName, boolean renderOverlay, int size) {
+    public CachedPlayerSkinPart renderSkinPart(Player player, String partName, boolean renderOverlay, int size) {
         if (size > 1024) {
             throw new BadRequestException("Size must not be larger than 1024");
         }
