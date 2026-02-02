@@ -19,7 +19,6 @@ public class BitmapFont {
     private final int defaultGlyphWidth;
     /** Default bold offset when character has no entry in widths file (e.g. from missing_char). */
     private double defaultBoldOffset = 1.0;
-    private int scale = 1;
 
     public BitmapFont(int ascent, int height, int defaultGlyphWidth) {
         this.ascent = ascent;
@@ -45,20 +44,12 @@ public class BitmapFont {
         advanceOnlyBoldOffsets.put(codepoint, boldOffset);
     }
 
-    public int getScale() {
-        return scale;
-    }
-
-    public void setScale(int scale) {
-        this.scale = scale;
-    }
-
     public int ascent() {
-        return ascent * scale;
+        return ascent;
     }
 
     public int height() {
-        return height * scale;
+        return height;
     }
 
     /**
@@ -78,7 +69,7 @@ public class BitmapFont {
         int total = 0;
         for (int i = 0; i < str.length(); ) {
             int cp = str.codePointAt(i);
-            total += getAdvance(cp, bold) * scale;
+            total += getAdvance(cp, bold);
             i += Character.charCount(cp);
         }
         return total;
@@ -122,13 +113,13 @@ public class BitmapFont {
             int cp = str.codePointAt(i);
             Glyph glyph = glyphs.get(cp);
             if (glyph != null) {
-                int glyphDrawY = y - glyph.ascent() * scale;
-                int w = glyph.width() * scale;
-                int h = glyph.height() * scale;
+                int glyphDrawY = y - glyph.ascent();
+                int w = glyph.width();
+                int h = glyph.height();
                 drawGlyphTinted(g, glyph, x, glyphDrawY, w, h, color);
-                x += getAdvance(cp, bold) * scale;
+                x += getAdvance(cp, bold);
             } else {
-                x += getAdvance(cp, bold) * scale;
+                x += getAdvance(cp, bold);
             }
             i += Character.charCount(cp);
         }
@@ -160,24 +151,6 @@ public class BitmapFont {
                 tinted.setRGB(px, py, (a << 24) | (tr << 16) | (tg << 8) | tb);
             }
         }
-        if (scale != 1) {
-            // Use nearest neighbor scaling to preserve thin characters like |
-            Object oldInterp = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION);
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-            g.drawImage(tinted, x, y, w, h, null);
-            if (oldInterp != null) {
-                g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, oldInterp);
-            }
-        } else {
-            g.drawImage(tinted, x, y, null);
-        }
-    }
-
-    /**
-     * Draw the string and return the x position after the last character (for chaining).
-     */
-    public int drawStringAndAdvance(Graphics2D g, String str, int x, int y) {
-        drawString(g, str, x, y);
-        return x + stringWidth(str);
+        g.drawImage(tinted, x, y, null);
     }
 }

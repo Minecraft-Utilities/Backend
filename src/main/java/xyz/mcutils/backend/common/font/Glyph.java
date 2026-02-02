@@ -10,18 +10,6 @@ import java.awt.image.BufferedImage;
  */
 public record Glyph(BufferedImage texture, int srcX, int srcY, int width, int height, int advance,
                     double boldOffset, double shadowOffset, int ascent) {
-
-    public Glyph(BufferedImage texture, int srcX, int srcY, int width, int height, int advance) {
-        this(texture, srcX, srcY, width, height, advance, 1.0, 1.0, 7);
-    }
-
-    /**
-     * Creates a glyph with advance equal to width (monospace cell). Use when advance is not measured.
-     */
-    public static Glyph withCellAdvance(BufferedImage texture, int srcX, int srcY, int width, int height) {
-        return new Glyph(texture, srcX, srcY, width, height, width, 20.0, 1.0, 7);
-    }
-
     /**
      * Advance when bold: base advance + boldOffset (Minecraft getAdvance(bold)).
      */

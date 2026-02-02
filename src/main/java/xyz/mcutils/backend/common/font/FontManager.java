@@ -164,7 +164,7 @@ public class FontManager {
                 return;
             }
             int rows = chars.size();
-            int cols = chars.get(0).length();
+            int cols = chars.getFirst().length();
             int cellW = texture.getWidth() / cols;
             int cellH = texture.getHeight() / rows;
             int pAscent = provider.getAscent() != null ? provider.getAscent() : 7;
@@ -236,13 +236,5 @@ public class FontManager {
     public BitmapFont getDefaultFont() {
         load();
         return Objects.requireNonNull(fonts.get(DEFAULT_META), "Font failed to load");
-    }
-
-    public BitmapFont getFont(String name) {
-        BitmapFont font = fonts.get(name);
-        if (font == null) {
-            font = loadFont(name);
-        }
-        return font;
     }
 }
