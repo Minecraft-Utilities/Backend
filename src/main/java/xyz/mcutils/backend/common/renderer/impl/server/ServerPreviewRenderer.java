@@ -70,7 +70,6 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
         // Minecraft font height is 9 (8px glyph + 1). Our font ascent=7, so baseline = top + ascent*scale.
         int textX = iconSize + iconTextGap;
         int fontAscent = Fonts.MINECRAFT.ascent(); // 7 at 1x
-        int serverNameTop = 1 * SCALE;
         int motdLine1Top = 12 * SCALE;
         int motdLine2Top = 21 * SCALE; // 12 + 9
 
@@ -80,7 +79,7 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
 
         // Draw server hostname (with shadow) - baseline = top + ascent*scale
         graphics.setColor(MinecraftColor.WHITE.toAwtColor());
-        GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, server.getHostname(), textX, serverNameTop + fontAscent * SCALE, true, false, false, SCALE);
+        GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, server.getHostname(), textX, SCALE + fontAscent * SCALE, true, false, false, SCALE);
 
         // Draw MOTD - 2 distinct raw lines, no wrapping (Minecraft uses font.split for overflow)
         String[] rawMotd = server.getMotd().raw();
@@ -103,7 +102,7 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
                 + GraphicsUtils.stringWidthAtScale(Fonts.MINECRAFT, "/", SCALE)
                 + GraphicsUtils.stringWidthAtScale(Fonts.MINECRAFT, playersMax, SCALE);
         int statusTextX = statusIconX - onlineWidth - rightSpacing;
-        int statusTextY = 1 * SCALE + fontAscent * SCALE;
+        int statusTextY = SCALE + fontAscent * SCALE;
 
         graphics.setColor(MinecraftColor.GRAY.toAwtColor());
         statusTextX = GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, playersOnline, statusTextX, statusTextY, true, false, false, SCALE);
@@ -127,7 +126,7 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
             int colorIndex = line.indexOf("§", index);
             if (colorIndex == -1) {
                 String remaining = line.substring(index);
-                drawX = GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, remaining, drawX, y, true, bold, italic, SCALE);
+                GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, remaining, drawX, y, true, bold, italic, SCALE);
                 break;
             }
 

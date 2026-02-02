@@ -135,6 +135,7 @@ public class MaxMindService {
      *
      * @param isScheduled whether this is a scheduled update
      */
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     @SneakyThrows
     private void loadDatabases(boolean isScheduled) {
         if (isScheduled) {

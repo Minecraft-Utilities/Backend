@@ -28,7 +28,7 @@ public class AppConfig {
     @Value("${public-url}")
     private String webPublicUrl;
 
-    @Value("${metrics-token:}")
+    @Value("${metrics-token}")
     private String metricsToken;
 
     @PostConstruct

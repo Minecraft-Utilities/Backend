@@ -69,16 +69,23 @@ public class GraphicsUtils {
             ));
             font.drawString(g, str, drawX + 1, drawY + 1, bold);
             if (bold) {
-                font.drawString(g, str, drawX + 2, drawY + 1, bold);  // Shadow for bold copy
+                font.drawString(g, str, drawX + 2, drawY + 1, true);  // Shadow for bold copy
             }
             g.setColor(savedColor);
         }
         font.drawString(g, str, drawX, drawY, bold);
         if (bold) {
-            font.drawString(g, str, drawX + 1, drawY, bold);
+            font.drawString(g, str, drawX + 1, drawY, true);
         }
         g.setTransform(savedTransform);
         int advance = font.stringWidth(str, bold);
         return x + advance * scale;
+    }
+
+    /**
+     * Returns the width of the string when drawn at the given scale.
+     */
+    public static int stringWidthAtScale(BitmapFont font, String str, int scale) {
+        return font.stringWidth(str, false) * scale;
     }
 }

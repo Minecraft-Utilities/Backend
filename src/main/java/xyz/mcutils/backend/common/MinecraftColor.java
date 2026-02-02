@@ -1,10 +1,13 @@
 package xyz.mcutils.backend.common;
 
+import lombok.Getter;
+
 import java.awt.*;
 
 /**
  * Minecraft chat formatting colors.
  */
+@Getter
 public enum MinecraftColor {
     BLACK('0', 0),
     DARK_BLUE('1', 170),
@@ -29,14 +32,6 @@ public enum MinecraftColor {
     MinecraftColor(char code, int rgb) {
         this.code = code;
         this.rgb = rgb;
-    }
-
-    public char getCode() {
-        return code;
-    }
-
-    public int getRgb() {
-        return rgb;
     }
 
     public Color toAwtColor() {
