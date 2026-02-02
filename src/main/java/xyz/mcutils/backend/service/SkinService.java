@@ -16,7 +16,7 @@ import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.skin.Skin;
-import xyz.mcutils.backend.model.skin.SkinPart;
+import xyz.mcutils.backend.model.skin.SkinRendererType;
 import xyz.mcutils.backend.repository.PlayerSkinPartCacheRepository;
 
 import javax.imageio.ImageIO;
@@ -105,7 +105,7 @@ public class SkinService {
             throw new BadRequestException("Invalid skin part size. Must be between " + MIN_PART_SIZE + " and " + MAX_PART_SIZE);
         }
 
-        SkinPart part = SkinPart.getByName(partName);
+        SkinRendererType part = SkinRendererType.getByName(partName);
         if (part == null) {
             throw new BadRequestException("Invalid skin part: '%s'".formatted(partName));
         }

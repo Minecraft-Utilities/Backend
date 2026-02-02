@@ -13,7 +13,7 @@ import java.awt.image.BufferedImage;
 
 @AllArgsConstructor
 @Getter
-public enum SkinPart {
+public enum SkinRendererType {
     FACE(FaceRenderer.INSTANCE),
     HEAD(HeadRenderer.INSTANCE),
     FULLBODY_FRONT(FullBodyRendererFront.INSTANCE),
@@ -40,8 +40,8 @@ public enum SkinPart {
      * @param name the name of the skin part
      * @return the skin part
      */
-    public static SkinPart getByName(String name) {
-        for (SkinPart part : SkinPart.values()) {
+    public static SkinRendererType getByName(String name) {
+        for (SkinRendererType part : SkinRendererType.values()) {
             if (part.name().equalsIgnoreCase(name)) {
                 return part;
             }

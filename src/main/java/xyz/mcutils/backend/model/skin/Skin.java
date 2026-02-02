@@ -54,7 +54,7 @@ public class Skin {
         this.textureUrl = AppConfig.INSTANCE.getWebPublicUrl() + "/skin/%s/texture.png".formatted(player.getUniqueId().toString());
 
         this.parts = new HashMap<>();
-        for (SkinPart type : SkinPart.values()) {
+        for (SkinRendererType type : SkinRendererType.values()) {
             this.parts.put(type.name(), "%s/skin/%s/%s.png".formatted(
                 AppConfig.INSTANCE.getWebPublicUrl(),
                 player.getUniqueId().toString(),
