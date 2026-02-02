@@ -19,8 +19,8 @@ import xyz.mcutils.backend.log.RequestTimingFilter;
 @Getter
 @Slf4j
 @Configuration
-public class Config {
-    public static Config INSTANCE;
+public class AppConfig {
+    public static AppConfig INSTANCE;
 
     @Autowired
     private Environment environment;
@@ -34,6 +34,18 @@ public class Config {
     @PostConstruct
     public void onInitialize() {
         INSTANCE = this;
+    }
+
+    /**
+     * Is the app running in a production environment?
+     */
+    @Getter
+    private static final boolean production;
+
+    static {
+        // Are we running on production?
+        String env = System.getenv("ENVIRONMENT");
+        production = env != null && (env.equals("production"));
     }
 
     @Bean

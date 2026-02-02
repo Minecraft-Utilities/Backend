@@ -3,7 +3,7 @@ package xyz.mcutils.backend.model.player;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.gson.JsonObject;
 import lombok.*;
-import xyz.mcutils.backend.config.Config;
+import xyz.mcutils.backend.config.AppConfig;
 
 @AllArgsConstructor @NoArgsConstructor
 @Getter @EqualsAndHashCode @ToString
@@ -34,7 +34,7 @@ public class Cape {
         String id = capeUrlParts[capeUrlParts.length - 1];
         return new Cape(
                 id,
-                Config.INSTANCE.getWebPublicUrl() + "/cape/%s/texture.png".formatted(id)
+                AppConfig.INSTANCE.getWebPublicUrl() + "/cape/%s/texture.png".formatted(id)
         );
     }
 
@@ -47,7 +47,7 @@ public class Cape {
      public static Cape fromId(String id) {
         return new Cape(
                 id,
-                Config.INSTANCE.getWebPublicUrl() + "/cape/%s/texture.png".formatted(id)
+                AppConfig.INSTANCE.getWebPublicUrl() + "/cape/%s/texture.png".formatted(id)
         );
     }
 

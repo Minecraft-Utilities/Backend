@@ -101,7 +101,7 @@ public class PlayerService {
             UUID uuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
             CachedPlayerName playerName = new CachedPlayerName(id, username, uuid);
 
-            CompletableFuture.runAsync(() ->  playerNameCacheRepository.save(playerName), Main.EXECUTOR)
+            CompletableFuture.runAsync(() -> playerNameCacheRepository.save(playerName), Main.EXECUTOR)
                     .exceptionally(ex -> {
                         log.warn("Save failed for player uuid lookup {}: {}", playerName.getUniqueId(), ex.getMessage());
                         return null;

@@ -2,7 +2,7 @@ package xyz.mcutils.backend.model.server;
 
 import lombok.NonNull;
 import xyz.mcutils.backend.common.ColorUtils;
-import xyz.mcutils.backend.config.Config;
+import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.token.server.JavaServerStatusToken;
 
 import java.util.ArrayList;
@@ -30,7 +30,7 @@ public record Players(int online, int max, Sample[] sample) {
         if (token.sample() != null) {
             samples = new ArrayList<>(); // The player samples
             for (JavaServerStatusToken.Players.Sample sample : token.sample()) {
-                String href = Config.INSTANCE.getWebPublicUrl() + "/player/" + sample.id();
+                String href = AppConfig.INSTANCE.getWebPublicUrl() + "/player/" + sample.id();
                 samples.add(new Sample(sample.id(), Sample.Name.create(sample.name()), href));
             }
         }

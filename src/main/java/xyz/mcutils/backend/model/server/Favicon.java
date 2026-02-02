@@ -3,7 +3,7 @@ package xyz.mcutils.backend.model.server;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
-import xyz.mcutils.backend.config.Config;
+import xyz.mcutils.backend.config.AppConfig;
 
 @Getter
 @AllArgsConstructor
@@ -29,6 +29,6 @@ public class Favicon {
         if (base64 == null) { // The server doesn't have a favicon
             return null;
         }
-        return new Favicon(base64, Config.INSTANCE.getWebPublicUrl() + "/server/icon/%s".formatted(address));
+        return new Favicon(base64, AppConfig.INSTANCE.getWebPublicUrl() + "/server/icon/%s".formatted(address));
     }
 }

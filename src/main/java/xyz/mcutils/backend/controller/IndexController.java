@@ -11,7 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import xyz.mcutils.backend.config.Config;
+import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.response.HealthResponse;
 import xyz.mcutils.backend.model.response.IndexResponse;
 import xyz.mcutils.backend.service.MetricService;
@@ -36,7 +36,7 @@ public class IndexController {
 
     @GetMapping(value = "/")
     public IndexResponse index() {
-        String publicUrl = Config.INSTANCE.getWebPublicUrl();
+        String publicUrl = AppConfig.INSTANCE.getWebPublicUrl();
 
         return new IndexResponse(
                 "Minecraft Utilities API",

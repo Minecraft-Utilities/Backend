@@ -28,7 +28,7 @@ public class OpenAPIConfiguration {
     @Bean
     public OpenAPI defineOpenAPI() {
         Server server = new Server();
-        server.setUrl(Config.INSTANCE.getWebPublicUrl());
+        server.setUrl(AppConfig.INSTANCE.getWebPublicUrl());
 
         Contact contact = new Contact();
         contact.setName("Fascinated");

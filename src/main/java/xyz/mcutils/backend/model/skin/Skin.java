@@ -5,7 +5,7 @@ import com.google.gson.JsonObject;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.EnumUtils;
-import xyz.mcutils.backend.config.Config;
+import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.service.SkinService;
 
@@ -51,12 +51,12 @@ public class Skin {
 
         this.model = model;
         this.legacy = Skin.isLegacySkin(this);
-        this.textureUrl = Config.INSTANCE.getWebPublicUrl() + "/skin/%s/texture.png".formatted(player.getUniqueId().toString());
+        this.textureUrl = AppConfig.INSTANCE.getWebPublicUrl() + "/skin/%s/texture.png".formatted(player.getUniqueId().toString());
 
         this.parts = new HashMap<>();
         for (SkinPart type : SkinPart.values()) {
             this.parts.put(type.name(), "%s/skin/%s/%s.png".formatted(
-                Config.INSTANCE.getWebPublicUrl(),
+                AppConfig.INSTANCE.getWebPublicUrl(),
                 player.getUniqueId().toString(),
                 type.name().toLowerCase()
             ));
