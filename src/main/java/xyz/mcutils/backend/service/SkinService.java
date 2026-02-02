@@ -32,6 +32,9 @@ import java.util.concurrent.TimeUnit;
 public class SkinService {
     public static SkinService INSTANCE;
 
+    private static final int MIN_PART_SIZE = 64;
+    private static final int MAX_PART_SIZE = 1024;
+
     private final PlayerSkinPartCacheRepository skinPartRepository;
     private final StorageService minioService;
 
@@ -98,11 +101,8 @@ public class SkinService {
      * @return the skin part
      */
     public CachedPlayerSkinPart renderSkinPart(Player player, String partName, boolean renderOverlay, int size) {
-        if (size > 1024) {
-            throw new BadRequestException("Size must not be larger than 1024");
-        }
-        if (size < 32) {
-            throw new BadRequestException("Size must not be smaller than 32");
+        if (size <= MIN_PART_SIZE || size > MAX_PART_SIZE) {
+            throw new BadRequestException("Invalid skin part size. Must be between " + MIN_PART_SIZE + " and " + MAX_PART_SIZE);
         }
 
         SkinPart part = SkinPart.getByName(partName);
