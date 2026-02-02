@@ -93,7 +93,7 @@ public class Isometric3DRenderer {
         double modelH = maxY - minY;
         if (modelW < 1) modelW = 1;
         if (modelH < 1) modelH = 1;
-        double scale = Math.min((width - 4) / modelW, (size - 4) / modelH);
+        double scale = Math.min(width / modelW, size / modelH);
         double offsetX = (width - modelW * scale) / 2 - minX * scale;
         double offsetY = maxY * scale;
 
