@@ -92,34 +92,49 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
                 int textWidth = graphics.getFontMetrics().stringWidth(textBeforeColor);
                 // Move x position to after the drawn text
                 x += textWidth;
-                // Set color based on color code
-                char colorCode = Character.toLowerCase(line.charAt(colorIndex + 1));
+                
+                // Check if this is a hex color code (§x§R§R§G§G§B§B)
+                Color hexColor = ColorUtils.parseHexColor(line, colorIndex);
+                if (hexColor != null) {
+                    // Valid hex color found - set the color and advance by 14 characters
+                    graphics.setColor(hexColor);
+                    graphics.setFont(Fonts.MINECRAFT);
+                    index = colorIndex + 14;
+                } else if (colorIndex + 1 < line.length()) {
+                    // Not a hex color - handle as single-character code
+                    // Set color based on color code
+                    char colorCode = Character.toLowerCase(line.charAt(colorIndex + 1));
 
-                // Set the color and font style
-                switch (colorCode) {
-                    case 'l':
-                        graphics.setFont(Fonts.MINECRAFT_BOLD);
-                        break;
-                    case 'o':
-                        graphics.setFont(Fonts.MINECRAFT_ITALIC);
-                        break;
-                    case 'r': // Reset formatting
-                        graphics.setColor(Color.GRAY);
-                        graphics.setFont(Fonts.MINECRAFT);
-                        break;
-                    default: {
-                        try {
-                            Color color = ColorUtils.getMinecraftColor(colorCode);
-                            graphics.setColor(color);
+                    // Set the color and font style
+                    switch (colorCode) {
+                        case 'l':
+                            graphics.setFont(Fonts.MINECRAFT_BOLD);
+                            break;
+                        case 'o':
+                            graphics.setFont(Fonts.MINECRAFT_ITALIC);
+                            break;
+                        case 'r': // Reset formatting
+                            graphics.setColor(Color.GRAY);
                             graphics.setFont(Fonts.MINECRAFT);
-                        } catch (Exception ignored) {
-                            // Unknown color, can ignore the error
+                            break;
+                        default: {
+                            try {
+                                Color color = ColorUtils.getMinecraftColor(colorCode);
+                                graphics.setColor(color);
+                                graphics.setFont(Fonts.MINECRAFT);
+                            } catch (Exception ignored) {
+                                // Unknown color, can ignore the error
+                            }
                         }
                     }
-                }
 
-                // Move index to after the color code
-                index = colorIndex + 2;
+                    // Move index to after the color code
+                    index = colorIndex + 2;
+                } else {
+                    // Malformed color code (§ at end of string) - skip it
+                    index = colorIndex + 1;
+                }
+                
                 // Find next color code
                 colorIndex = line.indexOf("§", index);
             }

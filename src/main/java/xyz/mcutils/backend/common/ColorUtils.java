@@ -157,4 +157,69 @@ public final class ColorUtils {
         }
         return Color.decode(color);
     }
+
+    /**
+     * Parses a hex color code in the format §x§R§R§G§G§B§B from the given string at the specified index.
+     * <p>
+     * This method checks if the substring starting at the given index matches the hex color format
+     * (§x followed by 6 pairs of § + hex digit). If valid, it returns the parsed Color and the
+     * number of characters consumed (14). If invalid or the string is too short, returns null.
+     * </p>
+     *
+     * @param line  the string containing the color code
+     * @param index the index of the leading § character
+     * @return the parsed Color if valid, null otherwise
+     */
+    public static Color parseHexColor(@NonNull String line, int index) {
+        // Check if we have enough characters for §x§R§R§G§G§B§B (14 characters total)
+        if (index + 14 > line.length()) {
+            return null;
+        }
+
+        // Check if the character at index is § and the next is 'x' (case-insensitive)
+        if (line.charAt(index) != '§' || Character.toLowerCase(line.charAt(index + 1)) != 'x') {
+            return null;
+        }
+
+        // Build the hex string by extracting the 6 hex digits
+        StringBuilder hex = new StringBuilder("#");
+        for (int j = 0; j < 6; j++) {
+            int idx = index + 2 + (j * 2);
+            // Check if we have enough characters and if it's a § followed by a hex digit
+            if (idx + 1 >= line.length() || line.charAt(idx) != '§') {
+                return null;
+            }
+            char hexDigit = line.charAt(idx + 1);
+            // Validate hex digit (0-9, A-F, a-f)
+            if ((hexDigit >= '0' && hexDigit <= '9') || 
+                (hexDigit >= 'A' && hexDigit <= 'F') || 
+                (hexDigit >= 'a' && hexDigit <= 'f')) {
+                hex.append(hexDigit);
+            } else {
+                return null;
+            }
+        }
+
+        // Parse and return the color
+        try {
+            return Color.decode(hex.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Gets the length of a hex color code if present at the given index.
+     * Returns 14 if a valid §x§R§R§G§G§B§B sequence is found, 0 otherwise.
+     *
+     * @param line  the string containing the color code
+     * @param index the index of the leading § character
+     * @return 14 if a valid hex color code is found, 0 otherwise
+     */
+    public static int getHexColorLength(@NonNull String line, int index) {
+        if (parseHexColor(line, index) != null) {
+            return 14;
+        }
+        return 0;
+    }
 }
