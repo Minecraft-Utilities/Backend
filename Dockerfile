@@ -1,10 +1,5 @@
 FROM maven:3.9.12-eclipse-temurin-25-alpine
 
-# Install font dependencies
-RUN apk --update --upgrade --no-cache add fontconfig ttf-freefont font-noto terminus-font \
-     && fc-cache -f \
-     && fc-list | sort
-
 # Set the working directory
 WORKDIR /home/container
 
