@@ -7,21 +7,23 @@ import com.maxmind.geoip2.model.AsnResponse;
 import com.maxmind.geoip2.model.CityResponse;
 import com.maxmind.geoip2.record.Country;
 import com.maxmind.geoip2.record.Location;
-
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
-import xyz.mcutils.backend.exception.impl.NotFoundException;
-import xyz.mcutils.backend.model.asn.AsnLookup;
-import xyz.mcutils.backend.model.geo.GeoLocation;
-import xyz.mcutils.backend.model.response.IpLookupResponse;
-
 import org.apache.commons.io.FileUtils;
 import org.codehaus.plexus.archiver.tar.TarGZipUnArchiver;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.exception.impl.NotFoundException;
+import xyz.mcutils.backend.model.asn.AsnLookup;
+import xyz.mcutils.backend.model.cache.CachedIpLookup;
+import xyz.mcutils.backend.model.geo.GeoLocation;
+import xyz.mcutils.backend.model.response.IpLookup;
+import xyz.mcutils.backend.repository.IpLookupCacheRepository;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -35,6 +37,8 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * @author Braydon
@@ -42,6 +46,8 @@ import java.util.Map;
 @Service
 @Slf4j
 public class MaxMindService {
+    public static MaxMindService INSTANCE;
+
     /**
      * The endpoint to download database files from.
      */
@@ -55,9 +61,18 @@ public class MaxMindService {
     @Value("${maxmind.license}")
     private String license;
 
-    /** Database directory path; defaults to "databases" relative to working dir. Use an absolute path for persistence across runs. */
+    /**
+     * Database directory path; defaults to "databases" relative to working dir. Use an absolute path for persistence across runs.
+     */
     @Value("${maxmind.database-dir:databases}")
     private String databaseDirPath;
+
+    private final IpLookupCacheRepository ipLookupCacheRepository;
+
+    @Autowired
+    public MaxMindService(IpLookupCacheRepository ipLookupCacheRepository) {
+        this.ipLookupCacheRepository = ipLookupCacheRepository;
+    }
 
     @PostConstruct
     public void onInitialize() {
@@ -65,6 +80,7 @@ public class MaxMindService {
         if (!license.equals("CHANGE_ME")) {
             loadDatabases();
         }
+        INSTANCE = this;
     }
 
     /**
@@ -73,13 +89,31 @@ public class MaxMindService {
      * @param ip the IP address to lookup
      * @return the IP lookup response
      */
-    public static IpLookupResponse lookupIp(@NonNull String ip) {
+    public IpLookup lookupIp(@NonNull String ip) {
+        log.debug("Getting lookup for IP: {}", ip);
+
+        Optional<CachedIpLookup> cachedIpLookup = this.ipLookupCacheRepository.findById(ip);
+        if (cachedIpLookup.isPresent()) {
+            log.debug("IP lookup for {} is cached", ip);
+            return cachedIpLookup.get().getIpLookup();
+        }
+
+        long start = System.currentTimeMillis();
         GeoLocation location = lookupCity(ip);
         AsnLookup asn = lookupAsn(ip);
         if (location == null && asn == null) {
             throw new NotFoundException("No data found for IP address: %s".formatted(ip));
         }
-        return new IpLookupResponse(ip, location, asn);
+        log.debug("Took {}ms to lookup IP: {}", System.currentTimeMillis() - start, ip);
+
+        CachedIpLookup ipLookup = new CachedIpLookup(ip, new IpLookup(ip, location, asn));
+        CompletableFuture.runAsync(() -> this.ipLookupCacheRepository.save(ipLookup), Main.EXECUTOR)
+                .exceptionally(ex -> {
+                    log.warn("Save failed for ip lookup {}: {}", ip, ex.getMessage());
+                    return null;
+                });
+
+        return ipLookup.getIpLookup();
     }
 
     /**
@@ -89,7 +123,7 @@ public class MaxMindService {
      * @return the city response, null if none
      */
     @SneakyThrows
-    public static GeoLocation lookupCity(@NonNull String ip) {
+    private GeoLocation lookupCity(@NonNull String ip) {
         DatabaseReader database = getDatabase(Database.CITY);
         try {
             if (database == null) {
@@ -126,7 +160,7 @@ public class MaxMindService {
      * @return the asn response, null if none
      */
     @SneakyThrows
-    public static AsnLookup lookupAsn(@NonNull String ip) {
+    private AsnLookup lookupAsn(@NonNull String ip) {
         DatabaseReader database = getDatabase(Database.ASN);
         try {
             if (database == null) {

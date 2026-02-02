@@ -6,6 +6,7 @@ import lombok.Setter;
 import xyz.mcutils.backend.model.asn.AsnLookup;
 import xyz.mcutils.backend.model.dns.DNSRecord;
 import xyz.mcutils.backend.model.geo.GeoLocation;
+import xyz.mcutils.backend.model.response.IpLookup;
 import xyz.mcutils.backend.service.MaxMindService;
 
 /**
@@ -62,11 +63,8 @@ public class MinecraftServer {
         this.motd = motd;
         this.players = players;
 
-        try {
-            this.location = MaxMindService.lookupCity(ip);
-        } catch (Exception ignored) {}
-        try {
-            this.asn = MaxMindService.lookupAsn(ip);
-        } catch (Exception ignored) {}
+        IpLookup ipLookup = MaxMindService.INSTANCE.lookupIp(ip);
+        this.location = ipLookup.location();
+        this.asn = ipLookup.asn();
     }
 }
