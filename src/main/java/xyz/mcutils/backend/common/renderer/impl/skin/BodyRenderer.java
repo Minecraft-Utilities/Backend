@@ -15,6 +15,6 @@ public class BodyRenderer extends SkinRenderer {
 
     @Override
     public BufferedImage render(Skin skin, boolean renderOverlays, int size) {
-        return FullBodyRendererBase.INSTANCE.render(skin, Side.FRONT, renderOverlays, size, 0, 14.5);
+        return FullBodyRendererBase.INSTANCE.render(skin, Side.FRONT, renderOverlays, size, 0, 14.2);
     }
 }

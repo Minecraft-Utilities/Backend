@@ -24,9 +24,11 @@ public class SkinUtils {
             if (image == null || image.getWidth() != 64 || image.getHeight() != 32) {
                 return skinImage;
             }
-            log.debug("Upgrading legacy skin '{}'", skin.getId());
+            long start = System.currentTimeMillis();
             BufferedImage upgraded = upgradeLegacySkin(image);
-            return ImageUtils.imageToBytes(upgraded);
+            byte[] bytes = ImageUtils.imageToBytes(upgraded);
+            log.debug("Upgraded legacy skin '{}' in {}ms", skin.getId(), System.currentTimeMillis() - start);
+            return bytes;
         } catch (Exception e) {
             log.warn("Could not upgrade legacy skin, using original: {}", e.getMessage());
             return skinImage;

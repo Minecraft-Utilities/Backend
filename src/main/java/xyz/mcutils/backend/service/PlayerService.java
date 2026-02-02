@@ -44,6 +44,8 @@ public class PlayerService {
      * @return the player
      */
     public CachedPlayer getPlayer(String query) {
+        long start = System.currentTimeMillis();
+
         // Convert the id to uppercase to prevent case sensitivity
         UUID uuid = PlayerUtils.getUuidFromString(query);
         if (uuid == null) { // If the id is not a valid uuid, get the uuid from the username
@@ -52,6 +54,7 @@ public class PlayerService {
 
         Optional<CachedPlayer> cachedPlayer = playerCacheRepository.findById(uuid);
         if (cachedPlayer.isPresent()) { // Return the cached player if it exists
+            log.debug("Player {} found in cache ({}ms)", uuid, System.currentTimeMillis() - start);
             return cachedPlayer.get();
         }
 
@@ -71,6 +74,7 @@ public class PlayerService {
                         return null;
                     });
             player.setCached(false);
+            log.debug("Got player {} from Mojang API in {}ms", uuid, System.currentTimeMillis() - start);
             return player;
         } catch (RateLimitException exception) {
             throw new MojangAPIRateLimitException();
@@ -84,11 +88,14 @@ public class PlayerService {
      * @return the uuid of the player
      */
     public CachedPlayerName usernameToUuid(String username) {
+        long start = System.currentTimeMillis();
+
         String id = username.toUpperCase();
 
         // First check Redis cache
         Optional<CachedPlayerName> cachedPlayerName = playerNameCacheRepository.findById(id);
         if (cachedPlayerName.isPresent()) {
+            log.debug("Username {} found in cache ({}ms)", username, System.currentTimeMillis() - start);
             return cachedPlayerName.get();
         }
 
@@ -107,6 +114,7 @@ public class PlayerService {
                         return null;
                     });
             playerName.setCached(false);
+            log.debug("Got uuid for username {} in {}ms", username, System.currentTimeMillis() - start);
             return playerName;
         } catch (RateLimitException exception) {
             throw new MojangAPIRateLimitException();

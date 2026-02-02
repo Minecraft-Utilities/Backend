@@ -55,8 +55,7 @@ public class Isometric3DRenderer {
 
             for (Face face : batch.faces()) {
                 var rotatedNormal = Vector3Utils.rotateX(Vector3Utils.rotateY(face.normal(), yaw), pitch);
-                double brightness = IsometricLighting.computeBrightness(
-                        rotatedNormal, IsometricLighting.SUN_DIRECTION, IsometricLighting.MIN_BRIGHTNESS);
+                double brightness = IsometricLighting.computeBrightness(rotatedNormal, IsometricLighting.SUN_DIRECTION, IsometricLighting.MIN_BRIGHTNESS);
 
                 Vector3 v0 = Vector3Utils.rotAround(face.v0(), target, yaw, pitch);
                 Vector3 v1 = Vector3Utils.rotAround(face.v1(), target, yaw, pitch);
