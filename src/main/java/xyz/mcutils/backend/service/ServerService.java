@@ -154,7 +154,7 @@ public class ServerService {
 
         MinecraftServer server = cachedServer.getServer();
         log.debug("Getting preview for server: {}:{} (size {})", server.getHostname(), server.getPort(), size);
-        String key = "%s-%s:%s".formatted(platform, server.getHostname(), server.getPort());
+        String key = "%s-%s:%s:%s".formatted(platform, server.getHostname(), server.getPort(), size);
 
         // Check if the server preview is cached
         Optional<CachedServerPreview> cached = serverPreviewCacheRepository.findById(key);
