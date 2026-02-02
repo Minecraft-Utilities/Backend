@@ -9,6 +9,7 @@ import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.expiringmap.ExpirationPolicy;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.ExpiringSet;
 import xyz.mcutils.backend.common.WebRequest;
@@ -40,20 +41,13 @@ public class MojangService {
     private static final String FETCH_BLOCKED_SERVERS = SESSION_SERVER_ENDPOINT + "/blockedservers";
 
     /**
-     * The interval to fetch the blocked servers from Mojang.
-     */
-    private static final long FETCH_BLOCKED_SERVERS_INTERVAL = TimeUnit.HOURS.toMillis(3L);
-
-    /**
      * A list of banned server hashes provided by Mojang.
      * <p>
      * This is periodically fetched from Mojang, see
-     * {@link #fetchBlockedServers()} for more info.
+     * {@link #updateBlockedServers()} for more info.
      * </p>
-     *
-     * @see <a href="https://wiki.vg/Mojang_API#Blocked_Servers">Mojang API</a>
      */
-    private List<String> bannedServerHashes;
+    private final Set<String> bannedServerHashes = Collections.synchronizedSet(new HashSet<>());
 
     /**
      * A cache of blocked server hostnames.
@@ -61,21 +55,12 @@ public class MojangService {
      * @see #isServerHostnameBlocked(String) for more
      */
     private final ExpiringSet<String> blockedServersCache = new ExpiringSet<>(ExpirationPolicy.CREATED, 10L, TimeUnit.MINUTES);
-
-    public MojangService() {
-        new Timer().scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                fetchBlockedServers();
-            }
-        }, 0L, FETCH_BLOCKED_SERVERS_INTERVAL);
-    }
-
+   
     /**
-     * Fetch a list of blocked servers from Mojang.
+     * Updates the list of banned server hashes from Mojang.
      */
-    @SneakyThrows
-    private void fetchBlockedServers() {
+    @SneakyThrows @Scheduled(cron = "0 0 0 * * *")
+    private void updateBlockedServers() {
         log.info("Fetching blocked servers from Mojang");
         try (
                 InputStream inputStream = URI.create(FETCH_BLOCKED_SERVERS).toURL().openStream();
@@ -85,7 +70,6 @@ public class MojangService {
             while (scanner.hasNext()) {
                 hashes.add(scanner.next());
             }
-            bannedServerHashes = Collections.synchronizedList(hashes);
             log.info("Fetched {} banned server hashes", bannedServerHashes.size());
         } catch (IOException e) {
             log.error("Failed to fetch blocked servers from Mojang", e);
