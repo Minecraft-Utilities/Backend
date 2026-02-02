@@ -4,8 +4,6 @@ import xyz.mcutils.backend.common.font.BitmapFont;
 
 import java.awt.*;
 import java.awt.geom.AffineTransform;
-import java.util.ArrayList;
-import java.util.List;
 
 public class GraphicsUtils {
     /**
@@ -82,71 +80,5 @@ public class GraphicsUtils {
         g.setTransform(savedTransform);
         int advance = font.stringWidth(str, bold);
         return x + advance * scale;
-    }
-
-    /**
-     * Returns the width of the string when drawn at the given scale.
-     */
-    public static int stringWidthAtScale(BitmapFont font, String str, int scale) {
-        return font.stringWidth(str, false) * scale;
-    }
-
-    /**
-     * Returns the width of the string when drawn at the given scale with bold styling.
-     */
-    public static int stringWidthAtScale(BitmapFont font, String str, int scale, boolean bold) {
-        return font.stringWidth(str, bold) * scale;
-    }
-
-    /**
-     * Wraps a Minecraft-formatted string (with § codes) into lines that fit within maxWidthPx when drawn at scale.
-     * Returns at most maxLines lines. Format codes are preserved and carried to the start of each new line.
-     */
-    public static List<String> wrapFormattedToWidth(BitmapFont font, String line, int maxWidthPx, int scale, int maxLines) {
-        List<String> result = new ArrayList<>();
-        if (line == null || line.isEmpty()) return result;
-
-        StringBuilder formatPrefix = new StringBuilder();
-        StringBuilder currentLine = new StringBuilder();
-        int i = 0;
-
-        while (i < line.length() && result.size() < maxLines) {
-            if (line.charAt(i) == '§' && i + 1 < line.length()) {
-                char code = Character.toLowerCase(line.charAt(i + 1));
-                if (code == 'x' && i + 14 <= line.length()) {
-                    formatPrefix.setLength(0);
-                    formatPrefix.append(line, i, i + 14);
-                    i += 14;
-                    continue;
-                }
-                if (code == 'r') {
-                    formatPrefix.setLength(0);
-                    i += 2;
-                    continue;
-                }
-                if ("0123456789abcdefklmnor".indexOf(code) >= 0) {
-                    if (code != 'x') formatPrefix.append(line, i, i + 2);
-                    i += 2;
-                    continue;
-                }
-            }
-
-            char c = line.charAt(i++);
-            String testVisible = ColorUtils.stripColor(formatPrefix.toString() + currentLine.toString() + c);
-            int w = font.stringWidth(testVisible) * scale;
-
-            if (w > maxWidthPx && !currentLine.isEmpty()) {
-                result.add(formatPrefix.toString() + currentLine.toString());
-                currentLine.setLength(0);
-                currentLine.append(c);
-            } else {
-                currentLine.append(c);
-            }
-        }
-
-        if (!currentLine.isEmpty() && result.size() < maxLines) {
-            result.add(formatPrefix.toString() + currentLine.toString());
-        }
-        return result;
     }
 }
