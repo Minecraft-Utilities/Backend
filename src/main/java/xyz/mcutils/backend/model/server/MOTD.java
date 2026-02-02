@@ -28,11 +28,11 @@ public record MOTD(String[] raw, String[] clean, String[] html, String preview, 
                 rawLines,
                 Arrays.stream(rawLines).map(ColorUtils::stripColor).toArray(String[]::new),
                 Arrays.stream(rawLines).map(ColorUtils::toHTML).toArray(String[]::new),
-                AppConfig.INSTANCE.getWebPublicUrl() + "/server/%s/preview/%s".formatted(
+                AppConfig.INSTANCE.getWebPublicUrl() + "/server/%s/%s/preview.png".formatted(
                         platform.name().toLowerCase(),
                         hostname
                 ),
-                AppConfig.INSTANCE.getWebPublicUrl() + "/server/%s/html-preview/%s".formatted(
+                AppConfig.INSTANCE.getWebPublicUrl() + "/server/%s/%s/preview.html".formatted(
                         platform.name().toLowerCase(),
                         hostname
                 )
