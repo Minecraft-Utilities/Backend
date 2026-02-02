@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.ColorUtils;
 import xyz.mcutils.backend.common.Fonts;
+import xyz.mcutils.backend.common.GraphicsUtils;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.renderer.Renderer;
 import xyz.mcutils.backend.model.server.MinecraftServer;
@@ -75,23 +76,18 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
 
         // Draw the server hostname
         graphics.setColor(Color.WHITE);
-        graphics.drawString(server.getHostname(), initialX, y);
+        GraphicsUtils.drawString(graphics, graphics.getFont(), server.getHostname(), initialX, y);
 
         // Draw the server motd
-        x += 12;
         y += fontSize + (padding * 2) + 2;
         for (String line : server.getMotd().raw()) {
             int index = 0;
             int colorIndex = line.indexOf("§");
 
             while (colorIndex != -1) {
-                // Draw text before color code
+                // Draw text before color code (with fallback font for unsupported symbols)
                 String textBeforeColor = line.substring(index, colorIndex);
-                graphics.drawString(textBeforeColor, x, y);
-                // Calculate width of text before color code
-                int textWidth = graphics.getFontMetrics().stringWidth(textBeforeColor);
-                // Move x position to after the drawn text
-                x += textWidth;
+                x = GraphicsUtils.drawString(graphics, graphics.getFont(), textBeforeColor, x, y);
                 
                 // Check if this is a hex color code (§x§R§R§G§G§B§B)
                 Color hexColor = ColorUtils.parseHexColor(line, colorIndex);
@@ -138,13 +134,13 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
                 // Find next color code
                 colorIndex = line.indexOf("§", index);
             }
-            // Draw remaining text
+            // Draw remaining text (with fallback font for unsupported symbols)
             String remainingText = line.substring(index);
-            graphics.drawString(remainingText, x, y);
+            GraphicsUtils.drawString(graphics, graphics.getFont(), remainingText, x, y);
             // Move to the next line
             y += fontSize + padding;
             // Reset x position for the next line
-            x = initialX + 12; // Reset x
+            x = initialX; // Reset x
         }
 
         // Ensure the font is reset
