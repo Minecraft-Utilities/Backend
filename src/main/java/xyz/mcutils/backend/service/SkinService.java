@@ -113,13 +113,18 @@ public class SkinService {
         String name = part.name();
         String key = "%s-%s-%s-%s".formatted(skin.getId(), name, size, renderOverlay);
 
+        log.debug("Getting skin part for player: {} (part {}, size {})", player.getUsername(), partName, size);
+
         Optional<CachedPlayerSkinPart> cache = skinPartRepository.findById(key);
         if (cache.isPresent() && AppConfig.isProduction()) {
+            log.debug("Skin part for {} is cached", player.getUsername());
             return cache.get();
         }
 
+        long start = System.currentTimeMillis();
         BufferedImage renderedPart = part.render(skin, renderOverlay, size);
         byte[] pngBytes = ImageUtils.imageToBytes(renderedPart);
+        log.debug("Took {}ms to render skin part for player: {}", System.currentTimeMillis() - start, player.getUsername());
 
         CachedPlayerSkinPart skinPart = new CachedPlayerSkinPart(key, pngBytes);
 
