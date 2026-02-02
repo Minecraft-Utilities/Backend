@@ -3,6 +3,8 @@ package xyz.mcutils.backend.service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.DNSUtils;
 import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.ImageUtils;
@@ -27,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @Slf4j
@@ -168,7 +171,15 @@ public class ServerService {
         log.debug("Took {}ms to render preview for server: {}:{}", System.currentTimeMillis() - start, server.getHostname(), server.getPort());
 
         CachedServerPreview serverPreview = new CachedServerPreview(key, preview);
-        serverPreviewCacheRepository.save(serverPreview);
+        
+        // don't save to cache in development
+        if (AppConfig.isProduction()) {
+            CompletableFuture.runAsync(() -> serverPreviewCacheRepository.save(serverPreview), Main.EXECUTOR)
+                .exceptionally(ex -> {
+                    log.warn("Save failed for skin part {}: {}", key, ex.getMessage());
+                    return null;
+                });
+        }
         return preview;
     }
 }
