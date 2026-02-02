@@ -26,8 +26,11 @@ import org.springframework.stereotype.Service;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URI;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
@@ -40,22 +43,21 @@ import java.util.Map;
 @Slf4j
 public class MaxMindService {
     /**
-     * The directory to store databases.
-     */
-    private static final File DATABASES_DIRECTORY = new File("databases");
-
-    /**
      * The endpoint to download database files from.
      */
     private static final String DATABASE_DOWNLOAD_ENDPOINT = "https://download.maxmind.com/app/geoip_download?edition_id=%s&license_key=%s&suffix=tar.gz";
-
-    @Value("${maxmind.license}")
-    private String license;
 
     /**
      * The currently loaded databases.
      */
     private static final Map<Database, DatabaseReader> DATABASES = new HashMap<>();
+
+    @Value("${maxmind.license}")
+    private String license;
+
+    /** Database directory path; defaults to "databases" relative to working dir. Use an absolute path for persistence across runs. */
+    @Value("${maxmind.database-dir:databases}")
+    private String databaseDirPath;
 
     @PostConstruct
     public void onInitialize() {
@@ -170,146 +172,171 @@ public class MaxMindService {
     @SuppressWarnings("ResultOfMethodCallIgnored")
     @SneakyThrows
     private void loadDatabases(boolean isScheduled) {
+        File databasesDir = new File(databaseDirPath);
         if (isScheduled) {
             log.info("Starting scheduled database check...");
         }
         if (!isScheduled) {
             log.info("Initializing MaxMind databases...");
         }
+        log.debug("Database directory: {}", databasesDir.getAbsolutePath());
 
         // Create the directory if it doesn't exist
-        if (!DATABASES_DIRECTORY.exists()) {
-            DATABASES_DIRECTORY.mkdirs();
-            log.debug("Created databases directory at {}", DATABASES_DIRECTORY.getAbsolutePath());
+        if (!databasesDir.exists()) {
+            databasesDir.mkdirs();
+            log.debug("Created databases directory at {}", databasesDir.getAbsolutePath());
         }
 
         int updatedCount = 0;
         int loadedCount = 0;
 
-        // Download missing databases
         for (Database database : Database.values()) {
-            File databaseFile = new File(DATABASES_DIRECTORY, database.getEdition() + ".mmdb");
+            File databaseFile = new File(databasesDir, database.getEdition() + ".mmdb");
+            boolean fileExisted = databaseFile.exists();
             boolean needsUpdate = false;
 
-            // Check if database exists and needs update
-            if (databaseFile.exists()) {
-                long ageInMillis = System.currentTimeMillis() - databaseFile.lastModified();
-                long daysOld = ageInMillis / (24L * 60L * 60L * 1000L);
-
-                if (ageInMillis > 3L * 24L * 60L * 60L * 1000L) {
-                    needsUpdate = true;
-                    log.info("Database {} is {} days old (max 3 days), updating...", database.getEdition(), daysOld);
-
-                    // Close the existing database reader before deleting
-                    DatabaseReader existingReader = DATABASES.get(database);
-                    if (existingReader != null) {
-                        existingReader.close();
-                        DATABASES.remove(database);
-                        log.debug("Closed existing database reader for {}", database.getEdition());
+            if (fileExisted) {
+                // Only check staleness during scheduled updates; never on startup
+                if (isScheduled) {
+                    long ageInMillis = System.currentTimeMillis() - databaseFile.lastModified();
+                    long daysOld = ageInMillis / (24L * 60L * 60L * 1000L);
+                    if (ageInMillis > 3L * 24L * 60L * 60L * 1000L) {
+                        needsUpdate = true;
+                        log.info("Database {} is {} days old (max 3 days), attempting update...", database.getEdition(), daysOld);
+                    } else {
+                        log.debug("Database {} is {} days old, no update needed", database.getEdition(), daysOld);
                     }
-
-                    FileUtils.deleteQuietly(databaseFile);
-                    updatedCount++;
                 }
-
-                if (!needsUpdate && isScheduled) {
-                    log.debug("Database {} is {} days old, no update needed", database.getEdition(), daysOld);
-                }
-            }
-
-            // Handle first-time download
-            if (!databaseFile.exists() && !needsUpdate) {
+            } else {
                 log.info("Database {} not found, downloading for the first time...", database.getEdition());
                 loadedCount++;
             }
 
-            // Download if needed
-            if (!databaseFile.exists()) {
-                downloadDatabase(database, databaseFile);
+            // Close existing reader before update so we can overwrite the file
+            if (needsUpdate && fileExisted) {
+                DatabaseReader existing = DATABASES.get(database);
+                if (existing != null) {
+                    existing.close();
+                    DATABASES.remove(database);
+                }
             }
 
-            // Load the database if not already loaded
-            if (DATABASES.containsKey(database)) {
+            // Download only when missing, or when we need an update (download to temp, then replace)
+            if (!databaseFile.exists() || needsUpdate) {
+                boolean downloaded = downloadDatabase(database, databaseFile, databasesDir);
+                if (!downloaded) {
+                    if (fileExisted && needsUpdate) {
+                        log.warn("Download failed for {} (e.g. rate limit 429); keeping existing database", database.getEdition());
+                    } else {
+                        log.warn("Download failed for {}; GeoIP for this database will be unavailable. " +
+                                "Download manually from MaxMind or retry later.", database.getEdition());
+                        continue;
+                    }
+                } else if (needsUpdate) {
+                    updatedCount++;
+                }
+            }
+
+            // If we deleted for update, we already replaced; otherwise ensure we have a file
+            if (!databaseFile.exists()) {
                 continue;
             }
 
+            // Close existing reader before loading new file (e.g. after update)
+            DatabaseReader existingReader = DATABASES.get(database);
+            if (existingReader != null) {
+                existingReader.close();
+                DATABASES.remove(database);
+            }
+
             DATABASES.put(database, new DatabaseReader.Builder(databaseFile)
-                    .withCache(new CHMCache()) // Enable caching
+                    .withCache(new CHMCache())
                     .build()
             );
             log.info("Successfully loaded database: {}", database.getEdition());
         }
 
-        // Log completion summary
         if (isScheduled && updatedCount > 0) {
             log.info("Scheduled check complete: {} database(s) updated", updatedCount);
-            return;
-        }
-
-        if (!isScheduled) {
+        } else if (!isScheduled) {
             log.info("Initialization complete: {} database(s) active ({} new, {} updated)", DATABASES.size(), loadedCount, updatedCount);
         }
     }
 
     /**
-     * Download the required files
-     * for the given database.
+     * Download and extract the database. Does not delete the existing file until the new one is ready.
      *
-     * @param database the database to download
-     * @param databaseFile the file for the database
+     * @param database     the database to download
+     * @param databaseFile the target .mmdb file
+     * @param databasesDir the directory containing databases
+     * @return true if download and extraction succeeded, false on failure (e.g. 429 rate limit)
      */
-    @SneakyThrows
-    private void downloadDatabase(@NonNull Database database, @NonNull File databaseFile) {
-        File downloadedFile = new File(DATABASES_DIRECTORY, database.getEdition() + ".tar.gz"); // The downloaded file
+    private boolean downloadDatabase(@NonNull Database database, @NonNull File databaseFile,
+                                    @NonNull File databasesDir) {
+        File downloadedFile = new File(databasesDir, database.getEdition() + ".tar.gz");
 
-        // Download the database if required
         if (!downloadedFile.exists()) {
             log.info("Downloading database {}...", database.getEdition());
-            long before = System.currentTimeMillis();
-            try (
-                    BufferedInputStream inputStream = new BufferedInputStream(URI.create(DATABASE_DOWNLOAD_ENDPOINT.formatted(database.getEdition(), license)).toURL().openStream());
-                    FileOutputStream fileOutputStream = new FileOutputStream(downloadedFile)
-            ) {
-                byte[] dataBuffer = new byte[1024];
-                int bytesRead;
-                while ((bytesRead = inputStream.read(dataBuffer, 0, 1024)) != -1) {
-                    fileOutputStream.write(dataBuffer, 0, bytesRead);
+            try {
+                URL url = URI.create(DATABASE_DOWNLOAD_ENDPOINT.formatted(database.getEdition(), license)).toURL();
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                int code = conn.getResponseCode();
+                if (code != HttpURLConnection.HTTP_OK) {
+                    log.warn("MaxMind returned HTTP {} for {} ({}); skipping download",
+                            code, database.getEdition(), code == 429 ? "rate limited" : "check MaxMind status");
+                    return false;
                 }
+                long before = System.currentTimeMillis();
+                try (
+                        BufferedInputStream inputStream = new BufferedInputStream(conn.getInputStream());
+                        FileOutputStream fileOutputStream = new FileOutputStream(downloadedFile)
+                ) {
+                    byte[] dataBuffer = new byte[8192];
+                    int bytesRead;
+                    while ((bytesRead = inputStream.read(dataBuffer)) != -1) {
+                        fileOutputStream.write(dataBuffer, 0, bytesRead);
+                    }
+                }
+                log.info("Downloaded database {} in {}ms", database.getEdition(), System.currentTimeMillis() - before);
+            } catch (IOException e) {
+                log.warn("Failed to download {}: {}", database.getEdition(), e.getMessage());
+                FileUtils.deleteQuietly(downloadedFile);
+                return false;
             }
-            log.info("Downloaded database {} in {}ms", database.getEdition(), System.currentTimeMillis() - before);
         }
 
-        // Extract the database once downloaded
-        log.info("Extracting database {}...", database.getEdition());
-        TarGZipUnArchiver archiver = new TarGZipUnArchiver();
-        archiver.setSourceFile(downloadedFile);
-        archiver.setDestDirectory(DATABASES_DIRECTORY);
-        archiver.extract();
-        log.info("Extracted database {}", database.getEdition());
+        try {
+            log.info("Extracting database {}...", database.getEdition());
+            TarGZipUnArchiver archiver = new TarGZipUnArchiver();
+            archiver.setSourceFile(downloadedFile);
+            archiver.setDestDirectory(databasesDir);
+            archiver.extract();
 
-        // Locate the database file in the extracted directory
-        File[] files = DATABASES_DIRECTORY.listFiles();
-        assert files != null; // Ensure files is present
-        dirLoop: for (File directory : files) {
-            if (!directory.isDirectory() || !directory.getName().startsWith(database.getEdition())) {
-                continue;
-            }
-            File[] downloadedFiles = directory.listFiles();
-            assert downloadedFiles != null; // Ensures downloaded files is present
+            File[] files = databasesDir.listFiles();
+            if (files == null) return false;
+            for (File directory : files) {
+                if (!directory.isDirectory() || !directory.getName().startsWith(database.getEdition())) {
+                    continue;
+                }
+                File[] downloadedFiles = directory.listFiles();
+                if (downloadedFiles == null) continue;
 
-            // Find the file for the database, move it to the
-            // correct directory, and delete the downloaded contents
-            for (File file : downloadedFiles) {
-                if (file.isFile() && file.getName().equals(databaseFile.getName())) {
-                    Files.move(file.toPath(), databaseFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-
-                    // Delete the downloaded contents
-                    FileUtils.deleteDirectory(directory);
-                    FileUtils.deleteQuietly(downloadedFile);
-
-                    break dirLoop; // We're done here
+                for (File file : downloadedFiles) {
+                    if (file.isFile() && file.getName().equals(databaseFile.getName())) {
+                        Files.move(file.toPath(), databaseFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                        FileUtils.deleteDirectory(directory);
+                        FileUtils.deleteQuietly(downloadedFile);
+                        log.info("Extracted database {}", database.getEdition());
+                        return true;
+                    }
                 }
             }
+            log.warn("Could not find {} in extracted archive", databaseFile.getName());
+            return false;
+        } catch (Exception e) {
+            log.warn("Failed to extract {}: {}", database.getEdition(), e.getMessage());
+            FileUtils.deleteQuietly(downloadedFile);
+            return false;
         }
     }
 

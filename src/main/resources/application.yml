@@ -41,3 +41,6 @@ metrics-token:
 # This is used for IP Geolocation
 maxmind:
   license: ""
+  # Optional: database directory (default: "databases" relative to working dir).
+  # Use an absolute path for persistence across runs (e.g. Docker, different cwd).
+  # database-dir: databases

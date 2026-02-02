@@ -23,7 +23,7 @@ public class FullBodyRendererBase {
     public static final FullBodyRendererBase INSTANCE = new FullBodyRendererBase();
 
     private static final double ASPECT_RATIO = 512.0 / 869.0;
-    private static final double PITCH_DEG = 35.0;
+    private static final double PITCH_DEG = 45.0;
     private static final double YAW_DEG = 45.0;
     private static final Vector3 EYE = new Vector3(0, 28, -45);
     private static final Vector3 TARGET = new Vector3(0, 16.5, 0);

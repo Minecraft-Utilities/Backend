@@ -7,12 +7,8 @@ import xyz.mcutils.backend.common.math.Vector3Utils;
  * Canonical sun-based directional lighting for isometric 3D rendering.
  */
 public final class IsometricLighting {
-
-    /** Minimum face brightness (ambient floor); range [0, 1]. */
     public static final double MIN_BRIGHTNESS = 0.65;
-
-    /** Sun direction in world space (normalized). Default: top-left-front. */
-    public static final Vector3 SUN_DIRECTION = Vector3Utils.normalize(new Vector3(1, -1, 0.5));
+    public static final Vector3 SUN_DIRECTION = Vector3Utils.normalize(new Vector3(-1, 1, 0.5));
 
     /**
      * Computes brightness for a face based on its normal and sun direction.
