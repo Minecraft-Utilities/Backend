@@ -86,11 +86,9 @@ public class Isometric3DRenderer {
             }
         }
 
-        long tSort = System.nanoTime();
         // Stable sort: depth back-to-front, then by face index so coplanar faces (e.g. head/body seam) draw consistently
         projected.sort(Comparator.comparingDouble((ProjectedFaceWithTexture p) -> p.depth).reversed()
                 .thenComparingInt(p -> p.faceIndex));
-        double tSortMs = (System.nanoTime() - tSort) / 1e6;
         double modelW = maxX - minX;
         double modelH = maxY - minY;
         if (modelW < 1) modelW = 1;
@@ -102,13 +100,12 @@ public class Isometric3DRenderer {
         BufferedImage result = new BufferedImage(width, size, BufferedImage.TYPE_INT_ARGB);
         int[] outPixels = ((DataBufferInt) result.getRaster().getDataBuffer()).getData();
 
-        // Pre-load texture pixels per batch (avoids repeated getRGB in loop)
+        // Preload texture pixels per batch (avoids repeated getRGB in loop)
         int[][] batchTexPixels = new int[batches.size()][];
         for (int i = 0; i < batches.size(); i++) {
             batchTexPixels[i] = QuadRasterizer.getTexturePixels(batches.get(i).texture());
         }
 
-        long tDraw = System.nanoTime();
         for (ProjectedFaceWithTexture p : projected) {
             int[] texPixels = batchTexPixels[p.textureIndex];
             int texW = p.texW;

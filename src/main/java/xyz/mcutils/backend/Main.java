@@ -20,7 +20,7 @@ public class Main {
     public static final ExecutorService EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
     @SneakyThrows
-    public static void main(String[] args) {
+    static void main(String[] args) {
         File config = new File("application.yml");
         if (!config.exists()) { // Saving the default config if it doesn't exist locally
             Files.copy(Objects.requireNonNull(Main.class.getResourceAsStream("/application.yml")), config.toPath(), StandardCopyOption.REPLACE_EXISTING);

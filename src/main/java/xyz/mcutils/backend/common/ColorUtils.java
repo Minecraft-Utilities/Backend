@@ -114,21 +114,6 @@ public final class ColorUtils {
     }
 
     /**
-     * Gets a {@link Color} from a Minecraft color code (0-9, a-f).
-     *
-     * @param colorCode the color code character
-     * @return the AWT color
-     * @throws IllegalArgumentException if the code is not a valid color
-     */
-    public static Color getMinecraftColor(char colorCode) {
-        MinecraftColor mcColor = MinecraftColor.getByCode(colorCode);
-        if (mcColor == null) {
-            throw new IllegalArgumentException("Invalid color code: '%s'".formatted(colorCode));
-        }
-        return mcColor.toAwtColor();
-    }
-
-    /**
      * Parses a hex color code in the format §x§R§R§G§G§B§B from the given string at the specified index.
      * <p>
      * This method checks if the substring starting at the given index matches the hex color format
@@ -176,24 +161,6 @@ public final class ColorUtils {
         } catch (NumberFormatException e) {
             return null;
         }
-    }
-
-    /**
-     * Gets the length of a hex color code if present at the given index.
-     * Returns 14 if a valid §x§R§R§G§G§B§B sequence is found, 0 otherwise.
-     *
-     * @param line  the string containing the color code
-     * @param index the index of the leading § character
-     * @return 14 if a valid hex color code is found, 0 otherwise
-     */
-    public static int getHexColorLength(@NonNull String line, int index) {
-        if (parseHexColor(line, index) != null) {
-            return 14;
-        }
-        if (parseSharpHexColor(line, index) != null) {
-            return 7;
-        }
-        return 0;
     }
 
     /**

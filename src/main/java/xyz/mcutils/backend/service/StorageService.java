@@ -58,8 +58,7 @@ public class StorageService {
                     .build());
             log.debug("Uploaded file {} to bucket {} in {}ms", fileName, bucket.getName(),  System.currentTimeMillis() - before);
         } catch (Exception ex) {
-            log.error("Failed to upload file to bucket {}: {}", bucket.getName(), ex.getMessage());
-            ex.printStackTrace();
+            log.error("Failed to upload file to bucket {}", bucket.getName(), ex);
         }
     }
 

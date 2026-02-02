@@ -30,7 +30,7 @@ public final class BedrockPacketUnconnectedPing implements MinecraftBedrockPacke
     @Override
     public void process(@NonNull DatagramSocket socket) throws IOException {
         // Construct the packet buffer
-        ByteBuffer buffer = ByteBuffer.allocate(33).order(ByteOrder.LITTLE_ENDIAN);;
+        ByteBuffer buffer = ByteBuffer.allocate(33).order(ByteOrder.LITTLE_ENDIAN);
         buffer.put(ID); // Packet ID
         buffer.putLong(System.currentTimeMillis()); // Timestamp
         buffer.put(MAGIC); // Magic

@@ -114,13 +114,9 @@ public class BitmapFont {
             Glyph glyph = glyphs.get(cp);
             if (glyph != null) {
                 int glyphDrawY = y - glyph.ascent();
-                int w = glyph.width();
-                int h = glyph.height();
-                drawGlyphTinted(g, glyph, x, glyphDrawY, w, h, color);
-                x += getAdvance(cp, bold);
-            } else {
-                x += getAdvance(cp, bold);
+                drawGlyphTinted(g, glyph, x, glyphDrawY, color);
             }
+            x += getAdvance(cp, bold);
             i += Character.charCount(cp);
         }
     }
@@ -128,7 +124,7 @@ public class BitmapFont {
     /**
      * Draw a single glyph tinted by the given color (glyph alpha as mask, color for visible pixels).
      */
-    private void drawGlyphTinted(Graphics2D g, Glyph glyph, int x, int y, int w, int h, Color color) {
+    private void drawGlyphTinted(Graphics2D g, Glyph glyph, int x, int y, Color color) {
         BufferedImage src = glyph.texture();
         int srcX = glyph.srcX();
         int srcY = glyph.srcY();

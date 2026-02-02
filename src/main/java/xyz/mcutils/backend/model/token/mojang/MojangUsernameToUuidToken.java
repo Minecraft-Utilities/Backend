@@ -18,13 +18,4 @@ public class MojangUsernameToUuidToken {
      */
     @JsonProperty("name")
     private String username;
-
-    /**
-     * Check if the profile is valid.
-     *
-     * @return if the profile is valid
-     */
-    public boolean isValid() {
-        return uuid != null && username != null;
-    }
 }

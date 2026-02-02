@@ -14,7 +14,7 @@ public final class Vector3Utils {
     public static Vector3 rotateY(Vector3 v, double deg) {
         double rad = Math.toRadians(deg);
         double c = Math.cos(rad), s = Math.sin(rad);
-        return new Vector3(v.getX() * c - v.getZ() * s, v.getY(), v.getX() * s + v.getZ() * c);
+        return new Vector3(v.x() * c - v.z() * s, v.y(), v.x() * s + v.z() * c);
     }
 
     /**
@@ -27,7 +27,7 @@ public final class Vector3Utils {
     public static Vector3 rotateX(Vector3 v, double deg) {
         double rad = Math.toRadians(deg);
         double c = Math.cos(rad), s = Math.sin(rad);
-        return new Vector3(v.getX(), v.getY() * c - v.getZ() * s, v.getY() * s + v.getZ() * c);
+        return new Vector3(v.x(), v.y() * c - v.z() * s, v.y() * s + v.z() * c);
     }
 
     /**
@@ -56,33 +56,33 @@ public final class Vector3Utils {
      * @return [viewX, viewY, viewZ] where viewX is right, viewY is up, viewZ is depth
      */
     public static double[] project(Vector3 world, Vector3 eye, Vector3 fwd, Vector3 right, Vector3 up) {
-        double dx = world.getX() - eye.getX();
-        double dy = world.getY() - eye.getY();
-        double dz = world.getZ() - eye.getZ();
-        double viewX = dx * right.getX() + dy * right.getY() + dz * right.getZ();
-        double viewY = dx * up.getX() + dy * up.getY() + dz * up.getZ();
-        double viewZ = -(dx * fwd.getX() + dy * fwd.getY() + dz * fwd.getZ());
+        double dx = world.x() - eye.x();
+        double dy = world.y() - eye.y();
+        double dz = world.z() - eye.z();
+        double viewX = dx * right.x() + dy * right.y() + dz * right.z();
+        double viewY = dx * up.x() + dy * up.y() + dz * up.z();
+        double viewZ = -(dx * fwd.x() + dy * fwd.y() + dz * fwd.z());
         return new double[]{viewX, viewY, viewZ};
     }
 
     /** Normalizes a vector to unit length. */
     public static Vector3 normalize(Vector3 v) {
-        double len = Math.sqrt(v.getX() * v.getX() + v.getY() * v.getY() + v.getZ() * v.getZ());
+        double len = Math.sqrt(v.x() * v.x() + v.y() * v.y() + v.z() * v.z());
         if (len < 1e-10) return v;
-        return new Vector3(v.getX() / len, v.getY() / len, v.getZ() / len);
+        return new Vector3(v.x() / len, v.y() / len, v.z() / len);
     }
 
     /** Dot product of two vectors. */
     public static double dot(Vector3 a, Vector3 b) {
-        return a.getX() * b.getX() + a.getY() * b.getY() + a.getZ() * b.getZ();
+        return a.x() * b.x() + a.y() * b.y() + a.z() * b.z();
     }
 
     /** Cross product of two vectors. */
     public static Vector3 cross(Vector3 a, Vector3 b) {
         return new Vector3(
-                a.getY() * b.getZ() - a.getZ() * b.getY(),
-                a.getZ() * b.getX() - a.getX() * b.getZ(),
-                a.getX() * b.getY() - a.getY() * b.getX()
+                a.y() * b.z() - a.z() * b.y(),
+                a.z() * b.x() - a.x() * b.z(),
+                a.x() * b.y() - a.y() * b.x()
         );
     }
 }

@@ -1,18 +1,9 @@
 package xyz.mcutils.backend.common.math;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-
 /**
  * 3D vector for software 3D rendering.
  */
-@AllArgsConstructor
-@Getter
-public class Vector3 {
-    private final double x;
-    private final double y;
-    private final double z;
-
+public record Vector3(double x, double y, double z) {
     public Vector3 add(Vector3 other) {
         return new Vector3(x + other.x, y + other.y, z + other.z);
     }

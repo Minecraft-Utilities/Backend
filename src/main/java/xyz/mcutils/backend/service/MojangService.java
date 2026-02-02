@@ -17,7 +17,7 @@ import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URL;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -78,7 +78,7 @@ public class MojangService {
     private void fetchBlockedServers() {
         log.info("Fetching blocked servers from Mojang");
         try (
-                InputStream inputStream = new URL(FETCH_BLOCKED_SERVERS).openStream();
+                InputStream inputStream = URI.create(FETCH_BLOCKED_SERVERS).toURL().openStream();
                 Scanner scanner = new Scanner(inputStream, StandardCharsets.UTF_8).useDelimiter("\n")
         ) {
             List<String> hashes = new ArrayList<>();

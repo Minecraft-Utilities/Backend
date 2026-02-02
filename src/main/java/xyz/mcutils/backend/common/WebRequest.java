@@ -79,7 +79,7 @@ public class WebRequest {
         ResponseEntity<T> responseEntity = CLIENT.get()
                 .uri(url)
                 .retrieve()
-                .onStatus(HttpStatusCode::isError, (request, response) -> {}) // Don't throw exceptions on error
+                .onStatus(HttpStatusCode::isError, (_, _) -> {}) // Don't throw exceptions on error
                 .toEntity(clazz);
 
         if (responseEntity.getStatusCode().isError()) {
@@ -101,7 +101,7 @@ public class WebRequest {
         return CLIENT.get()
                 .uri(url)
                 .retrieve()
-                .onStatus(HttpStatusCode::isError, (request, response) -> {}) // Don't throw exceptions on error
+                .onStatus(HttpStatusCode::isError, (_, _) -> {}) // Don't throw exceptions on error
                 .toEntity(clazz);
     }
 
@@ -115,7 +115,7 @@ public class WebRequest {
         return CLIENT.head()
                 .uri(url)
                 .retrieve()
-                .onStatus(HttpStatusCode::isError, (request, response) -> {}) // Don't throw exceptions on error
+                .onStatus(HttpStatusCode::isError, (_, _) -> {}) // Don't throw exceptions on error
                 .toEntity(clazz);
     }
 }

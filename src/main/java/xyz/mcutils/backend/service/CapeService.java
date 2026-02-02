@@ -2,7 +2,6 @@ package xyz.mcutils.backend.service;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -14,8 +13,6 @@ import java.util.concurrent.TimeUnit;
 
 @Service @Slf4j
 public class CapeService {
-    public static CapeService INSTANCE;
-
     private final StorageService minioService;
 
     private final Cache<String, byte[]> capeCache = CacheBuilder.newBuilder()
@@ -25,11 +22,6 @@ public class CapeService {
     @Autowired
     public CapeService(StorageService minioService) {
         this.minioService = minioService;
-    }
-
-    @PostConstruct
-    public void init() {
-        INSTANCE = this;
     }
 
     /**

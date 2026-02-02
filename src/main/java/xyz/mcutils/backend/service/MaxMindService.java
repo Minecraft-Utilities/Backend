@@ -19,7 +19,7 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.InetAddress;
-import java.net.URL;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
@@ -234,7 +234,7 @@ public class MaxMindService {
             log.info("Downloading database {}...", database.getEdition());
             long before = System.currentTimeMillis();
             try (
-                    BufferedInputStream inputStream = new BufferedInputStream(new URL(DATABASE_DOWNLOAD_ENDPOINT.formatted(database.getEdition(), license)).openStream());
+                    BufferedInputStream inputStream = new BufferedInputStream(URI.create(DATABASE_DOWNLOAD_ENDPOINT.formatted(database.getEdition(), license)).toURL().openStream());
                     FileOutputStream fileOutputStream = new FileOutputStream(downloadedFile)
             ) {
                 byte[] dataBuffer = new byte[1024];

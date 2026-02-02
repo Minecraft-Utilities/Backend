@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.exception;
 
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -9,7 +10,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import xyz.mcutils.backend.model.response.ErrorResponse;
 
-@ControllerAdvice
+@ControllerAdvice @Slf4j
 public final class ExceptionControllerAdvice {
 
     /**
@@ -35,7 +36,7 @@ public final class ExceptionControllerAdvice {
         }
         // Print the stack trace if no response status is present
         if (status == null) {
-            ex.printStackTrace();
+            log.error("An internal error has occurred.", ex);
         }
         if (status == null) { // Fallback to 500
             status = HttpStatus.INTERNAL_SERVER_ERROR;
