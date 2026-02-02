@@ -74,7 +74,7 @@ public class ServerService {
                 throw new BadRequestException("Invalid port: '%s'".formatted(parts[1]));
             }
         }
-        String key = "server:%s-%s-%s".formatted(platformName, hostname, port);
+        String key = "%s-%s-%s".formatted(platformName, hostname, port);
         log.debug("Getting server: {}:{}", hostname, port);
 
         // Check if the server is cached
@@ -158,7 +158,7 @@ public class ServerService {
 
         MinecraftServer server = cachedServer.getServer();
         log.debug("Getting preview for server: {}:{} (size {})", server.getHostname(), server.getPort(), size);
-        String key = "serverPreview:%s-%s-%s-%s".formatted(platform, server.getHostname(), server.getPort(), size);
+        String key = "%s-%s-%s-%s".formatted(platform, server.getHostname(), server.getPort(), size);
 
         // Check if the server preview is cached
         Optional<CachedServerPreview> cached = serverPreviewCacheRepository.findById(key);
