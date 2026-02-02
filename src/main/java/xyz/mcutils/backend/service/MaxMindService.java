@@ -7,6 +7,8 @@ import com.maxmind.geoip2.model.AsnResponse;
 import com.maxmind.geoip2.model.CityResponse;
 import com.maxmind.geoip2.record.Country;
 import com.maxmind.geoip2.record.Location;
+import com.maxmind.geoip2.record.Postal;
+
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.*;
@@ -18,6 +20,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.common.DNSUtils;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.asn.AsnLookup;
@@ -38,8 +41,16 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+
+import org.xbill.DNS.Lookup;
+import org.xbill.DNS.PTRRecord;
+import org.xbill.DNS.Record;
+import org.xbill.DNS.ReverseMap;
+import org.xbill.DNS.SimpleResolver;
+import org.xbill.DNS.Type;
 
 /**
  * @author Braydon
@@ -105,9 +116,10 @@ public class MaxMindService {
         if (location == null && asn == null) {
             throw new NotFoundException("No data found for IP address: %s".formatted(ip));
         }
+        String hostname = DNSUtils.reverseDnsLookup(ip);
         log.debug("Took {}ms to lookup IP: {}", System.currentTimeMillis() - start, ip);
 
-        CachedIpLookup ipLookup = new CachedIpLookup(ip, new IpLookup(ip, location, asn));
+        CachedIpLookup ipLookup = new CachedIpLookup(ip, new IpLookup(ip, hostname, location, asn));
         
         if (AppConfig.isProduction()) {
             CompletableFuture.runAsync(() -> this.ipLookupCacheRepository.save(ipLookup), Main.EXECUTOR)
@@ -141,14 +153,18 @@ public class MaxMindService {
             Country country = city.country();
             Location location = city.location();
             String isoCode = country.isoCode();
-    
+            if (location == null || country == null || isoCode == null) {
+                return null;
+            }
+            
+            Postal postal = city.postal();
             return new GeoLocation(
                     country.name(),
                     isoCode,
                     city.mostSpecificSubdivision().name(),
                     city.city().name(),
                     location.timeZone(),
-                    city.postal() != null ? city.postal().code() : null,
+                    postal != null ? postal.code() : null,
                     location.latitude(),
                     location.longitude(),
                     "https://flagcdn.com/w20/" + isoCode.toLowerCase() + ".webp"
@@ -178,7 +194,8 @@ public class MaxMindService {
             }
             return new AsnLookup(
                 "AS%s".formatted(asn.autonomousSystemNumber()), 
-                asn.autonomousSystemOrganization()
+                asn.autonomousSystemOrganization(),
+                asn.network().toString()
             );
         } catch (AddressNotFoundException ignored) {
             // Safely ignore this and return null instead
