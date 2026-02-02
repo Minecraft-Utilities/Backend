@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.asn.AsnLookup;
 import xyz.mcutils.backend.model.cache.CachedIpLookup;
@@ -93,7 +94,7 @@ public class MaxMindService {
         log.debug("Getting lookup for IP: {}", ip);
 
         Optional<CachedIpLookup> cachedIpLookup = this.ipLookupCacheRepository.findById(ip);
-        if (cachedIpLookup.isPresent()) {
+        if (cachedIpLookup.isPresent() && AppConfig.isProduction()) {
             log.debug("IP lookup for {} is cached", ip);
             return cachedIpLookup.get().getIpLookup();
         }
@@ -107,11 +108,14 @@ public class MaxMindService {
         log.debug("Took {}ms to lookup IP: {}", System.currentTimeMillis() - start, ip);
 
         CachedIpLookup ipLookup = new CachedIpLookup(ip, new IpLookup(ip, location, asn));
-        CompletableFuture.runAsync(() -> this.ipLookupCacheRepository.save(ipLookup), Main.EXECUTOR)
-                .exceptionally(ex -> {
-                    log.warn("Save failed for ip lookup {}: {}", ip, ex.getMessage());
-                    return null;
-                });
+        
+        if (AppConfig.isProduction()) {
+            CompletableFuture.runAsync(() -> this.ipLookupCacheRepository.save(ipLookup), Main.EXECUTOR)
+                    .exceptionally(ex -> {
+                        log.warn("Save failed for ip lookup {}: {}", ip, ex.getMessage());
+                        return null;
+                    });
+        }
 
         return ipLookup.getIpLookup();
     }
@@ -143,6 +147,8 @@ public class MaxMindService {
                     isoCode,
                     city.mostSpecificSubdivision().name(),
                     city.city().name(),
+                    location.timeZone(),
+                    city.postal() != null ? city.postal().code() : null,
                     location.latitude(),
                     location.longitude(),
                     "https://flagcdn.com/w20/" + isoCode.toLowerCase() + ".webp"
