@@ -1,8 +1,8 @@
 package xyz.mcutils.backend.common.renderer.model.impl;
 
-import xyz.mcutils.backend.common.renderer.raster.Face;
 import xyz.mcutils.backend.common.renderer.model.ModelUtils;
 import xyz.mcutils.backend.common.renderer.model.PlayerModelCoordinates;
+import xyz.mcutils.backend.common.renderer.raster.Face;
 import xyz.mcutils.backend.model.skin.Skin;
 
 import java.util.ArrayList;
