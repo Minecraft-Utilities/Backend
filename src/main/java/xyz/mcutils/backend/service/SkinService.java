@@ -101,7 +101,7 @@ public class SkinService {
      * @return the skin part
      */
     public CachedPlayerSkinPart renderSkinPart(Player player, String partName, boolean renderOverlay, int size) {
-        if (size <= MIN_PART_SIZE || size > MAX_PART_SIZE) {
+        if (size < MIN_PART_SIZE || size > MAX_PART_SIZE) {
             throw new BadRequestException("Invalid skin part size. Must be between " + MIN_PART_SIZE + " and " + MAX_PART_SIZE);
         }
 

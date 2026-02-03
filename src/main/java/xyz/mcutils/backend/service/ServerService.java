@@ -152,7 +152,7 @@ public class ServerService {
      * @return the server preview
      */
     public byte[] getServerPreview(CachedMinecraftServer cachedServer, String platform, int size) {
-        if (size <= MIN_PREVIEW_SIZE || size > MAX_PREVIEW_SIZE) {
+        if (size < MIN_PREVIEW_SIZE || size > MAX_PREVIEW_SIZE) {
             throw new BadRequestException("Invalid server preview size. Must be between " + MIN_PREVIEW_SIZE + " and " + MAX_PREVIEW_SIZE);
         }
 
