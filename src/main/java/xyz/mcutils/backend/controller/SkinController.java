@@ -8,6 +8,8 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import xyz.mcutils.backend.model.skin.SkinRendererType;
 import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.SkinService;
 
@@ -39,12 +41,12 @@ public class SkinController {
     @GetMapping(value = "/{query}/{part}.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<?> getPlayerSkinPart(
             @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String query,
-            @Parameter(description = "The part of the skin", example = "head") @PathVariable String part,
+            @Parameter(description = "The part of the skin", example = "FULLBODY_FRONT") @PathVariable SkinRendererType part,
             @Parameter(description = "The size of the image (height; width derived per part)", example = "768") @RequestParam(required = false, defaultValue = "768") int size,
-            @Parameter(description = "Whether to render the skin overlay (skin layers)", example = "false") @RequestParam(required = false, defaultValue = "true") boolean overlays) {
+            @Parameter(description = "Whether to render the skin overlay (skin layers)", example = "true") @RequestParam(required = false, defaultValue = "true") boolean overlays) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .contentType(MediaType.IMAGE_PNG)
-                .body(this.skinService.renderSkinPart(this.playerService.getPlayer(query).getPlayer(), part, overlays, size).getBytes());
+                .body(this.skinService.renderSkinPart(this.playerService.getPlayer(query).getPlayer(), part.name(), overlays, size).getBytes());
     }
 }
