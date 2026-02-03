@@ -55,7 +55,7 @@ public final class ColorUtils {
                     boolean valid = true;
                     for (int j = 0; j < 6 && valid; j++) {
                         int idx = i + 2 + (j * 2);
-                        if (idx + 1 < chars.length && chars[idx] == '§') hex.append(chars[idx + 1]);
+                        if (chars[idx] == '§') hex.append(chars[idx + 1]);
                         else valid = false;
                     }
                     if (valid) { color = hex.toString(); i += 13; continue; }
