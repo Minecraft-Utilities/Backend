@@ -69,7 +69,6 @@ public class MinecraftServer {
         this.players = players;
 
         IpLookup ipLookup = MaxMindService.INSTANCE.lookupIp(ip);
-        System.out.println(ipLookup);
         this.reverseDns = ipLookup.reverseDns();
         this.location = ipLookup.location();
         this.asn = ipLookup.asn();
