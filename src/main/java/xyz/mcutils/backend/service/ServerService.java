@@ -82,13 +82,14 @@ public class ServerService {
         }
         String key = "%s-%s-%s".formatted(platformName, hostname, port);
         log.debug("Getting server: {}:{}", hostname, port);
-
+        
         // Check if the server is cached
+        long cacheStart = System.currentTimeMillis();
         if (AppConfig.INSTANCE.isCacheEnabled()) {
             Optional<CachedMinecraftServer> cached = serverCacheRepository.findById(key);
             if (cached.isPresent()) {
-                log.debug("Server {}:{} is cached", hostname, port);
                 CachedMinecraftServer server = cached.get();
+                log.debug("Got server {}:{} from cache in {}ms", hostname, port, System.currentTimeMillis() - cacheStart);
                 server.setCached(true);
                 return server;
             }
@@ -111,12 +112,12 @@ public class ServerService {
             log.debug("Resolved hostname: {} -> {}", hostname, ip);
         }
 
-        long start = System.currentTimeMillis();
+        long pingStart = System.currentTimeMillis();
         CachedMinecraftServer server = new CachedMinecraftServer(
                 key,
                 platform.getPinger().ping(hostname, ip, port, dnsRecords.toArray(new DNSRecord[0]), platform == Platform.JAVA ? javaPingerTimeout : bedrockPingerTimeout)
         );
-        log.debug("Successfully pinged server: {}:{} in {}ms", hostname, port, System.currentTimeMillis() - start);
+        log.debug("Successfully pinged server: {}:{} in {}ms", hostname, port, System.currentTimeMillis() - pingStart);
 
         // Populate the server's ip lookup data
         server.getServer().lookupIp();
@@ -173,15 +174,16 @@ public class ServerService {
         String key = "%s-%s-%s-%s".formatted(platform, server.getHostname(), server.getPort(), size);
 
         // Check if the server preview is cached
+        long cacheStart = System.currentTimeMillis();
         Optional<CachedServerPreview> cached = serverPreviewCacheRepository.findById(key);
         if (cached.isPresent() && AppConfig.INSTANCE.isCacheEnabled()) {
-            log.debug("Server preview for {}:{} is cached", server.getHostname(), server.getPort());
+            log.debug("Got server preview {}:{} from cache in {}ms", server.getHostname(), server.getPort(), System.currentTimeMillis() - cacheStart);
             return cached.get().getBytes();
         }
 
-        long start = System.currentTimeMillis();
+        long renderStart = System.currentTimeMillis();
         byte[] preview = ImageUtils.imageToBytes(ServerPreviewRenderer.INSTANCE.render(server, size));
-        log.debug("Took {}ms to render preview for server: {}:{}", System.currentTimeMillis() - start, server.getHostname(), server.getPort());
+        log.debug("Took {}ms to render preview for server: {}:{}", System.currentTimeMillis() - renderStart, server.getHostname(), server.getPort());
 
         CachedServerPreview serverPreview = new CachedServerPreview(key, preview);
         

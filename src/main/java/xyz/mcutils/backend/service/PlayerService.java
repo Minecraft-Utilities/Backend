@@ -43,24 +43,24 @@ public class PlayerService {
      * @return the player
      */
     public CachedPlayer getPlayer(String query) {
-        long start = System.currentTimeMillis();
-
         // Convert the id to uppercase to prevent case sensitivity
         UUID uuid = PlayerUtils.getUuidFromString(query);
         if (uuid == null) { // If the id is not a valid uuid, get the uuid from the username
             uuid = usernameToUuid(query).getUniqueId();
         }
 
+        long cacheStart = System.currentTimeMillis();
         if (AppConfig.INSTANCE.isCacheEnabled()) {
             Optional<CachedPlayer> cachedPlayer = playerCacheRepository.findById(uuid);
             if (cachedPlayer.isPresent()) {
-                log.debug("Player {} found in cache ({}ms)", uuid, System.currentTimeMillis() - start);
+                log.debug("Got player {} from cache in {}ms", uuid, System.currentTimeMillis() - cacheStart);
                 CachedPlayer player = cachedPlayer.get();
                 player.setCached(true);
                 return player;
             }
         }
 
+        long fetchStart = System.currentTimeMillis();
         try {
             MojangProfileToken mojangProfile = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
             if (mojangProfile == null) {
@@ -74,7 +74,7 @@ public class PlayerService {
             if (AppConfig.INSTANCE.isCacheEnabled()) {
                 this.playerCacheRepository.save(player);
             }
-            log.debug("Got player {} from Mojang API in {}ms", uuid, System.currentTimeMillis() - start);
+            log.debug("Got player {} from Mojang API in {}ms", uuid, System.currentTimeMillis() - fetchStart);
             return player;
         } catch (RateLimitException exception) {
             throw new MojangAPIRateLimitException();
@@ -88,13 +88,13 @@ public class PlayerService {
      * @return the uuid of the player
      */
     public CachedPlayerName usernameToUuid(String username) {
-        long start = System.currentTimeMillis();
         String id = username.toUpperCase();
 
+        long cacheStart = System.currentTimeMillis();
         if (AppConfig.INSTANCE.isCacheEnabled()) {
             Optional<CachedPlayerName> cachedPlayerName = playerNameCacheRepository.findById(id);
             if (cachedPlayerName.isPresent()) {
-                log.debug("Username {} found in cache ({}ms)", username, System.currentTimeMillis() - start);
+                log.debug("Got username {} from cache in {}ms", username, System.currentTimeMillis() - cacheStart);
                 CachedPlayerName playerName = cachedPlayerName.get();
                 playerName.setCached(true);
                 return playerName;
@@ -102,6 +102,7 @@ public class PlayerService {
         }
 
         // Check the Mojang API
+        long fetchStart = System.currentTimeMillis();
         try {
             MojangUsernameToUuidToken mojangUsernameToUuid = mojangService.getUuidFromUsername(username);
             if (mojangUsernameToUuid == null) {
@@ -113,7 +114,7 @@ public class PlayerService {
             if (AppConfig.INSTANCE.isCacheEnabled()) {
                 this.playerNameCacheRepository.save(playerName);
             }
-            log.debug("Got uuid for username {} in {}ms", username, System.currentTimeMillis() - start);
+            log.debug("Got uuid for username {} in {}ms", username, System.currentTimeMillis() - fetchStart);
             return playerName;
         } catch (RateLimitException exception) {
             throw new MojangAPIRateLimitException();

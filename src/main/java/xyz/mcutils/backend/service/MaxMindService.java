@@ -93,22 +93,23 @@ public class MaxMindService {
     public IpLookup lookupIp(@NonNull String ip) {
         log.debug("Getting lookup for IP: {}", ip);
 
+        long cacheStart = System.currentTimeMillis();
         if (AppConfig.INSTANCE.isCacheEnabled()) {
             Optional<CachedIpLookup> cachedIpLookup = this.ipLookupCacheRepository.findById(ip);
             if (cachedIpLookup.isPresent()) {
-                log.debug("IP lookup for {} is cached", ip);
+                log.debug("Got IP lookup for {} from cache in {}ms", ip, System.currentTimeMillis() - cacheStart);
                 return cachedIpLookup.get().getIpLookup();
             }
         }
 
-        long start = System.currentTimeMillis();
+        long lookupStart = System.currentTimeMillis();
         GeoLocation location = lookupCity(ip);
         AsnLookup asn = lookupAsn(ip);
         if (location == null && asn == null) {
             throw new NotFoundException("No data found for IP address: %s".formatted(ip));
         }
         String reverseDnsHostname = DNSUtils.reverseDnsLookup(ip);
-        log.debug("Took {}ms to lookup IP: {}", System.currentTimeMillis() - start, ip);
+        log.debug("Took {}ms to lookup IP: {}", System.currentTimeMillis() - lookupStart, ip);
 
         CachedIpLookup ipLookup = new CachedIpLookup(ip, new IpLookup(
             ip, 

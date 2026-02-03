@@ -115,18 +115,19 @@ public class SkinService {
 
         log.debug("Getting skin part for player: {} (part {}, size {})", player.getUsername(), partName, size);
 
+        long cacheStart = System.currentTimeMillis();
         if (AppConfig.INSTANCE.isCacheEnabled()) {
             Optional<CachedPlayerSkinPart> cache = skinPartRepository.findById(key);
             if (cache.isPresent()) {
-                log.debug("Skin part for {} is cached", player.getUsername());
+                log.debug("Got skin part for {} from cache in {}ms", player.getUsername(), System.currentTimeMillis() - cacheStart);
                 return cache.get();
             }
         }
 
-        long start = System.currentTimeMillis();
+        long renderStart = System.currentTimeMillis();
         BufferedImage renderedPart = part.render(skin, renderOverlay, size);
         byte[] pngBytes = ImageUtils.imageToBytes(renderedPart);
-        log.debug("Took {}ms to render skin part for player: {}", System.currentTimeMillis() - start, player.getUsername());
+        log.debug("Took {}ms to render skin part for player: {}", System.currentTimeMillis() - renderStart, player.getUsername());
 
         CachedPlayerSkinPart skinPart = new CachedPlayerSkinPart(key, pngBytes);
 
