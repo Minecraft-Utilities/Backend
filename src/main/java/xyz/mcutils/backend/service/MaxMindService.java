@@ -49,22 +49,12 @@ import java.util.Optional;
 public class MaxMindService {
     public static MaxMindService INSTANCE;
 
-    /**
-     * The endpoint to download database files from.
-     */
     private static final String DATABASE_DOWNLOAD_ENDPOINT = "https://download.maxmind.com/app/geoip_download?edition_id=%s&license_key=%s&suffix=tar.gz";
-
-    /**
-     * The currently loaded databases.
-     */
     private static final Map<Database, DatabaseReader> DATABASES = new HashMap<>();
 
     @Value("${mc-utils.maxmind.license}")
     private String license;
 
-    /**
-     * Database directory path; defaults to "databases" relative to working dir. Use an absolute path for persistence across runs.
-     */
     @Value("${mc-utils.maxmind.database-dir:databases}")
     private String databaseDirPath;
 
@@ -78,7 +68,7 @@ public class MaxMindService {
     @PostConstruct
     public void onInitialize() {
         // Load the databases
-        if (!license.equals("CHANGE_ME")) {
+        if (!license.isEmpty()) {
             loadDatabases();
         }
         INSTANCE = this;
@@ -263,7 +253,7 @@ public class MaxMindService {
             }
 
             // Close existing reader before update so we can overwrite the file
-            if (needsUpdate && fileExisted) {
+            if (needsUpdate) {
                 DatabaseReader existing = DATABASES.get(database);
                 if (existing != null) {
                     existing.close();

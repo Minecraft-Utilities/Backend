@@ -69,6 +69,7 @@ mc-utils:
 
   # Used for IP lookups
   maxmind:
+    # Leave blank to disable lookups
     license: ""
 
   # The Bearer token used for authenticating the "/metrics" route.
