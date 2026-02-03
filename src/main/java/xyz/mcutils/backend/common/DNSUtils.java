@@ -4,19 +4,13 @@ import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
+import org.xbill.DNS.*;
+import org.xbill.DNS.Record;
+import xyz.mcutils.backend.model.dns.impl.ARecord;
+import xyz.mcutils.backend.model.dns.impl.SRVRecord;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-
-import org.xbill.DNS.Lookup;
-import org.xbill.DNS.PTRRecord;
-import org.xbill.DNS.Record;
-import org.xbill.DNS.ReverseMap;
-import org.xbill.DNS.SimpleResolver;
-import org.xbill.DNS.Type;
-
-import xyz.mcutils.backend.model.dns.impl.ARecord;
-import xyz.mcutils.backend.model.dns.impl.SRVRecord;
 
 /**
  * @author Braydon

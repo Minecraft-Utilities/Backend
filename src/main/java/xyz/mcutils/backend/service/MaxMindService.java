@@ -18,7 +18,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.DNSUtils;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
@@ -41,7 +40,6 @@ import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * @author Braydon
@@ -61,13 +59,13 @@ public class MaxMindService {
      */
     private static final Map<Database, DatabaseReader> DATABASES = new HashMap<>();
 
-    @Value("${maxmind.license}")
+    @Value("${mc-utils.maxmind.license}")
     private String license;
 
     /**
      * Database directory path; defaults to "databases" relative to working dir. Use an absolute path for persistence across runs.
      */
-    @Value("${maxmind.database-dir:databases}")
+    @Value("${mc-utils.maxmind.database-dir:databases}")
     private String databaseDirPath;
 
     private final IpLookupCacheRepository ipLookupCacheRepository;
@@ -95,10 +93,12 @@ public class MaxMindService {
     public IpLookup lookupIp(@NonNull String ip) {
         log.debug("Getting lookup for IP: {}", ip);
 
-        Optional<CachedIpLookup> cachedIpLookup = this.ipLookupCacheRepository.findById(ip);
-        if (cachedIpLookup.isPresent() && AppConfig.isProduction()) {
-            log.debug("IP lookup for {} is cached", ip);
-            return cachedIpLookup.get().getIpLookup();
+        if (AppConfig.INSTANCE.isCacheEnabled()) {
+            Optional<CachedIpLookup> cachedIpLookup = this.ipLookupCacheRepository.findById(ip);
+            if (cachedIpLookup.isPresent()) {
+                log.debug("IP lookup for {} is cached", ip);
+                return cachedIpLookup.get().getIpLookup();
+            }
         }
 
         long start = System.currentTimeMillis();
@@ -117,12 +117,8 @@ public class MaxMindService {
             asn
         ));
         
-        if (AppConfig.isProduction()) {
-            CompletableFuture.runAsync(() -> this.ipLookupCacheRepository.save(ipLookup), Main.EXECUTOR)
-                    .exceptionally(ex -> {
-                        log.warn("Save failed for ip lookup {}: {}", ip, ex.getMessage());
-                        return null;
-                    });
+        if (AppConfig.INSTANCE.isCacheEnabled()) {
+            this.ipLookupCacheRepository.save(ipLookup);
         }
 
         return ipLookup.getIpLookup();
@@ -143,7 +139,7 @@ public class MaxMindService {
             }
             CityResponse city = database.city(InetAddress.getByName(ip));
             Country country = city.country();
-            if (city == null || country == null) {
+            if (country == null) {
                 return null;
             }
 

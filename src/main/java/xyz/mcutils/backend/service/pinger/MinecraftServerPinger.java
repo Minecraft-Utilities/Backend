@@ -8,5 +8,5 @@ import xyz.mcutils.backend.model.server.MinecraftServer;
  * @param <T> the type of server to ping
  */
 public interface MinecraftServerPinger<T extends MinecraftServer> {
-    T ping(String hostname, String ip, int port, DNSRecord[] records);
+    T ping(String hostname, String ip, int port, DNSRecord[] records, int timeout);
 }

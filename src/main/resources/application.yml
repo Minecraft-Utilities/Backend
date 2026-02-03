@@ -17,36 +17,44 @@ spring:
     mapper:
       sort-properties-alphabetically: false
 
-  data:
-    # Redis - This is used for caching
-    redis:
-      host: "127.0.0.1"
-      port: 6379
-      database: 1
-      auth: "" # Leave blank for no auth
-
 logging:
   pattern:
     console: "%level %logger{36} - %msg%n"
   level:
     xyz.mcutils.backend: info
 
-# S3 Storage
-s3:
-  endpoint: ""
-  accessKey: ""
-  secretKey: ""
+mc-utils:
+  # The URL of the API
+  public-url: http://localhost
 
-# The URL of the API
-public-url: http://localhost
+  # Redis - This is used for caching
+  redis:
+    host: "127.0.0.1"
+    port: 6379
+    database: 1
+    auth: "" # Leave blank for no auth
 
-# Bearer token required for /metrics (leave empty to disable auth)
-metrics-token:
+  # S3 Storage
+  s3:
+    endpoint: ""
+    accessKey: ""
+    secretKey: ""
 
-# MaxMind Configuration
-# This is used for IP Geolocation
-maxmind:
-  license: ""
-  # Optional: database directory (default: "databases" relative to working dir).
-  # Use an absolute path for persistence across runs (e.g. Docker, different cwd).
-  # database-dir: databases
+  # Cache Settings
+  cache:
+    enabled: true
+
+  # Server Pinger Settings
+  server-pinger:
+    java:
+      timeout: 1500
+    bedrock:
+      timeout: 1500
+
+  # Used for IP lookups
+  maxmind:
+    license: ""
+
+  # The Bearer token used for authenticating the "/metrics" route.
+  # Leave blank to disable auth.
+  metrics-token:

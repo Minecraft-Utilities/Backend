@@ -1,8 +1,10 @@
 package xyz.mcutils.backend.model.server.java;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import xyz.mcutils.backend.Constants;
@@ -14,13 +16,13 @@ import xyz.mcutils.backend.model.token.server.JavaServerStatusToken;
 /**
  * @author Braydon
  */
-@Setter @Getter
+@Setter @Getter @SuperBuilder @NoArgsConstructor(access = lombok.AccessLevel.PROTECTED, force = true)
 public final class JavaMinecraftServer extends MinecraftServer {
 
     /**
      * The version of the server.
      */
-    @NonNull private final JavaVersion version;
+    @NonNull private JavaVersion version;
 
     /**
      * The favicon of the server.
@@ -65,19 +67,6 @@ public final class JavaMinecraftServer extends MinecraftServer {
      */
     private boolean mojangBlocked;
 
-    public JavaMinecraftServer(String hostname, String ip, int port, MOTD motd, Players players,
-                               DNSRecord[] records, @NonNull JavaVersion version, Favicon favicon, ForgeModInfo modInfo,
-                               ForgeData forgeData, boolean preventsChatReports, boolean enforcesSecureChat, boolean previewsChat) {
-        super(hostname, ip, port, records, motd, players);
-        this.version = version;
-        this.favicon = favicon;
-        this.modInfo = modInfo;
-        this.forgeData = forgeData;
-        this.preventsChatReports = preventsChatReports;
-        this.enforcesSecureChat = enforcesSecureChat;
-        this.previewsChat = previewsChat;
-    }
-
     /**
      * Create a new Java Minecraft server.
      *
@@ -99,20 +88,20 @@ public final class JavaMinecraftServer extends MinecraftServer {
                     .serialize(GsonComponentSerializer.gson().deserialize(Constants.GSON.toJson(token.getDescription())));
         }
 
-        return new JavaMinecraftServer(
-                hostname,
-                ip,
-                port,
-                MOTD.create(hostname, Platform.JAVA, motdString),
-                Players.create(token.getPlayers()),
-                records,
-                token.getVersion().detailedCopy(),
-                Favicon.create(token.getFavicon(), ServerUtils.getAddress(hostname, port)),
-                token.getModInfo(),
-                token.getForgeData(),
-                token.isPreventsChatReports(),
-                token.isEnforcesSecureChat(),
-                token.isPreviewsChat()
-        );
+        return JavaMinecraftServer.builder()
+                .hostname(hostname)
+                .ip(ip)
+                .port(port)
+                .records(records)
+                .motd(MOTD.create(hostname, Platform.JAVA, motdString))
+                .players(Players.create(token.getPlayers()))
+                .version(token.getVersion().detailedCopy())
+                .favicon(Favicon.create(token.getFavicon(), ServerUtils.getAddress(hostname, port)))
+                .modInfo(token.getModInfo())
+                .forgeData(token.getForgeData())
+                .preventsChatReports(token.isPreventsChatReports())
+                .enforcesSecureChat(token.isEnforcesSecureChat())
+                .previewsChat(token.isPreviewsChat())
+                .build();
     }
 }

@@ -22,8 +22,6 @@ import java.net.UnknownHostException;
  */
 @Slf4j
 public final class BedrockMinecraftServerPinger implements MinecraftServerPinger<BedrockMinecraftServer> {
-    private static final int TIMEOUT = 1500; // The timeout for the socket
-
     /**
      * Ping the server with the given hostname and port.
      *
@@ -32,13 +30,13 @@ public final class BedrockMinecraftServerPinger implements MinecraftServerPinger
      * @return the server that was pinged
      */
     @Override
-    public BedrockMinecraftServer ping(String hostname, String ip, int port, DNSRecord[] records) {
+    public BedrockMinecraftServer ping(String hostname, String ip, int port, DNSRecord[] records, int timeout) {
         log.debug("Pinging {}:{}...", hostname, port);
         long before = System.currentTimeMillis(); // Timestamp before pinging
 
         // Open a socket connection to the server
         try (DatagramSocket socket = new DatagramSocket()) {
-            socket.setSoTimeout(TIMEOUT);
+            socket.setSoTimeout(timeout);
             socket.connect(new InetSocketAddress(hostname, port));
 
             long ping = System.currentTimeMillis() - before; // Calculate the ping

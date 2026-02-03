@@ -1,7 +1,10 @@
 package xyz.mcutils.backend.model.server;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
+import lombok.experimental.SuperBuilder;
 import xyz.mcutils.backend.model.asn.AsnLookup;
 import xyz.mcutils.backend.model.dns.DNSRecord;
 import xyz.mcutils.backend.model.geo.GeoLocation;
@@ -11,43 +14,43 @@ import xyz.mcutils.backend.service.MaxMindService;
 /**
  * @author Braydon
  */
-@Getter @Setter
+@Getter @Setter @ToString @SuperBuilder @NoArgsConstructor(access = lombok.AccessLevel.PROTECTED)
 public class MinecraftServer {
 
     /**
      * The hostname of the server.
      */
-    private final String hostname;
+    private String hostname;
 
     /**
      * The reverse DNS of the server's ip address.
      */
-    private final String reverseDns;
+    private String reverseDns;
 
     /**
      * The IP address of the server.
      */
-    private final String ip;
+    private String ip;
 
     /**
      * The port of the server.
      */
-    private final int port;
+    private int port;
 
     /**
      * The DNS records for the server.
      */
-    private final DNSRecord[] records;
+    private DNSRecord[] records;
 
     /**
      * The motd for the server.
      */
-    private final MOTD motd;
+    private MOTD motd;
 
     /**
      * The players on the server.
      */
-    private final Players players;
+    private Players players;
 
     /**
      * The location of the server.
@@ -59,17 +62,16 @@ public class MinecraftServer {
      */
     private AsnLookup asn;
 
-    public MinecraftServer(String hostname, String ip, int port, DNSRecord[] records, MOTD motd, Players players) {
-        this.hostname = hostname;
-        this.ip = ip;
-        this.port = port;
-        this.records = records;
-        this.motd = motd;
-        this.players = players;
-
-        IpLookup ipLookup = MaxMindService.INSTANCE.lookupIp(ip);
-        this.reverseDns = ipLookup.reverseDns();
-        this.location = ipLookup.location();
-        this.asn = ipLookup.asn();
+    /**
+     * Populates reverseDns, location, and asn from MaxMind for this server's IP.
+     * No-op if ip is null or geo data is already set.
+     */
+    public void lookupIp() {
+        if (ip != null && reverseDns == null && location == null && asn == null) {
+            IpLookup ipLookup = MaxMindService.INSTANCE.lookupIp(ip);
+            this.reverseDns = ipLookup.reverseDns();
+            this.location = ipLookup.location();
+            this.asn = ipLookup.asn();
+        }
     }
 }

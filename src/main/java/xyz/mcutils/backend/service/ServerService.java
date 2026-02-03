@@ -2,6 +2,7 @@ package xyz.mcutils.backend.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.DNSUtils;
@@ -42,6 +43,12 @@ public class ServerService {
     private final MinecraftServerCacheRepository serverCacheRepository;
     private final ServerPreviewCacheRepository serverPreviewCacheRepository;
 
+    @Value("${mc-utils.server-pinger.java.timeout}")
+    private int javaPingerTimeout;
+
+    @Value("${mc-utils.server-pinger.bedrock.timeout}")
+    private int bedrockPingerTimeout;
+
     @Autowired
     public ServerService(MojangService mojangService, MinecraftServerCacheRepository serverCacheRepository, ServerPreviewCacheRepository serverPreviewCacheRepository) {
         this.mojangService = mojangService;
@@ -77,7 +84,7 @@ public class ServerService {
         log.debug("Getting server: {}:{}", hostname, port);
 
         // Check if the server is cached
-        if (AppConfig.isProduction()) {
+        if (AppConfig.INSTANCE.isCacheEnabled()) {
             Optional<CachedMinecraftServer> cached = serverCacheRepository.findById(key);
             if (cached.isPresent()) {
                 log.debug("Server {}:{} is cached", hostname, port);
@@ -106,8 +113,11 @@ public class ServerService {
 
         CachedMinecraftServer server = new CachedMinecraftServer(
                 key,
-                platform.getPinger().ping(hostname, ip, port, dnsRecords.toArray(new DNSRecord[0]))
+                platform.getPinger().ping(hostname, ip, port, dnsRecords.toArray(new DNSRecord[0]), platform == Platform.JAVA ? javaPingerTimeout : bedrockPingerTimeout)
         );
+
+        // Populate the server's ip lookup data
+        server.getServer().lookupIp();
 
         // Check if the server is blocked by Mojang
         if (platform == Platform.JAVA) {
@@ -115,7 +125,9 @@ public class ServerService {
         }
 
         log.debug("Found server: {}:{}", hostname, port);
-        serverCacheRepository.save(server);
+        if (AppConfig.INSTANCE.isCacheEnabled()) {
+            this.serverCacheRepository.save(server);
+        }
         return server;
     }
 
@@ -161,7 +173,7 @@ public class ServerService {
 
         // Check if the server preview is cached
         Optional<CachedServerPreview> cached = serverPreviewCacheRepository.findById(key);
-        if (cached.isPresent() && AppConfig.isProduction()) {
+        if (cached.isPresent() && AppConfig.INSTANCE.isCacheEnabled()) {
             log.debug("Server preview for {}:{} is cached", server.getHostname(), server.getPort());
             return cached.get().getBytes();
         }
@@ -173,7 +185,7 @@ public class ServerService {
         CachedServerPreview serverPreview = new CachedServerPreview(key, preview);
         
         // don't save to cache in development
-        if (AppConfig.isProduction()) {
+        if (AppConfig.INSTANCE.isCacheEnabled()) {
             CompletableFuture.runAsync(() -> serverPreviewCacheRepository.save(serverPreview), Main.EXECUTOR)
                 .exceptionally(ex -> {
                     log.warn("Save failed for server preview {}: {}", key, ex.getMessage());

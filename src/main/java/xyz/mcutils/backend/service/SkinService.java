@@ -115,10 +115,12 @@ public class SkinService {
 
         log.debug("Getting skin part for player: {} (part {}, size {})", player.getUsername(), partName, size);
 
-        Optional<CachedPlayerSkinPart> cache = skinPartRepository.findById(key);
-        if (cache.isPresent() && AppConfig.isProduction()) {
-            log.debug("Skin part for {} is cached", player.getUsername());
-            return cache.get();
+        if (AppConfig.INSTANCE.isCacheEnabled()) {
+            Optional<CachedPlayerSkinPart> cache = skinPartRepository.findById(key);
+            if (cache.isPresent()) {
+                log.debug("Skin part for {} is cached", player.getUsername());
+                return cache.get();
+            }
         }
 
         long start = System.currentTimeMillis();
@@ -129,7 +131,7 @@ public class SkinService {
         CachedPlayerSkinPart skinPart = new CachedPlayerSkinPart(key, pngBytes);
 
         // don't save to cache in development
-        if (AppConfig.isProduction()) {
+        if (AppConfig.INSTANCE.isCacheEnabled()) {
             CompletableFuture.runAsync(() -> skinPartRepository.save(skinPart), Main.EXECUTOR)
                 .exceptionally(ex -> {
                     log.warn("Save failed for skin part {}: {}", key, ex.getMessage());

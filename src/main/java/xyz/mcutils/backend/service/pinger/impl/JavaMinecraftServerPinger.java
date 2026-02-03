@@ -21,8 +21,6 @@ import java.net.*;
  */
 @Slf4j
 public final class JavaMinecraftServerPinger implements MinecraftServerPinger<JavaMinecraftServer> {
-    private static final int TIMEOUT = 1500; // The timeout for the socket
-
     /**
      * Ping the server with the given hostname and port.
      *
@@ -31,14 +29,14 @@ public final class JavaMinecraftServerPinger implements MinecraftServerPinger<Ja
      * @return the server that was pinged
      */
     @Override
-    public JavaMinecraftServer ping(String hostname, String ip, int port, DNSRecord[] records) {
+    public JavaMinecraftServer ping(String hostname, String ip, int port, DNSRecord[] records, int timeout) {
         log.debug("Pinging {}:{}...", hostname, port);
 
         // Open a socket connection to the server
         try (Socket socket = new Socket()) {
             socket.setTcpNoDelay(true);
-            socket.connect(new InetSocketAddress(hostname, port), TIMEOUT);
-            socket.setSoTimeout(TIMEOUT);
+            socket.connect(new InetSocketAddress(hostname, port), timeout);
+            socket.setSoTimeout(timeout);
 
             // Open data streams to begin packet transaction
             try (DataInputStream inputStream = new DataInputStream(socket.getInputStream()); DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream())) {

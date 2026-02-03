@@ -25,11 +25,14 @@ public class AppConfig {
     @Autowired
     private Environment environment;
 
-    @Value("${public-url}")
+    @Value("${mc-utils.public-url}")
     private String webPublicUrl;
 
-    @Value("${metrics-token}")
+    @Value("${mc-utils.metrics-token}")
     private String metricsToken;
+
+    @Value("${mc-utils.cache.enabled}")
+    private boolean cacheEnabled;
 
     @PostConstruct
     public void onInitialize() {

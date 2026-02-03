@@ -45,26 +45,38 @@ public class MojangService {
      * </p>
      */
     private final Set<String> blockedServerHashes = Collections.synchronizedSet(new HashSet<>());
-   
+
     /**
-     * Updates the list of banned server hashes from Mojang.
+     * Check if the hash for the given
+     * hostname is in the blocked server list.
+     *
+     * @param hostname the hostname to check
+     * @return whether the hostname is blocked
      */
-    @SneakyThrows @Scheduled(cron = "0 0 0 * * *")
-    private void updateBlockedServers() {
-        log.info("Fetching blocked servers from Mojang");
-        try (
-                InputStream inputStream = URI.create(FETCH_BLOCKED_SERVERS).toURL().openStream();
-                Scanner scanner = new Scanner(inputStream, StandardCharsets.UTF_8).useDelimiter("\n")
-        ) {
-            List<String> hashes = new ArrayList<>();
-            while (scanner.hasNext()) {
-                hashes.add(scanner.next());
-            }
-            blockedServerHashes.addAll(hashes);
-            log.info("Fetched {} blocked server hashes", blockedServerHashes.size());
-        } catch (IOException e) {
-            log.error("Failed to fetch blocked servers from Mojang", e);
-        }
+    private boolean isServerHostnameBlocked(@NonNull String hostname) {
+        return blockedServerHashes.contains(Hashing.sha1().hashBytes(hostname.toLowerCase().getBytes(StandardCharsets.ISO_8859_1)).toString());
+    }
+
+    /**
+     * Gets the Session Server profile of the
+     * player with the given UUID.
+     *
+     * @param id the uuid or name of the player
+     * @return the profile
+     */
+    public MojangProfileToken getProfile(String id) {
+        return WebRequest.getAsEntity(SESSION_SERVER_ENDPOINT + "/session/minecraft/profile/" + id, MojangProfileToken.class);
+    }
+
+    /**
+     * Gets the UUID of the player using
+     * the name of the player.
+     *
+     * @param id the name of the player
+     * @return the profile
+     */
+    public MojangUsernameToUuidToken getUuidFromUsername(String id) {
+        return WebRequest.getAsEntity(API_ENDPOINT + "/users/profiles/minecraft/" + id, MojangUsernameToUuidToken.class);
     }
 
     /**
@@ -78,7 +90,7 @@ public class MojangService {
         if (hostname.isEmpty()) {
             return false;
         }
-      
+
         // Remove trailing dots
         while (hostname.charAt(hostname.length() - 1) == '.') {
             hostname = hostname.substring(0, hostname.length() - 1);
@@ -119,37 +131,23 @@ public class MojangService {
     }
 
     /**
-     * Check if the hash for the given
-     * hostname is in the blocked server list.
-     *
-     * @param hostname the hostname to check
-     * @return whether the hostname is blocked
+     * Updates the list of banned server hashes from Mojang.
      */
-    private boolean isServerHostnameBlocked(@NonNull String hostname) {
-        String hashed = Hashing.sha1().hashBytes(hostname.toLowerCase().getBytes(StandardCharsets.ISO_8859_1)).toString();
-        boolean blocked = blockedServerHashes.contains(hashed); // Is the hostname blocked?
-        return blocked;
-    }
-
-    /**
-     * Gets the Session Server profile of the
-     * player with the given UUID.
-     *
-     * @param id the uuid or name of the player
-     * @return the profile
-     */
-    public MojangProfileToken getProfile(String id) {
-        return WebRequest.getAsEntity(SESSION_SERVER_ENDPOINT + "/session/minecraft/profile/" + id, MojangProfileToken.class);
-    }
-
-    /**
-     * Gets the UUID of the player using
-     * the name of the player.
-     *
-     * @param id the name of the player
-     * @return the profile
-     */
-    public MojangUsernameToUuidToken getUuidFromUsername(String id) {
-        return WebRequest.getAsEntity(API_ENDPOINT + "/users/profiles/minecraft/" + id, MojangUsernameToUuidToken.class);
+    @SneakyThrows @Scheduled(cron = "0 0 0 * * *")
+    private void updateBlockedServers() {
+        log.info("Fetching blocked servers from Mojang");
+        try (
+                InputStream inputStream = URI.create(FETCH_BLOCKED_SERVERS).toURL().openStream();
+                Scanner scanner = new Scanner(inputStream, StandardCharsets.UTF_8).useDelimiter("\n")
+        ) {
+            List<String> hashes = new ArrayList<>();
+            while (scanner.hasNext()) {
+                hashes.add(scanner.next());
+            }
+            blockedServerHashes.addAll(hashes);
+            log.info("Fetched {} blocked server hashes", blockedServerHashes.size());
+        } catch (IOException e) {
+            log.error("Failed to fetch blocked servers from Mojang", e);
+        }
     }
 }

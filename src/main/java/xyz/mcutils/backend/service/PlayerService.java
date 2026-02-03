@@ -4,9 +4,9 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.UUIDUtils;
+import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.exception.impl.RateLimitException;
@@ -20,7 +20,6 @@ import xyz.mcutils.backend.repository.PlayerNameCacheRepository;
 
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 @Slf4j
@@ -52,12 +51,14 @@ public class PlayerService {
             uuid = usernameToUuid(query).getUniqueId();
         }
 
-        Optional<CachedPlayer> cachedPlayer = playerCacheRepository.findById(uuid);
-        if (cachedPlayer.isPresent()) { // Return the cached player if it exists
-            log.debug("Player {} found in cache ({}ms)", uuid, System.currentTimeMillis() - start);
-            CachedPlayer player = cachedPlayer.get();
-            player.setCached(true);
-            return player;
+        if (AppConfig.INSTANCE.isCacheEnabled()) {
+            Optional<CachedPlayer> cachedPlayer = playerCacheRepository.findById(uuid);
+            if (cachedPlayer.isPresent()) {
+                log.debug("Player {} found in cache ({}ms)", uuid, System.currentTimeMillis() - start);
+                CachedPlayer player = cachedPlayer.get();
+                player.setCached(true);
+                return player;
+            }
         }
 
         try {
@@ -70,11 +71,9 @@ public class PlayerService {
                     new Player(mojangProfile)
             );
 
-            CompletableFuture.runAsync(() -> playerCacheRepository.save(player), Main.EXECUTOR)
-                    .exceptionally(ex -> {
-                        log.warn("Save failed for player {}: {}", player.getUniqueId(), ex.getMessage());
-                        return null;
-                    });
+            if (AppConfig.INSTANCE.isCacheEnabled()) {
+                this.playerCacheRepository.save(player);
+            }
             log.debug("Got player {} from Mojang API in {}ms", uuid, System.currentTimeMillis() - start);
             return player;
         } catch (RateLimitException exception) {
@@ -90,16 +89,16 @@ public class PlayerService {
      */
     public CachedPlayerName usernameToUuid(String username) {
         long start = System.currentTimeMillis();
-
         String id = username.toUpperCase();
 
-        // First check Redis cache
-        Optional<CachedPlayerName> cachedPlayerName = playerNameCacheRepository.findById(id);
-        if (cachedPlayerName.isPresent()) {
-            log.debug("Username {} found in cache ({}ms)", username, System.currentTimeMillis() - start);
-            CachedPlayerName playerName = cachedPlayerName.get();
-            playerName.setCached(true);
-            return playerName;
+        if (AppConfig.INSTANCE.isCacheEnabled()) {
+            Optional<CachedPlayerName> cachedPlayerName = playerNameCacheRepository.findById(id);
+            if (cachedPlayerName.isPresent()) {
+                log.debug("Username {} found in cache ({}ms)", username, System.currentTimeMillis() - start);
+                CachedPlayerName playerName = cachedPlayerName.get();
+                playerName.setCached(true);
+                return playerName;
+            }
         }
 
         // Check the Mojang API
@@ -111,11 +110,9 @@ public class PlayerService {
             UUID uuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
             CachedPlayerName playerName = new CachedPlayerName(id, username, uuid);
 
-            CompletableFuture.runAsync(() -> playerNameCacheRepository.save(playerName), Main.EXECUTOR)
-                    .exceptionally(ex -> {
-                        log.warn("Save failed for player uuid lookup {}: {}", playerName.getUniqueId(), ex.getMessage());
-                        return null;
-                    });
+            if (AppConfig.INSTANCE.isCacheEnabled()) {
+                this.playerNameCacheRepository.save(playerName);
+            }
             log.debug("Got uuid for username {} in {}ms", username, System.currentTimeMillis() - start);
             return playerName;
         } catch (RateLimitException exception) {

@@ -18,9 +18,9 @@ public class StorageService {
 
     @SneakyThrows
     @Autowired
-    public StorageService(@Value("${s3.endpoint}") String endpoint,
-                          @Value("${s3.accessKey}") String accessKey,
-                          @Value("${s3.secretKey}") String secretKey) {
+    public StorageService(@Value("${mc-utils.s3.endpoint}") String endpoint,
+                          @Value("${mc-utils.s3.accessKey}") String accessKey,
+                          @Value("${mc-utils.s3.secretKey}") String secretKey) {
         this.minioClient = MinioClient.builder()
                 .endpoint(endpoint)
                 .credentials(accessKey, secretKey)
