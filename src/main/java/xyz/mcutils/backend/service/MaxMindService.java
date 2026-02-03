@@ -8,7 +8,6 @@ import com.maxmind.geoip2.model.CityResponse;
 import com.maxmind.geoip2.record.Country;
 import com.maxmind.geoip2.record.Location;
 import com.maxmind.geoip2.record.Postal;
-
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.*;
@@ -41,16 +40,8 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
-import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
-import org.xbill.DNS.Lookup;
-import org.xbill.DNS.PTRRecord;
-import org.xbill.DNS.Record;
-import org.xbill.DNS.ReverseMap;
-import org.xbill.DNS.SimpleResolver;
-import org.xbill.DNS.Type;
 
 /**
  * @author Braydon
@@ -158,7 +149,7 @@ public class MaxMindService {
 
             Location location = city.location();
             String isoCode = country.isoCode();
-            if (location == null || country == null || isoCode == null) {
+            if (location == null || isoCode == null) {
                 return null;
             }
             

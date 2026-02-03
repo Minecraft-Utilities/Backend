@@ -2,7 +2,10 @@ package xyz.mcutils.backend.common.renderer.impl.server;
 
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.Main;
-import xyz.mcutils.backend.common.*;
+import xyz.mcutils.backend.common.Fonts;
+import xyz.mcutils.backend.common.GraphicsUtils;
+import xyz.mcutils.backend.common.ImageUtils;
+import xyz.mcutils.backend.common.MinecraftColor;
 import xyz.mcutils.backend.common.color.ColorUtils;
 import xyz.mcutils.backend.common.color.HexColorResult;
 import xyz.mcutils.backend.common.renderer.Renderer;

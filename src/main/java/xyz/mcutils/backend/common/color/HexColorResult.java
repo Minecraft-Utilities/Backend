@@ -1,6 +1,6 @@
 package xyz.mcutils.backend.common.color;
 
-import java.awt.Color;
+import java.awt.*;
 
 /**
  * Result of parsing a hex color: the color and the number of characters consumed.
