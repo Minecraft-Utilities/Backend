@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.controller;
 
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -8,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.model.cache.CachedMinecraftServer;
 import xyz.mcutils.backend.model.response.ServerBlockedResponse;
+import xyz.mcutils.backend.model.server.Platform;
 import xyz.mcutils.backend.service.MojangService;
 import xyz.mcutils.backend.service.ServerService;
 
@@ -28,55 +30,79 @@ public class ServerController {
     @ResponseBody
     @GetMapping(value = "/{platform}/{hostname}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<CachedMinecraftServer> getServer(
-            @Parameter(description = "The platform of the server", example = "java") @PathVariable String platform,
-            @Parameter(description = "The hostname and port of the server", example = "aetheria.cc") @PathVariable String hostname) {
-        CachedMinecraftServer server = serverService.getServer(platform, hostname);
-
+            @Parameter(
+                    description = "The platform of the server",
+                    schema = @Schema(implementation = Platform.class)
+            ) @PathVariable String platform,
+            @Parameter(
+                    description = "The hostname and port of the server",
+                    example = "aetheria.cc"
+            ) @PathVariable String hostname
+    ) {
         return ResponseEntity.ok()
-                .body(server);
+                .body(this.serverService.getServer(platform, hostname));
     }
 
     @ResponseBody
     @GetMapping(value = "/icon/{hostname}", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getServerIcon(
-            @Parameter(description = "The hostname and port of the server", example = "aetheria.cc") @PathVariable String hostname) {
-        byte[] favicon = serverService.getServerFavicon(hostname);
-
+            @Parameter(
+                    description = "The hostname and port of the server",
+                    example = "aetheria.cc"
+            ) @PathVariable String hostname
+    ) {
         return ResponseEntity.ok()
                 .contentType(MediaType.IMAGE_PNG)
-                .body(favicon);
+                .body(this.serverService.getServerFavicon(hostname));
     }
 
     @ResponseBody
     @GetMapping(value = "/{platform}/{hostname}/preview.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getServerPreview(
-            @Parameter(description = "The platform of the server", example = "java") @PathVariable String platform,
-            @Parameter(description = "The hostname and port of the server", example = "aetheria.cc") @PathVariable String hostname,
-            @Parameter(description = "The size of the image", example = "768") @RequestParam(required = false, defaultValue = "768") int size) {
-        CachedMinecraftServer server = serverService.getServer(platform, hostname);
-
+            @Parameter(
+                    description = "The platform of the server",
+                    schema = @Schema(implementation = Platform.class)
+            ) @PathVariable String platform,
+            @Parameter(
+                    description = "The hostname and port of the server",
+                    example = "aetheria.cc"
+            ) @PathVariable String hostname,
+            @Parameter(
+                    description = "The size of the image",
+                    example = "768"
+            ) @RequestParam(required = false, defaultValue = "768") int size
+    ) {
         return ResponseEntity.ok()
                 .contentType(MediaType.IMAGE_PNG)
-                .body(serverService.getServerPreview(server, platform, size));
+                .body(this.serverService.getServerPreview(this.serverService.getServer(platform, hostname), platform, size));
     }
 
     @ResponseBody
     @GetMapping(value = "/{platform}/{hostname}/preview.html", produces = MediaType.TEXT_HTML_VALUE)
     public ResponseEntity<String> getServerHtmlPreview(
-            @Parameter(description = "The platform of the server", example = "java") @PathVariable String platform,
-            @Parameter(description = "The hostname and port of the server", example = "aetheria.cc") @PathVariable String hostname) {
-        CachedMinecraftServer server = serverService.getServer(platform, hostname);
-
-        return ResponseEntity.ok().body(
-                server.getServer().getMotd().generateHtmlPreview(server.getServer())
-        );
+            @Parameter(
+                    description = "The platform of the server",
+                    schema = @Schema(implementation = Platform.class)
+            ) @PathVariable String platform,
+            @Parameter(
+                    description = "The hostname and port of the server",
+                    example = "aetheria.cc"
+            ) @PathVariable String hostname
+    ) {
+        CachedMinecraftServer server = this.serverService.getServer(platform, hostname);
+        return ResponseEntity.ok()
+                .body(server.getServer().getMotd().generateHtmlPreview(server.getServer()));
     }
 
     @ResponseBody
     @GetMapping(value = "/blocked/{hostname}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ServerBlockedResponse> getServerBlockedStatus(
-            @Parameter(description = "The hostname of the server", example = "aetheria.cc") @PathVariable String hostname) {
+            @Parameter(
+                    description = "The hostname of the server",
+                    example = "aetheria.cc"
+            ) @PathVariable String hostname
+    ) {
         return ResponseEntity.ok()
-                .body(new ServerBlockedResponse(mojangService.isServerBlocked(hostname)));
+                .body(new ServerBlockedResponse(this.mojangService.isServerBlocked(hostname)));
     }
 }

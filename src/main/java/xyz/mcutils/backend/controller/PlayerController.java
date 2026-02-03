@@ -27,22 +27,25 @@ public class PlayerController {
     @ResponseBody
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<CachedPlayer> getPlayer(
-            @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String id) {
-        CachedPlayer player = playerService.getPlayer(id);
-
+            @Parameter(
+                    description = "The UUID or Username of the player",
+                    example = "ImFascinated"
+            ) @PathVariable String id
+    ) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
-                .body(player);
+                .body(this.playerService.getPlayer(id));
     }
 
     @ResponseBody
     @GetMapping(value = "/uuid/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<CachedPlayerName> getPlayerUuid(
-            @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String id) {
-        CachedPlayerName cachedPlayerName = playerService.usernameToUuid(id);
-
+            @Parameter(
+                    description = "The UUID or Username of the player",
+                    example = "ImFascinated"
+            ) @PathVariable String id) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic())
-                .body(cachedPlayerName);
+                .body(this.playerService.usernameToUuid(id));
     }
 }

@@ -25,7 +25,11 @@ public class CapeController {
 
     @ResponseBody
     @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)
-    public ResponseEntity<byte[]> getCapeTexture(@Parameter(description = "The id of the cape texture", example = "dbc21e222528e30dc88445314f7be6ff12d3aeebc3c192054fba7e3b3f8c77b1") @PathVariable String query) {
+    public ResponseEntity<byte[]> getCapeTexture(
+            @Parameter(
+                    description = "The id of the cape texture",
+                    example = "dbc21e222528e30dc88445314f7be6ff12d3aeebc3c192054fba7e3b3f8c77b1"
+            ) @PathVariable String query) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .body(this.capeService.getCapeTexture(Cape.fromId(query)));
