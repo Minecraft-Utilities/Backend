@@ -1,5 +1,7 @@
 package xyz.mcutils.backend.model.server;
 
+import org.jetbrains.annotations.Nullable;
+
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -25,6 +27,7 @@ public class MinecraftServer {
     /**
      * The reverse DNS of the server's ip address.
      */
+    @Nullable
     private String reverseDns;
 
     /**
@@ -55,11 +58,13 @@ public class MinecraftServer {
     /**
      * The location of the server.
      */
+    @Nullable
     private GeoLocation location;
 
     /**
      * The server's ASN information.
      */
+    @Nullable
     private AsnLookup asn;
 
     /**

@@ -1,5 +1,7 @@
 package xyz.mcutils.backend.model.server.java;
 
+import org.jetbrains.annotations.Nullable;
+
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
@@ -25,23 +27,26 @@ public final class JavaMinecraftServer extends MinecraftServer {
     @NonNull private JavaVersion version;
 
     /**
-     * The favicon of the server.
-     */
-    private Favicon favicon;
-
-    /**
      * The mods running on this server.
      */
+    @Nullable
     private ForgeModInfo modInfo;
 
     /**
      * The mods running on this server.
      * <p>
-     *     This is only used for servers
-     *     running 1.13 and above.
+     * This is only used for servers
+     * running 1.13 and above.
      * </p>
      */
+    @Nullable
     private ForgeData forgeData;
+
+    /**
+     * The favicon of the server.
+     */
+    @Nullable
+    private Favicon favicon;
 
     /**
      * Whether the server prevents chat reports.
@@ -56,8 +61,8 @@ public final class JavaMinecraftServer extends MinecraftServer {
     /**
      * Whether the server has previews chat enabled.
      * <p>
-     *      Chat Preview sends chat messages to the server as they are typed, even before they're sent.
-     *      <a href="https://www.minecraft.net/es-mx/article/minecraft-snapshot-22w19a">More information</a>
+     * Chat Preview sends chat messages to the server as they are typed, even before they're sent.
+     * <a href="https://www.minecraft.net/es-mx/article/minecraft-snapshot-22w19a">More information</a>
      * </p>
      */
     private boolean previewsChat;
