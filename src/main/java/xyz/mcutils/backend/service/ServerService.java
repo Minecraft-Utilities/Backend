@@ -88,11 +88,11 @@ public class ServerService {
             }
         }
 
-        List<DNSRecord> records = new ArrayList<>(); // The resolved DNS records for the server
+        List<DNSRecord> dnsRecords = new ArrayList<>();
 
         SRVRecord srvRecord = platform == Platform.JAVA ? DNSUtils.resolveSRV(hostname) : null; // Resolve the SRV record
         if (srvRecord != null) { // SRV was resolved, use the hostname and port
-            records.add(srvRecord); // Going to need this for later
+            dnsRecords.add(srvRecord); // Going to need this for later
             InetSocketAddress socketAddress = srvRecord.getSocketAddress();
             hostname = socketAddress.getHostName();
             port = socketAddress.getPort();
@@ -101,13 +101,13 @@ public class ServerService {
         ARecord aRecord = DNSUtils.resolveA(hostname); // Resolve the A record so we can get the IPv4 address
         String ip = aRecord == null ? null : aRecord.getAddress(); // Get the IP address
         if (ip != null) { // Was the IP resolved?
-            records.add(aRecord); // Going to need this for later
+            dnsRecords.add(aRecord); // Going to need this for later
             log.debug("Resolved hostname: {} -> {}", hostname, ip);
         }
 
         CachedMinecraftServer server = new CachedMinecraftServer(
                 key,
-                platform.getPinger().ping(hostname, ip, port, records.toArray(new DNSRecord[0]))
+                platform.getPinger().ping(hostname, ip, port, dnsRecords.toArray(new DNSRecord[0]))
         );
 
         // Check if the server is blocked by Mojang
