@@ -38,6 +38,7 @@ public final class JavaMinecraftServerPinger implements MinecraftServerPinger<Ja
         try (Socket socket = new Socket()) {
             socket.setTcpNoDelay(true);
             socket.connect(new InetSocketAddress(hostname, port), TIMEOUT);
+            socket.setSoTimeout(TIMEOUT);
 
             // Open data streams to begin packet transaction
             try (DataInputStream inputStream = new DataInputStream(socket.getInputStream()); DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream())) {
