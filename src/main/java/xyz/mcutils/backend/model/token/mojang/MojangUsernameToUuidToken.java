@@ -6,7 +6,6 @@ import lombok.NoArgsConstructor;
 
 @Getter @NoArgsConstructor
 public class MojangUsernameToUuidToken {
-
     /**
      * The UUID of the player.
      */

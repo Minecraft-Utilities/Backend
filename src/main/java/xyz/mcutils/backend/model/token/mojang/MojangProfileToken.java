@@ -15,7 +15,6 @@ import java.util.Base64;
 
 @Getter @NoArgsConstructor @AllArgsConstructor
 public class MojangProfileToken {
-
     /**
      * The UUID of the player.
      */

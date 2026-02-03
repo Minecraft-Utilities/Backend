@@ -20,7 +20,6 @@ import xyz.mcutils.backend.model.token.server.JavaServerStatusToken;
  */
 @Setter @Getter @SuperBuilder @NoArgsConstructor(access = lombok.AccessLevel.PROTECTED, force = true)
 public final class JavaMinecraftServer extends MinecraftServer {
-
     /**
      * The version of the server.
      */

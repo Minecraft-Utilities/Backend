@@ -15,65 +15,17 @@ import java.util.UUID;
  * @author Braydon
  */
 @AllArgsConstructor @Getter @ToString
-public final class JavaServerStatusToken {
-
-    /**
-     * The version of the server.
-     */
+public final class JavaServerStatusToken {  
     private final JavaVersion version;
-
-    /**
-     * The players on the server.
-     */
     private final Players players;
-
-    /**
-     * The mods running on this server.
-     */
     @SerializedName("modinfo")
     private ForgeModInfo modInfo;
-
-    /**
-     * The mods running on this server.
-     * <p>
-     *     This is only used for servers
-     *     running 1.13 and above.
-     * </p>
-     */
     private ForgeData forgeData;
-
-    /**
-     * The motd of the server.
-     */
     private final Object description;
-
-    /**
-     * The favicon of the server.
-     */
     private final String favicon;
-
-    /**
-     * Whether the server prevents chat reports.
-     */
     private boolean preventsChatReports;
-
-    /**
-     * Whether the server enforces secure chat.
-     */
     private boolean enforcesSecureChat;
-
-    /**
-     * Whether the server has previews chat enabled.
-     * <p>
-     *      Chat Preview sends chat messages to the server as they are typed, even before they're sent.
-     *      <a href="https://www.minecraft.net/es-mx/article/minecraft-snapshot-22w19a">More information</a>
-     * </p>
-     */
     private boolean previewsChat;
-
-    /**
-     * Whether the server is modded. This comes from NeoForge (atleast as far as i can tell)
-     */
     private boolean isModded;
 
     /**
