@@ -73,6 +73,11 @@ public final class JavaMinecraftServer extends MinecraftServer {
     private boolean mojangBlocked;
 
     /**
+     * Whether the server is modded. This comes from NeoForge (atleast as far as i can tell)
+     */
+    private boolean isModded;
+
+    /**
      * Create a new Java Minecraft server.
      *
      * @param hostname the hostname of the server
@@ -107,6 +112,7 @@ public final class JavaMinecraftServer extends MinecraftServer {
                 .preventsChatReports(token.isPreventsChatReports())
                 .enforcesSecureChat(token.isEnforcesSecureChat())
                 .previewsChat(token.isPreviewsChat())
+                .isModded(token.isModded())
                 .build();
     }
 }

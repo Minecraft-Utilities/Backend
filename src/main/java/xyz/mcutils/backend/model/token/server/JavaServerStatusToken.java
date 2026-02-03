@@ -72,6 +72,11 @@ public final class JavaServerStatusToken {
     private boolean previewsChat;
 
     /**
+     * Whether the server is modded. This comes from NeoForge (atleast as far as i can tell)
+     */
+    private boolean isModded;
+
+    /**
      * Player count data for a server.
      *
      * @param online The online players on this server.
