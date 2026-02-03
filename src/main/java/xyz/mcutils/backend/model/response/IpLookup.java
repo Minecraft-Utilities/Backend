@@ -1,5 +1,7 @@
 package xyz.mcutils.backend.model.response;
 
+import org.jetbrains.annotations.Nullable;
+
 import xyz.mcutils.backend.model.asn.AsnLookup;
 import xyz.mcutils.backend.model.geo.GeoLocation;
 
@@ -11,4 +13,4 @@ import xyz.mcutils.backend.model.geo.GeoLocation;
  * @param location the location of the IP address
  * @param asn the ASN of the IP address
  */
-public record IpLookup(String ip, String reverseDns, GeoLocation location, AsnLookup asn) { }
+public record IpLookup(String ip, @Nullable String reverseDns, @Nullable GeoLocation location, @Nullable AsnLookup asn) { }

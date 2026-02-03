@@ -2,6 +2,8 @@ package xyz.mcutils.backend.model.player;
 
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+
+import org.jetbrains.annotations.Nullable;
 import org.springframework.data.annotation.Id;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
@@ -47,6 +49,7 @@ public class Player {
     /**
      * The Cape for the player.
      */
+    @Nullable
     private Cape cape;
 
     /**
