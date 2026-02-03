@@ -1,27 +1,31 @@
 package xyz.mcutils.backend.service;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Splitter;
-import com.google.common.collect.Lists;
-import com.google.common.hash.Hashing;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
-import net.jodah.expiringmap.ExpirationPolicy;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import xyz.mcutils.backend.common.ExpiringSet;
-import xyz.mcutils.backend.common.WebRequest;
-import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
-import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Scanner;
+import java.util.Set;
+
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+
+import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
+import com.google.common.hash.Hashing;
+
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import xyz.mcutils.backend.common.WebRequest;
+import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
+import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
 
 @Service
 @Slf4j
@@ -47,14 +51,7 @@ public class MojangService {
      * {@link #updateBlockedServers()} for more info.
      * </p>
      */
-    private final Set<String> bannedServerHashes = Collections.synchronizedSet(new HashSet<>());
-
-    /**
-     * A cache of blocked server hostnames.
-     *
-     * @see #isServerHostnameBlocked(String) for more
-     */
-    private final ExpiringSet<String> blockedServersCache = new ExpiringSet<>(ExpirationPolicy.CREATED, 10L, TimeUnit.MINUTES);
+    private final Set<String> blockedServerHashes = Collections.synchronizedSet(new HashSet<>());
    
     /**
      * Updates the list of banned server hashes from Mojang.
@@ -70,7 +67,8 @@ public class MojangService {
             while (scanner.hasNext()) {
                 hashes.add(scanner.next());
             }
-            log.info("Fetched {} banned server hashes", bannedServerHashes.size());
+            blockedServerHashes.addAll(hashes);
+            log.info("Fetched {} blocked server hashes", blockedServerHashes.size());
         } catch (IOException e) {
             log.error("Failed to fetch blocked servers from Mojang", e);
         }
@@ -135,15 +133,8 @@ public class MojangService {
      * @return whether the hostname is blocked
      */
     private boolean isServerHostnameBlocked(@NonNull String hostname) {
-        // Check the cache first for the hostname
-        if (blockedServersCache.contains(hostname)) {
-            return true;
-        }
         String hashed = Hashing.sha1().hashBytes(hostname.toLowerCase().getBytes(StandardCharsets.ISO_8859_1)).toString();
-        boolean blocked = bannedServerHashes.contains(hashed); // Is the hostname blocked?
-        if (blocked) { // Cache the blocked hostname
-            blockedServersCache.add(hostname);
-        }
+        boolean blocked = blockedServerHashes.contains(hashed); // Is the hostname blocked?
         return blocked;
     }
 
