@@ -46,6 +46,10 @@ public class MojangService {
      */
     private final Set<String> blockedServerHashes = Collections.synchronizedSet(new HashSet<>());
 
+    public MojangService() {
+        updateBlockedServers();
+    }
+
     /**
      * Check if the hash for the given
      * hostname is in the blocked server list.
