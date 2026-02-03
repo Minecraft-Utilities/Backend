@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.jetbrains.annotations.Nullable;
+
 /**
  * Player count data for a server.
  *
@@ -17,7 +19,7 @@ import java.util.UUID;
  * @param sample A sample of players on this server, null or empty if no sample.
  * @author Braydon
  */
-public record Players(int online, int max, Sample[] sample) {
+public record Players(int online, int max, @Nullable Sample[] sample) {
     /**
      * Create new player count data from a token.
      *

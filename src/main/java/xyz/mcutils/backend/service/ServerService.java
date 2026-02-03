@@ -111,10 +111,12 @@ public class ServerService {
             log.debug("Resolved hostname: {} -> {}", hostname, ip);
         }
 
+        long start = System.currentTimeMillis();
         CachedMinecraftServer server = new CachedMinecraftServer(
                 key,
                 platform.getPinger().ping(hostname, ip, port, dnsRecords.toArray(new DNSRecord[0]), platform == Platform.JAVA ? javaPingerTimeout : bedrockPingerTimeout)
         );
+        log.debug("Successfully pinged server: {}:{} in {}ms", hostname, port, System.currentTimeMillis() - start);
 
         // Populate the server's ip lookup data
         server.getServer().lookupIp();
@@ -124,7 +126,6 @@ public class ServerService {
             ((JavaMinecraftServer) server.getServer()).setMojangBlocked(mojangService.isServerBlocked(hostname));
         }
 
-        log.debug("Found server: {}:{}", hostname, port);
         if (AppConfig.INSTANCE.isCacheEnabled()) {
             this.serverCacheRepository.save(server);
         }
