@@ -116,10 +116,15 @@ public class MaxMindService {
         if (location == null && asn == null) {
             throw new NotFoundException("No data found for IP address: %s".formatted(ip));
         }
-        String hostname = DNSUtils.reverseDnsLookup(ip);
+        String reverseDnsHostname = DNSUtils.reverseDnsLookup(ip);
         log.debug("Took {}ms to lookup IP: {}", System.currentTimeMillis() - start, ip);
 
-        CachedIpLookup ipLookup = new CachedIpLookup(ip, new IpLookup(ip, hostname, location, asn));
+        CachedIpLookup ipLookup = new CachedIpLookup(ip, new IpLookup(
+            ip, 
+            reverseDnsHostname, 
+            location, 
+            asn
+        ));
         
         if (AppConfig.isProduction()) {
             CompletableFuture.runAsync(() -> this.ipLookupCacheRepository.save(ipLookup), Main.EXECUTOR)
