@@ -33,17 +33,17 @@ public class TransactionLogger implements ResponseBodyAdvice<Object> {
         Long startTime = (Long) request.getAttribute(Constants.REQUEST_START_TIME_ATTRIBUTE);
         long processingTime = startTime != null ? System.currentTimeMillis() - startTime : -1;
 
-        log.info("[{}] {} | {} | '{}' | {}ms",
+        // Ignore metrics and health check requests
+        if (!request.getRequestURI().contains("/metrics") && !request.getRequestURI().contains("/health")) {
+            MetricService.getMetric(RequestsMetric.class).getValue().inc();
+
+            log.info("[{}] {} | {} | '{}' | {}ms",
                 response.getStatus(),
                 request.getMethod(),
                 IPUtils.getRealIp(request),
                 request.getRequestURI(),
                 processingTime
-        );
-
-        // Ignore metrics and health check requests
-        if (!request.getRequestURI().contains("/metrics") && !request.getRequestURI().contains("/health")) {
-            MetricService.getMetric(RequestsMetric.class).getValue().inc();
+            );
         }
         return body;
     }
