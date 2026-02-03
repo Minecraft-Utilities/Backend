@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.model.server.java;
 
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
@@ -15,7 +14,7 @@ import xyz.mcutils.backend.model.token.server.JavaServerStatusToken;
 /**
  * @author Braydon
  */
-@Setter @Getter @EqualsAndHashCode(callSuper = false)
+@Setter @Getter
 public final class JavaMinecraftServer extends MinecraftServer {
 
     /**

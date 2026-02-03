@@ -1,9 +1,7 @@
 package xyz.mcutils.backend.model.server.bedrock;
 
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.ToString;
 import xyz.mcutils.backend.model.dns.DNSRecord;
 import xyz.mcutils.backend.model.server.MOTD;
 import xyz.mcutils.backend.model.server.MinecraftServer;
@@ -15,12 +13,12 @@ import xyz.mcutils.backend.model.server.Players;
  *
  * @author Braydon
  */
-@Getter @ToString(callSuper = true) @EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = true)
+@Getter
 public final class BedrockMinecraftServer extends MinecraftServer {
     /**
      * The unique ID of this server.
      */
-    @EqualsAndHashCode.Include @NonNull private final String id;
+    @NonNull private final String id;
 
     /**
      * The edition of this server.

@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.model.server;
 
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import xyz.mcutils.backend.model.asn.AsnLookup;
@@ -12,7 +11,7 @@ import xyz.mcutils.backend.service.MaxMindService;
 /**
  * @author Braydon
  */
-@Getter @Setter @EqualsAndHashCode
+@Getter @Setter
 public class MinecraftServer {
 
     /**
