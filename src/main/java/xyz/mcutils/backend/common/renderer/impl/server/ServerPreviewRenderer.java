@@ -49,41 +49,35 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
     public BufferedImage render(MinecraftServer server, int size) {
         BufferedImage texture = new BufferedImage(ROW_WIDTH, ROW_HEIGHT, BufferedImage.TYPE_INT_ARGB);
         BufferedImage favicon = getServerFavicon(server);
-        BufferedImage background = SERVER_BACKGROUND;
 
         Graphics2D graphics = texture.createGraphics();
 
         // Draw the background
-        for (int backgroundX = 0; backgroundX < ROW_WIDTH + background.getWidth(); backgroundX += background.getWidth()) {
-            for (int backgroundY = 0; backgroundY < ROW_HEIGHT + background.getHeight(); backgroundY += background.getHeight()) {
-                graphics.drawImage(background, backgroundX, backgroundY, null);
+        for (int backgroundX = 0; backgroundX < ROW_WIDTH + SERVER_BACKGROUND.getWidth(); backgroundX += SERVER_BACKGROUND.getWidth()) {
+            for (int backgroundY = 0; backgroundY < ROW_HEIGHT + SERVER_BACKGROUND.getHeight(); backgroundY += SERVER_BACKGROUND.getHeight()) {
+                graphics.drawImage(SERVER_BACKGROUND, backgroundX, backgroundY, null);
             }
         }
-
         graphics.setColor(new Color(0, 0, 0, 80));
         graphics.fillRect(0, 0, ROW_WIDTH, ROW_HEIGHT);
 
-        // Layout (Minecraft OnlineServerEntry at 3x): server name at y+1, MOTD at y+12, y+12+9
-        // Minecraft font height is 9 (8px glyph + 1). Our font ascent=7, so baseline = top + ascent*scale.
         int textX = PADDING + ICON_SIZE + ICON_TEXT_GAP;
-        int fontAscent = Fonts.MINECRAFT.ascent(); // 7 at 1x
-        int motdLine1Top = PADDING + (12 * SCALE);
-        int motdLine2Top = PADDING + (21 * SCALE); // 12 + 9
+        int fontAscent = Fonts.MINECRAFT.ascent();
 
-        // Draw favicon (96x96)
+        // Favicon
         BufferedImage faviconScaled = ImageUtils.resize(favicon, (double) ICON_SIZE / favicon.getWidth());
         graphics.drawImage(faviconScaled, PADDING, PADDING, ICON_SIZE, ICON_SIZE, null);
 
-        // Draw server hostname (with shadow) - baseline = top + ascent*scale
+        // Hostname
         graphics.setColor(MinecraftColor.WHITE.toAwtColor());
         GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, server.getHostname(), textX, PADDING + SCALE + fontAscent * SCALE, true, false, false, SCALE);
 
-        // Draw MOTD - 2 distinct raw lines, no wrapping (Minecraft uses font.split for overflow)
+        // MOTD
         String[] rawMotd = server.getMotd().raw();
         if (rawMotd != null && rawMotd.length > 0) {
-            drawMotdLine(graphics, rawMotd[0], textX, motdLine1Top + fontAscent * SCALE);
+            drawMotdLine(graphics, rawMotd[0], textX, PADDING + (12 * SCALE) + fontAscent * SCALE);
             if (rawMotd.length > 1) {
-                drawMotdLine(graphics, rawMotd[1], textX, motdLine2Top + fontAscent * SCALE);
+                drawMotdLine(graphics, rawMotd[1], textX, PADDING + (12 * SCALE) + fontAscent * SCALE);
             }
         }
 
@@ -92,15 +86,7 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
         BufferedImage pingIcon = ImageUtils.resize(PING_ICON, SCALE);
         graphics.drawImage(pingIcon, statusIconX, PADDING, STATUS_ICON_WIDTH, STATUS_ICON_HEIGHT, null);
 
-//        Players players = server.getPlayers();
-//        String playersOnline = players.online() + "";
-//        String playersMax = players.max() + "";
-//        int onlineWidth = GraphicsUtils.stringWidthAtScale(Fonts.MINECRAFT, playersOnline, SCALE)
-//                + GraphicsUtils.stringWidthAtScale(Fonts.MINECRAFT, "/", SCALE)
-//                + GraphicsUtils.stringWidthAtScale(Fonts.MINECRAFT, playersMax, SCALE);
-//        int statusTextX = statusIconX - onlineWidth - rightSpacing;
-//        int statusTextY = SCALE + fontAscent * SCALE;
-
+        // Player count
         Players players = server.getPlayers();
         String playersOnline = players.online() + "";
         String playersMax = players.max() + "";
