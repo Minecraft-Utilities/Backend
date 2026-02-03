@@ -73,11 +73,13 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
         GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, server.getHostname(), textX, PADDING + SCALE + fontAscent * SCALE, true, false, false, SCALE);
 
         // MOTD
+        int motdLine1Top = PADDING + (12 * SCALE);
+        int motdLine2Top = PADDING + (21 * SCALE);
         String[] rawMotd = server.getMotd().raw();
         if (rawMotd != null && rawMotd.length > 0) {
-            drawMotdLine(graphics, rawMotd[0], textX, PADDING + (12 * SCALE) + fontAscent * SCALE);
+            drawMotdLine(graphics, rawMotd[0], textX, motdLine1Top + fontAscent * SCALE);
             if (rawMotd.length > 1) {
-                drawMotdLine(graphics, rawMotd[1], textX, PADDING + (12 * SCALE) + fontAscent * SCALE);
+                drawMotdLine(graphics, rawMotd[1], textX, motdLine2Top + fontAscent * SCALE);
             }
         }
 
