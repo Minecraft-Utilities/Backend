@@ -114,7 +114,9 @@ public class ImageUtils {
      */
     @SneakyThrows
     public static BufferedImage base64ToImage(String base64) {
-        String favicon = base64.contains("data:image/png;base64,") ? base64.split(",")[1] : base64;
+        String favicon = base64.contains("data:image/png;base64,") ? base64.split(",", 2)[1] : base64;
+        // Strip whitespace (newlines, spaces) - some Minecraft servers send favicon with line breaks
+        favicon = favicon.replaceAll("\\s+", "");
 
         try {
             return ImageIO.read(new ByteArrayInputStream(Base64.getDecoder().decode(favicon)));
