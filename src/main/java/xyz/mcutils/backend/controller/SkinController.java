@@ -8,7 +8,6 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import xyz.mcutils.backend.model.skin.SkinRendererType;
 import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.SkinService;
@@ -47,6 +46,6 @@ public class SkinController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .contentType(MediaType.IMAGE_PNG)
-                .body(this.skinService.renderSkinPart(this.playerService.getPlayer(query).getPlayer(), part.name(), overlays, size).getBytes());
+                .body(this.skinService.renderSkin(this.playerService.getPlayer(query).getPlayer(), part.name(), overlays, size).getBytes());
     }
 }

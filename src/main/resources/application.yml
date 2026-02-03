@@ -43,6 +43,22 @@ mc-utils:
   # Cache Settings
   cache:
     enabled: true
+    ttl:
+      skin-textures: 30 # 1 hour (in minutes)
+      cape-textures: 30 # 1 hour (in minutes)
+
+  # Rendering Settings
+  renderer:
+    skin:
+      enabled: true
+      limits:
+        min_size: 64
+        max_size: 1024
+    server-preview:
+      enabled: true
+      limits:
+        min_size: 64
+        max_size: 1024
 
   # Server Pinger Settings
   server-pinger:

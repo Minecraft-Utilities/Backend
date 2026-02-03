@@ -5,6 +5,7 @@ import com.google.common.cache.CacheBuilder;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
@@ -32,18 +33,25 @@ import java.util.concurrent.TimeUnit;
 public class SkinService {
     public static SkinService INSTANCE;
 
-    private static final int MIN_PART_SIZE = 64;
-    private static final int MAX_PART_SIZE = 1024;
+    @Value("${mc-utils.renderer.skin.enabled}")
+    private boolean renderingEnabled;
+
+    @Value("${mc-utils.renderer.skin.limits.min_size}")
+    private int minPartSize;
+
+    @Value("${mc-utils.renderer.skin.limits.max_size}")
+    private int maxPartSize;
 
     private final PlayerSkinPartCacheRepository skinPartRepository;
     private final StorageService minioService;
 
-    private final Cache<String, byte[]> skinCache = CacheBuilder.newBuilder()
-            .expireAfterAccess(30, TimeUnit.MINUTES)
-            .build();
+    private final Cache<String, byte[]> skinCache;
 
     @Autowired
-    public SkinService(PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService) {
+    public SkinService(@Value("${mc-utils.cache.ttl.skin-textures}") int cacheTtl, PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService) {
+        this.skinCache = CacheBuilder.newBuilder()
+                .expireAfterAccess(cacheTtl, TimeUnit.MINUTES)
+                .build();
         this.skinPartRepository = skinPartRepository;
         this.minioService = minioService;
     }
@@ -92,28 +100,31 @@ public class SkinService {
     }
 
     /**
-     * Gets a skin part from the player's skin.
+     * Renders a skin type from the player's skin.
      *
      * @param player the player to get the skin for
-     * @param partName the name of the part
+     * @param typeName the name of the type
      * @param renderOverlay whether to render the overlay
-     * @param size the output size (height; width derived per part)
+     * @param size the output size (height; width derived per type)
      * @return the skin part
      */
-    public CachedPlayerSkinPart renderSkinPart(Player player, String partName, boolean renderOverlay, int size) {
-        if (size < MIN_PART_SIZE || size > MAX_PART_SIZE) {
-            throw new BadRequestException("Invalid skin part size. Must be between " + MIN_PART_SIZE + " and " + MAX_PART_SIZE);
+    public CachedPlayerSkinPart renderSkin(Player player, String typeName, boolean renderOverlay, int size) {
+        if (!renderingEnabled) {
+            throw new BadRequestException("Skin rendering is currently disabled");
+        }
+        if (size < minPartSize || size > maxPartSize) {
+            throw new BadRequestException("Invalid skin part size. Must be between " + minPartSize + " and " + maxPartSize);
         }
 
-        SkinRendererType part = SkinRendererType.getByName(partName);
+        SkinRendererType part = SkinRendererType.getByName(typeName);
         if (part == null) {
-            throw new BadRequestException("Invalid skin part: '%s'".formatted(partName));
+            throw new BadRequestException("Invalid skin part: '%s'".formatted(typeName));
         }
         Skin skin = player.getSkin();
         String name = part.name();
         String key = "%s-%s-%s-%s".formatted(skin.getId(), name, size, renderOverlay);
 
-        log.debug("Getting skin part for player: {} (part {}, size {})", player.getUsername(), partName, size);
+        log.debug("Getting skin part for player: {} (part {}, size {})", player.getUsername(), typeName, size);
 
         long cacheStart = System.currentTimeMillis();
         if (AppConfig.INSTANCE.isCacheEnabled()) {
