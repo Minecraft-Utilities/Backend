@@ -177,7 +177,7 @@ public class ServerService {
         if (AppConfig.isProduction()) {
             CompletableFuture.runAsync(() -> serverPreviewCacheRepository.save(serverPreview), Main.EXECUTOR)
                 .exceptionally(ex -> {
-                    log.warn("Save failed for skin part {}: {}", key, ex.getMessage());
+                    log.warn("Save failed for server preview {}: {}", key, ex.getMessage());
                     return null;
                 });
         }
