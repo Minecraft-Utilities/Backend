@@ -151,11 +151,11 @@ public class MaxMindService {
                 return null;
             }
             CityResponse city = database.city(InetAddress.getByName(ip));
-            if (city == null) {
+            Country country = city.country();
+            if (city == null || country == null) {
                 return null;
             }
 
-            Country country = city.country();
             Location location = city.location();
             String isoCode = country.isoCode();
             if (location == null || country == null || isoCode == null) {
