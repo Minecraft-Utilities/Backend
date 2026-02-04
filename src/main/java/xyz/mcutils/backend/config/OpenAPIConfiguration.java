@@ -38,7 +38,11 @@ public class OpenAPIConfiguration {
         Info info = new Info();
         info.setTitle("Minecraft Utilities API");
         info.setVersion(buildProperties == null ? "N/A" : buildProperties.getVersion());
-        info.setDescription("Wrapper for the Minecraft APIs to make them easier to use.");
+        info.setDescription("""
+                Wrapper for the Minecraft APIs to make them easier to use.
+                
+                <https://github.com/Minecraft-Utilities/Backend>
+                """);
         info.setContact(contact);
         info.setLicense(new License().name("MIT License").url("https://opensource.org/licenses/MIT"));
 
