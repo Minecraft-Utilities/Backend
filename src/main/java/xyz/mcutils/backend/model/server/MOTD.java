@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.model.server;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.NonNull;
 import xyz.mcutils.backend.common.color.ColorUtils;
 import xyz.mcutils.backend.config.AppConfig;
@@ -12,9 +11,8 @@ import java.util.Arrays;
  * @param clean       The clean motd lines
  * @param html        The html motd lines
  * @param preview     The URL to the server preview image.
- * @param htmlPreview The URL to the server HTML motd preview.
  */
-public record MOTD(String[] raw, String[] clean, String[] html, String preview, String htmlPreview) {
+public record MOTD(String[] raw, String[] clean, String[] html, String preview) {
     /**
      * Create a new MOTD from a raw string.
      *
@@ -31,58 +29,7 @@ public record MOTD(String[] raw, String[] clean, String[] html, String preview, 
                 AppConfig.INSTANCE.getWebPublicUrl() + "/server/%s/%s/preview.png".formatted(
                         platform.name().toLowerCase(),
                         hostname
-                ),
-                AppConfig.INSTANCE.getWebPublicUrl() + "/server/%s/%s/preview.html".formatted(
-                        platform.name().toLowerCase(),
-                        hostname
                 )
-        );
-    }
-
-    /**
-     * Generates an HTML representation for the MOTD.
-     *
-     * @param server the server to generate the HTML for
-     * @return the generated HTML
-     */
-    @JsonIgnore
-    public String generateHtmlPreview(MinecraftServer server) {
-        StringBuilder builder = new StringBuilder();
-        for (String line : this.html()) {
-            builder.append(line).append("<br>");
-        }
-
-        return """
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>%s</title>
-                    <style>
-                        @font-face {
-                            font-family: "Minecraft";
-                            src: url("https://cdn.fascinated.cc/minecraft-font.ttf") format("truetype");
-                            font-weight: normal;
-                            font-style: normal;
-                        }
-                        body {
-                            margin: 0;
-                            background-image: url("https://cdn.fascinated.cc/server_background.png");
-                            background-repeat: repeat;
-                            font-family: "Minecraft", system-ui, sans-serif;
-                            font-size: 20px;
-                            line-height: 1.4;
-                        }
-                    </style>
-                </head>
-                <body>
-                %s
-                </body>
-                </html>
-                """.formatted(
-                server.getHostname(),
-                builder.toString()
         );
     }
 }
