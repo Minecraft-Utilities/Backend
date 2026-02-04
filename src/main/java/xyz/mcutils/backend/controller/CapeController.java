@@ -8,7 +8,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.player.Cape;
+import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.service.CapeService;
 import xyz.mcutils.backend.service.PlayerService;
 
@@ -40,7 +42,11 @@ public class CapeController {
             if (query.length() == 64) {
                 cape = Cape.fromId(query);
             } else {
-                cape = playerService.getPlayer(query).getPlayer().getCape();
+                Player player = playerService.getPlayer(query).getPlayer();
+                cape = player.getCape();
+                if (cape == null) {
+                    throw new NotFoundException("Player '%s' does not have a cape equipped".formatted(player.getUsername()));
+                }
             }
 
             return ResponseEntity.ok()

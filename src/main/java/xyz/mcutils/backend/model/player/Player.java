@@ -6,7 +6,6 @@ import org.jetbrains.annotations.Nullable;
 import org.springframework.data.annotation.Id;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
-import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 
@@ -70,12 +69,5 @@ public class Player {
             this.skin = skinAndCape.left();
             this.cape = skinAndCape.right();
         }
-    }
-
-    public Cape getCape() {
-        if (this.cape == null) {
-            throw new NotFoundException("Player '%s' does not have a cape equipped".formatted(username));
-        }
-        return this.cape;
     }
 }
