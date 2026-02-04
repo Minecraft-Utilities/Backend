@@ -1,7 +1,5 @@
 package xyz.mcutils.backend.service;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +10,6 @@ import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.SkinUtils;
-import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
 import xyz.mcutils.backend.model.skin.Skin;
@@ -25,12 +22,14 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
 public class SkinService {
     public static SkinService INSTANCE;
+
+    @Value("${mc-utils.cache.skins.enabled}")
+    private boolean cacheEnabled;
 
     @Value("${mc-utils.renderer.skin.enabled}")
     private boolean renderingEnabled;
@@ -44,13 +43,8 @@ public class SkinService {
     private final PlayerSkinPartCacheRepository skinPartRepository;
     private final StorageService minioService;
 
-    private final Cache<String, byte[]> skinCache;
-
     @Autowired
-    public SkinService(@Value("${mc-utils.cache.ttl.skin-textures}") int cacheTtl, PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService) {
-        this.skinCache = CacheBuilder.newBuilder()
-                .expireAfterAccess(cacheTtl, TimeUnit.MINUTES)
-                .build();
+    public SkinService(PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService) {
         this.skinPartRepository = skinPartRepository;
         this.minioService = minioService;
     }
@@ -67,20 +61,16 @@ public class SkinService {
      * @return the skin image
      */
     public byte[] getSkinTexture(Skin skin, boolean upgrade) {
-        byte[] skinBytes = this.skinCache.asMap().computeIfAbsent(skin.getId(), _ -> {
-            byte[] skinImage = minioService.get(StorageService.Bucket.SKINS, skin.getId() + ".png");
-            if (skinImage == null) {
-                log.debug("Downloading skin image for skin {}", skin.getId());
-                skinImage = PlayerUtils.getImage(skin.getMojangTextureUrl());
-                if (skinImage == null) {
-                    throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(skin.getId()));
-                }
-                minioService.upload(StorageService.Bucket.SKINS, skin.getId() + ".png", MediaType.IMAGE_PNG_VALUE, skinImage);
-                log.debug("Saved skin image for skin {}", skin.getId());
+        byte[] skinBytes = minioService.get(StorageService.Bucket.SKINS, skin.getId() + ".png");
+        if (skinBytes == null) {
+            log.debug("Downloading skin image for skin {}", skin.getId());
+            skinBytes = PlayerUtils.getImage(skin.getMojangTextureUrl());
+            if (skinBytes == null) {
+                throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(skin.getId()));
             }
-            return skinImage;
-        });
-
+            minioService.upload(StorageService.Bucket.SKINS, skin.getId() + ".png", MediaType.IMAGE_PNG_VALUE, skinBytes);
+            log.debug("Saved skin image for skin {}", skin.getId());
+        }
         return upgrade ? SkinUtils.upgradeLegacySkin(skin, skinBytes) : skinBytes;
     }
 
@@ -125,7 +115,7 @@ public class SkinService {
         log.debug("Getting skin part for skin texture: {} (part {}, size {})", skin.getId(), typeName, size);
 
         long cacheStart = System.currentTimeMillis();
-        if (AppConfig.INSTANCE.isCacheEnabled()) {
+        if (cacheEnabled) {
             Optional<CachedPlayerSkinPart> cache = skinPartRepository.findById(key);
             if (cache.isPresent()) {
                 log.debug("Got skin part for skin texture {} from cache in {}ms", skin.getId(), System.currentTimeMillis() - cacheStart);
@@ -141,7 +131,7 @@ public class SkinService {
         CachedPlayerSkinPart skinPart = new CachedPlayerSkinPart(key, pngBytes);
 
         // don't save to cache in development
-        if (AppConfig.INSTANCE.isCacheEnabled()) {
+        if (cacheEnabled) {
             CompletableFuture.runAsync(() -> skinPartRepository.save(skinPart), Main.EXECUTOR)
                 .exceptionally(ex -> {
                     log.warn("Save failed for skin part {}: {}", key, ex.getMessage());

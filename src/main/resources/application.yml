@@ -42,10 +42,17 @@ mc-utils:
 
   # Cache Settings
   cache:
-    enabled: true
-    ttl:
-      skin-textures: 30 # 1 hour (in minutes)
-      cape-textures: 30 # 1 hour (in minutes)
+    skins:
+      enabled: true
+    player:
+      enabled: true
+    server-previews:
+      enabled: true
+    maxmind:
+      enabled: true
+    s3:
+      enabled: true
+      ttl: 60 # in minutes
 
   # Rendering Settings
   renderer:

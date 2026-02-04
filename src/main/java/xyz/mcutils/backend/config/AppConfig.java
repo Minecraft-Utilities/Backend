@@ -31,9 +31,6 @@ public class AppConfig {
     @Value("${mc-utils.metrics-token}")
     private String metricsToken;
 
-    @Value("${mc-utils.cache.enabled}")
-    private boolean cacheEnabled;
-
     @PostConstruct
     public void onInitialize() {
         INSTANCE = this;

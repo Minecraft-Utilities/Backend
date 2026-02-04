@@ -19,7 +19,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.DNSUtils;
-import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.asn.AsnLookup;
 import xyz.mcutils.backend.model.cache.CachedIpLookup;
@@ -51,6 +50,9 @@ public class MaxMindService {
 
     private static final String DATABASE_DOWNLOAD_ENDPOINT = "https://download.maxmind.com/app/geoip_download?edition_id=%s&license_key=%s&suffix=tar.gz";
     private static final Map<Database, DatabaseReader> DATABASES = new HashMap<>();
+
+    @Value("${mc-utils.cache.maxmind.enabled}")
+    private boolean cacheEnabled;
 
     @Value("${mc-utils.maxmind.license}")
     private String license;
@@ -84,7 +86,7 @@ public class MaxMindService {
         log.debug("Getting lookup for IP: {}", ip);
 
         long cacheStart = System.currentTimeMillis();
-        if (AppConfig.INSTANCE.isCacheEnabled()) {
+        if (cacheEnabled) {
             Optional<CachedIpLookup> cachedIpLookup = this.ipLookupCacheRepository.findById(ip);
             if (cachedIpLookup.isPresent()) {
                 log.debug("Got IP lookup for {} from cache in {}ms", ip, System.currentTimeMillis() - cacheStart);
@@ -108,7 +110,7 @@ public class MaxMindService {
             asn
         ));
         
-        if (AppConfig.INSTANCE.isCacheEnabled()) {
+        if (cacheEnabled) {
             this.ipLookupCacheRepository.save(ipLookup);
         }
 

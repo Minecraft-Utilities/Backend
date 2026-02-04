@@ -3,10 +3,10 @@ package xyz.mcutils.backend.service;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.UUIDUtils;
-import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.exception.impl.RateLimitException;
@@ -27,6 +27,9 @@ public class PlayerService {
     private final MojangService mojangService;
     private final PlayerNameCacheRepository playerNameCacheRepository;
     private final PlayerCacheRepository playerCacheRepository;
+
+    @Value("${mc-utils.cache.player.enabled}")
+    private boolean cacheEnabled;
 
     @Autowired
     public PlayerService(@NonNull MojangService mojangService, @NonNull PlayerNameCacheRepository playerNameCacheRepository, @NonNull PlayerCacheRepository playerCacheRepository) {
@@ -50,7 +53,7 @@ public class PlayerService {
         }
 
         long cacheStart = System.currentTimeMillis();
-        if (AppConfig.INSTANCE.isCacheEnabled()) {
+        if (cacheEnabled) {
             Optional<CachedPlayer> cachedPlayer = playerCacheRepository.findById(uuid);
             if (cachedPlayer.isPresent()) {
                 log.debug("Got player {} from cache in {}ms", uuid, System.currentTimeMillis() - cacheStart);
@@ -71,7 +74,7 @@ public class PlayerService {
                     new Player(mojangProfile)
             );
 
-            if (AppConfig.INSTANCE.isCacheEnabled()) {
+            if (cacheEnabled) {
                 this.playerCacheRepository.save(player);
             }
             log.debug("Got player {} from Mojang API in {}ms", uuid, System.currentTimeMillis() - fetchStart);
@@ -91,7 +94,7 @@ public class PlayerService {
         String id = username.toUpperCase();
 
         long cacheStart = System.currentTimeMillis();
-        if (AppConfig.INSTANCE.isCacheEnabled()) {
+        if (cacheEnabled) {
             Optional<CachedPlayerName> cachedPlayerName = playerNameCacheRepository.findById(id);
             if (cachedPlayerName.isPresent()) {
                 log.debug("Got username {} from cache in {}ms", username, System.currentTimeMillis() - cacheStart);
@@ -111,7 +114,7 @@ public class PlayerService {
             UUID uuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
             CachedPlayerName playerName = new CachedPlayerName(id, username, uuid);
 
-            if (AppConfig.INSTANCE.isCacheEnabled()) {
+            if (cacheEnabled) {
                 this.playerNameCacheRepository.save(playerName);
             }
             log.debug("Got uuid for username {} in {}ms", username, System.currentTimeMillis() - fetchStart);
