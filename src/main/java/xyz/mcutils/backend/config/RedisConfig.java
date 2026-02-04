@@ -10,7 +10,11 @@ import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
+import org.springframework.data.redis.serializer.RedisSerializer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 import redis.clients.jedis.JedisPoolConfig;
+
+import java.time.Duration;
 
 /**
  * @author Braydon
@@ -53,6 +57,13 @@ public class RedisConfig {
     public RedisTemplate<String, Object> redisTemplate() {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(jedisConnectionFactory());
+
+        RedisSerializer<Object> serializer = RedisSerializer.json();
+        template.setDefaultSerializer(serializer);
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(serializer);
+        template.setHashKeySerializer(new StringRedisSerializer());
+        template.setHashValueSerializer(serializer);
         return template;
     }
 
@@ -73,9 +84,12 @@ public class RedisConfig {
             config.setPassword(auth);
         }
         JedisPoolConfig poolConfig = new JedisPoolConfig();
-        poolConfig.setMaxTotal(16);
-        poolConfig.setMaxIdle(8);
-        poolConfig.setMinIdle(2);
+        poolConfig.setMaxTotal(200);     // ⚠️ Increase to handle concurrent load
+        poolConfig.setMaxIdle(100);      // Keep more idle connections ready
+        poolConfig.setMinIdle(20);       // Pre-warm the pool
+        poolConfig.setMaxWait(Duration.ofSeconds(2)); // Fail fast instead of waiting forever
+        poolConfig.setTestOnBorrow(true); // Ensure connections are valid
+
         JedisClientConfiguration clientConfig = JedisClientConfiguration.builder()
                 .usePooling()
                 .poolConfig(poolConfig)
