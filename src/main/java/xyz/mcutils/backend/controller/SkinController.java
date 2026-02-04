@@ -45,7 +45,7 @@ public class SkinController {
     @GetMapping(value = "/{query}/{type}.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<?> getPlayerSkin(
             @Parameter(
-                    description = "The UUID or Username of the player",
+                    description = "The UUID or Username of the player or the skin's texture id",
                     example = "ImFascinated"
             ) @PathVariable String query,
             @Parameter(
@@ -64,6 +64,6 @@ public class SkinController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .contentType(MediaType.IMAGE_PNG)
-                .body(this.skinService.renderSkin(this.playerService.getPlayer(query).getPlayer(), type, overlays, size).getBytes());
+                .body(this.skinService.renderSkin(this.playerService.getPlayer(query).getPlayer().getSkin(), type, overlays, size).getBytes());
     }
 }

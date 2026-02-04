@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.model.player.Cape;
 import xyz.mcutils.backend.service.CapeService;
+import xyz.mcutils.backend.service.PlayerService;
 
 import java.util.concurrent.TimeUnit;
 
@@ -17,21 +18,30 @@ import java.util.concurrent.TimeUnit;
 @Tag(name = "Cape Controller", description = "The Cape Controller is used to get cape images.")
 public class CapeController {
     private final CapeService capeService;
+    private final PlayerService playerService;
 
     @Autowired
-    public CapeController(CapeService capeService) {
+    public CapeController(CapeService capeService, PlayerService playerService) {
         this.capeService = capeService;
+        this.playerService = playerService;
     }
 
     @ResponseBody
     @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getCapeTexture(
             @Parameter(
-                    description = "The id of the cape texture",
+                    description = "The UUID or Username of the player or the skin's texture id",
                     example = "dbc21e222528e30dc88445314f7be6ff12d3aeebc3c192054fba7e3b3f8c77b1"
             ) @PathVariable String query) {
+        Cape cape;
+        if (query.length() == 64) {
+            cape = Cape.fromId(query);
+        } else {
+            cape = this.playerService.getPlayer(query).getPlayer().getCape();
+        }
+
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
-                .body(this.capeService.getCapeTexture(Cape.fromId(query)));
+                .body(this.capeService.getCapeTexture(cape));
     }
 }

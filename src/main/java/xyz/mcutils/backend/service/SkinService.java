@@ -15,7 +15,6 @@ import xyz.mcutils.backend.common.SkinUtils;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
-import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.model.skin.SkinRendererType;
 import xyz.mcutils.backend.repository.PlayerSkinPartCacheRepository;
@@ -102,13 +101,13 @@ public class SkinService {
     /**
      * Renders a skin type from the player's skin.
      *
-     * @param player the player to get the skin for
+     * @param skin the player to get the skin for
      * @param typeName the name of the type
      * @param renderOverlay whether to render the overlay
      * @param size the output size (height; width derived per type)
      * @return the skin part
      */
-    public CachedPlayerSkinPart renderSkin(Player player, String typeName, boolean renderOverlay, int size) {
+    public CachedPlayerSkinPart renderSkin(Skin skin, String typeName, boolean renderOverlay, int size) {
         if (!renderingEnabled) {
             throw new BadRequestException("Skin rendering is currently disabled");
         }
@@ -120,17 +119,16 @@ public class SkinService {
         if (part == null) {
             throw new BadRequestException("Invalid skin part: '%s'".formatted(typeName));
         }
-        Skin skin = player.getSkin();
         String name = part.name();
         String key = "%s-%s-%s-%s".formatted(skin.getId(), name, size, renderOverlay);
 
-        log.debug("Getting skin part for player: {} (part {}, size {})", player.getUsername(), typeName, size);
+        log.debug("Getting skin part for skin texture: {} (part {}, size {})", skin.getId(), typeName, size);
 
         long cacheStart = System.currentTimeMillis();
         if (AppConfig.INSTANCE.isCacheEnabled()) {
             Optional<CachedPlayerSkinPart> cache = skinPartRepository.findById(key);
             if (cache.isPresent()) {
-                log.debug("Got skin part for {} from cache in {}ms", player.getUsername(), System.currentTimeMillis() - cacheStart);
+                log.debug("Got skin part for skin texture {} from cache in {}ms", skin.getId(), System.currentTimeMillis() - cacheStart);
                 return cache.get();
             }
         }
@@ -138,7 +136,7 @@ public class SkinService {
         long renderStart = System.currentTimeMillis();
         BufferedImage renderedPart = part.render(skin, renderOverlay, size);
         byte[] pngBytes = ImageUtils.imageToBytes(renderedPart);
-        log.debug("Took {}ms to render skin part for player: {}", System.currentTimeMillis() - renderStart, player.getUsername());
+        log.debug("Took {}ms to render skin part for skin texture: {}", System.currentTimeMillis() - renderStart, skin.getId());
 
         CachedPlayerSkinPart skinPart = new CachedPlayerSkinPart(key, pngBytes);
 
