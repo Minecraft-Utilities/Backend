@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.model.cache.CachedMinecraftServer;
 import xyz.mcutils.backend.model.response.ServerBlockedResponse;
 import xyz.mcutils.backend.model.server.Platform;
@@ -30,31 +31,32 @@ public class ServerController {
     }
 
     @ResponseBody
-    @GetMapping(value = "/{platform}/{hostname}", produces = MediaType.APPLICATION_JSON_VALUE)
+    @GetMapping(value = "/{platform}/{hostname}")
     public CompletableFuture<ResponseEntity<CachedMinecraftServer>> getServer(
             @PathVariable String platform,
             @PathVariable String hostname
     ) {
-        return serverService.getServerAsync(platform, hostname)
+        return CompletableFuture.supplyAsync(() -> serverService.getServer(platform, hostname), Main.EXECUTOR)
                 .thenApply(ResponseEntity::ok);
     }
 
     @ResponseBody
     @GetMapping(value = "/{hostname}/icon.png", produces = MediaType.IMAGE_PNG_VALUE)
-    public ResponseEntity<byte[]> getServerIcon(
+    public CompletableFuture<ResponseEntity<byte[]>> getServerIcon(
             @Parameter(
                     description = "The hostname and port of the server",
                     example = "aetheria.cc"
             ) @PathVariable String hostname
     ) {
-        return ResponseEntity.ok()
-                .contentType(MediaType.IMAGE_PNG)
-                .body(this.serverService.getServerFavicon(hostname));
+        return CompletableFuture.supplyAsync(() -> serverService.getServerFavicon(hostname), Main.EXECUTOR)
+                .thenApply(favicon -> ResponseEntity.ok()
+                        .contentType(MediaType.IMAGE_PNG)
+                        .body(favicon));
     }
 
     @ResponseBody
     @GetMapping(value = "/{platform}/{hostname}/preview.png", produces = MediaType.IMAGE_PNG_VALUE)
-    public ResponseEntity<byte[]> getServerPreview(
+    public CompletableFuture<ResponseEntity<byte[]>> getServerPreview(
             @Parameter(
                     description = "The platform of the server",
                     schema = @Schema(implementation = Platform.class)
@@ -68,9 +70,12 @@ public class ServerController {
                     example = "768"
             ) @RequestParam(required = false, defaultValue = "768") int size
     ) {
-        return ResponseEntity.ok()
+        return CompletableFuture.supplyAsync(() -> {
+            CachedMinecraftServer server = serverService.getServer(platform, hostname);
+            return serverService.getServerPreview(server, platform, size);
+        }, Main.EXECUTOR).thenApply(preview -> ResponseEntity.ok()
                 .contentType(MediaType.IMAGE_PNG)
-                .body(this.serverService.getServerPreview(this.serverService.getServer(platform, hostname), platform, size));
+                .body(preview));
     }
 
     @ResponseBody

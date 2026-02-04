@@ -9,10 +9,12 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.model.skin.SkinRendererType;
 import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.SkinService;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @RestController
@@ -30,20 +32,23 @@ public class SkinController {
     }
 
     @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)
-    public ResponseEntity<?> getPlayerSkinTexture(
+    public CompletableFuture<ResponseEntity<byte[]>> getPlayerSkinTexture(
             @Parameter(
                     description = "The UUID or Username of the player",
                     example = "ImFascinated"
             ) @PathVariable String query
     ) {
-        return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
-                .contentType(MediaType.IMAGE_PNG)
-                .body(this.skinService.getSkinTexture(this.playerService.getPlayer(query).getPlayer().getSkin(), false));
+        return CompletableFuture.supplyAsync(() -> {
+            byte[] texture = skinService.getSkinTexture(playerService.getPlayer(query).getPlayer().getSkin(), false);
+            return ResponseEntity.ok()
+                    .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+                    .contentType(MediaType.IMAGE_PNG)
+                    .body(texture);
+        }, Main.EXECUTOR);
     }
 
     @GetMapping(value = "/{query}/{type}.png", produces = MediaType.IMAGE_PNG_VALUE)
-    public ResponseEntity<?> getPlayerSkin(
+    public CompletableFuture<ResponseEntity<byte[]>> getPlayerSkin(
             @Parameter(
                     description = "The UUID or Username of the player or the skin's texture id",
                     example = "ImFascinated"
@@ -61,9 +66,12 @@ public class SkinController {
                     example = "true"
             ) @RequestParam(required = false, defaultValue = "true") boolean overlays
     ) {
-        return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
-                .contentType(MediaType.IMAGE_PNG)
-                .body(this.skinService.renderSkin(this.playerService.getPlayer(query).getPlayer().getSkin(), type, overlays, size).getBytes());
+        return CompletableFuture.supplyAsync(() -> {
+            byte[] skin = skinService.renderSkin(playerService.getPlayer(query).getPlayer().getSkin(), type, overlays, size).getBytes();
+            return ResponseEntity.ok()
+                    .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+                    .contentType(MediaType.IMAGE_PNG)
+                    .body(skin);
+        }, Main.EXECUTOR);
     }
 }
