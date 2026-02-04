@@ -44,7 +44,7 @@ public class ServerController {
     }
 
     @ResponseBody
-    @GetMapping(value = "/icon/{hostname}", produces = MediaType.IMAGE_PNG_VALUE)
+    @GetMapping(value = "/{hostname}/icon.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getServerIcon(
             @Parameter(
                     description = "The hostname and port of the server",
