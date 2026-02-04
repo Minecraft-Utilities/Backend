@@ -13,6 +13,8 @@ import xyz.mcutils.backend.model.server.Platform;
 import xyz.mcutils.backend.service.MojangService;
 import xyz.mcutils.backend.service.ServerService;
 
+import java.util.concurrent.CompletableFuture;
+
 @RestController
 @RequestMapping(value = "/server/")
 @Tag(name = "Server Controller", description = "The Server Controller is used to get information about a server.")
@@ -29,18 +31,12 @@ public class ServerController {
 
     @ResponseBody
     @GetMapping(value = "/{platform}/{hostname}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<CachedMinecraftServer> getServer(
-            @Parameter(
-                    description = "The platform of the server",
-                    schema = @Schema(implementation = Platform.class)
-            ) @PathVariable String platform,
-            @Parameter(
-                    description = "The hostname and port of the server",
-                    example = "aetheria.cc"
-            ) @PathVariable String hostname
+    public CompletableFuture<ResponseEntity<CachedMinecraftServer>> getServer(
+            @PathVariable String platform,
+            @PathVariable String hostname
     ) {
-        return ResponseEntity.ok()
-                .body(this.serverService.getServer(platform, hostname));
+        return serverService.getServerAsync(platform, hostname)
+                .thenApply(ResponseEntity::ok);
     }
 
     @ResponseBody

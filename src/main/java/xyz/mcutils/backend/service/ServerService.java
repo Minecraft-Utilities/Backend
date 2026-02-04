@@ -3,6 +3,7 @@ package xyz.mcutils.backend.service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.DNSUtils;
@@ -128,7 +129,7 @@ public class ServerService {
         log.debug("Successfully pinged server: {}:{} in {}ms", hostname, port, System.currentTimeMillis() - pingStart);
 
         // Populate the server's ip lookup data
-        // server.getServer().lookupIp();
+        server.getServer().lookupIp();
 
         // Check if the server is blocked by Mojang
         if (platform == Platform.JAVA) {
@@ -139,6 +140,11 @@ public class ServerService {
             this.serverCacheRepository.save(server);
         }
         return server;
+    }
+
+    @Async
+    public CompletableFuture<CachedMinecraftServer> getServerAsync(String platformName, String hostname) {
+        return CompletableFuture.completedFuture(getServer(platformName, hostname));
     }
 
     /**
