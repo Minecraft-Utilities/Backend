@@ -17,7 +17,7 @@ import java.io.Serializable;
  * @author Braydon
  */
 @Setter @Getter @EqualsAndHashCode(callSuper = false)
-@RedisHash(value = "server", timeToLive = 60L) // 1 minute
+@RedisHash(value = "server", timeToLive = 30L) // 30 seconds
 public class CachedMinecraftServer extends CachedResponse implements Serializable {
     /**
      * The id of this cached server.
