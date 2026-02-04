@@ -238,21 +238,33 @@ public class ServerService {
         return preview;
     }
 
+    /**
+     * Checks if the IP is in a blacklisted subnet.
+     *
+     * @param ip the ip to check
+     */
     private void checkSubnet(String ip) {
         InetAddress address;
         try {
             address = InetAddresses.forString(ip);
         } catch (Exception e) {
-            throw new BadRequestException("Invalid IP address: " + ip);
+            throw new BadRequestException("Invalid IP address");
         }
 
         for (String cidr : this.blacklistedSubnets) {
             if (isInSubnet(address, cidr.strip())) {
-                throw new BadRequestException("IP address is in a blacklisted subnet: " + ip);
+                throw new BadRequestException("IP address is in a blacklisted subnet");
             }
         }
     }
 
+    /**
+     * Checks if the given address is inside the subnet.
+     *
+     * @param address the address to check
+     * @param cidr the subnet to check
+     * @return if the given address is inside the subnet
+     */
     private boolean isInSubnet(InetAddress address, String cidr) {
         String[] parts = cidr.split("/");
         InetAddress subnet = InetAddresses.forString(parts[0]);
