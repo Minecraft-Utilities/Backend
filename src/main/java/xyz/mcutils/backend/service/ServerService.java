@@ -128,7 +128,7 @@ public class ServerService {
         log.debug("Successfully pinged server: {}:{} in {}ms", hostname, port, System.currentTimeMillis() - pingStart);
 
         // Populate the server's ip lookup data
-        server.getServer().lookupIp();
+        // server.getServer().lookupIp();
 
         // Check if the server is blocked by Mojang
         if (platform == Platform.JAVA) {
