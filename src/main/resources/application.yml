@@ -42,11 +42,9 @@ mc-utils:
 
   # Cache Settings
   cache:
-    skins:
-      enabled: true
     player:
       enabled: true
-    server-previews:
+    servers:
       enabled: true
     maxmind:
       enabled: true
@@ -58,11 +56,13 @@ mc-utils:
   renderer:
     skin:
       enabled: true
+      cache: true
       limits:
         min_size: 64
         max_size: 1024
     server-preview:
       enabled: true
+      cache: true
       limits:
         min_size: 64
         max_size: 1024

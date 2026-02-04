@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 public class SkinService {
     public static SkinService INSTANCE;
 
-    @Value("${mc-utils.cache.skins.enabled}")
+    @Value("${mc-utils.renderer.skin.cache}")
     private boolean cacheEnabled;
 
     @Value("${mc-utils.renderer.skin.enabled}")
