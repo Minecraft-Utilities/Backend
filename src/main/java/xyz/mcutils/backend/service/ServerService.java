@@ -136,7 +136,12 @@ public class ServerService {
         }
 
         if (cacheEnabled) {
-            this.serverCacheRepository.save(server);
+            String finalHostname = hostname;
+            CompletableFuture.runAsync(() -> this.serverCacheRepository.save(server), Main.EXECUTOR)
+                    .exceptionally(ex -> {
+                        log.warn("Save failed for server {}: {}", finalHostname, ex.getMessage());
+                        return null;
+                    });
         }
         return server;
     }

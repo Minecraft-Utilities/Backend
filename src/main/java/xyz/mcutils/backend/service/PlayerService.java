@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
@@ -20,6 +21,7 @@ import xyz.mcutils.backend.repository.PlayerNameCacheRepository;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @Slf4j
@@ -75,7 +77,11 @@ public class PlayerService {
             );
 
             if (cacheEnabled) {
-                this.playerCacheRepository.save(player);
+                CompletableFuture.runAsync(() -> this.playerCacheRepository.save(player), Main.EXECUTOR)
+                        .exceptionally(ex -> {
+                            log.warn("Save failed for player {}: {}", player.getUniqueId(), ex.getMessage());
+                            return null;
+                        });
             }
             log.debug("Got player {} from Mojang API in {}ms", uuid, System.currentTimeMillis() - fetchStart);
             return player;
@@ -115,7 +121,11 @@ public class PlayerService {
             CachedPlayerName playerName = new CachedPlayerName(id, username, uuid);
 
             if (cacheEnabled) {
-                this.playerNameCacheRepository.save(playerName);
+                CompletableFuture.runAsync(() -> this.playerNameCacheRepository.save(playerName), Main.EXECUTOR)
+                        .exceptionally(ex -> {
+                            log.warn("Save failed for player username lookup {}: {}", playerName, ex.getMessage());
+                            return null;
+                        });
             }
             log.debug("Got uuid for username {} in {}ms", username, System.currentTimeMillis() - fetchStart);
             return playerName;

@@ -18,7 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import xyz.mcutils.backend.common.DNSUtils;
+import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.asn.AsnLookup;
 import xyz.mcutils.backend.model.cache.CachedIpLookup;
@@ -39,6 +39,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * @author Braydon
@@ -94,24 +95,24 @@ public class MaxMindService {
             }
         }
 
-        long lookupStart = System.currentTimeMillis();
         GeoLocation location = lookupCity(ip);
         AsnLookup asn = lookupAsn(ip);
         if (location == null && asn == null) {
             throw new NotFoundException("No data found for IP address: %s".formatted(ip));
         }
-        String reverseDnsHostname = DNSUtils.reverseDnsLookup(ip);
-        log.debug("Took {}ms to lookup IP: {}", System.currentTimeMillis() - lookupStart, ip);
 
         CachedIpLookup ipLookup = new CachedIpLookup(ip, new IpLookup(
-            ip, 
-            reverseDnsHostname, 
+            ip,
             location, 
             asn
         ));
         
         if (cacheEnabled) {
-            this.ipLookupCacheRepository.save(ipLookup);
+            CompletableFuture.runAsync(() -> this.ipLookupCacheRepository.save(ipLookup), Main.EXECUTOR)
+                    .exceptionally(ex -> {
+                        log.warn("Save failed for ip lookup {}: {}", ip, ex.getMessage());
+                        return null;
+                    });
         }
 
         return ipLookup.getIpLookup();

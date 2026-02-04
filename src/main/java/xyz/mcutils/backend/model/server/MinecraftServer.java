@@ -1,12 +1,11 @@
 package xyz.mcutils.backend.model.server;
 
-import org.jetbrains.annotations.Nullable;
-
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import org.jetbrains.annotations.Nullable;
 import xyz.mcutils.backend.model.asn.AsnLookup;
 import xyz.mcutils.backend.model.dns.DNSRecord;
 import xyz.mcutils.backend.model.geo.GeoLocation;
@@ -23,12 +22,6 @@ public class MinecraftServer {
      * The hostname of the server.
      */
     private String hostname;
-
-    /**
-     * The reverse DNS of the server's ip address.
-     */
-    @Nullable
-    private String reverseDns;
 
     /**
      * The IP address of the server.
@@ -72,9 +65,8 @@ public class MinecraftServer {
      * No-op if ip is null or geo data is already set.
      */
     public void lookupIp() {
-        if (ip != null && reverseDns == null && location == null && asn == null) {
+        if (ip != null && location == null && asn == null) {
             IpLookup ipLookup = MaxMindService.INSTANCE.lookupIp(ip);
-            this.reverseDns = ipLookup.reverseDns();
             this.location = ipLookup.location();
             this.asn = ipLookup.asn();
         }
