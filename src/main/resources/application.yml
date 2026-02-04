@@ -46,8 +46,6 @@ mc-utils:
       enabled: true
     servers:
       enabled: true
-    maxmind:
-      enabled: true
     s3:
       enabled: true
       ttl: 60 # in minutes

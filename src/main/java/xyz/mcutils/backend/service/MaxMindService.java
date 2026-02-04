@@ -14,17 +14,15 @@ import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.codehaus.plexus.archiver.tar.TarGZipUnArchiver;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.asn.AsnLookup;
-import xyz.mcutils.backend.model.cache.CachedIpLookup;
 import xyz.mcutils.backend.model.geo.GeoLocation;
 import xyz.mcutils.backend.model.response.IpLookup;
-import xyz.mcutils.backend.repository.IpLookupCacheRepository;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -38,8 +36,8 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 /**
  * @author Braydon
@@ -52,21 +50,11 @@ public class MaxMindService {
     private static final String DATABASE_DOWNLOAD_ENDPOINT = "https://download.maxmind.com/app/geoip_download?edition_id=%s&license_key=%s&suffix=tar.gz";
     private static final Map<Database, DatabaseReader> DATABASES = new HashMap<>();
 
-    @Value("${mc-utils.cache.maxmind.enabled}")
-    private boolean cacheEnabled;
-
     @Value("${mc-utils.maxmind.license}")
     private String license;
 
     @Value("${mc-utils.maxmind.database-dir:databases}")
     private String databaseDirPath;
-
-    private final IpLookupCacheRepository ipLookupCacheRepository;
-
-    @Autowired
-    public MaxMindService(IpLookupCacheRepository ipLookupCacheRepository) {
-        this.ipLookupCacheRepository = ipLookupCacheRepository;
-    }
 
     @PostConstruct
     public void onInitialize() {
@@ -83,113 +71,113 @@ public class MaxMindService {
      * @param ip the IP address to lookup
      * @return the IP lookup response
      */
+    @Cacheable(value = "geoLookup", key = "#ip")
     public IpLookup lookupIp(@NonNull String ip) {
         log.debug("Getting lookup for IP: {}", ip);
 
-        long cacheStart = System.currentTimeMillis();
-        if (cacheEnabled) {
-            Optional<CachedIpLookup> cachedIpLookup = this.ipLookupCacheRepository.findById(ip);
-            if (cachedIpLookup.isPresent()) {
-                log.debug("Got IP lookup for {} from cache in {}ms", ip, System.currentTimeMillis() - cacheStart);
-                return cachedIpLookup.get().getIpLookup();
-            }
-        }
+        long lookupStart = System.currentTimeMillis();
+        CompletableFuture<GeoLocation> cityFuture = lookupCity(ip);
+        CompletableFuture<AsnLookup> asnFuture = lookupAsn(ip);
 
-        GeoLocation location = lookupCity(ip);
-        AsnLookup asn = lookupAsn(ip);
+        CompletableFuture.allOf(cityFuture, asnFuture).join();
+
+        GeoLocation location = cityFuture.join();
+        AsnLookup asn = asnFuture.join();
+
         if (location == null && asn == null) {
             throw new NotFoundException("No data found for IP address: %s".formatted(ip));
         }
 
-        CachedIpLookup ipLookup = new CachedIpLookup(ip, new IpLookup(
+        log.debug(
+                "Got IP lookup for {} from {}ms",
+                ip, System.currentTimeMillis() - lookupStart
+        );
+        return new IpLookup(
             ip,
-            location, 
+            location,
             asn
-        ));
-        
-        if (cacheEnabled) {
-            CompletableFuture.runAsync(() -> this.ipLookupCacheRepository.save(ipLookup), Main.EXECUTOR)
-                    .exceptionally(ex -> {
-                        log.warn("Save failed for ip lookup {}: {}", ip, ex.getMessage());
-                        return null;
-                    });
-        }
-
-        return ipLookup.getIpLookup();
-    }
-
-    /**
-     * Lookup a city by the given address.
-     *
-     * @param ip the address
-     * @return the city response, null if none
-     */
-    @SneakyThrows
-    private GeoLocation lookupCity(@NonNull String ip) {
-        DatabaseReader database = getDatabase(Database.CITY);
-        try {
-            if (database == null) {
-                return null;
-            }
-            CityResponse city = database.city(InetAddress.getByName(ip));
-            Country country = city.country();
-            if (country == null) {
-                return null;
-            }
-
-            Location location = city.location();
-            String isoCode = country.isoCode();
-            if (location == null || isoCode == null) {
-                return null;
-            }
-            
-            Postal postal = city.postal();
-            return new GeoLocation(
-                    country.name(),
-                    isoCode,
-                    city.mostSpecificSubdivision().name(),
-                    city.city().name(),
-                    location.timeZone(),
-                    postal != null ? postal.code() : null,
-                    location.latitude(),
-                    location.longitude(),
-                    "https://flagcdn.com/w20/" + isoCode.toLowerCase() + ".webp"
-            );
-        } catch (AddressNotFoundException ignored) {
-            // Safely ignore this and return null instead
-            return null;
-        }
+        );
     }
 
     /**
      * Lookup an ASN by the given address.
      *
      * @param ip the address
-     * @return the asn response, null if none
+     * @return a future containing the ASN response, or null if none
      */
-    @SneakyThrows
-    private AsnLookup lookupAsn(@NonNull String ip) {
-        DatabaseReader database = getDatabase(Database.ASN);
-        try {
+    private CompletableFuture<AsnLookup> lookupAsn(@NonNull String ip) {
+        return CompletableFuture.supplyAsync(() -> {
+            DatabaseReader database = getDatabase(Database.ASN);
             if (database == null) {
                 return null;
             }
-            AsnResponse asn = database.asn(InetAddress.getByName(ip));
-            if (asn == null) {
+
+            try {
+                AsnResponse asn = database.asn(InetAddress.getByName(ip));
+                if (asn == null) {
+                    return null;
+                }
+
+                return new AsnLookup(
+                        "AS%s".formatted(asn.autonomousSystemNumber()),
+                        asn.autonomousSystemOrganization(),
+                        asn.network().toString()
+                );
+            } catch (AddressNotFoundException ignored) {
                 return null;
+            } catch (Exception e) {
+                throw new CompletionException(e);
             }
-            return new AsnLookup(
-                "AS%s".formatted(asn.autonomousSystemNumber()), 
-                asn.autonomousSystemOrganization(),
-                asn.network().toString()
-            );
-        } catch (AddressNotFoundException ignored) {
-            // Safely ignore this and return null instead
-            return null;
-        }
+        }, Main.EXECUTOR);
     }
 
-        /**
+    /**
+     * Lookup a city by the given address.
+     *
+     * @param ip the address
+     * @return a future containing the city response, or null if none
+     */
+    private CompletableFuture<GeoLocation> lookupCity(@NonNull String ip) {
+        return CompletableFuture.supplyAsync(() -> {
+            DatabaseReader database = getDatabase(Database.CITY);
+            if (database == null) {
+                return null;
+            }
+
+            try {
+                CityResponse city = database.city(InetAddress.getByName(ip));
+                Country country = city.country();
+                Location location = city.location();
+
+                if (country == null || location == null || country.isoCode() == null) {
+                    return null;
+                }
+
+                Postal postal = city.postal();
+                String isoCode = country.isoCode();
+
+                return new GeoLocation(
+                        country.name(),
+                        isoCode,
+                        city.mostSpecificSubdivision().name(),
+                        city.city().name(),
+                        location.timeZone(),
+                        postal != null ? postal.code() : null,
+                        location.latitude(),
+                        location.longitude(),
+                        "https://flagcdn.com/w20/" + isoCode.toLowerCase() + ".webp"
+                );
+            } catch (AddressNotFoundException ignored) {
+                return null;
+            } catch (Exception e) {
+                throw new CompletionException(e);
+            }
+        }, Main.EXECUTOR);
+    }
+
+
+
+    /**
      * Get the reader for the given database.
      *
      * @param database the database to get
