@@ -97,8 +97,8 @@ public class PlayerService {
         if (cacheEnabled) {
             Optional<CachedPlayerName> cachedPlayerName = playerNameCacheRepository.findById(id);
             if (cachedPlayerName.isPresent()) {
-                log.debug("Got username {} from cache in {}ms", username, System.currentTimeMillis() - cacheStart);
                 CachedPlayerName playerName = cachedPlayerName.get();
+                log.debug("Got username {} -> {} from cache in {}ms", username, playerName.getUniqueId(), System.currentTimeMillis() - cacheStart);
                 playerName.setCached(true);
                 return playerName;
             }
