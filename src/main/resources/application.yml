@@ -46,6 +46,9 @@ mc-utils:
       enabled: true
     servers:
       enabled: true
+    dns:
+      enabled: true
+      ttl: 5 # in minutes
     s3:
       enabled: true
       ttl: 60 # in minutes

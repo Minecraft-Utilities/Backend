@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
-import xyz.mcutils.backend.common.DNSUtils;
 import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.renderer.impl.server.ServerPreviewRenderer;
@@ -120,7 +119,7 @@ public class ServerService {
 
         List<DNSRecord> dnsRecords = new ArrayList<>();
 
-        SRVRecord srvRecord = platform == Platform.JAVA ? DNSUtils.resolveSRV(hostname) : null; // Resolve the SRV record
+        SRVRecord srvRecord = platform == Platform.JAVA ? DNSService.resolveSRV(hostname) : null; // Resolve the SRV record
         if (srvRecord != null) { // SRV was resolved, use the hostname and port
             dnsRecords.add(srvRecord); // Going to need this for later
             InetSocketAddress socketAddress = srvRecord.getSocketAddress();
@@ -128,7 +127,7 @@ public class ServerService {
             port = socketAddress.getPort();
         }
 
-        ARecord aRecord = DNSUtils.resolveA(hostname); // Resolve the A record so we can get the IPv4 address
+        ARecord aRecord = DNSService.resolveA(hostname); // Resolve the A record so we can get the IPv4 address
         String ip = aRecord == null ? null : aRecord.getAddress(); // Get the IP address
         if (ip != null) { // Was the IP resolved?
             dnsRecords.add(aRecord); // Going to need this for later
