@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.model.skin;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.gson.JsonObject;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +24,8 @@ public class Skin {
     /**
      * The ID for the skin
      */
-    @JsonIgnore private String id;
+    @JsonProperty("textureId")
+    private String id;
 
     /**
      * The model for the skin
@@ -33,17 +35,20 @@ public class Skin {
     /**
      * The legacy status of the skin
      */
-    @Setter private boolean legacy;
+    @Setter
+    private boolean legacy;
 
     /**
      * The texture URL to the skin
      */
-    @Setter private String textureUrl;
+    @Setter
+    private String textureUrl;
 
     /**
      * The parts of the skin
      */
-    @Setter private Map<String, String> parts;
+    @Setter
+    private Map<String, String> parts;
 
     public Skin(String url, Model model, Player player) {
         String[] skinUrlParts = url.split("/");

@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.model.cape;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.gson.JsonObject;
 import lombok.*;
 import xyz.mcutils.backend.config.AppConfig;
@@ -14,7 +15,8 @@ public class Cape {
     /**
      * The ID of the cape
      */
-    @JsonIgnore private String id;
+    @JsonProperty("textureId")
+    private String id;
 
     /**
      * The texture URL to the cape.
