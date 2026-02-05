@@ -11,6 +11,6 @@ public class ServerUtils {
      * @return the address of the server
      */
     public static String getAddress(String ip, int port) {
-        return ip + (port == 25565 ? "" : ":" + port);
+        return ip + (port == 25565 || port == 19132 ? "" : ":" + port);
     }
 }
