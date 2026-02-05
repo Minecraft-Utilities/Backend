@@ -31,6 +31,9 @@ public class CapeService {
 
     private static final Map<String, CapeData> capes = new LinkedHashMap<>();
     static {
+        // Missing texture ids (I will give good succ if you find these)
+        // Birthday, Oxeye, Blueprint, Valentine, Test
+
         List<CapeData> capeData = new ArrayList<>();
         capeData.add(new CapeData("Migrator", "2340c0e03dd24a11b15a8b33c2a7e9e32abb2051b2481d0ba7defd635ca7a933"));
         capeData.add(new CapeData("Pan", "28de4a81688ad18b49e735a273e086c18f1e3966956123ccb574034c06f5d336"));
@@ -80,9 +83,6 @@ public class CapeService {
         capeData.add(new CapeData("Millionth Customer", "70efffaf86fe5bc089608d3cb297d3e276b9eb7a8f9f2fe6659c23a2d8b18edf"));
         capeData.add(new CapeData("Snowman", "23ec737f18bfe4b547c95935fc297dd767bb84ee55bfd855144d279ac9bfd9fe"));
         capeData.add(new CapeData("Spade", "2e002d5e1758e79ba51d08d92a0f3a95119f2f435ae7704916507b6c565a7da8"));
-
-        // Missing texture ids
-        // Birthday, Oxeye, Blueprint, Valentine, Test
 
         for (CapeData data : capeData) {
             capes.put(data.textureId(), data);

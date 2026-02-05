@@ -6,7 +6,7 @@ import org.springframework.data.redis.core.RedisHash;
 
 @AllArgsConstructor
 @Setter @Getter @EqualsAndHashCode
-@RedisHash(value = "playerCapePart", timeToLive = 60L * 60L * 24L) // 1 day (in seconds)
+@RedisHash(value = "playerCapePart", timeToLive = -1) // do not expire
 public class CachedPlayerCapePart {
 
     /**
