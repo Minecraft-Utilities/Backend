@@ -25,10 +25,13 @@ public class Favicon {
      * @param address the address of the server
      * @return the new favicon
      */
-    public static Favicon create(String base64, @NonNull String address) {
+    public static Favicon create(String base64, @NonNull String address, int port) {
         if (base64 == null) { // The server doesn't have a favicon
             return null;
         }
-        return new Favicon(base64, AppConfig.INSTANCE.getWebPublicUrl() + "/server/%s/icon.png".formatted(address));
+        return new Favicon(base64, AppConfig.INSTANCE.getWebPublicUrl() + "/server/%s%s/icon.png".formatted(
+                address,
+                port == 25565 || port == 19132 ? "" : ":" + port
+        ));
     }
 }

@@ -1,7 +1,5 @@
 package xyz.mcutils.backend.model.server.java;
 
-import org.jetbrains.annotations.Nullable;
-
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
@@ -9,6 +7,7 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import org.jetbrains.annotations.Nullable;
 import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.common.ServerUtils;
 import xyz.mcutils.backend.model.dns.DNSRecord;
@@ -102,7 +101,7 @@ public final class JavaMinecraftServer extends MinecraftServer {
                 .ip(ip)
                 .port(port)
                 .records(records)
-                .motd(MOTD.create(hostname, Platform.JAVA, motdString))
+                .motd(MOTD.create(hostname, port, Platform.JAVA, motdString))
                 .players(Players.create(token.getPlayers()))
                 .version(token.getVersion().detailedCopy())
                 .favicon(Favicon.create(token.getFavicon(), ServerUtils.getAddress(hostname, port)))
