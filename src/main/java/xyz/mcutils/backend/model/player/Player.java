@@ -6,6 +6,7 @@ import org.jetbrains.annotations.Nullable;
 import org.springframework.data.annotation.Id;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
+import xyz.mcutils.backend.model.cape.Cape;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 

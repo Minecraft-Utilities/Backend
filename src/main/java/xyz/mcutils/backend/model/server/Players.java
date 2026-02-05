@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.model.server;
 
 import lombok.NonNull;
+import org.jetbrains.annotations.Nullable;
 import xyz.mcutils.backend.common.color.ColorUtils;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.token.server.JavaServerStatusToken;
@@ -8,8 +9,6 @@ import xyz.mcutils.backend.model.token.server.JavaServerStatusToken;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
-import org.jetbrains.annotations.Nullable;
 
 /**
  * Player count data for a server.
