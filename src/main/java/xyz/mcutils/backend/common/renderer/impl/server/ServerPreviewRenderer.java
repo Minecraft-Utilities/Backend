@@ -70,7 +70,7 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
 
         // Hostname
         graphics.setColor(MinecraftColor.WHITE.toAwtColor());
-        GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, server.getHostname(), textX, PADDING + SCALE + fontAscent * SCALE, true, false, false, SCALE);
+        GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, server.getHostname(), textX, PADDING + SCALE + fontAscent * SCALE, true, false, false, false, false, SCALE);
 
         // MOTD
         int motdLine1Top = PADDING + (12 * SCALE);
@@ -99,53 +99,70 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
         int statusTextY = PADDING + SCALE + fontAscent * SCALE;
 
         graphics.setColor(MinecraftColor.GRAY.toAwtColor());
-        statusTextX = GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, playersOnline, statusTextX, statusTextY, true, false, false, SCALE);
+        statusTextX = GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, playersOnline, statusTextX, statusTextY, true, false, false, false, false, SCALE);
         graphics.setColor(MinecraftColor.DARK_GRAY.toAwtColor());
-        statusTextX = GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, "/", statusTextX, statusTextY, true, false, false, SCALE);
+        statusTextX = GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, "/", statusTextX, statusTextY, true, false, false, false, false, SCALE);
         graphics.setColor(MinecraftColor.GRAY.toAwtColor());
-        GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, playersMax, statusTextX, statusTextY, true, false, false, SCALE);
+        GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, playersMax, statusTextX, statusTextY, true, false, false, false, false, SCALE);
 
         graphics.dispose();
         return ImageUtils.resize(texture, (double) size / ROW_WIDTH);
     }
 
     private void drawMotdLine(Graphics2D graphics, String line, int x, int y) {
+        // ┃ (U+2503) → ASCII pipe so it uses the font's | glyph
+        line = line.replace('\u2503', '|');
+
         graphics.setColor(MinecraftColor.GRAY.toAwtColor()); // Minecraft MOTD default
         int index = 0;
         int drawX = x;
         boolean bold = false;
         boolean italic = false;
+        boolean underline = false;
+        boolean strikethrough = false;
 
         while (index < line.length()) {
             int colorIndex = line.indexOf("§", index);
             if (colorIndex == -1) {
                 String remaining = line.substring(index);
-                GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, remaining, drawX, y, true, bold, italic, SCALE);
+                GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, remaining, drawX, y, true, bold, italic, underline, strikethrough, SCALE);
                 break;
             }
 
             String textBeforeColor = line.substring(index, colorIndex);
-            drawX = GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, textBeforeColor, drawX, y, true, bold, italic, SCALE);
-
+            drawX = GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, textBeforeColor, drawX, y, true, bold, italic, underline, strikethrough, SCALE);
+            
             // §x§R§R§G§G§B§B or §#RRGGBB (gradient support)
             HexColorResult hexResult = ColorUtils.parseHexColor(line, colorIndex);
             if (hexResult != null) {
                 graphics.setColor(hexResult.color());
+                bold = false;
+                italic = false;
+                underline = false;
+                strikethrough = false;
                 index = colorIndex + hexResult.charsConsumed();
             } else if (colorIndex + 1 < line.length()) {
                 char colorCode = Character.toLowerCase(line.charAt(colorIndex + 1));
                 switch (colorCode) {
                     case 'l' -> bold = true;
                     case 'o' -> italic = true;
+                    case 'n' -> underline = true;
+                    case 'm' -> strikethrough = true;
                     case 'r' -> {
                         graphics.setColor(MinecraftColor.GRAY.toAwtColor());
                         bold = false;
                         italic = false;
+                        underline = false;
+                        strikethrough = false;
                     }
                     default -> {
                         MinecraftColor mcColor = MinecraftColor.getByCode(colorCode);
                         if (mcColor != null) {
                             graphics.setColor(mcColor.toAwtColor());
+                            bold = false;
+                            italic = false;
+                            underline = false;
+                            strikethrough = false;
                         }
                     }
                 }

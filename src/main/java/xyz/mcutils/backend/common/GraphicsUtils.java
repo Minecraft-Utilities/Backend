@@ -33,19 +33,19 @@ public class GraphicsUtils {
 
     /**
      * Draws a string with Minecraft-style style options: shadow (dark offset pass), bold (double-draw +1px),
-     * italic (shear transform). Returns the x position after the last character (advance = stringWidth + 1 if bold).
+     * italic (shear transform), underline, strikethrough. Returns the x position after the last character (advance = stringWidth + 1 if bold).
      */
     public static int drawStringWithStyle(Graphics2D g, BitmapFont font, String str, int x, int y,
                                          boolean shadow, boolean bold, boolean italic) {
-        return drawStringWithStyle(g, font, str, x, y, shadow, bold, italic, 1);
+        return drawStringWithStyle(g, font, str, x, y, shadow, bold, italic, false, false, 1);
     }
 
     /**
      * Draws a string with style at the given scale (without mutating the font). When scale != 1, applies
-     * a transform so the font renders at native 1x and is scaled up.
+     * a transform so the font renders at native 1x and is scaled up. Underline and strikethrough draw 1px lines in the current color.
      */
     public static int drawStringWithStyle(Graphics2D g, BitmapFont font, String str, int x, int y,
-                                         boolean shadow, boolean bold, boolean italic, int scale) {
+                                         boolean shadow, boolean bold, boolean italic, boolean underline, boolean strikethrough, int scale) {
         if (str == null || str.isEmpty()) return x;
         AffineTransform savedTransform = g.getTransform();
         int drawX = x;
@@ -77,8 +77,21 @@ public class GraphicsUtils {
         if (bold) {
             font.drawString(g, str, drawX + 1, drawY, true);
         }
-        g.setTransform(savedTransform);
         int advance = font.stringWidth(str, bold);
+        if (underline || strikethrough) {
+            g.setColor(savedColor);
+            Stroke savedStroke = g.getStroke();
+            g.setStroke(new BasicStroke(1f));
+            if (underline) {
+                g.drawLine(drawX, drawY + 1, drawX + advance, drawY + 1);
+            }
+            if (strikethrough) {
+                int midY = drawY - font.ascent() / 2;
+                g.drawLine(drawX, midY, drawX + advance, midY);
+            }
+            g.setStroke(savedStroke);
+        }
+        g.setTransform(savedTransform);
         return x + advance * scale;
     }
 
