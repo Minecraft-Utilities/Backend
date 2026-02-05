@@ -11,16 +11,19 @@ import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.cape.Cape;
+import xyz.mcutils.backend.model.cape.CapeData;
 import xyz.mcutils.backend.model.cape.CapeRendererType;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.service.CapeService;
 import xyz.mcutils.backend.service.PlayerService;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @RestController
-@RequestMapping(value = "/cape")
+@RequestMapping(value = "/capes")
 @Tag(name = "Cape Controller", description = "The Cape Controller is used to get cape images.")
 public class CapeController {
     private final CapeService capeService;
@@ -30,6 +33,13 @@ public class CapeController {
     public CapeController(CapeService capeService, PlayerService playerService) {
         this.capeService = capeService;
         this.playerService = playerService;
+    }
+
+    @ResponseBody
+    @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<List<CapeData>> getCapes() {
+        return ResponseEntity.ok()
+                .body(new ArrayList<>(capeService.getCapes().values()));
     }
 
     @ResponseBody

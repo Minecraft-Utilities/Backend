@@ -17,7 +17,7 @@ import xyz.mcutils.backend.service.ServerService;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-@RequestMapping(value = "/server/")
+@RequestMapping(value = "/servers/")
 @Tag(name = "Server Controller", description = "The Server Controller is used to get information about a server.")
 public class ServerController {
 

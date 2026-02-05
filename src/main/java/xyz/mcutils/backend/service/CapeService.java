@@ -12,6 +12,7 @@ import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.model.cache.CachedPlayerCapePart;
 import xyz.mcutils.backend.model.cape.Cape;
+import xyz.mcutils.backend.model.cape.CapeData;
 import xyz.mcutils.backend.model.cape.CapeRendererType;
 import xyz.mcutils.backend.repository.PlayerCapePartCacheRepository;
 
@@ -19,12 +20,22 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @Service @Slf4j
 public class CapeService {
     public static CapeService INSTANCE;
+
+    private static final Map<String, CapeData> capes = new HashMap<>();
+    static {
+        List<CapeData> capeData = new ArrayList<>();
+        capeData.add(new CapeData("Migrator", "2340c0e03dd24a11b15a8b33c2a7e9e32abb2051b2481d0ba7defd635ca7a933"));
+
+        for (CapeData data : capeData) {
+            capes.put(data.textureId(), data);
+        }
+    }
 
     @Value("${mc-utils.renderer.cape.cache}")
     private boolean cacheEnabled;
@@ -50,6 +61,15 @@ public class CapeService {
     @PostConstruct
     public void init() {
         INSTANCE = this;
+    }
+
+    /**
+     * Gets all the known capes.
+     *
+     * @return the known capes
+     */
+    public Map<String, CapeData> getCapes() {
+        return Collections.unmodifiableMap(capes);
     }
 
     /**

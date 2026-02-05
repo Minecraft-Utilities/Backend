@@ -18,7 +18,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @RestController
-@RequestMapping(value = "/skin")
+@RequestMapping(value = "/skins")
 @Tag(name = "Skin Controller", description = "The Skin Controller is used to get skin images.")
 @Slf4j
 public class SkinController {

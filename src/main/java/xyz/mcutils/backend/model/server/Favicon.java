@@ -29,7 +29,7 @@ public class Favicon {
         if (base64 == null) { // The server doesn't have a favicon
             return null;
         }
-        return new Favicon(base64, AppConfig.INSTANCE.getWebPublicUrl() + "/server/%s/icon.png".formatted(
+        return new Favicon(base64, AppConfig.INSTANCE.getWebPublicUrl() + "/servers/%s/icon.png".formatted(
                 address
         ));
     }

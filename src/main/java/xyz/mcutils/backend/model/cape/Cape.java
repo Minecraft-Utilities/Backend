@@ -28,7 +28,7 @@ public class Cape {
 
     public Cape(String id) {
         this.id = id;
-        this.textureUrl = AppConfig.INSTANCE.getWebPublicUrl() + "/cape/%s/texture.png".formatted(id);
+        this.textureUrl = AppConfig.INSTANCE.getWebPublicUrl() + "/capes/%s/texture.png".formatted(id);
         this.parts = buildParts(id);
     }
 
@@ -45,9 +45,9 @@ public class Cape {
     /**
      * Builds the parts map (render type name -> URL) for this cape id.
      */
-    private static Map<String, String> buildParts(String capeId) {
+    public static Map<String, String> buildParts(String capeId) {
         Map<String, String> parts = new HashMap<>();
-        String base = "%s/cape/%s".formatted(AppConfig.INSTANCE.getWebPublicUrl(), capeId);
+        String base = "%s/capes/%s".formatted(AppConfig.INSTANCE.getWebPublicUrl(), capeId);
         for (CapeRendererType type : CapeRendererType.values()) {
             parts.put(type.name(), "%s/%s.png".formatted(base, type.name().toLowerCase()));
         }

@@ -51,11 +51,11 @@ public class Skin {
 
         this.model = model;
         this.legacy = Skin.isLegacySkin(this);
-        this.textureUrl = AppConfig.INSTANCE.getWebPublicUrl() + "/skin/%s/texture.png".formatted(player.getUniqueId().toString());
+        this.textureUrl = AppConfig.INSTANCE.getWebPublicUrl() + "/skins/%s/texture.png".formatted(player.getUniqueId().toString());
 
         this.parts = new HashMap<>();
         for (SkinRendererType type : SkinRendererType.values()) {
-            this.parts.put(type.name(), "%s/skin/%s/%s.png".formatted(
+            this.parts.put(type.name(), "%s/skins/%s/%s.png".formatted(
                 AppConfig.INSTANCE.getWebPublicUrl(),
                 player.getUniqueId().toString(),
                 type.name().toLowerCase()

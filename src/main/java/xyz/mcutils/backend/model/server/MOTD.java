@@ -26,7 +26,7 @@ public record MOTD(String[] raw, String[] clean, String[] html, String preview) 
                 rawLines,
                 Arrays.stream(rawLines).map(ColorUtils::stripColor).toArray(String[]::new),
                 Arrays.stream(rawLines).map(ColorUtils::toHTML).toArray(String[]::new),
-                AppConfig.INSTANCE.getWebPublicUrl() + "/server/%s/%s/preview.png".formatted(
+                AppConfig.INSTANCE.getWebPublicUrl() + "/servers/%s/%s/preview.png".formatted(
                         platform.name().toLowerCase(),
                         hostname
                 )

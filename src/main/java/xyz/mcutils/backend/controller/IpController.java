@@ -12,7 +12,7 @@ import xyz.mcutils.backend.model.response.IpLookup;
 import xyz.mcutils.backend.service.MaxMindService;
 
 @RestController
-@RequestMapping(value = "/ip")
+@RequestMapping(value = "/ips")
 @Tag(name = "IP Controller", description = "The IP Controller is used to get information about an IP address.")
 public class IpController {
     @GetMapping(value = "/{query}", produces = MediaType.APPLICATION_JSON_VALUE)

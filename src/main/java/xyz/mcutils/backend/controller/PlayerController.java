@@ -16,7 +16,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @RestController
-@RequestMapping(value = "/player")
+@RequestMapping(value = "/players")
 @Tag(name = "Player Controller", description = "The Player Controller is used to get information about a player.")
 public class PlayerController {
     private final PlayerService playerService;

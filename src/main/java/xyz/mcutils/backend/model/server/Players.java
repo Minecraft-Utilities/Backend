@@ -31,7 +31,7 @@ public record Players(int online, int max, @Nullable Sample[] sample) {
         if (token.sample() != null) {
             samples = new ArrayList<>(); // The player samples
             for (JavaServerStatusToken.Players.Sample sample : token.sample()) {
-                String href = AppConfig.INSTANCE.getWebPublicUrl() + "/player/" + sample.id();
+                String href = AppConfig.INSTANCE.getWebPublicUrl() + "/players/" + sample.id();
                 samples.add(new Sample(sample.id(), Sample.Name.create(sample.name()), href));
             }
         }
