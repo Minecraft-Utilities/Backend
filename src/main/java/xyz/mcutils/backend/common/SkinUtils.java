@@ -27,7 +27,7 @@ public class SkinUtils {
             long start = System.currentTimeMillis();
             BufferedImage upgraded = upgradeLegacySkin(image);
             byte[] bytes = ImageUtils.imageToBytes(upgraded);
-            log.debug("Upgraded legacy skin '{}' in {}ms", skin.getId(), System.currentTimeMillis() - start);
+            log.debug("Upgraded legacy skin '{}' in {}ms", skin.getTextureId(), System.currentTimeMillis() - start);
             return bytes;
         } catch (Exception e) {
             log.warn("Could not upgrade legacy skin, using original: {}", e.getMessage());

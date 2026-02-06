@@ -61,15 +61,15 @@ public class SkinService {
      * @return the skin image
      */
     public byte[] getSkinTexture(Skin skin, boolean upgrade) {
-        byte[] skinBytes = minioService.get(StorageService.Bucket.SKINS, skin.getId() + ".png");
+        byte[] skinBytes = minioService.get(StorageService.Bucket.SKINS, skin.getTextureId() + ".png");
         if (skinBytes == null) {
-            log.debug("Downloading skin image for skin {}", skin.getId());
-            skinBytes = PlayerUtils.getImage(skin.getMojangTextureUrl());
+            log.debug("Downloading skin image for skin {}", skin.getTextureId());
+            skinBytes = PlayerUtils.getImage(skin.getRawTextureUrl());
             if (skinBytes == null) {
-                throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(skin.getId()));
+                throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(skin.getTextureId()));
             }
-            minioService.upload(StorageService.Bucket.SKINS, skin.getId() + ".png", MediaType.IMAGE_PNG_VALUE, skinBytes);
-            log.debug("Saved skin image for skin {}", skin.getId());
+            minioService.upload(StorageService.Bucket.SKINS, skin.getTextureId() + ".png", MediaType.IMAGE_PNG_VALUE, skinBytes);
+            log.debug("Saved skin image for skin {}", skin.getTextureId());
         }
         return upgrade ? SkinUtils.upgradeLegacySkin(skin, skinBytes) : skinBytes;
     }
@@ -110,15 +110,15 @@ public class SkinService {
             throw new BadRequestException("Invalid skin part: '%s'".formatted(typeName));
         }
         String name = part.name();
-        String key = "%s-%s-%s-%s".formatted(skin.getId(), name, size, renderOverlay);
+        String key = "%s-%s-%s-%s".formatted(skin.getTextureId(), name, size, renderOverlay);
 
-        log.debug("Getting skin part for skin texture: {} (part {}, size {})", skin.getId(), typeName, size);
+        log.debug("Getting skin part for skin texture: {} (part {}, size {})", skin.getTextureId(), typeName, size);
 
         long cacheStart = System.currentTimeMillis();
         if (cacheEnabled) {
             Optional<CachedPlayerSkinPart> cache = skinPartRepository.findById(key);
             if (cache.isPresent()) {
-                log.debug("Got skin part for skin texture {} from cache in {}ms", skin.getId(), System.currentTimeMillis() - cacheStart);
+                log.debug("Got skin part for skin texture {} from cache in {}ms", skin.getTextureId(), System.currentTimeMillis() - cacheStart);
                 return cache.get();
             }
         }
@@ -126,7 +126,7 @@ public class SkinService {
         long renderStart = System.currentTimeMillis();
         BufferedImage renderedPart = part.render(skin, renderOverlay, size);
         byte[] pngBytes = ImageUtils.imageToBytes(renderedPart);
-        log.debug("Took {}ms to render skin part for skin texture: {}", System.currentTimeMillis() - renderStart, skin.getId());
+        log.debug("Took {}ms to render skin part for skin texture: {}", System.currentTimeMillis() - renderStart, skin.getTextureId());
 
         CachedPlayerSkinPart skinPart = new CachedPlayerSkinPart(key, pngBytes);
 

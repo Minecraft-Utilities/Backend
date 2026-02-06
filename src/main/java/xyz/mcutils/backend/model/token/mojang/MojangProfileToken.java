@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.model.cape.Cape;
+import xyz.mcutils.backend.model.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.skin.Skin;
 
@@ -52,7 +53,6 @@ public class MojangProfileToken {
     /**
      * Get the skin and cape of the player.
      *
-     * @param player the player to get the skin and cape for
      * @return the skin and cape of the player
      */
     public Tuple<Skin, Cape> getSkinAndCape(Player player) {
@@ -62,7 +62,7 @@ public class MojangProfileToken {
         }
         JsonObject texturesJson = textureProperty.getDecodedValue().getAsJsonObject("textures"); // Parse the decoded JSON and get the texture object
         return new Tuple<>(Skin.fromJson(texturesJson.getAsJsonObject("SKIN"), player),
-                Cape.fromJson(texturesJson.getAsJsonObject("CAPE")));
+                VanillaCape.fromJson(texturesJson.getAsJsonObject("CAPE")));
     }
     
     /**

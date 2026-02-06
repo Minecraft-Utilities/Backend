@@ -1,12 +1,11 @@
 package xyz.mcutils.backend.model.skin;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.gson.JsonObject;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.config.AppConfig;
+import xyz.mcutils.backend.model.Texture;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.service.SkinService;
 
@@ -19,14 +18,8 @@ import java.util.Map;
 @AllArgsConstructor @NoArgsConstructor
 @Getter
 @Slf4j
-@EqualsAndHashCode
-public class Skin {
-    /**
-     * The ID for the skin
-     */
-    @JsonProperty("textureId")
-    private String id;
-
+@EqualsAndHashCode(callSuper = false)
+public class Skin extends Texture {
     /**
      * The model for the skin
      */
@@ -39,12 +32,6 @@ public class Skin {
     private boolean legacy;
 
     /**
-     * The texture URL to the skin
-     */
-    @Setter
-    private String textureUrl;
-
-    /**
      * The parts of the skin
      */
     @Setter
@@ -52,30 +39,24 @@ public class Skin {
 
     public Skin(String url, Model model, Player player) {
         String[] skinUrlParts = url.split("/");
-        this.id = skinUrlParts[skinUrlParts.length - 1];
+        String textureId = skinUrlParts[skinUrlParts.length - 1];
+        super(
+                textureId,
+                "https://textures.minecraft.net/texture/" + textureId,
+                AppConfig.INSTANCE.getWebPublicUrl() + "/skins/%s/texture.png".formatted(textureId)
+        );
 
         this.model = model;
         this.legacy = Skin.isLegacySkin(this);
-        this.textureUrl = AppConfig.INSTANCE.getWebPublicUrl() + "/skins/%s/texture.png".formatted(player.getUniqueId().toString());
 
         this.parts = new HashMap<>();
         for (SkinRendererType type : SkinRendererType.values()) {
             this.parts.put(type.name(), "%s/skins/%s/%s.png".formatted(
                 AppConfig.INSTANCE.getWebPublicUrl(),
-                player.getUniqueId().toString(),
+                player.getUniqueId(),
                 type.name().toLowerCase()
             ));
         }
-    }
-
-    /**
-     * Gets the Mojang texture URL for this skin.
-     *
-     * @return the Mojang texture URL for the skin
-     */
-    @JsonIgnore
-    public String getMojangTextureUrl() {
-        return "https://textures.minecraft.net/texture/" + this.id;
     }
 
     /**

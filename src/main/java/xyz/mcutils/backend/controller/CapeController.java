@@ -10,8 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.model.cape.Cape;
-import xyz.mcutils.backend.model.cape.CapeData;
 import xyz.mcutils.backend.model.cape.CapeRendererType;
+import xyz.mcutils.backend.model.cape.impl.VanillaCape;
 import xyz.mcutils.backend.service.CapeService;
 
 import java.util.ArrayList;
@@ -32,7 +32,7 @@ public class CapeController {
 
     @ResponseBody
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<CapeData>> getCapes() {
+    public ResponseEntity<List<VanillaCape>> getCapes() {
         return ResponseEntity.ok()
                 .body(new ArrayList<>(capeService.getCapes().values()));
     }
