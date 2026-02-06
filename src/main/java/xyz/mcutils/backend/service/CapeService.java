@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
@@ -186,7 +187,7 @@ public class CapeService {
      * Renders a cape part at the given size.
      *
      * @param cape the cape to render
-     * @param typeName the cape part type (e.g. FRONT), see {@link CapeRendererType#getByName(String)}
+     * @param typeName the cape part type (e.g. FRONT)
      * @param size the output size (height; width derived from cape aspect)
      * @return the cached cape part (PNG bytes)
      */
@@ -198,7 +199,7 @@ public class CapeService {
             throw new BadRequestException("Invalid cape part size. Must be between " + minPartSize + " and " + maxPartSize);
         }
 
-        CapeRendererType part = CapeRendererType.getByName(typeName);
+        CapeRendererType part = EnumUtils.getEnumConstant(CapeRendererType.class, typeName);
         if (part == null) {
             throw new BadRequestException("Invalid cape part: '%s'".formatted(typeName));
         }

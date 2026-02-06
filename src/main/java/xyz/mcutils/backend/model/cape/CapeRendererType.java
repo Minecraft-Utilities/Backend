@@ -24,19 +24,4 @@ public enum CapeRendererType {
     public BufferedImage render(Cape cape, int size) {
         return renderer.render(cape, size);
     }
-
-    /**
-     * Gets a cape part by name.
-     *
-     * @param name the name of the cape part
-     * @return the cape part, or null if not found
-     */
-    public static CapeRendererType getByName(String name) {
-        for (CapeRendererType part : CapeRendererType.values()) {
-            if (part.name().equalsIgnoreCase(name)) {
-                return part;
-            }
-        }
-        return null;
-    }
 }
