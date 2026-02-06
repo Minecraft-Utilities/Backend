@@ -37,9 +37,7 @@ public class Skin extends Texture {
     @Setter
     private Map<String, String> parts;
 
-    public Skin(String url, Model model, Player player) {
-        String[] skinUrlParts = url.split("/");
-        String textureId = skinUrlParts[skinUrlParts.length - 1];
+    public Skin(String textureId, Model model, Player player) {
         super(
                 textureId,
                 "https://textures.minecraft.net/texture/" + textureId,
@@ -49,13 +47,15 @@ public class Skin extends Texture {
         this.model = model;
         this.legacy = Skin.isLegacySkin(this);
 
-        this.parts = new HashMap<>();
-        for (SkinRendererType type : SkinRendererType.values()) {
-            this.parts.put(type.name(), "%s/skins/%s/%s.png".formatted(
-                AppConfig.INSTANCE.getWebPublicUrl(),
-                player.getUniqueId(),
-                type.name().toLowerCase()
-            ));
+        if (player != null) {
+            this.parts = new HashMap<>();
+            for (SkinRendererType type : SkinRendererType.values()) {
+                this.parts.put(type.name(), "%s/skins/%s/%s.png".formatted(
+                        AppConfig.INSTANCE.getWebPublicUrl(),
+                        player.getUniqueId(),
+                        type.name().toLowerCase()
+                ));
+            }
         }
     }
 
@@ -71,10 +71,29 @@ public class Skin extends Texture {
         }
         String url = json.get("url").getAsString();
         JsonObject metadata = json.getAsJsonObject("metadata");
+
+        String[] skinUrlParts = url.split("/");
+        String textureId = skinUrlParts[skinUrlParts.length - 1];
+
         return new Skin(
-                url,
+                textureId,
                 EnumUtils.getEnumConstant(Model.class, metadata != null ? metadata.get("model").getAsString().toUpperCase() : "DEFAULT"),
                 player
+        );
+    }
+
+    /**
+     * Creates a skin from only it's texture id.
+     * This is only used for the texture route.
+     *
+     * @param textureId the texture id of the skin
+     * @return the skin
+     */
+    public static Skin fromId(String textureId) {
+        return new Skin(
+                textureId,
+                Model.DEFAULT,
+                null
         );
     }
 

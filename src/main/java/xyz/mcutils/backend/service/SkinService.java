@@ -12,6 +12,7 @@ import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.SkinUtils;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
+import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.model.skin.SkinRendererType;
 import xyz.mcutils.backend.repository.PlayerSkinPartCacheRepository;
@@ -42,16 +43,37 @@ public class SkinService {
 
     private final PlayerSkinPartCacheRepository skinPartRepository;
     private final StorageService minioService;
+    private final PlayerService playerService;
 
     @Autowired
-    public SkinService(PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService) {
+    public SkinService(PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService, PlayerService playerService) {
         this.skinPartRepository = skinPartRepository;
         this.minioService = minioService;
+        this.playerService = playerService;
     }
 
     @PostConstruct
     public void init() {
         INSTANCE = this;
+    }
+
+    /**
+     * Gets a Skin from the texture id or the player's name / uuid.
+     *
+     * @param query the query to search for
+     * @return the skin, or null
+     */
+    public Skin getSkinFromTextureIdOrPlayer(String query) {
+        Skin skin;
+        // I really have no idea how long their sha-1 string length is
+        // a player name can't be more than 16 chars, so just assume it's a texture id
+        if (query.length() > 16) {
+            skin = Skin.fromId(query);
+        } else {
+            Player player = this.playerService.getPlayer(query).getPlayer();
+            skin = player.getSkin();
+        }
+        return skin;
     }
 
     /**

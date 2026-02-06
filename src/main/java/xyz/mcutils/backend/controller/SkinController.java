@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.model.skin.SkinRendererType;
 import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.SkinService;
@@ -34,12 +35,13 @@ public class SkinController {
     @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)
     public CompletableFuture<ResponseEntity<byte[]>> getPlayerSkinTexture(
             @Parameter(
-                    description = "The UUID or Username of the player",
+                    description = "The UUID or Username of the player or the skin's texture id",
                     example = "ImFascinated"
             ) @PathVariable String query
     ) {
         return CompletableFuture.supplyAsync(() -> {
-            byte[] texture = skinService.getSkinTexture(playerService.getPlayer(query).getPlayer().getSkin(), false);
+            Skin skin = this.skinService.getSkinFromTextureIdOrPlayer(query);
+            byte[] texture = skinService.getSkinTexture(skin, false);
             return ResponseEntity.ok()
                     .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                     .contentType(MediaType.IMAGE_PNG)
@@ -50,7 +52,7 @@ public class SkinController {
     @GetMapping(value = "/{query}/{type}.png", produces = MediaType.IMAGE_PNG_VALUE)
     public CompletableFuture<ResponseEntity<byte[]>> getPlayerSkin(
             @Parameter(
-                    description = "The UUID or Username of the player or the skin's texture id",
+                    description = "The UUID or Username of the player",
                     example = "ImFascinated"
             ) @PathVariable String query,
             @Parameter(

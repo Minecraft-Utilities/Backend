@@ -41,7 +41,7 @@ public class CapeController {
     @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)
     public CompletableFuture<ResponseEntity<byte[]>> getCapeTexture(
             @Parameter(
-                    description = "The UUID or Username of the player or the skin's texture id",
+                    description = "The UUID or Username of the player or the capes's texture id",
                     example = "dbc21e222528e30dc88445314f7be6ff12d3aeebc3c192054fba7e3b3f8c77b1"
             ) @PathVariable String query) {
         return CompletableFuture.supplyAsync(() -> {
