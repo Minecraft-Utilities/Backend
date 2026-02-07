@@ -6,8 +6,8 @@ import xyz.mcutils.backend.common.JavaMinecraftVersion;
 import xyz.mcutils.backend.common.packet.impl.java.JavaPacketHandshakingInSetProtocol;
 import xyz.mcutils.backend.common.packet.impl.java.JavaPacketStatusInStart;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
-import xyz.mcutils.backend.model.dns.DNSRecord;
-import xyz.mcutils.backend.model.server.java.JavaMinecraftServer;
+import xyz.mcutils.backend.model.domain.dns.DNSRecord;
+import xyz.mcutils.backend.model.domain.server.java.JavaMinecraftServer;
 import xyz.mcutils.backend.model.token.server.JavaServerStatusToken;
 import xyz.mcutils.backend.service.pinger.MinecraftServerPinger;
 

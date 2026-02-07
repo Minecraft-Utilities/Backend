@@ -10,9 +10,9 @@ import org.springframework.stereotype.Service;
 import org.xbill.DNS.Lookup;
 import org.xbill.DNS.Record;
 import org.xbill.DNS.Type;
-import xyz.mcutils.backend.model.dns.DNSRecord;
-import xyz.mcutils.backend.model.dns.impl.ARecord;
-import xyz.mcutils.backend.model.dns.impl.SRVRecord;
+import xyz.mcutils.backend.model.domain.dns.DNSRecord;
+import xyz.mcutils.backend.model.domain.dns.impl.ARecord;
+import xyz.mcutils.backend.model.domain.dns.impl.SRVRecord;
 
 import java.util.concurrent.TimeUnit;
 

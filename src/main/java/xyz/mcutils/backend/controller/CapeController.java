@@ -10,9 +10,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.EnumUtils;
-import xyz.mcutils.backend.model.cape.Cape;
-import xyz.mcutils.backend.model.cape.CapeType;
-import xyz.mcutils.backend.model.cape.impl.VanillaCape;
+import xyz.mcutils.backend.model.domain.cape.Cape;
+import xyz.mcutils.backend.model.domain.cape.CapeType;
+import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.service.CapeService;
 
 import java.util.ArrayList;

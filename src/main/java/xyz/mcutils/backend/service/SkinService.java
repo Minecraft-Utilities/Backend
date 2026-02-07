@@ -13,10 +13,10 @@ import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.SkinUtils;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
-import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
-import xyz.mcutils.backend.model.player.Player;
-import xyz.mcutils.backend.model.skin.Skin;
-import xyz.mcutils.backend.repository.PlayerSkinPartCacheRepository;
+import xyz.mcutils.backend.model.domain.player.Player;
+import xyz.mcutils.backend.model.domain.skin.Skin;
+import xyz.mcutils.backend.model.persistence.redis.CachedPlayerSkinPart;
+import xyz.mcutils.backend.repository.redis.PlayerSkinPartCacheRepository;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;

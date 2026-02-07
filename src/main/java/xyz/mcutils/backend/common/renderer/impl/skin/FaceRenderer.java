@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
-import xyz.mcutils.backend.model.skin.Skin;
+import xyz.mcutils.backend.model.domain.skin.Skin;
 
 import java.awt.image.BufferedImage;
 

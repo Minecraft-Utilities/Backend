@@ -1,0 +1,30 @@
+package xyz.mcutils.backend.model.domain.dns.impl;
+
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.Setter;
+import xyz.mcutils.backend.model.domain.dns.DNSRecord;
+
+import java.net.InetAddress;
+
+@Setter @Getter
+@NoArgsConstructor
+public final class ARecord extends DNSRecord {
+    /**
+     * The name of this record.
+     */
+    private String name;
+
+    /**
+     * The address of this record, null if unresolved.
+     */
+    private String address;
+
+    public ARecord(@NonNull org.xbill.DNS.ARecord bootstrap) {
+        super(Type.A, bootstrap.getTTL());
+        InetAddress address = bootstrap.getAddress();
+        this.name = bootstrap.getName().toString().replaceFirst("\\.$", "");
+        this.address = address == null ? null : address.getHostAddress();
+    }
+}

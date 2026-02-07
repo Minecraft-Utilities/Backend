@@ -11,7 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
-import xyz.mcutils.backend.model.skin.Skin;
+import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.SkinService;
 

@@ -3,7 +3,7 @@ package xyz.mcutils.backend.common.renderer.model.impl;
 import xyz.mcutils.backend.common.renderer.model.ModelUtils;
 import xyz.mcutils.backend.common.renderer.raster.Face;
 import xyz.mcutils.backend.common.renderer.texture.PlayerModelCoordinates;
-import xyz.mcutils.backend.model.skin.Skin;
+import xyz.mcutils.backend.model.domain.skin.Skin;
 
 import java.util.ArrayList;
 import java.util.Collections;

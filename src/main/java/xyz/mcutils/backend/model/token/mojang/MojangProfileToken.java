@@ -7,9 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.common.Tuple;
-import xyz.mcutils.backend.model.cape.impl.VanillaCape;
-import xyz.mcutils.backend.model.player.Player;
-import xyz.mcutils.backend.model.skin.Skin;
+import xyz.mcutils.backend.model.domain.player.Player;
 
 import java.util.Base64;
 
@@ -52,16 +50,19 @@ public class MojangProfileToken {
     /**
      * Get the skin and cape of the player.
      *
-     * @return the skin and cape of the player
+     * @return the skin and cape of the player (cape texture id may be null)
      */
-    public Tuple<Skin, VanillaCape> getSkinAndCape(Player player) {
+    public Tuple<SkinTextureToken, CapeTextureToken> getSkinAndCape(Player player) {
         ProfileProperty textureProperty = getProfileProperty("textures");
         if (textureProperty == null) {
             return null;
         }
-        JsonObject texturesJson = textureProperty.getDecodedValue().getAsJsonObject("textures"); // Parse the decoded JSON and get the texture object
-        return new Tuple<>(Skin.fromJson(texturesJson.getAsJsonObject("SKIN"), player),
-                VanillaCape.fromJson(texturesJson.getAsJsonObject("CAPE")));
+        DecodedTexturesPropertyToken decoded = textureProperty.getDecodedTextures();
+        if (decoded == null || decoded.getTextures() == null) {
+            return null;
+        }
+        TexturesToken textures = decoded.getTextures();
+        return new Tuple<>(textures.getSkin(), textures.getCape());
     }
     
     /**
@@ -103,6 +104,16 @@ public class MojangProfileToken {
         @JsonIgnore
         public JsonObject getDecodedValue() {
             return Constants.GSON.fromJson(new String(Base64.getDecoder().decode(this.value)), JsonObject.class);
+        }
+
+        /**
+         * Decodes the value as the textures property payload (for name "textures").
+         *
+         * @return the decoded textures payload, or null if decoding fails
+         */
+        @JsonIgnore
+        public DecodedTexturesPropertyToken getDecodedTextures() {
+            return Constants.GSON.fromJson(new String(Base64.getDecoder().decode(this.value)), DecodedTexturesPropertyToken.class);
         }
 
         /**

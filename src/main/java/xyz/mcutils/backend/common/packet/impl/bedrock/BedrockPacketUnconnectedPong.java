@@ -3,7 +3,7 @@ package xyz.mcutils.backend.common.packet.impl.bedrock;
 import lombok.Getter;
 import lombok.NonNull;
 import xyz.mcutils.backend.common.packet.MinecraftBedrockPacket;
-import xyz.mcutils.backend.model.server.bedrock.BedrockEdition;
+import xyz.mcutils.backend.model.domain.server.bedrock.BedrockEdition;
 
 import java.io.IOException;
 import java.net.DatagramPacket;

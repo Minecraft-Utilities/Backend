@@ -6,7 +6,7 @@ import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.common.renderer.Renderer;
 import xyz.mcutils.backend.common.renderer.texture.CapeModelCoordinates;
 import xyz.mcutils.backend.common.renderer.texture.Coordinates;
-import xyz.mcutils.backend.model.cape.impl.VanillaCape;
+import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.service.CapeService;
 
 import java.awt.image.BufferedImage;

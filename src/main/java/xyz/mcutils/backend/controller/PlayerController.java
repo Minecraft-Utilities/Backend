@@ -8,8 +8,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.Main;
-import xyz.mcutils.backend.model.cache.CachedPlayer;
-import xyz.mcutils.backend.model.cache.CachedPlayerName;
+import xyz.mcutils.backend.model.persistence.redis.CachedPlayer;
+import xyz.mcutils.backend.model.persistence.redis.CachedPlayerName;
 import xyz.mcutils.backend.service.PlayerService;
 
 import java.util.concurrent.CompletableFuture;

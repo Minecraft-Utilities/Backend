@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import xyz.mcutils.backend.config.AppConfig;
-import xyz.mcutils.backend.model.response.HealthResponse;
-import xyz.mcutils.backend.model.response.IndexResponse;
+import xyz.mcutils.backend.model.dto.response.HealthResponse;
+import xyz.mcutils.backend.model.dto.response.IndexResponse;
 import xyz.mcutils.backend.service.MetricService;
 
 import java.io.ByteArrayOutputStream;

@@ -1,7 +1,7 @@
 package xyz.mcutils.backend.service.pinger;
 
-import xyz.mcutils.backend.model.dns.DNSRecord;
-import xyz.mcutils.backend.model.server.MinecraftServer;
+import xyz.mcutils.backend.model.domain.dns.DNSRecord;
+import xyz.mcutils.backend.model.domain.server.MinecraftServer;
 
 /**
  * @author Braydon

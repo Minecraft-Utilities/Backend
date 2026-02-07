@@ -3,7 +3,7 @@ package xyz.mcutils.backend.common;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.renderer.texture.PlayerModelCoordinates;
-import xyz.mcutils.backend.model.skin.Skin;
+import xyz.mcutils.backend.model.domain.skin.Skin;
 
 import javax.imageio.ImageIO;
 import java.awt.*;

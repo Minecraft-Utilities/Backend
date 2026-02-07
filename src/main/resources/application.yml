@@ -27,6 +27,10 @@ mc-utils:
   # The URL of the API
   public-url: http://localhost
 
+  # MongoDB - Used for cape storage etc.
+  mongo:
+    uri: "mongodb://localhost:27017/mcutils" # With auth: mongodb://username:password@host:27017/mcutils
+
   # Redis - This is used for caching
   redis:
     host: "127.0.0.1"

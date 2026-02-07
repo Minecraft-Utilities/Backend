@@ -11,13 +11,13 @@ import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.exception.impl.RateLimitException;
-import xyz.mcutils.backend.model.cache.CachedPlayer;
-import xyz.mcutils.backend.model.cache.CachedPlayerName;
-import xyz.mcutils.backend.model.player.Player;
+import xyz.mcutils.backend.model.domain.player.Player;
+import xyz.mcutils.backend.model.persistence.redis.CachedPlayer;
+import xyz.mcutils.backend.model.persistence.redis.CachedPlayerName;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
-import xyz.mcutils.backend.repository.PlayerCacheRepository;
-import xyz.mcutils.backend.repository.PlayerNameCacheRepository;
+import xyz.mcutils.backend.repository.redis.PlayerCacheRepository;
+import xyz.mcutils.backend.repository.redis.PlayerNameCacheRepository;
 
 import java.util.Optional;
 import java.util.UUID;

@@ -5,9 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.ToString;
-import xyz.mcutils.backend.model.server.java.ForgeData;
-import xyz.mcutils.backend.model.server.java.ForgeModInfo;
-import xyz.mcutils.backend.model.server.java.JavaVersion;
+import xyz.mcutils.backend.model.domain.server.java.ForgeData;
+import xyz.mcutils.backend.model.domain.server.java.ForgeModInfo;
+import xyz.mcutils.backend.model.domain.server.java.JavaVersion;
 
 import java.util.UUID;
 

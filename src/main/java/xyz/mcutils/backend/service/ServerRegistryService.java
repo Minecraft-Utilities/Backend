@@ -12,8 +12,8 @@ import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.common.DomainUtils;
 import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.FuzzySearch;
-import xyz.mcutils.backend.model.server.Platform;
-import xyz.mcutils.backend.model.serverregistry.ServerRegistryEntry;
+import xyz.mcutils.backend.model.domain.server.Platform;
+import xyz.mcutils.backend.model.domain.serverregistry.ServerRegistryEntry;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;

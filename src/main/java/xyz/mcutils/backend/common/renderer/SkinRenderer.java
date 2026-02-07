@@ -1,7 +1,7 @@
 package xyz.mcutils.backend.common.renderer;
 
 import lombok.extern.slf4j.Slf4j;
-import xyz.mcutils.backend.model.skin.Skin;
+import xyz.mcutils.backend.model.domain.skin.Skin;
 
 import java.awt.image.BufferedImage;
 
