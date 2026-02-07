@@ -22,6 +22,8 @@ import xyz.mcutils.backend.repository.PlayerNameCacheRepository;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
@@ -29,6 +31,8 @@ public class PlayerService {
     private final MojangService mojangService;
     private final PlayerNameCacheRepository playerNameCacheRepository;
     private final PlayerCacheRepository playerCacheRepository;
+
+    private final ConcurrentHashMap<String, CompletableFuture<CachedPlayer>> inFlightPlayerRequests = new ConcurrentHashMap<>();
 
     @Value("${mc-utils.cache.player.enabled}")
     private boolean cacheEnabled;
@@ -41,13 +45,49 @@ public class PlayerService {
     }
 
     /**
-     * Get a player from the database or
-     * from the Mojang API.
+     * Get a player from the database or from the Mojang API.
+     * Concurrent requests for the same player (same UUID or username) are coalesced into a single Mojang API call.
      *
-     * @param query the query to look up the player by
+     * @param query the query to look up the player by (UUID or username)
      * @return the player
      */
     public CachedPlayer getPlayer(String query) {
+        UUID uuidFromQuery = PlayerUtils.getUuidFromString(query);
+        String key = uuidFromQuery != null ? uuidFromQuery.toString() : query.toLowerCase();
+        CompletableFuture<CachedPlayer> future = new CompletableFuture<>();
+        CompletableFuture<CachedPlayer> existing = inFlightPlayerRequests.putIfAbsent(key, future);
+
+        if (existing == null) {
+            try {
+                CachedPlayer result = getPlayerInternal(query);
+                future.complete(result);
+                return result;
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+                throw t;
+            } finally {
+                inFlightPlayerRequests.remove(key);
+            }
+        }
+
+        try {
+            return existing.join();
+        } catch (CompletionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            if (cause instanceof Error error) {
+                throw error;
+            }
+            throw new RuntimeException(cause);
+        }
+    }
+
+    /**
+     * Resolves the player from cache or Mojang API. Called by getPlayer under coalescing.
+     */
+    private CachedPlayer getPlayerInternal(String query) {
         // Convert the id to uppercase to prevent case sensitivity
         UUID uuid = PlayerUtils.getUuidFromString(query);
         if (uuid == null) { // If the id is not a valid uuid, get the uuid from the username
