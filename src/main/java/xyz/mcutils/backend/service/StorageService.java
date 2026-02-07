@@ -3,6 +3,7 @@ package xyz.mcutils.backend.service;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import io.minio.*;
+import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -17,6 +18,8 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Slf4j
 public class StorageService {
+    public static StorageService INSTANCE;
+
     private final MinioClient minioClient;
     private Cache<ObjectCacheKey, byte[]> objectCache;
 
@@ -49,6 +52,11 @@ public class StorageService {
                     .bucket(bucket.getName())
                     .build());
         }
+    }
+
+    @PostConstruct
+    public void init() {
+        INSTANCE = this;
     }
 
     /**
@@ -106,6 +114,26 @@ public class StorageService {
             return bytes;
         } catch (Exception ex) {
             return null;
+        }
+    }
+
+    /**
+     * Checks if a file exists in the given bucket.
+     *
+     * @param bucket the bucket to check in
+     * @param fileName the name of the file
+     * @return true if the file exists, false otherwise
+     */
+    @SneakyThrows
+    public boolean exists(Bucket bucket, String fileName) {
+        try {
+            return this.minioClient.statObject(StatObjectArgs.builder()
+                .bucket(bucket.getName())
+                .object(fileName)
+                .build())
+                .object() != null;
+        } catch (Exception ex) {
+            return false;
         }
     }
 

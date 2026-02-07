@@ -7,8 +7,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.util.UUID;
 
 /**
- * MongoDB document for vanilla capes. Contains only persisted fields;
- * derived data (part URLs, texture URLs) is built when constructing the domain VanillaCape.
+ * MongoDB document for vanilla capes.
+ * Contains only persisted fields
  *
  * @author Fascinated
  */

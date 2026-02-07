@@ -1,5 +1,7 @@
 package xyz.mcutils.backend.model.domain.cape.impl;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +12,7 @@ import xyz.mcutils.backend.common.renderer.Renderer;
 import xyz.mcutils.backend.common.renderer.impl.cape.OptifineCapeRenderer;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.domain.cape.Cape;
+import xyz.mcutils.backend.service.StorageService;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -21,12 +24,16 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("HttpUrlsUsage")
 @Getter @Slf4j
 @NoArgsConstructor
 public class OptifineCape extends Cape<OptifineCape.Part> {
     private static final String CDN_URL = "http://s.optifine.net/capes/%s.png";
+    private static final Cache<String, Boolean> hasCapeCache =  CacheBuilder.newBuilder()
+            .expireAfterWrite(1, TimeUnit.DAYS)
+            .build();
 
     @Getter
     public enum Part {
@@ -84,18 +91,32 @@ public class OptifineCape extends Cape<OptifineCape.Part> {
      */
     public static CompletableFuture<Boolean> capeExists(String playerName) {
         return CompletableFuture.supplyAsync(() -> {
-            log.debug("Checking if Optifine cape exists for player {}", playerName);
-            String cdnUrl = CDN_URL.formatted(playerName);
-            HttpResponse<byte[]> response;
-            try {
-                response = Constants.HTTP_CLIENT.send(HttpRequest.newBuilder(URI.create(cdnUrl))
-                                .HEAD()
-                                .build(),
-                        HttpResponse.BodyHandlers.ofByteArray());
-            } catch (IOException | InterruptedException e) {
-                return false;
+            long start = System.currentTimeMillis();
+
+            Boolean cached = hasCapeCache.getIfPresent(playerName);
+            if (cached != null) {
+                return cached;
             }
-            return response.statusCode() == 200;
+
+            boolean hasCape = StorageService.INSTANCE.exists(StorageService.Bucket.OPTIFINE_CAPES, playerName + ".png");
+            if (!hasCape) {
+                try {
+                    HttpResponse<byte[]> response = Constants.HTTP_CLIENT.send(
+                            HttpRequest.newBuilder(URI.create(CDN_URL.formatted(playerName)))
+                                    .HEAD()
+                                    .build(),
+                            HttpResponse.BodyHandlers.ofByteArray());
+                    hasCape = response.statusCode() == 200;
+                } catch (IOException | InterruptedException e) {
+                    if (e instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            }
+
+            log.debug("Optifine cape exists for player {}: {} in {}ms", playerName, hasCape, System.currentTimeMillis() - start);
+            hasCapeCache.put(playerName, hasCape);
+            return hasCape;
         });
     }
 }
