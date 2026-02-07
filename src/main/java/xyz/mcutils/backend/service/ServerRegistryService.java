@@ -2,7 +2,10 @@ package xyz.mcutils.backend.service;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.kohsuke.github.GHCommit;
+import org.kohsuke.github.GitHub;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Constants;
@@ -18,9 +21,7 @@ import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.zip.ZipInputStream;
 
@@ -33,9 +34,13 @@ public class ServerRegistryService {
     private static final String MANIFEST_FILE = "manifest.json";
     private static final int MAX_RETURNED_RESULTS = 5;
 
+    private final GitHub githubClient;
+    private String lastSeenHash = null;
     private final List<ServerRegistryEntry> entries = new CopyOnWriteArrayList<>();
 
+    @SneakyThrows
     public ServerRegistryService() {
+        githubClient = GitHub.connectAnonymously();
         this.updateRegistry();
     }
 
@@ -147,8 +152,19 @@ public class ServerRegistryService {
         return result;
     }
 
-    @Scheduled(cron = "0 0 0 * * *")
+    /**
+     * Update the Server Registry data.
+     */
+    @Scheduled(cron = "0 */10 * * * *") @SneakyThrows
     private void updateRegistry() {
+        Optional<GHCommit> commit = Arrays.stream(githubClient.getRepository(REPOSITORY_OWNER + "/" + REPOSITORY_NAME).listCommits().toArray()).findFirst();
+        GHCommit ghCommit = commit.orElse(null);
+        String commitHash = Objects.requireNonNull(ghCommit).getSHA1();
+
+        if (lastSeenHash != null && lastSeenHash.equals(commitHash)) {
+            return;
+        }
+
         log.info("Updating Server Registry...");
         byte[] zipBytes = downloadZip();
         if (zipBytes == null) {
@@ -158,9 +174,8 @@ public class ServerRegistryService {
         entries.clear();
         entries.addAll(newEntries);
 
-        for (ServerRegistryEntry entry : this.entries) {
-            System.out.println(entry);
-        }
-        log.info("Found {} server registry entries!", entries.size());
+        log.info("Found {} server registry entries! (commit hash: {})", entries.size(), commitHash);
+
+        lastSeenHash = commitHash;
     }
 }
