@@ -9,8 +9,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.model.cape.Cape;
-import xyz.mcutils.backend.model.cape.CapeRendererType;
+import xyz.mcutils.backend.model.cape.CapeType;
 import xyz.mcutils.backend.model.cape.impl.VanillaCape;
 import xyz.mcutils.backend.service.CapeService;
 
@@ -45,7 +46,7 @@ public class CapeController {
                     example = "dbc21e222528e30dc88445314f7be6ff12d3aeebc3c192054fba7e3b3f8c77b1"
             ) @PathVariable String query) {
         return CompletableFuture.supplyAsync(() -> {
-            Cape cape = this.capeService.getCapeFromTextureIdOrPlayer(query);
+            Cape<?> cape = this.capeService.getCapeFromTextureIdOrPlayer(query, CapeType.VANILLA);
             byte[] bytes = capeService.getCapeTexture(cape);
 
             return ResponseEntity.ok()
@@ -55,24 +56,28 @@ public class CapeController {
     }
 
     @ResponseBody
-    @GetMapping(value = "/{query}/{type}.png", produces = MediaType.IMAGE_PNG_VALUE)
+    @GetMapping(value = "/{type}/{query}/{part}.png", produces = MediaType.IMAGE_PNG_VALUE)
     public CompletableFuture<ResponseEntity<byte[]>> getCapePart(
+            @Parameter(
+                    description = "The type of the cape",
+                    schema = @Schema(example = "vanilla")
+            ) @PathVariable String type,
             @Parameter(
                     description = "The UUID or Username of the player or the cape's texture id",
                     example = "dbc21e222528e30dc88445314f7be6ff12d3aeebc3c192054fba7e3b3f8c77b1"
             ) @PathVariable String query,
             @Parameter(
                     description = "The part of the cape",
-                    schema = @Schema(implementation = CapeRendererType.class)
-            ) @PathVariable String type,
+                    schema = @Schema(example = "front")
+            ) @PathVariable String part,
             @Parameter(
                     description = "The size of the image (height; width derived per part)",
                     example = "768"
             ) @RequestParam(required = false, defaultValue = "768") int size
     ) {
         return CompletableFuture.supplyAsync(() -> {
-            Cape cape = this.capeService.getCapeFromTextureIdOrPlayer(query);
-            byte[] bytes = this.capeService.renderCape(cape, type, size).getBytes();
+            Cape<?> cape = this.capeService.getCapeFromTextureIdOrPlayer(query, EnumUtils.getEnumConstant(CapeType.class, type));
+            byte[] bytes = this.capeService.renderCape(cape, part, size).getBytes();
 
             return ResponseEntity.ok()
                     .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())

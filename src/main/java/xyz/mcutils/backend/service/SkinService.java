@@ -7,14 +7,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.SkinUtils;
+import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.model.cache.CachedPlayerSkinPart;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.model.skin.Skin;
-import xyz.mcutils.backend.model.skin.SkinRendererType;
 import xyz.mcutils.backend.repository.PlayerSkinPartCacheRepository;
 
 import javax.imageio.ImageIO;
@@ -127,12 +128,12 @@ public class SkinService {
             throw new BadRequestException("Invalid skin part size. Must be between " + minPartSize + " and " + maxPartSize);
         }
 
-        SkinRendererType part = SkinRendererType.getByName(typeName);
-        if (part == null) {
-            throw new BadRequestException("Invalid skin part: '%s'".formatted(typeName));
+        Skin.SkinPart part = EnumUtils.getEnumConstant(Skin.SkinPart.class, typeName);
+        if (part == null || !skin.supportsPart(part)) {
+            throw new BadRequestException("Invalid or unsupported skin part: '%s'".formatted(typeName));
         }
         String name = part.name();
-        String key = "%s-%s-%s-%s".formatted(skin.getTextureId(), name, size, renderOverlay);
+        String key = "%s-%s-%s-%s-%s".formatted(skin.getClass().getName(), skin.getTextureId(), name, size, renderOverlay);
 
         log.debug("Getting skin part for skin texture: {} (part {}, size {})", skin.getTextureId(), typeName, size);
 
@@ -146,7 +147,7 @@ public class SkinService {
         }
 
         long renderStart = System.currentTimeMillis();
-        BufferedImage renderedPart = part.render(skin, renderOverlay, size);
+        BufferedImage renderedPart = skin.render(part, size, RenderOptions.of(renderOverlay));
         byte[] pngBytes = ImageUtils.imageToBytes(renderedPart);
         log.debug("Took {}ms to render skin part for skin texture: {}", System.currentTimeMillis() - renderStart, skin.getTextureId());
 

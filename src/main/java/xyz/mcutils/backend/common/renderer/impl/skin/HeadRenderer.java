@@ -2,6 +2,7 @@ package xyz.mcutils.backend.common.renderer.impl.skin;
 
 import lombok.SneakyThrows;
 import xyz.mcutils.backend.common.math.Vector3;
+import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
 import xyz.mcutils.backend.common.renderer.model.impl.PlayerHeadModel;
 import xyz.mcutils.backend.common.renderer.raster.Face;
@@ -25,26 +26,26 @@ public class HeadRenderer extends SkinRenderer {
 
     @Override
     @SneakyThrows
-    public BufferedImage render(Skin skin, boolean renderOverlays, int size) {
-        return render(skin, renderOverlays, size, YAW_DEG, PITCH_DEG);
+    public BufferedImage render(Skin skin, int size, RenderOptions options) {
+        return render(skin, size, options, YAW_DEG, PITCH_DEG);
     }
 
     /**
      * Renders the head with custom view angles for better overlay visibility.
      *
-     * @param skin           the skin
-     * @param renderOverlays whether to include overlay layer
-     * @param size           output height in pixels
-     * @param yawDeg         view yaw in degrees
-     * @param pitchDeg       view pitch in degrees
+     * @param skin     the skin
+     * @param size     output height in pixels
+     * @param options  rendering options (e.g. overlay layer)
+     * @param yawDeg   view yaw in degrees
+     * @param pitchDeg view pitch in degrees
      * @return the rendered image
      */
     @SneakyThrows
-    public BufferedImage render(Skin skin, boolean renderOverlays, int size, double yawDeg, double pitchDeg) {
+    public BufferedImage render(Skin skin, int size, RenderOptions options, double yawDeg, double pitchDeg) {
         byte[] skinBytes = SkinService.INSTANCE.getSkinTexture(skin, true);
         BufferedImage skinImage = SkinService.getSkinImage(skinBytes);
 
-        List<Face> faces = PlayerHeadModel.buildFaces(skin, renderOverlays);
+        List<Face> faces = PlayerHeadModel.buildFaces(skin, options.renderOverlays());
         ViewParams view = new ViewParams(HEAD_EYE, HEAD_TARGET, yawDeg, pitchDeg, ASPECT_RATIO);
         return Isometric3DRenderer.INSTANCE.render(skinImage, faces, view, size);
     }

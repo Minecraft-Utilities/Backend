@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.common.renderer.impl.skin.fullbody;
 
 import lombok.SneakyThrows;
+import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.FullBodyRendererBase.Side;
 import xyz.mcutils.backend.model.skin.Skin;
@@ -12,7 +13,7 @@ public class FullBodyRendererBack extends SkinRenderer {
 
     @Override
     @SneakyThrows
-    public BufferedImage render(Skin skin, boolean renderOverlays, int size) {
-        return FullBodyRendererBase.INSTANCE.render(skin, Side.BACK, renderOverlays, size);
+    public BufferedImage render(Skin skin, int size, RenderOptions options) {
+        return FullBodyRendererBase.INSTANCE.render(skin, Side.BACK, options.renderOverlays(), size);
     }
 }

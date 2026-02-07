@@ -2,6 +2,7 @@ package xyz.mcutils.backend.model.skin;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.BodyRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.FaceRenderer;
@@ -31,7 +32,7 @@ public enum SkinRendererType {
      * @return the rendered skin part
      */
     public BufferedImage render(Skin skin, boolean renderOverlays, int size) {
-        return renderer.render(skin, renderOverlays, size);
+        return renderer.render(skin, size, RenderOptions.of(renderOverlays));
     }
 
     /**

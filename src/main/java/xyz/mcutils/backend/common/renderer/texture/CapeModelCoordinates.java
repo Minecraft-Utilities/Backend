@@ -23,7 +23,23 @@ public final class CapeModelCoordinates {
             this.width = width;
             this.height = height;
         }
+    }
 
-        public record Coordinates(int x, int y) {}
+    /**
+     * Optifine skin part definitions with coordinates and dimensions.
+     */
+    @Getter
+    public enum Optifine {
+        CAPE_FRONT(new Coordinates(2, 2), 20, 32);
+
+        private final Coordinates coordinates;
+        private final int width;
+        private final int height;
+
+        Optifine(Coordinates coordinates, int width, int height) {
+            this.coordinates = coordinates;
+            this.width = width;
+            this.height = height;
+        }
     }
 }

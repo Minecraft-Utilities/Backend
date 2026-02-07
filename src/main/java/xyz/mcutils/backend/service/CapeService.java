@@ -7,14 +7,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
-import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.PlayerUtils;
+import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.cache.CachedPlayerCapePart;
 import xyz.mcutils.backend.model.cape.Cape;
-import xyz.mcutils.backend.model.cape.CapeRendererType;
+import xyz.mcutils.backend.model.cape.CapeType;
+import xyz.mcutils.backend.model.cape.impl.OptifineCape;
 import xyz.mcutils.backend.model.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.player.Player;
 import xyz.mcutils.backend.repository.PlayerCapePartCacheRepository;
@@ -133,8 +134,12 @@ public class CapeService {
      * @param query the query to search for
      * @return the cape, or null
      */
-    public Cape getCapeFromTextureIdOrPlayer(String query) {
-        Cape cape;
+    public Cape<?> getCapeFromTextureIdOrPlayer(String query, CapeType type) {
+        if (type == CapeType.OPTIFINE) {
+            return new OptifineCape(query);
+        }
+
+        Cape<?> cape;
         // I really have no idea how long their sha-1 string length is
         // a player name can't be more than 16 chars, so just assume it's a texture id
         if (query.length() > 16) {
@@ -155,15 +160,21 @@ public class CapeService {
      * @param cape the skin to get the image for
      * @return the skin image
      */
-    public byte[] getCapeTexture(Cape cape) {
-        byte[] capeBytes = minioService.get(StorageService.Bucket.CAPES, cape.getTextureId() + ".png");
+    public byte[] getCapeTexture(Cape<?> cape) {
+        StorageService.Bucket bucket = switch (cape) {
+            case VanillaCape _ -> StorageService.Bucket.VANILLA_CAPES;
+            case OptifineCape _ -> StorageService.Bucket.OPTIFINE_CAPES;
+            default -> null;
+        };
+
+        byte[] capeBytes = minioService.get(bucket, cape.getTextureId() + ".png");
         if (capeBytes == null) {
             log.debug("Downloading skin image for skin {}", cape.getTextureId());
             capeBytes = PlayerUtils.getImage(cape.getRawTextureUrl());
             if (capeBytes == null) {
                 throw new IllegalStateException("Cape with id '%s' was not found".formatted(cape.getTextureId()));
             }
-            minioService.upload(StorageService.Bucket.CAPES, cape.getTextureId() + ".png", MediaType.IMAGE_PNG_VALUE, capeBytes);
+            minioService.upload(bucket, cape.getTextureId() + ".png", MediaType.IMAGE_PNG_VALUE, capeBytes);
             log.debug("Saved cape image for skin {}", cape.getTextureId());
         }
         return capeBytes;
@@ -191,7 +202,8 @@ public class CapeService {
      * @param size the output size (height; width derived from cape aspect)
      * @return the cached cape part (PNG bytes)
      */
-    public CachedPlayerCapePart renderCape(Cape cape, String typeName, int size) {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public CachedPlayerCapePart renderCape(Cape<?> cape, String typeName, int size) {
         if (!renderingEnabled) {
             throw new BadRequestException("Cape rendering is currently disabled");
         }
@@ -199,9 +211,9 @@ public class CapeService {
             throw new BadRequestException("Invalid cape part size. Must be between " + minPartSize + " and " + maxPartSize);
         }
 
-        CapeRendererType part = EnumUtils.getEnumConstant(CapeRendererType.class, typeName);
-        if (part == null) {
-            throw new BadRequestException("Invalid cape part: '%s'".formatted(typeName));
+        Enum<?> part = cape.fromPartName(typeName);
+        if (part == null || !((Cape) cape).supportsPart(part)) {
+            throw new BadRequestException("Invalid or unsupported cape part: '%s'".formatted(typeName));
         }
 
         String key = "%s-%s-%s".formatted(cape.getTextureId(), part.name(), size);
@@ -218,7 +230,7 @@ public class CapeService {
         }
 
         long renderStart = System.currentTimeMillis();
-        BufferedImage renderedPart = part.render(cape, size);
+        BufferedImage renderedPart = ((Cape) cape).render(part, size, RenderOptions.EMPTY);
         byte[] pngBytes = ImageUtils.imageToBytes(renderedPart);
         log.debug("Took {}ms to render cape part for cape: {}", System.currentTimeMillis() - renderStart, cape.getTextureId());
 

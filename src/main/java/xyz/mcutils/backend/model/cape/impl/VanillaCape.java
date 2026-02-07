@@ -3,16 +3,35 @@ package xyz.mcutils.backend.model.cape.impl;
 import com.google.gson.JsonObject;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import xyz.mcutils.backend.common.EnumUtils;
+import xyz.mcutils.backend.common.renderer.RenderOptions;
+import xyz.mcutils.backend.common.renderer.Renderer;
+import xyz.mcutils.backend.common.renderer.impl.cape.VanillaCapeRenderer;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.cape.Cape;
-import xyz.mcutils.backend.model.cape.CapeRendererType;
 import xyz.mcutils.backend.service.CapeService;
 
+import java.awt.image.BufferedImage;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
-@Getter @NoArgsConstructor
-public class VanillaCape extends Cape {
+@Getter
+@NoArgsConstructor
+public class VanillaCape extends Cape<VanillaCape.Part> {
+
+    @Getter
+    public enum Part {
+        FRONT(VanillaCapeRenderer.INSTANCE);
+
+        private final Renderer<VanillaCape> renderer;
+
+        Part(Renderer<VanillaCape> renderer) {
+            this.renderer = renderer;
+        }
+    }
+
     private String name;
 
     public VanillaCape(String name, String id) {
@@ -25,14 +44,29 @@ public class VanillaCape extends Cape {
         this.name = name;
     }
 
+    @Override
+    public Set<Part> getSupportedParts() {
+        return EnumSet.of(Part.FRONT);
+    }
+
+    @Override
+    public Part fromPartName(String name) {
+        return EnumUtils.getEnumConstant(Part.class, name);
+    }
+
+    @Override
+    public BufferedImage render(Part part, int size, RenderOptions options) {
+        return part.getRenderer().render(this, size, options);
+    }
+
     /**
      * Builds the parts map (render type name -> URL) for this cape id.
      */
     public static Map<String, String> buildParts(String capeId) {
         Map<String, String> parts = new HashMap<>();
-        String base = "%s/capes/%s".formatted(AppConfig.INSTANCE.getWebPublicUrl(), capeId);
-        for (CapeRendererType type : CapeRendererType.values()) {
-            parts.put(type.name(), "%s/%s.png".formatted(base, type.name().toLowerCase()));
+        String base = "%s/capes/vanilla/%s".formatted(AppConfig.INSTANCE.getWebPublicUrl(), capeId);
+        for (Part p : Part.values()) {
+            parts.put(p.name(), "%s/%s.png".formatted(base, p.name().toLowerCase()));
         }
         return parts;
     }
@@ -43,7 +77,7 @@ public class VanillaCape extends Cape {
      * @param json the JSON object
      * @return the cape
      */
-    public static Cape fromJson(JsonObject json) {
+    public static VanillaCape fromJson(JsonObject json) {
         if (json == null) {
             return null;
         }
@@ -60,7 +94,7 @@ public class VanillaCape extends Cape {
      * @param id the texture id
      * @return the cape
      */
-    public static Cape fromId(String id) {
+    public static VanillaCape fromId(String id) {
         return CapeService.INSTANCE.getCapes().get(id);
     }
 }

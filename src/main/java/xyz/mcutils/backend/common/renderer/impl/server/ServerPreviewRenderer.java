@@ -8,6 +8,7 @@ import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.MinecraftColor;
 import xyz.mcutils.backend.common.color.ColorUtils;
 import xyz.mcutils.backend.common.color.HexColorResult;
+import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.common.renderer.Renderer;
 import xyz.mcutils.backend.model.server.MinecraftServer;
 import xyz.mcutils.backend.model.server.Players;
@@ -46,7 +47,7 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
     }
 
     @Override
-    public BufferedImage render(MinecraftServer server, int size) {
+    public BufferedImage render(MinecraftServer server, int size, RenderOptions options) {
         BufferedImage texture = new BufferedImage(ROW_WIDTH, ROW_HEIGHT, BufferedImage.TYPE_INT_ARGB);
         BufferedImage favicon = getServerFavicon(server);
 

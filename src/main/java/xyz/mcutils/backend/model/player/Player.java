@@ -6,7 +6,8 @@ import org.jetbrains.annotations.Nullable;
 import org.springframework.data.annotation.Id;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
-import xyz.mcutils.backend.model.cape.Cape;
+import xyz.mcutils.backend.model.cape.impl.OptifineCape;
+import xyz.mcutils.backend.model.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 
@@ -50,7 +51,13 @@ public class Player {
      * The Cape for the player.
      */
     @Nullable
-    private Cape cape;
+    private VanillaCape cape;
+
+    /**
+     * The player's optifine Cape.
+     */
+    @Nullable
+    private OptifineCape optifineCape;
 
     /**
      * The raw properties of the player
@@ -61,14 +68,18 @@ public class Player {
         this.uniqueId = UUIDUtils.addDashes(profile.getId());
         this.username = profile.getName();
         this.legacyAccount = profile.isLegacy();
-
         this.rawProperties = profile.getProperties();
 
         // Get the skin and cape
-        Tuple<Skin, Cape> skinAndCape = profile.getSkinAndCape(this);
+        Tuple<Skin, VanillaCape> skinAndCape = profile.getSkinAndCape(this);
         if (skinAndCape != null) {
             this.skin = skinAndCape.left();
             this.cape = skinAndCape.right();
         }
+        try {
+            if (OptifineCape.capeExists(this.username).get() == true) {
+                this.optifineCape = new OptifineCape(this.username);
+            }
+        } catch (Exception ignored) { }
     }
 }

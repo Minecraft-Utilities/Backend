@@ -82,8 +82,6 @@ public final class PlayerModelCoordinates {
             return this == LEFT_ARM_FRONT || this == RIGHT_ARM_FRONT
                     || this == LEFT_ARM_OVERLAY_FRONT || this == RIGHT_ARM_OVERLAY_FRONT;
         }
-
-        public record Coordinates(int x, int y) {}
     }
 
     /**

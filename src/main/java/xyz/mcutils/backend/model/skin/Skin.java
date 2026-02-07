@@ -4,6 +4,14 @@ import com.google.gson.JsonObject;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.EnumUtils;
+import xyz.mcutils.backend.common.renderer.PartRenderable;
+import xyz.mcutils.backend.common.renderer.RenderOptions;
+import xyz.mcutils.backend.common.renderer.SkinRenderer;
+import xyz.mcutils.backend.common.renderer.impl.skin.BodyRenderer;
+import xyz.mcutils.backend.common.renderer.impl.skin.FaceRenderer;
+import xyz.mcutils.backend.common.renderer.impl.skin.HeadRenderer;
+import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.FullBodyRendererBack;
+import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.FullBodyRendererFront;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.Texture;
 import xyz.mcutils.backend.model.player.Player;
@@ -12,14 +20,36 @@ import xyz.mcutils.backend.service.SkinService;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
-@AllArgsConstructor @NoArgsConstructor
+@AllArgsConstructor
+@NoArgsConstructor
 @Getter
 @Slf4j
 @EqualsAndHashCode(callSuper = false)
-public class Skin extends Texture {
+public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart> {
+
+    @Getter
+    public enum SkinPart {
+        FACE(FaceRenderer.INSTANCE),
+        HEAD(HeadRenderer.INSTANCE),
+        BODY(BodyRenderer.INSTANCE),
+        FULLBODY_FRONT(FullBodyRendererFront.INSTANCE),
+        FULLBODY_BACK(FullBodyRendererBack.INSTANCE);
+
+        private final SkinRenderer renderer;
+
+        SkinPart(SkinRenderer renderer) {
+            this.renderer = renderer;
+        }
+
+        public SkinRenderer getRenderer() {
+            return renderer;
+        }
+    }
     /**
      * The model for the skin
      */
@@ -49,14 +79,24 @@ public class Skin extends Texture {
 
         if (player != null) {
             this.parts = new HashMap<>();
-            for (SkinRendererType type : SkinRendererType.values()) {
-                this.parts.put(type.name(), "%s/skins/%s/%s.png".formatted(
+            for (SkinPart part : SkinPart.values()) {
+                this.parts.put(part.name(), "%s/skins/%s/%s.png".formatted(
                         AppConfig.INSTANCE.getWebPublicUrl(),
                         player.getUniqueId(),
-                        type.name().toLowerCase()
+                        part.name().toLowerCase()
                 ));
             }
         }
+    }
+
+    @Override
+    public Set<SkinPart> getSupportedParts() {
+        return EnumSet.allOf(SkinPart.class);
+    }
+
+    @Override
+    public BufferedImage render(SkinPart part, int size, RenderOptions options) {
+        return part.getRenderer().render(this, size, options);
     }
 
     /**

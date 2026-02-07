@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.skin.Skin;
-import xyz.mcutils.backend.model.skin.SkinRendererType;
 import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.SkinService;
 
@@ -58,7 +57,7 @@ public class SkinController {
             ) @PathVariable String query,
             @Parameter(
                     description = "The part of the skin",
-                    schema = @Schema(implementation = SkinRendererType.class)
+                    schema = @Schema(implementation = Skin.SkinPart.class)
             ) @PathVariable String type,
             @Parameter(
                     description = "The size of the image (height; width derived per part)",

@@ -67,6 +67,7 @@ public class StorageService {
                     .object(fileName)
                     .stream(new ByteArrayInputStream(data), data.length, -1)
                     .contentType(contentType)
+
                     .build());
             if (this.objectCache != null) {
                 this.objectCache.put(new ObjectCacheKey(bucket, fileName), data);
@@ -120,7 +121,8 @@ public class StorageService {
     @Getter
     public enum Bucket {
         SKINS("mcutils-skins"),
-        CAPES("mcutils-capes");
+        VANILLA_CAPES("mcutils-vanilla-capes"),
+        OPTIFINE_CAPES("mcutils-optifine-capes");
 
         private final String name;
     }

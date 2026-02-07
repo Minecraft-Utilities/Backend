@@ -6,15 +6,17 @@ import xyz.mcutils.backend.model.skin.Skin;
 import java.awt.image.BufferedImage;
 
 @Slf4j
-public abstract class SkinRenderer {
+public abstract class SkinRenderer extends Renderer<Skin> {
+
     /**
-     * Renders the skin part for the player's skin.
+     * Renders the skin part for the player's skin (convenience method).
      *
-     * @param skin the player's skin
-     * @param renderOverlays should the overlays be rendered
-     * @param size the output size (height; width derived per part)
+     * @param skin           the player's skin
+     * @param renderOverlays whether the overlays should be rendered
+     * @param size           the output size (height; width derived per part)
      * @return the rendered skin part
      */
-    public abstract BufferedImage render(Skin skin, boolean renderOverlays, int size);
-
+    public BufferedImage render(Skin skin, boolean renderOverlays, int size) {
+        return render(skin, size, RenderOptions.of(renderOverlays));
+    }
 }
