@@ -26,7 +26,6 @@ import java.util.concurrent.CompletableFuture;
 @Getter @Slf4j
 @NoArgsConstructor
 public class OptifineCape extends Cape<OptifineCape.Part> {
-
     private static final String CDN_URL = "http://s.optifine.net/capes/%s.png";
 
     @Getter
@@ -87,7 +86,7 @@ public class OptifineCape extends Cape<OptifineCape.Part> {
         return CompletableFuture.supplyAsync(() -> {
             log.debug("Checking if Optifine cape exists for player {}", playerName);
             String cdnUrl = CDN_URL.formatted(playerName);
-            HttpResponse<byte[]> response = null;
+            HttpResponse<byte[]> response;
             try {
                 response = Constants.HTTP_CLIENT.send(HttpRequest.newBuilder(URI.create(cdnUrl))
                                 .HEAD()

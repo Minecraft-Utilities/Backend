@@ -20,7 +20,6 @@ import java.util.Set;
 @Getter
 @NoArgsConstructor
 public class VanillaCape extends Cape<VanillaCape.Part> {
-
     @Getter
     public enum Part {
         FRONT(VanillaCapeRenderer.INSTANCE);
