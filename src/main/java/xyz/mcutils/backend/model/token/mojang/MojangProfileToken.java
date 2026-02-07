@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.common.Tuple;
-import xyz.mcutils.backend.model.domain.player.Player;
 
 import java.util.Base64;
 
@@ -49,10 +48,8 @@ public class MojangProfileToken {
     
     /**
      * Get the skin and cape of the player.
-     *
-     * @return the skin and cape of the player (cape texture id may be null)
      */
-    public Tuple<SkinTextureToken, CapeTextureToken> getSkinAndCape(Player player) {
+    public Tuple<SkinTextureToken, CapeTextureToken> getSkinAndCape() {
         ProfileProperty textureProperty = getProfileProperty("textures");
         if (textureProperty == null) {
             return null;

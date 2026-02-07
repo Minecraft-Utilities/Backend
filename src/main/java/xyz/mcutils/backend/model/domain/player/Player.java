@@ -74,7 +74,7 @@ public class Player {
         this.rawProperties = profile.getProperties();
 
         // Get the skin and cape
-        Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = profile.getSkinAndCape(this);
+        Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = profile.getSkinAndCape();
         if (skinAndCape != null) {
             this.skin = Skin.fromToken(skinAndCape.left(), this);
             CapeTextureToken capeTextureToken = skinAndCape.right();
