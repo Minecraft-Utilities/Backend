@@ -22,8 +22,10 @@ public class VanillaCapeRenderer extends Renderer<VanillaCape> {
 
         CapeModelCoordinates.Vanilla capeFront = CapeModelCoordinates.Vanilla.CAPE_FRONT;
         Coordinates coords = capeFront.getCoordinates();
-        BufferedImage front = capeImage.getSubimage(coords.x(), coords.y(), capeFront.getWidth(), capeFront.getHeight());
-        double scale = (double) size / capeFront.getHeight();
+        int height = capeFront.getCoordinates().height();
+
+        BufferedImage front = capeImage.getSubimage(coords.x(), coords.y(), capeFront.getCoordinates().width(), height);
+        double scale = (double) size / height;
         return ImageUtils.resize(front, scale);
     }
 }

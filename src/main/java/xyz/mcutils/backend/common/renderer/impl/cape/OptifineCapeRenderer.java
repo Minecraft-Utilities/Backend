@@ -20,10 +20,16 @@ public class OptifineCapeRenderer extends Renderer<OptifineCape> {
         byte[] capeBytes = CapeService.INSTANCE.getCapeTexture(input);
         BufferedImage capeImage = CapeService.INSTANCE.getCapeImage(capeBytes);
 
+        // todo: needs to be improved, but it'll do for now
+        boolean legacy = capeImage.getWidth() == 46 || capeImage.getHeight() == 22;
+
         CapeModelCoordinates.Optifine capeFront = CapeModelCoordinates.Optifine.CAPE_FRONT;
-        Coordinates coords = capeFront.getCoordinates();
-        BufferedImage front = capeImage.getSubimage(coords.x(), coords.y(), capeFront.getWidth(), capeFront.getHeight());
-        double scale = (double) size / capeFront.getHeight();
+        Coordinates coords = legacy ? capeFront.getLegacyCoordinates() : capeFront.getCoordinates();
+        int width = coords.width();
+        int height = coords.height();
+
+        BufferedImage front = capeImage.getSubimage(coords.x(), coords.y(), width, height);
+        double scale = (double) size / height;
         return ImageUtils.resize(front, scale);
     }
 }

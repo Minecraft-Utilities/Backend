@@ -13,68 +13,64 @@ public final class PlayerModelCoordinates {
     @Getter
     public enum Skin {
         // Head overlays
-        HEAD_OVERLAY_TOP(new Coordinates(40, 0), 8, 8),
-        HEAD_OVERLAY_FACE(new Coordinates(40, 8), 8, 8),
-        HEAD_OVERLAY_LEFT(new Coordinates(32, 8), 8, 8),
-        HEAD_OVERLAY_RIGHT(new Coordinates(48, 8), 8, 8),
-        HEAD_OVERLAY_BACK(new Coordinates(56, 8), 8, 8),
-        HEAD_OVERLAY_BOTTOM(new Coordinates(48, 0), 8, 8),
+        HEAD_OVERLAY_TOP(new Coordinates(40, 0, 8, 8)),
+        HEAD_OVERLAY_FACE(new Coordinates(40, 8, 8, 8)),
+        HEAD_OVERLAY_LEFT(new Coordinates(32, 8, 8, 8)),
+        HEAD_OVERLAY_RIGHT(new Coordinates(48, 8, 8, 8)),
+        HEAD_OVERLAY_BACK(new Coordinates(56, 8, 8, 8)),
+        HEAD_OVERLAY_BOTTOM(new Coordinates(48, 0, 8, 8)),
 
         // Body overlays
-        BODY_OVERLAY_FRONT(new Coordinates(20, 36), 8, 12),
-        BODY_OVERLAY_TOP(new Coordinates(20, 32), 8, 4),
-        BODY_OVERLAY_LEFT(new Coordinates(36, 36), 4, 12),
-        BODY_OVERLAY_RIGHT(new Coordinates(28, 36), 4, 12),
-        BODY_OVERLAY_BACK(new Coordinates(44, 36), 8, 12),
+        BODY_OVERLAY_FRONT(new Coordinates(20, 36, 8, 12)),
+        BODY_OVERLAY_TOP(new Coordinates(20, 32, 8, 4)),
+        BODY_OVERLAY_LEFT(new Coordinates(36, 36, 4, 12)),
+        BODY_OVERLAY_RIGHT(new Coordinates(28, 36, 4, 12)),
+        BODY_OVERLAY_BACK(new Coordinates(44, 36, 8, 12)),
 
         // Arm overlays
-        LEFT_ARM_OVERLAY_FRONT(new Coordinates(52, 52), 4, 12),
-        LEFT_ARM_OVERLAY_TOP(new Coordinates(52, 48), 4, 4),
-        RIGHT_ARM_OVERLAY_FRONT(new Coordinates(44, 36), 4, 12),
-        RIGHT_ARM_OVERLAY_TOP(new Coordinates(44, 48), 4, 4),
+        LEFT_ARM_OVERLAY_FRONT(new Coordinates(52, 52, 4, 12)),
+        LEFT_ARM_OVERLAY_TOP(new Coordinates(52, 48, 4, 4)),
+        RIGHT_ARM_OVERLAY_FRONT(new Coordinates(44, 36, 4, 12)),
+        RIGHT_ARM_OVERLAY_TOP(new Coordinates(44, 48, 4, 4)),
 
         // Leg overlays
-        LEFT_LEG_OVERLAY_FRONT(new Coordinates(4, 52), 4, 12),
-        LEFT_LEG_OVERLAY_TOP(new Coordinates(4, 48), 4, 4),
-        RIGHT_LEG_OVERLAY_FRONT(new Coordinates(4, 36), 4, 12),
-        RIGHT_LEG_OVERLAY_TOP(new Coordinates(4, 32), 4, 4),
+        LEFT_LEG_OVERLAY_FRONT(new Coordinates(4, 52, 4, 12)),
+        LEFT_LEG_OVERLAY_TOP(new Coordinates(4, 48, 4, 4)),
+        RIGHT_LEG_OVERLAY_FRONT(new Coordinates(4, 36, 4, 12)),
+        RIGHT_LEG_OVERLAY_TOP(new Coordinates(4, 32, 4, 4)),
 
         // Head
-        HEAD_TOP(new Coordinates(8, 0), 8, 8, HEAD_OVERLAY_TOP),
-        FACE(new Coordinates(8, 8), 8, 8, HEAD_OVERLAY_FACE),
-        HEAD_LEFT(new Coordinates(0, 8), 8, 8, HEAD_OVERLAY_LEFT),
-        HEAD_RIGHT(new Coordinates(16, 8), 8, 8, HEAD_OVERLAY_RIGHT),
-        HEAD_BOTTOM(new Coordinates(16, 0), 8, 8, HEAD_OVERLAY_BOTTOM),
-        HEAD_BACK(new Coordinates(24, 8), 8, 8, HEAD_OVERLAY_BACK),
+        HEAD_TOP(new Coordinates(8, 0, 8, 8), HEAD_OVERLAY_TOP),
+        FACE(new Coordinates(8, 8, 8, 8), HEAD_OVERLAY_FACE),
+        HEAD_LEFT(new Coordinates(0, 8, 8, 8), HEAD_OVERLAY_LEFT),
+        HEAD_RIGHT(new Coordinates(16, 8, 8, 8), HEAD_OVERLAY_RIGHT),
+        HEAD_BOTTOM(new Coordinates(16, 0, 8, 8), HEAD_OVERLAY_BOTTOM),
+        HEAD_BACK(new Coordinates(24, 8, 8, 8), HEAD_OVERLAY_BACK),
 
         // Body
-        BODY_FRONT(new Coordinates(20, 20), 8, 12, BODY_OVERLAY_FRONT),
-        BODY_TOP(new Coordinates(20, 16), 8, 4, BODY_OVERLAY_TOP),
-        BODY_LEFT(new Coordinates(36, 20), 4, 12, BODY_OVERLAY_LEFT),
-        BODY_RIGHT(new Coordinates(28, 20), 4, 12, BODY_OVERLAY_RIGHT),
-        BODY_BACK(new Coordinates(44, 20), 8, 12, BODY_OVERLAY_BACK),
+        BODY_FRONT(new Coordinates(20, 20, 8, 12), BODY_OVERLAY_FRONT),
+        BODY_TOP(new Coordinates(20, 16, 8, 4), BODY_OVERLAY_TOP),
+        BODY_LEFT(new Coordinates(36, 20, 4, 12), BODY_OVERLAY_LEFT),
+        BODY_RIGHT(new Coordinates(28, 20, 4, 12), BODY_OVERLAY_RIGHT),
+        BODY_BACK(new Coordinates(44, 20, 8, 12), BODY_OVERLAY_BACK),
 
         // Arms
-        LEFT_ARM_TOP(new Coordinates(36, 48), 4, 4, LEFT_ARM_OVERLAY_TOP),
-        RIGHT_ARM_TOP(new Coordinates(44, 16), 4, 4, RIGHT_ARM_OVERLAY_TOP),
-        LEFT_ARM_FRONT(new Coordinates(36, 52), 4, 12, LEFT_ARM_OVERLAY_FRONT),
-        RIGHT_ARM_FRONT(new Coordinates(44, 20), 4, 12, RIGHT_ARM_OVERLAY_FRONT),
+        LEFT_ARM_TOP(new Coordinates(36, 48, 4, 4), LEFT_ARM_OVERLAY_TOP),
+        RIGHT_ARM_TOP(new Coordinates(44, 16, 4, 4), RIGHT_ARM_OVERLAY_TOP),
+        LEFT_ARM_FRONT(new Coordinates(36, 52, 4, 12), LEFT_ARM_OVERLAY_FRONT),
+        RIGHT_ARM_FRONT(new Coordinates(44, 20, 4, 12), RIGHT_ARM_OVERLAY_FRONT),
 
         // Legs
-        LEFT_LEG_TOP(new Coordinates(20, 48), 4, 4, LEFT_LEG_OVERLAY_TOP),
-        RIGHT_LEG_TOP(new Coordinates(4, 16), 4, 4, RIGHT_LEG_OVERLAY_TOP),
-        LEFT_LEG_FRONT(new Coordinates(20, 52), 4, 12, LEFT_LEG_OVERLAY_FRONT),
-        RIGHT_LEG_FRONT(new Coordinates(4, 20), 4, 12, RIGHT_LEG_OVERLAY_FRONT);
+        LEFT_LEG_TOP(new Coordinates(20, 48, 4, 4), LEFT_LEG_OVERLAY_TOP),
+        RIGHT_LEG_TOP(new Coordinates(4, 16, 4, 4), RIGHT_LEG_OVERLAY_TOP),
+        LEFT_LEG_FRONT(new Coordinates(20, 52, 4, 12), LEFT_LEG_OVERLAY_FRONT),
+        RIGHT_LEG_FRONT(new Coordinates(4, 20, 4, 12), RIGHT_LEG_OVERLAY_FRONT);
 
         private final Coordinates coordinates;
-        private final int width;
-        private final int height;
         private final Skin[] overlays;
 
-        Skin(Coordinates coordinates, int width, int height, Skin... overlays) {
+        Skin(Coordinates coordinates, Skin... overlays) {
             this.coordinates = coordinates;
-            this.width = width;
-            this.height = height;
             this.overlays = overlays;
         }
 
@@ -115,7 +111,7 @@ public final class PlayerModelCoordinates {
         }
 
         private static int[] getUv(Skin part, boolean slim, int sizeZ) {
-            int w = part.getWidth();
+            int w = part.coordinates.width();
             if (slim && part.isFrontArm()) {
                 w--;
             }
@@ -123,7 +119,7 @@ public final class PlayerModelCoordinates {
                     part.getCoordinates().x(),
                     part.getCoordinates().y(),
                     w,
-                    part.getHeight(),
+                    part.coordinates.height(),
                     sizeZ
             };
         }

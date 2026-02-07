@@ -12,16 +12,12 @@ public final class CapeModelCoordinates {
      */
     @Getter
     public enum Vanilla {
-        CAPE_FRONT(new Coordinates(1, 1), 10, 16);
+        CAPE_FRONT(new Coordinates(1, 1, 10, 16));
 
         private final Coordinates coordinates;
-        private final int width;
-        private final int height;
 
-        Vanilla(Coordinates coordinates, int width, int height) {
+        Vanilla(Coordinates coordinates) {
             this.coordinates = coordinates;
-            this.width = width;
-            this.height = height;
         }
     }
 
@@ -30,16 +26,14 @@ public final class CapeModelCoordinates {
      */
     @Getter
     public enum Optifine {
-        CAPE_FRONT(new Coordinates(2, 2), 20, 32);
+        CAPE_FRONT(new Coordinates(2, 2, 20, 32), new Coordinates(1, 1, 10, 16));
 
         private final Coordinates coordinates;
-        private final int width;
-        private final int height;
+        private final Coordinates legacyCoordinates;
 
-        Optifine(Coordinates coordinates, int width, int height) {
+        Optifine(Coordinates coordinates, Coordinates legacyCoordinates) {
             this.coordinates = coordinates;
-            this.width = width;
-            this.height = height;
+            this.legacyCoordinates = legacyCoordinates;
         }
     }
 }
