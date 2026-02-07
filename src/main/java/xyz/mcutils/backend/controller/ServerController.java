@@ -11,23 +11,41 @@ import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.model.cache.CachedMinecraftServer;
 import xyz.mcutils.backend.model.response.ServerBlockedResponse;
 import xyz.mcutils.backend.model.server.Platform;
+import xyz.mcutils.backend.model.serverregistry.ServerRegistryEntry;
 import xyz.mcutils.backend.service.MojangService;
+import xyz.mcutils.backend.service.ServerRegistryService;
 import xyz.mcutils.backend.service.ServerService;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
-@RequestMapping(value = "/servers/")
+@RequestMapping(value = "/servers")
 @Tag(name = "Server Controller", description = "The Server Controller is used to get information about a server.")
 public class ServerController {
 
     private final ServerService serverService;
+    private final ServerRegistryService serverRegistryService;
     private final MojangService mojangService;
 
     @Autowired
-    public ServerController(ServerService serverService, MojangService mojangService) {
+    public ServerController(ServerService serverService, ServerRegistryService serverRegistryService, MojangService mojangService) {
         this.serverService = serverService;
+        this.serverRegistryService = serverRegistryService;
         this.mojangService = mojangService;
+    }
+
+    @ResponseBody
+    @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<List<ServerRegistryEntry>> getServers(
+            @Parameter(
+                    description = "The query to search for",
+                    example = "WildNetwork"
+            ) @RequestParam String query
+    ) {
+        List<ServerRegistryEntry> entries = this.serverRegistryService.getEntries(query);
+        return ResponseEntity.ok()
+                .body(entries);
     }
 
     @ResponseBody
