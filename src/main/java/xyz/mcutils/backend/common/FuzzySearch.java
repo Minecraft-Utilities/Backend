@@ -3,6 +3,7 @@ package xyz.mcutils.backend.common;
 import lombok.experimental.UtilityClass;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -94,7 +95,7 @@ public final class FuzzySearch {
                 return best;
             }
         }
-        return best <= maxFuzzyDistance ? best : -1;
+        return -1;
     }
 
     /**
@@ -143,7 +144,7 @@ public final class FuzzySearch {
         return items.stream()
                 .map(item -> new Scored<>(item, bestMatchScore(query, textExtractor.apply(item), maxFuzzyDistance)))
                 .filter(scored -> scored.score() >= 0)
-                .sorted((a, b) -> Integer.compare(a.score(), b.score()))
+                .sorted(Comparator.comparingInt(Scored::score))
                 .limit(limit)
                 .map(Scored::item)
                 .toList();
