@@ -77,7 +77,10 @@ public class Player {
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = profile.getSkinAndCape(this);
         if (skinAndCape != null) {
             this.skin = Skin.fromToken(skinAndCape.left(), this);
-            this.cape = CapeService.INSTANCE.getCapeByTextureId(skinAndCape.right().getTextureId());
+            CapeTextureToken capeTextureToken = skinAndCape.right();
+            if (capeTextureToken != null) {
+                this.cape = CapeService.INSTANCE.getCapeByTextureId(capeTextureToken.getTextureId());
+            }
         }
         try {
             if (OptifineCape.capeExists(this.username).get() == true) {
