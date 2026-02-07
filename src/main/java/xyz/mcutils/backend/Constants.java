@@ -13,6 +13,8 @@ public class Constants {
             .setDateFormat("MM-dd-yyyy HH:mm:ss")
             .setPrettyPrinting()
             .create();
-    public static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
+    public static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build();
     public static final MemoryMXBean MEMORY_BEAN = ManagementFactory.getMemoryMXBean();
 }

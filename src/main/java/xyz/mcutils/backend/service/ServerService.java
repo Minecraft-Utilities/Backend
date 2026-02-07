@@ -17,6 +17,7 @@ import xyz.mcutils.backend.model.cache.CachedServerPreview;
 import xyz.mcutils.backend.model.dns.DNSRecord;
 import xyz.mcutils.backend.model.dns.impl.ARecord;
 import xyz.mcutils.backend.model.dns.impl.SRVRecord;
+import xyz.mcutils.backend.model.response.IpLookup;
 import xyz.mcutils.backend.model.server.Favicon;
 import xyz.mcutils.backend.model.server.MinecraftServer;
 import xyz.mcutils.backend.model.server.Platform;
@@ -63,12 +64,15 @@ public class ServerService {
     private List<String> blacklistedSubnets;
 
     private final MojangService mojangService;
+    private final ServerRegistryService serverRegistryService;
     private final MinecraftServerCacheRepository serverCacheRepository;
     private final ServerPreviewCacheRepository serverPreviewCacheRepository;
 
     @Autowired
-    public ServerService(MojangService mojangService, MinecraftServerCacheRepository serverCacheRepository, ServerPreviewCacheRepository serverPreviewCacheRepository) {
+    public ServerService(MojangService mojangService, ServerRegistryService serverRegistryService, MinecraftServerCacheRepository serverCacheRepository,
+                         ServerPreviewCacheRepository serverPreviewCacheRepository) {
         this.mojangService = mojangService;
+        this.serverRegistryService = serverRegistryService;
         this.serverCacheRepository = serverCacheRepository;
         this.serverPreviewCacheRepository = serverPreviewCacheRepository;
     }
@@ -144,29 +148,35 @@ public class ServerService {
         }
 
         long pingStart = System.currentTimeMillis();
-        CachedMinecraftServer server = new CachedMinecraftServer(
+        CachedMinecraftServer cachedServer = new CachedMinecraftServer(
                 key,
                 platform.getPinger().ping(hostname, ip, port, dnsRecords.toArray(new DNSRecord[0]), platform == Platform.JAVA ? javaPingerTimeout : bedrockPingerTimeout)
         );
         log.debug("Successfully pinged server: {}:{} in {}ms", hostname, port, System.currentTimeMillis() - pingStart);
 
         // Populate the server's ip lookup data
-        server.getServer().lookupIp();
+        IpLookup ipLookup = MaxMindService.INSTANCE.lookupIp(ip);
+        cachedServer.getServer().setLocation(ipLookup.location());
+        cachedServer.getServer().setAsn(ipLookup.asn());
+
+        // Add server entry data
+        this.serverRegistryService.getEntryByHostname(hostname)
+                .ifPresent(serverRegistryEntry -> cachedServer.getServer().setRegistryEntry(serverRegistryEntry));
 
         // Check if the server is blocked by Mojang
         if (platform == Platform.JAVA) {
-            ((JavaMinecraftServer) server.getServer()).setMojangBlocked(mojangService.isServerBlocked(hostname));
+            ((JavaMinecraftServer) cachedServer.getServer()).setMojangBlocked(mojangService.isServerBlocked(hostname));
         }
 
         if (cacheEnabled) {
             String finalHostname = hostname;
-            CompletableFuture.runAsync(() -> this.serverCacheRepository.save(server), Main.EXECUTOR)
+            CompletableFuture.runAsync(() -> this.serverCacheRepository.save(cachedServer), Main.EXECUTOR)
                     .exceptionally(ex -> {
                         log.warn("Save failed for server {}: {}", finalHostname, ex.getMessage());
                         return null;
                     });
         }
-        return server;
+        return cachedServer;
     }
 
     /**

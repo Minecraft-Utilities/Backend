@@ -9,8 +9,7 @@ import org.jetbrains.annotations.Nullable;
 import xyz.mcutils.backend.model.asn.AsnLookup;
 import xyz.mcutils.backend.model.dns.DNSRecord;
 import xyz.mcutils.backend.model.geo.GeoLocation;
-import xyz.mcutils.backend.model.response.IpLookup;
-import xyz.mcutils.backend.service.MaxMindService;
+import xyz.mcutils.backend.model.serverregistry.ServerRegistryEntry;
 
 /**
  * @author Braydon
@@ -61,14 +60,8 @@ public class MinecraftServer {
     private AsnLookup asn;
 
     /**
-     * Populates reverseDns, location, and asn from MaxMind for this server's IP.
-     * No-op if ip is null or geo data is already set.
+     * The entry in the server registry.
      */
-    public void lookupIp() {
-        if (ip != null && location == null && asn == null) {
-            IpLookup ipLookup = MaxMindService.INSTANCE.lookupIp(ip);
-            this.location = ipLookup.location();
-            this.asn = ipLookup.asn();
-        }
-    }
+    @Nullable
+    private ServerRegistryEntry registryEntry;
 }
