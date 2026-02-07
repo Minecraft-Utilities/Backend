@@ -43,7 +43,7 @@ public class ServerController {
                     example = "WildNetwork"
             ) @RequestParam String query
     ) {
-        List<ServerRegistryEntry> entries = this.serverRegistryService.getEntries(query);
+        List<ServerRegistryEntry> entries = this.serverRegistryService.searchEntries(query);
         return ResponseEntity.ok()
                 .body(entries);
     }

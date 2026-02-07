@@ -31,7 +31,7 @@ public class ServerRegistryService {
     private static final String REGISTRY_REPOSITORY = "https://github.com/%s/%s/archive/refs/heads/main.zip".formatted(REPOSITORY_OWNER, REPOSITORY_NAME);
     private static final String MINECRAFT_SERVERS_DIR = "minecraft_servers/";
     private static final String MANIFEST_FILE = "manifest.json";
-    private static final int MAX_RETURNED_RESULTS = 10;
+    private static final int MAX_RETURNED_RESULTS = 5;
 
     private final List<ServerRegistryEntry> entries = new CopyOnWriteArrayList<>();
 
@@ -45,7 +45,7 @@ public class ServerRegistryService {
      * @param query the query to search for
      * @return the entries that match the query, best matches first
      */
-    public List<ServerRegistryEntry> getEntries(String query) {
+    public List<ServerRegistryEntry> searchEntries(String query) {
         return FuzzySearch.search(
                 entries,
                 query,
