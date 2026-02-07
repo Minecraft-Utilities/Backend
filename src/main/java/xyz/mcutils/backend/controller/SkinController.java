@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.skin.Skin;
 import xyz.mcutils.backend.model.skin.SkinRendererType;
 import xyz.mcutils.backend.service.PlayerService;
@@ -69,11 +70,15 @@ public class SkinController {
             ) @RequestParam(required = false, defaultValue = "true") boolean overlays
     ) {
         return CompletableFuture.supplyAsync(() -> {
-            byte[] skin = skinService.renderSkin(playerService.getPlayer(query).getPlayer().getSkin(), type, overlays, size).getBytes();
+            var skin = playerService.getPlayer(query).getPlayer().getSkin();
+            if (skin == null) {
+                throw new NotFoundException("Player has no skin");
+            }
+            byte[] bytes = skinService.renderSkin(skin, type, overlays, size).getBytes();
             return ResponseEntity.ok()
                     .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                     .contentType(MediaType.IMAGE_PNG)
-                    .body(skin);
+                    .body(bytes);
         }, Main.EXECUTOR);
     }
 }

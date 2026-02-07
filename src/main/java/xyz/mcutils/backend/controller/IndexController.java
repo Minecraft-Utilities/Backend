@@ -4,7 +4,6 @@ import io.prometheus.metrics.config.EscapingScheme;
 import io.prometheus.metrics.expositionformats.PrometheusTextFormatWriter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.SneakyThrows;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -23,15 +22,13 @@ import java.nio.charset.StandardCharsets;
 @RequestMapping(value = "/")
 @Tag(name = "Index Controller")
 public class IndexController {
-    /**
-     * The build properties of the
-     * app, null if the app is not built.
-     */
-    private final BuildProperties buildProperties;
 
-    @Autowired
-    public IndexController(BuildProperties buildProperties) {
+    private final BuildProperties buildProperties;
+    private final AppConfig appConfig;
+
+    public IndexController(BuildProperties buildProperties, AppConfig appConfig) {
         this.buildProperties = buildProperties;
+        this.appConfig = appConfig;
     }
 
     @GetMapping(value = "/")
@@ -39,7 +36,7 @@ public class IndexController {
         return new IndexResponse(
                 "Minecraft Utilities API",
                 buildProperties == null ? "dev" : buildProperties.getVersion(),
-                AppConfig.INSTANCE.getWebPublicUrl() + "/swagger-ui.html"
+                appConfig.getWebPublicUrl() + "/swagger-ui.html"
         );
     }
 

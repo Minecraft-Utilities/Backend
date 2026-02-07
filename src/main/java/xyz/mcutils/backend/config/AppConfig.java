@@ -14,6 +14,7 @@ import org.springframework.web.filter.ShallowEtagHeaderFilter;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import xyz.mcutils.backend.filter.MetricsAuthFilter;
+import xyz.mcutils.backend.filter.SecurityHeadersFilter;
 import xyz.mcutils.backend.log.RequestTimingFilter;
 
 @Getter
@@ -36,16 +37,13 @@ public class AppConfig {
         INSTANCE = this;
     }
 
-    /**
-     * Is the app running in a production environment?
-     */
-    @Getter
-    private static final boolean production;
-
-    static {
-        // Are we running on production?
-        String env = System.getenv("ENVIRONMENT");
-        production = env != null && (env.equals("production"));
+    @Bean
+    public FilterRegistrationBean<SecurityHeadersFilter> securityHeadersFilter() {
+        FilterRegistrationBean<SecurityHeadersFilter> bean = new FilterRegistrationBean<>(new SecurityHeadersFilter());
+        bean.addUrlPatterns("/*");
+        bean.setOrder(-1); // Run first so headers are on every response
+        bean.setName("securityHeadersFilter");
+        return bean;
     }
 
     @Bean

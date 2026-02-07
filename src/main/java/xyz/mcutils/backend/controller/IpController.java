@@ -15,6 +15,13 @@ import xyz.mcutils.backend.service.MaxMindService;
 @RequestMapping(value = "/ips")
 @Tag(name = "IP Controller", description = "The IP Controller is used to get information about an IP address.")
 public class IpController {
+
+    private final MaxMindService maxMindService;
+
+    public IpController(MaxMindService maxMindService) {
+        this.maxMindService = maxMindService;
+    }
+
     @GetMapping(value = "/{query}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<IpLookup> getIpLookup(
             @Parameter(
@@ -23,6 +30,6 @@ public class IpController {
             ) @PathVariable String query
     ) {
         return ResponseEntity.ok()
-                .body(MaxMindService.INSTANCE.lookupIp(query));
+                .body(maxMindService.lookupIp(query));
     }
 }
