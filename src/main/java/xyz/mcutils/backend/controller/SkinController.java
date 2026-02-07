@@ -28,8 +28,8 @@ public class SkinController {
     private final SkinService skinService;
 
     @Autowired
-    public SkinController(PlayerService playerManagerService, SkinService skinService) {
-        this.playerService = playerManagerService;
+    public SkinController(PlayerService playerService, SkinService skinService) {
+        this.playerService = playerService;
         this.skinService = skinService;
     }
 

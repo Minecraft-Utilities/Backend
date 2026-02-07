@@ -137,11 +137,11 @@ public class PlayerService {
      * @return the uuid of the player
      */
     public CachedPlayerName usernameToUuid(String username) {
-        String id = username.toUpperCase();
+        String normalizedUsername = username.toUpperCase();
 
         long cacheStart = System.currentTimeMillis();
         if (cacheEnabled) {
-            Optional<CachedPlayerName> cachedPlayerName = playerNameCacheRepository.findById(id);
+            Optional<CachedPlayerName> cachedPlayerName = playerNameCacheRepository.findById(normalizedUsername);
             if (cachedPlayerName.isPresent()) {
                 CachedPlayerName playerName = cachedPlayerName.get();
                 log.debug("Got username {} -> {} from cache in {}ms", username, playerName.getUniqueId(), System.currentTimeMillis() - cacheStart);
@@ -158,7 +158,7 @@ public class PlayerService {
                 throw new NotFoundException("Player with username '%s' was not found".formatted(username));
             }
             UUID uuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
-            CachedPlayerName playerName = new CachedPlayerName(id, username, uuid);
+            CachedPlayerName playerName = new CachedPlayerName(normalizedUsername, username, uuid);
 
             if (cacheEnabled) {
                 CompletableFuture.runAsync(() -> this.playerNameCacheRepository.save(playerName), Main.EXECUTOR)
