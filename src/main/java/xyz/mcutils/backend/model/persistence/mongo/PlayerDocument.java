@@ -6,6 +6,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import xyz.mcutils.backend.model.domain.player.Player;
 
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -43,9 +44,19 @@ public class PlayerDocument {
     private UUID skin;
 
     /**
+     * The skins this player has previously equipped.
+     */
+    private List<HistoryItem> skinHistory;
+
+    /**
      * The UUID for the player's cape.
      */
     private UUID cape;
+
+    /**
+     * The capes this player has previously equipped.
+     */
+    private List<HistoryItem> capeHistory;
 
     /**
      * The time this account was last updated.
@@ -56,4 +67,6 @@ public class PlayerDocument {
      * The date this player was first seen on.
      */
     private Date firstSeen;
+
+    public record HistoryItem(UUID uuid, Date timestamp) { }
 }

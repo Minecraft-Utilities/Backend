@@ -26,10 +26,7 @@ import xyz.mcutils.backend.repository.redis.PlayerNameCacheRepository;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Date;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @Service
@@ -119,12 +116,16 @@ public class PlayerService {
         CapeTextureToken capeTextureToken = skinAndCape.right();
         VanillaCape cape = capeTextureToken != null ? this.capeService.getCapeByTextureId(capeTextureToken.getTextureId()) : null;
 
+        UUID skinUuid = skin.getUuid();
+        UUID capeUuid = cape != null ? cape.getUuid() : null;
         PlayerDocument document = this.playerRepository.insert(new PlayerDocument(
                 UUIDUtils.addDashes(token.getId()),
                 token.getName(),
                 token.isLegacy(),
-                skin.getUuid(),
-                cape != null ? cape.getUuid() : null,
+                skinUuid,
+                List.of(new PlayerDocument.HistoryItem(skinUuid, new Date())),
+                capeUuid,
+                capeUuid != null ? List.of(new PlayerDocument.HistoryItem(capeUuid, new Date())) : null,
                 new Date(),
                 new Date()
         ));
@@ -148,13 +149,24 @@ public class PlayerService {
         // Player username
         if (!player.getUsername().equals(token.getName())) {
             document.setUsername(token.getName());
+            player.setUsername(token.getName());
             shouldSave = true;
         }
 
         // Player skin
         SkinTextureToken skinTextureToken = skinAndCape.left();
         if (!player.getSkin().getTextureId().equals(skinTextureToken.getTextureId())) {
-            document.setSkin(this.skinService.getOrCreateSkinByTextureId(skinTextureToken).getUuid());
+            Skin newCape = this.skinService.getOrCreateSkinByTextureId(skinTextureToken);
+            document.setSkin(newCape.getUuid());
+            player.setSkin(newCape);
+
+            boolean skinInHistory = document.getSkinHistory().stream().anyMatch(historyItem -> historyItem.uuid().equals(newCape.getUuid()));
+            if (!skinInHistory) {
+                ArrayList<PlayerDocument.HistoryItem> historyItems = new ArrayList<>(document.getSkinHistory());
+                historyItems.add(new PlayerDocument.HistoryItem(newCape.getUuid(), new Date()));
+                document.setSkinHistory(historyItems);
+            }
+
             shouldSave = true;
         }
 
@@ -163,13 +175,26 @@ public class PlayerService {
         String capeTextureId = right != null ? right.getTextureId() : null;
         String currentCapeTextureId = player.getCape() != null ? player.getCape().getTextureId() : null;
         if (!Objects.equals(currentCapeTextureId, capeTextureId)) {
-            document.setCape(capeTextureId != null ? this.capeService.getCapeByTextureId(capeTextureId).getUuid() : null);
-            shouldSave = true;
+            VanillaCape newCape = this.capeService.getCapeByTextureId(capeTextureId);
+            if (newCape != null) {
+                document.setCape(capeTextureId != null ? newCape.getUuid() : null);
+                player.setCape(newCape);
+
+                boolean capeInHistory = document.getCapeHistory().stream().anyMatch(historyItem -> historyItem.uuid().equals(newCape.getUuid()));
+                if (!capeInHistory) {
+                    ArrayList<PlayerDocument.HistoryItem> historyItems = new ArrayList<>(document.getCapeHistory());
+                    historyItems.add(new PlayerDocument.HistoryItem(newCape.getUuid(), new Date()));
+                    document.setCapeHistory(historyItems);
+                }
+
+                shouldSave = true;
+            }
         }
 
         // Legacy account status
         if (player.isLegacyAccount() != token.isLegacy()) {
             document.setLegacyAccount(token.isLegacy());
+            player.setLegacyAccount(token.isLegacy());
             shouldSave = true;
         }
 
