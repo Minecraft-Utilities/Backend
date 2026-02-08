@@ -71,11 +71,13 @@ public class PlayerService {
             PlayerDocument playerDocument = optionalPlayerDocument.get();
 
             Skin skin = this.skinService.getSkinByUuid(playerDocument.getSkin());
-            List<Skin> skinHistory = playerDocument.getSkinHistory().stream().map(historyItem -> this.skinService.getSkinByUuid(historyItem.uuid())).toList();
+            List<PlayerDocument.HistoryItem> skinHistoryItems = playerDocument.getSkinHistory();
+            List<Skin> skinHistory = skinHistoryItems != null ? skinHistoryItems.stream().map(historyItem -> this.skinService.getSkinByUuid(historyItem.uuid())).toList() : null;
 
             UUID capeId = playerDocument.getCape();
             VanillaCape cape = capeId != null ? this.capeService.getCapeByUuid(capeId) : null;
-            List<VanillaCape> capeHistory = playerDocument.getCapeHistory().stream().map(historyItem -> this.capeService.getCapeByUuid(historyItem.uuid())).toList();
+            List<PlayerDocument.HistoryItem> capeHistoryItems = playerDocument.getCapeHistory();
+            List<VanillaCape> capeHistory = capeHistoryItems != null ? capeHistoryItems.stream().map(historyItem -> this.capeService.getCapeByUuid(historyItem.uuid())).toList() : null;
 
             Player player = new Player(playerDocument.getId(), playerDocument.getUsername(), playerDocument.isLegacyAccount(), skin, skinHistory, cape, capeHistory);
 
