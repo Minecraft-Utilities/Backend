@@ -133,7 +133,7 @@ public class ImageUtils {
     public static byte[] imageToBytes(BufferedImage image) {
         return new PngEncoder()
                 .withBufferedImage(image)
-                .withCompressionLevel(1)  // fastest; ~2x faster than level 9, ~2.5x larger files
+                .withCompressionLevel(6)
                 .toBytes();
     }
 
