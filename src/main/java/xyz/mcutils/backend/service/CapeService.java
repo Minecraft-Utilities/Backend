@@ -197,7 +197,7 @@ public class CapeService {
             throw new BadRequestException("Invalid or unsupported cape part: '%s'".formatted(typeName));
         }
 
-        String key = "%s-%s-%s".formatted(cape.getTextureId(), part.name(), size);
+        String key = "%s-%s-%s-%s".formatted(cape.getClass().getName(), cape.getTextureId(), part.name(), size);
 
         log.debug("Getting cape part for cape: {} (part {}, size {})", cape.getTextureId(), typeName, size);
 
