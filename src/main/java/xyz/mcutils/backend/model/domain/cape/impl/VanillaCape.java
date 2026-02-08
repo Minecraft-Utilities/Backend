@@ -41,7 +41,7 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
         super(
                 textureId,
                 CDN_URL.formatted(textureId),
-                AppConfig.INSTANCE.getWebPublicUrl() + "/skins/%s/texture.png".formatted(textureId),
+                AppConfig.INSTANCE.getWebPublicUrl() + "/cape/%s/texture.png".formatted(textureId),
                 buildParts(textureId)
         );
         this.uuid = uuid;
