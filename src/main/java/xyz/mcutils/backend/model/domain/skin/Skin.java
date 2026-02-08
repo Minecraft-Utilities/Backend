@@ -51,7 +51,12 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
     @Setter
     private Map<String, String> parts;
 
-    public Skin(UUID uuid, String textureId, Model model, boolean legacy) {
+    /**
+     * The number of accounts that have used this skin before.
+     */
+    private long accountsUsed;
+
+    public Skin(UUID uuid, String textureId, Model model, boolean legacy, long accountsUsed) {
         super(
                 textureId,
                 CDN_URL.formatted(textureId),
@@ -60,6 +65,7 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
         this.uuid = uuid;
         this.model = model;
         this.legacy = legacy;
+        this.accountsUsed = accountsUsed;
 
         this.parts = new HashMap<>();
         for (SkinPart part : SkinPart.values()) {

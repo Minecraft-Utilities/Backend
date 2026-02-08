@@ -138,6 +138,7 @@ public class PlayerService {
         if (capeUuid != null) {
             this.capeService.incrementAccountsOwned(capeUuid);
         }
+        this.skinService.incrementAccountsUsed(skinUuid);
 
         log.debug("Created player {} in {}ms", document.getUsername(), System.currentTimeMillis() - start);
         return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, List.of(skin), cape,
@@ -166,15 +167,17 @@ public class PlayerService {
         // Player skin
         SkinTextureToken skinTextureToken = skinAndCape.left();
         if (!player.getSkin().getTextureId().equals(skinTextureToken.getTextureId())) {
-            Skin newCape = this.skinService.getOrCreateSkinByTextureId(skinTextureToken);
-            document.setSkin(newCape.getUuid());
-            player.setSkin(newCape);
+            Skin newSkin = this.skinService.getOrCreateSkinByTextureId(skinTextureToken);
+            document.setSkin(newSkin.getUuid());
+            player.setSkin(newSkin);
 
-            boolean skinInHistory = document.getSkinHistory().stream().anyMatch(historyItem -> historyItem.uuid().equals(newCape.getUuid()));
+            boolean skinInHistory = document.getSkinHistory().stream().anyMatch(historyItem -> historyItem.uuid().equals(newSkin.getUuid()));
             if (!skinInHistory) {
                 ArrayList<PlayerDocument.HistoryItem> historyItems = new ArrayList<>(document.getSkinHistory());
-                historyItems.add(new PlayerDocument.HistoryItem(newCape.getUuid(), new Date()));
+                historyItems.add(new PlayerDocument.HistoryItem(newSkin.getUuid(), new Date()));
                 document.setSkinHistory(historyItems);
+
+                this.skinService.incrementAccountsUsed(newSkin.getUuid());
             }
 
             shouldSave = true;

@@ -6,6 +6,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
@@ -53,13 +57,15 @@ public class SkinService {
     private final SkinRepository skinRepository;
     private final StorageService minioService;
     private final PlayerService playerService;
+    private final MongoTemplate mongoTemplate;
 
     @Autowired
-    public SkinService(PlayerSkinPartCacheRepository skinPartRepository, SkinRepository skinRepository, StorageService minioService, @Lazy PlayerService playerService) {
+    public SkinService(PlayerSkinPartCacheRepository skinPartRepository, SkinRepository skinRepository, StorageService minioService, @Lazy PlayerService playerService, MongoTemplate mongoTemplate) {
         this.skinPartRepository = skinPartRepository;
         this.skinRepository = skinRepository;
         this.minioService = minioService;
         this.playerService = playerService;
+        this.mongoTemplate = mongoTemplate;  
     }
 
     @PostConstruct
@@ -78,8 +84,13 @@ public class SkinService {
                 .setItemsPerPage(SKINS_PER_PAGE)
                 .setTotalItems(this.skinRepository.count());
         return pagination.getPage(page, (pageCallback) -> this.skinRepository.findAll(PageRequest.of(page, pageCallback.getLimit())).getContent().stream()
-                .map(skinDocument -> new Skin(skinDocument.getId(), skinDocument.getTextureId(), skinDocument.getModel(), skinDocument.isLegacy()))
-                .toList());
+                .map(skinDocument -> new Skin(
+                        skinDocument.getId(),
+                        skinDocument.getTextureId(),
+                        skinDocument.getModel(),
+                        skinDocument.isLegacy(),
+                        skinDocument.getAccountsUsed()
+                )).toList());
     }
 
     /**
@@ -94,7 +105,13 @@ public class SkinService {
         if (optionalSkinDocument.isPresent()) {
             SkinDocument document = optionalSkinDocument.get();
             log.debug("Found skin by texture id {} in {}ms", document.getTextureId(), System.currentTimeMillis() - start);
-            return new Skin(document.getId(), document.getTextureId(), document.getModel(), document.isLegacy());
+            return new Skin(
+                    document.getId(),
+                    document.getTextureId(),
+                    document.getModel(),
+                    document.isLegacy(),
+                    document.getAccountsUsed()
+            );
         }
         return null;
     }
@@ -111,7 +128,13 @@ public class SkinService {
         if (optionalSkinDocument.isPresent()) {
             SkinDocument document = optionalSkinDocument.get();
             log.debug("Found skin by uuid {} in {}ms", document.getId(), System.currentTimeMillis() - start);
-            return new Skin(document.getId(), document.getTextureId(), document.getModel(), document.isLegacy());
+            return new Skin(
+                    document.getId(),
+                    document.getTextureId(),
+                    document.getModel(),
+                    document.isLegacy(),
+                    document.getAccountsUsed()
+            );
         }
         return null;
     }
@@ -128,26 +151,6 @@ public class SkinService {
             return this.createSkin(token);
         }
         return skin;
-    }
-
-    /**
-     * Creates a new skin and inserts it into the database.
-     *
-     * @param token the token for the skin from the {@link MojangProfileToken}
-     * @return the created skin
-     */
-    public Skin createSkin(SkinTextureToken token) {
-        long start = System.currentTimeMillis();
-        SkinTextureToken.Metadata metadata = token.getMetadata();
-        SkinDocument document = this.skinRepository.insert(new SkinDocument(
-                UUID.randomUUID(),
-                token.getTextureId(),
-                EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.getModel()),
-                Skin.isLegacySkin(token.getTextureId(), Skin.CDN_URL.formatted(token.getTextureId())),
-                new Date()
-        ));
-        log.debug("Created skin {} in {}ms", document.getTextureId(), System.currentTimeMillis() - start);
-        return new Skin(document.getId(), document.getTextureId(), document.getModel(), document.isLegacy());
     }
 
     /**
@@ -172,6 +175,44 @@ public class SkinService {
         }
 
         return skin;
+    }
+
+    /**
+     * Creates a new skin and inserts it into the database.
+     *
+     * @param token the token for the skin from the {@link MojangProfileToken}
+     * @return the created skin
+     */
+    public Skin createSkin(SkinTextureToken token) {
+        long start = System.currentTimeMillis();
+        SkinTextureToken.Metadata metadata = token.getMetadata();
+        SkinDocument document = this.skinRepository.insert(new SkinDocument(
+                UUID.randomUUID(),
+                token.getTextureId(),
+                EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.getModel()),
+                Skin.isLegacySkin(token.getTextureId(), Skin.CDN_URL.formatted(token.getTextureId())),
+                0,
+                new Date()
+        ));
+        log.debug("Created skin {} in {}ms", document.getTextureId(), System.currentTimeMillis() - start);
+        return new Skin(
+                document.getId(),
+                document.getTextureId(),
+                document.getModel(),
+                document.isLegacy(),
+                document.getAccountsUsed()
+        );
+    }
+
+    /**
+     * Increments {@link SkinDocument#getAccountsUsed()} by 1 for the given skin.
+     *
+     * @param capeId the skin document id
+     */
+    public void incrementAccountsUsed(UUID capeId) {
+        Query query = Query.query(Criteria.where("_id").is(capeId));
+        Update update = new Update().inc("accountsUsed", 1);
+        mongoTemplate.updateFirst(query, update, SkinDocument.class);
     }
 
     /**

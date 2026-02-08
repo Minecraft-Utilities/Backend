@@ -78,7 +78,12 @@ public class CapeService {
     public Map<String, VanillaCape> getCapes() {
         Map<String, VanillaCape>  capes = new LinkedHashMap<>();
         for (CapeDocument document : this.capeRepository.findAllByOrderByAccountsOwnedDesc()) {
-            capes.put(document.getTextureId(), new VanillaCape(document.getId(), document.getName(), document.getAccountsOwned(), document.getTextureId()));
+            capes.put(document.getTextureId(), new VanillaCape(
+                    document.getId(),
+                    document.getName(),
+                    document.getAccountsOwned(),
+                    document.getTextureId()
+            ));
         }
         return capes;
     }
@@ -116,7 +121,12 @@ public class CapeService {
         }
 
         log.debug("Found vanilla cape by texture id {} in {}ms", document.getId(), System.currentTimeMillis() - start);
-        return new VanillaCape(document.getId(), document.getName(), document.getAccountsOwned(), document.getTextureId());
+        return new VanillaCape(
+                document.getId(),
+                document.getName(),
+                document.getAccountsOwned(),
+                document.getTextureId()
+        );
     }
 
     /**
@@ -131,7 +141,12 @@ public class CapeService {
         if (optionalCapeDocument.isPresent()) {
             CapeDocument document = optionalCapeDocument.get();
             log.debug("Found vanilla cape by uuid {} in {}ms", document.getId(), System.currentTimeMillis() - start);
-            return new VanillaCape(document.getId(), document.getName(), document.getAccountsOwned(), document.getTextureId());
+            return new VanillaCape(
+                    document.getId(),
+                    document.getName(),
+                    document.getAccountsOwned(),
+                    document.getTextureId()
+            );
         }
         return null;
     }

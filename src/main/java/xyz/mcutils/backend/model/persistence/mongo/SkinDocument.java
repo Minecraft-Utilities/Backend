@@ -45,6 +45,11 @@ public class SkinDocument {
     private boolean legacy;
 
     /**
+     * The number of accounts that have used this
+     */
+    private long accountsUsed;
+
+    /**
      * The date this skin was first seen on.
      */
     private Date firstSeen;
