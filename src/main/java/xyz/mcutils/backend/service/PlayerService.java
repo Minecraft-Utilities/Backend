@@ -148,19 +148,20 @@ public class PlayerService {
         long start = System.currentTimeMillis();
 
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
-        Skin skin = this.skinService.getSkinByTextureId(skinAndCape.right().getTextureId());
+        Skin skin = this.skinService.getSkinByTextureId(skinAndCape.left().getTextureId());
         if (skin == null) {
             skin = this.skinService.createSkin(skinAndCape.left());
         }
 
-        VanillaCape cape = this.capeService.getCapeByTextureId(skinAndCape.left().getTextureId());
+        CapeTextureToken capeTextureToken = skinAndCape.right();
+        VanillaCape cape = capeTextureToken != null ? this.capeService.getCapeByTextureId(capeTextureToken.getTextureId()) : null;
 
         PlayerDocument document = this.playerRepository.insert(new PlayerDocument(
                 UUIDUtils.addDashes(token.getId()),
                 token.getName(),
                 token.isLegacy(),
                 skin.getUuid(),
-                cape.getUuid(),
+                cape != null ? cape.getUuid() : null,
                 new Date()
         ));
 
