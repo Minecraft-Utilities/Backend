@@ -81,9 +81,6 @@ public class PlayerService {
             Player player = new Player(playerDocument.getId(), playerDocument.getUsername(), playerDocument.isLegacyAccount(), skin,
                     skinHistory, cape, capeHistory, playerDocument.getLastUpdated(), playerDocument.getFirstSeen());
 
-            // add part urls
-            player.getSkinHistory().forEach(historySkin -> historySkin.updateParts(player));
-
             if (playerDocument.getLastUpdated().toInstant().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
                 MojangProfileToken token = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
                 if (token == null) {

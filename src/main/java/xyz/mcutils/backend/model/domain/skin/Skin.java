@@ -13,7 +13,6 @@ import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.FullBodyRendererBa
 import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.FullBodyRendererFront;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.domain.Texture;
-import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.service.SkinService;
 
 import javax.imageio.ImageIO;
@@ -61,19 +60,12 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
         this.uuid = uuid;
         this.model = model;
         this.legacy = legacy;
-    }
 
-    /**
-     * Adds the part URLs to the Skin.
-     *
-     * @param player the player to add the parts for
-     */
-    public void updateParts(Player player) {
         this.parts = new HashMap<>();
         for (SkinPart part : SkinPart.values()) {
             this.parts.put(part.name(), "%s/skins/%s/%s.png".formatted(
                     AppConfig.INSTANCE.getWebPublicUrl(),
-                    player.getUniqueId(),
+                    textureId,
                     part.name().toLowerCase()
             ));
         }

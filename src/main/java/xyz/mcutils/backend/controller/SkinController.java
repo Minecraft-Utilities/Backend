@@ -10,7 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.Main;
-import xyz.mcutils.backend.exception.impl.NotFoundException;
+import xyz.mcutils.backend.common.Pagination;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.SkinService;
@@ -30,6 +30,18 @@ public class SkinController {
     public SkinController(PlayerService playerService, SkinService skinService) {
         this.playerService = playerService;
         this.skinService = skinService;
+    }
+
+    @ResponseBody
+    @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Pagination.Page<Skin>> getCapes(
+            @Parameter(
+                    description = "The page of skins to get",
+                    example = "1"
+            ) @RequestParam(required = false, defaultValue = "1") int page
+    ) {
+        return ResponseEntity.ok()
+                .body(skinService.getPaginatedSkins(page));
     }
 
     @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)
@@ -69,10 +81,7 @@ public class SkinController {
             ) @RequestParam(required = false, defaultValue = "true") boolean overlays
     ) {
         return CompletableFuture.supplyAsync(() -> {
-            Skin skin = playerService.getPlayer(query).getSkin();
-            if (skin == null) {
-                throw new NotFoundException("Player has no skin");
-            }
+            Skin skin = this.skinService.getSkinFromTextureIdOrPlayer(query);
             byte[] bytes = skinService.renderSkin(skin, type, overlays, size).getBytes();
             return ResponseEntity.ok()
                     .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())

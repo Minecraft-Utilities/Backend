@@ -5,15 +5,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
-import xyz.mcutils.backend.common.EnumUtils;
-import xyz.mcutils.backend.common.ImageUtils;
-import xyz.mcutils.backend.common.PlayerUtils;
-import xyz.mcutils.backend.common.SkinUtils;
+import xyz.mcutils.backend.common.*;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
+import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.persistence.mongo.SkinDocument;
@@ -35,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 @Service
 @Slf4j
 public class SkinService {
+    public static final int SKINS_PER_PAGE = 25;
     public static SkinService INSTANCE;
 
     @Value("${mc-utils.renderer.skin.cache}")
@@ -65,6 +65,21 @@ public class SkinService {
     @PostConstruct
     public void init() {
         INSTANCE = this;
+    }
+
+    /**
+     * Gets a paginated list of skins.
+     *
+     * @param page the page to get
+     * @return the paginated list of skins
+     */
+    public Pagination.Page<Skin> getPaginatedSkins(int page) {
+        Pagination<Skin> pagination = new Pagination<Skin>()
+                .setItemsPerPage(SKINS_PER_PAGE)
+                .setTotalItems(this.skinRepository.count());
+        return pagination.getPage(page, (pageCallback) -> this.skinRepository.findAll(PageRequest.of(pageCallback.getSkip(), pageCallback.getLimit())).getContent().stream()
+                .map(skinDocument -> new Skin(skinDocument.getId(), skinDocument.getTextureId(), skinDocument.getModel(), skinDocument.isLegacy()))
+                .toList());
     }
 
     /**
@@ -151,6 +166,11 @@ public class SkinService {
             Player player = this.playerService.getPlayer(query);
             skin = player.getSkin();
         }
+
+        if (skin == null) {
+            throw new NotFoundException("Skin for query '%s' not found".formatted(query));
+        }
+
         return skin;
     }
 

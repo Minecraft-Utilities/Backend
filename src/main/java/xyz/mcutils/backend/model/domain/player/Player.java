@@ -98,13 +98,4 @@ public class Player {
             }
         } catch (Exception ignored) { }
     }
-
-    public Skin getSkin() {
-        if (skin == null) {
-            return null;
-        }
-
-        skin.updateParts(this);
-        return skin;
-    }
 }
