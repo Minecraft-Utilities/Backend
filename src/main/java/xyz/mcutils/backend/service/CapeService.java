@@ -77,7 +77,7 @@ public class CapeService {
      */
     public Map<String, VanillaCape> getCapes() {
         Map<String, VanillaCape>  capes = new LinkedHashMap<>();
-        for (CapeDocument document : this.capeRepository.findAllByOrderByAccountsOwnedDesc()) {
+        for (CapeDocument document : this.capeRepository.findAllByOrderByAccountsOwnedDescIdAsc()) {
             capes.put(document.getTextureId(), new VanillaCape(
                     document.getId(),
                     document.getName(),

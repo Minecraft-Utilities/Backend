@@ -26,10 +26,10 @@ public interface SkinRepository extends MongoRepository<SkinDocument, UUID> {
 
     /**
      * Finds all skin documents ordered by the number of accounts that have used this skin (descending),
-     * as a single page of results.
+     * then by id (ascending) for stable ordering when counts tie.
      *
      * @param pageable pagination (page index and size) and optional sort
      * @return a page of skin documents
      */
-    Page<SkinDocument> findAllByOrderByAccountsUsedDesc(Pageable pageable);
+    Page<SkinDocument> findAllByOrderByAccountsUsedDescIdAsc(Pageable pageable);
 }

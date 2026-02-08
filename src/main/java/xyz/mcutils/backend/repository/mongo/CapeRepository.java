@@ -24,9 +24,10 @@ public interface CapeRepository extends MongoRepository<CapeDocument, UUID> {
     Optional<CapeDocument> findByTextureId(String textureId);
 
     /**
-     * Finds all cape documents ordered by the number of accounts that have this cape owned.
+     * Finds all cape documents ordered by the number of accounts that have this cape owned (descending),
+     * then by id (ascending) for stable ordering when counts tie.
      *
      * @return the cape documents
      */
-    List<CapeDocument> findAllByOrderByAccountsOwnedDesc();
+    List<CapeDocument> findAllByOrderByAccountsOwnedDescIdAsc();
 }   
