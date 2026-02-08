@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.model.dto.response;
+package xyz.mcutils.backend.model.domain;
 
 import org.jetbrains.annotations.Nullable;
 import xyz.mcutils.backend.model.domain.asn.AsnLookup;

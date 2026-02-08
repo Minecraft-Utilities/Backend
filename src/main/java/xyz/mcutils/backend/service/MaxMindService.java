@@ -20,9 +20,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
+import xyz.mcutils.backend.model.domain.IpLookup;
 import xyz.mcutils.backend.model.domain.asn.AsnLookup;
 import xyz.mcutils.backend.model.domain.geo.GeoLocation;
-import xyz.mcutils.backend.model.dto.response.IpLookup;
 
 import java.io.BufferedInputStream;
 import java.io.File;
