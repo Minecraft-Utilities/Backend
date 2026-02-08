@@ -71,13 +71,13 @@ public class CapeService {
     }
 
     /**
-     * Gets all the known capes.
+     * Gets all the known capes sorted by accounts owned.
      *
      * @return the known capes
      */
     public Map<String, VanillaCape> getCapes() {
-        Map<String, VanillaCape>  capes = new HashMap<>();
-        for (CapeDocument document : this.capeRepository.findAll()) {
+        Map<String, VanillaCape>  capes = new LinkedHashMap<>();
+        for (CapeDocument document : this.capeRepository.findAllByOrderByAccountsOwnedDesc()) {
             capes.put(document.getTextureId(), new VanillaCape(document.getId(), document.getName(), document.getAccountsOwned(), document.getTextureId()));
         }
         return capes;
