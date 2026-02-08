@@ -11,7 +11,6 @@ import xyz.mcutils.backend.common.renderer.Renderer;
 import xyz.mcutils.backend.common.renderer.impl.cape.VanillaCapeRenderer;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.domain.cape.Cape;
-import xyz.mcutils.backend.service.CapeService;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -73,16 +72,6 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
             parts.put(p.name(), "%s/%s.png".formatted(base, p.name().toLowerCase()));
         }
         return parts;
-    }
-
-    /**
-     * Creates a cape from its texture id
-     *
-     * @param id the texture id
-     * @return the cape
-     */
-    public static VanillaCape fromId(String id) {
-        return CapeService.INSTANCE.getCapes().get(id);
     }
 
     /**
