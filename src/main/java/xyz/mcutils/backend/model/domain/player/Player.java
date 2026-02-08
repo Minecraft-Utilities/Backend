@@ -8,6 +8,7 @@ import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 
+import java.util.List;
 import java.util.UUID;
 
 @AllArgsConstructor
@@ -46,10 +47,21 @@ public class Player {
     private Skin skin;
 
     /**
+     * The skins this player has previously equipped (including current).
+     */
+    private List<Skin> skinHistory;
+
+    /**
      * The Cape for the player.
      */
     @Nullable
     private VanillaCape cape;
+
+    /**
+     * The capes this player has previously equipped (including current).
+     */
+    @Nullable
+    private List<VanillaCape> capeHistory;
 
     /**
      * The player's optifine Cape.
@@ -57,12 +69,14 @@ public class Player {
     @Nullable
     private OptifineCape optifineCape;
 
-    public Player(UUID uniqueId, String username, boolean legacyAccount, Skin skin, @Nullable VanillaCape cape) {
+    public Player(UUID uniqueId, String username, boolean legacyAccount, Skin skin, List<Skin> skinHistory, @Nullable VanillaCape cape, @Nullable List<VanillaCape> capeHistory) {
         this.uniqueId = uniqueId;
         this.username = username;
         this.legacyAccount = legacyAccount;
         this.skin = skin;
+        this.skinHistory = skinHistory;
         this.cape = cape;
+        this.capeHistory = capeHistory;
 
         try {
             if (OptifineCape.capeExists(this.username).get() == true) {

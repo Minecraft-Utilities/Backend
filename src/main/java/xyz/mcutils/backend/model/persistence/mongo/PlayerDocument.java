@@ -44,7 +44,7 @@ public class PlayerDocument {
     private UUID skin;
 
     /**
-     * The skins this player has previously equipped.
+     * The skins this player has previously equipped (including current).
      */
     private List<HistoryItem> skinHistory;
 
@@ -54,7 +54,7 @@ public class PlayerDocument {
     private UUID cape;
 
     /**
-     * The capes this player has previously equipped.
+     * The capes this player has previously equipped (including current).
      */
     private List<HistoryItem> capeHistory;
 
@@ -68,5 +68,11 @@ public class PlayerDocument {
      */
     private Date firstSeen;
 
+    /**
+     * A history item used for Skins and Capes.
+     *
+     * @param uuid the uuid of the skin or cape
+     * @param timestamp the timestamp that this change was seen
+     */
     public record HistoryItem(UUID uuid, Date timestamp) { }
 }

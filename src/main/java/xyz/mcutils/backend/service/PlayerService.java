@@ -71,11 +71,13 @@ public class PlayerService {
             PlayerDocument playerDocument = optionalPlayerDocument.get();
 
             Skin skin = this.skinService.getSkinByUuid(playerDocument.getSkin());
+            List<Skin> skinHistory = playerDocument.getSkinHistory().stream().map(historyItem -> this.skinService.getSkinByUuid(historyItem.uuid())).toList();
 
             UUID capeId = playerDocument.getCape();
-            VanillaCape cape = capeId != null ? this.capeService.capeCapeByUuid(capeId) : null;
+            VanillaCape cape = capeId != null ? this.capeService.getCapeByUuid(capeId) : null;
+            List<VanillaCape> capeHistory = playerDocument.getCapeHistory().stream().map(historyItem -> this.capeService.getCapeByUuid(historyItem.uuid())).toList();
 
-            Player player = new Player(playerDocument.getId(), playerDocument.getUsername(), playerDocument.isLegacyAccount(), skin, cape);
+            Player player = new Player(playerDocument.getId(), playerDocument.getUsername(), playerDocument.isLegacyAccount(), skin, skinHistory, cape, capeHistory);
 
             if (playerDocument.getLastUpdated().toInstant().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
                 MojangProfileToken token = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
@@ -131,7 +133,7 @@ public class PlayerService {
         ));
 
         log.debug("Created player {} in {}ms", document.getUsername(), System.currentTimeMillis() - start);
-        return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, cape);
+        return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, List.of(skin), cape, capeUuid != null ? List.of(cape) : null);
     }
 
     /**

@@ -118,7 +118,7 @@ public class CapeService {
      * @param uuid the uuid of the cape
      * @return the cape, or null if not found
      */
-    public VanillaCape capeCapeByUuid(UUID uuid) {
+    public VanillaCape getCapeByUuid(UUID uuid) {
         long start = System.currentTimeMillis();
         Optional<CapeDocument> optionalCapeDocument = this.capeRepository.findById(uuid);
         if (optionalCapeDocument.isPresent()) {
