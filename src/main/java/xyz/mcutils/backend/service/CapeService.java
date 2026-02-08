@@ -23,9 +23,7 @@ import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
-import xyz.mcutils.backend.model.persistence.redis.CachedPlayerCapePart;
 import xyz.mcutils.backend.repository.mongo.CapeRepository;
-import xyz.mcutils.backend.repository.redis.PlayerCapePartCacheRepository;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -50,17 +48,15 @@ public class CapeService {
     @Value("${mc-utils.renderer.cape.limits.max_size}")
     private int maxPartSize;
 
-    private final StorageService minioService;
+    private final StorageService storageService;
     private final PlayerService playerService;
-    private final PlayerCapePartCacheRepository capePartRepository;
     private final CapeRepository capeRepository;
     private final MongoTemplate mongoTemplate;
 
     @Autowired
-    public CapeService(StorageService minioService, @Lazy PlayerService playerService, PlayerCapePartCacheRepository capePartRepository, CapeRepository capeRepository, MongoTemplate mongoTemplate) {
-        this.minioService = minioService;
+    public CapeService(StorageService storageService, @Lazy PlayerService playerService, CapeRepository capeRepository, MongoTemplate mongoTemplate) {
+        this.storageService = storageService;
         this.playerService = playerService;
-        this.capePartRepository = capePartRepository;
         this.capeRepository = capeRepository;
         this.mongoTemplate = mongoTemplate;
     }
@@ -201,14 +197,14 @@ public class CapeService {
             default -> null;
         };
 
-        byte[] capeBytes = minioService.get(bucket, cape.getTextureId() + ".png");
+        byte[] capeBytes = storageService.get(bucket, cape.getTextureId() + ".png");
         if (capeBytes == null) {
             log.debug("Downloading skin image for skin {}", cape.getTextureId());
             capeBytes = PlayerUtils.getImage(cape.getRawTextureUrl());
             if (capeBytes == null) {
                 throw new IllegalStateException("Cape with id '%s' was not found".formatted(cape.getTextureId()));
             }
-            minioService.upload(bucket, cape.getTextureId() + ".png", MediaType.IMAGE_PNG_VALUE, capeBytes);
+            storageService.upload(bucket, cape.getTextureId() + ".png", MediaType.IMAGE_PNG_VALUE, capeBytes);
             log.debug("Saved cape image for skin {}", cape.getTextureId());
         }
         return capeBytes;
@@ -237,7 +233,7 @@ public class CapeService {
      * @return the cached cape part (PNG bytes)
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public CachedPlayerCapePart renderCape(Cape<?> cape, String typeName, int size) {
+    public byte[] renderCape(Cape<?> cape, String typeName, int size) {
         if (!renderingEnabled) {
             throw new BadRequestException("Cape rendering is currently disabled");
         }
@@ -250,33 +246,31 @@ public class CapeService {
             throw new BadRequestException("Invalid or unsupported cape part: '%s'".formatted(typeName));
         }
 
-        String key = "%s-%s-%s-%s".formatted(cape.getClass().getName(), cape.getTextureId(), part.name(), size);
+        String key = "%s-%s-%s-%s.png".formatted(cape.getClass().getName(), cape.getTextureId(), part.name(), size);
 
         log.debug("Getting cape part for cape: {} (part {}, size {})", cape.getTextureId(), typeName, size);
 
         long cacheStart = System.currentTimeMillis();
         if (cacheEnabled) {
-            Optional<CachedPlayerCapePart> cache = capePartRepository.findById(key);
-            if (cache.isPresent()) {
+            byte[] bytes = this.storageService.get(StorageService.Bucket.RENDERED_VANILLA_CAPES, key);
+            if (bytes != null) {
                 log.debug("Got cape part for cape {} from cache in {}ms", cape.getTextureId(), System.currentTimeMillis() - cacheStart);
-                return cache.get();
+                return bytes;
             }
         }
 
         long renderStart = System.currentTimeMillis();
         BufferedImage renderedPart = ((Cape) cape).render(part, size, RenderOptions.EMPTY);
-        byte[] pngBytes = ImageUtils.imageToBytes(renderedPart);
+        byte[] bytes = ImageUtils.imageToBytes(renderedPart);
         log.debug("Took {}ms to render cape part for cape: {}", System.currentTimeMillis() - renderStart, cape.getTextureId());
 
-        CachedPlayerCapePart capePart = new CachedPlayerCapePart(key, pngBytes);
-
         if (cacheEnabled) {
-            CompletableFuture.runAsync(() -> capePartRepository.save(capePart), Main.EXECUTOR)
+            CompletableFuture.runAsync(() -> this.storageService.upload(StorageService.Bucket.RENDERED_VANILLA_CAPES, key, MediaType.IMAGE_PNG_VALUE, bytes), Main.EXECUTOR)
                 .exceptionally(ex -> {
                     log.warn("Save failed for cape part {}: {}", key, ex.getMessage());
                     return null;
                 });
         }
-        return capePart;
+        return bytes;
     }
 }

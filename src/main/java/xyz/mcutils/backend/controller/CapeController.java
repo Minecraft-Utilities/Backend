@@ -77,7 +77,7 @@ public class CapeController {
     ) {
         return CompletableFuture.supplyAsync(() -> {
             Cape<?> cape = this.capeService.getCapeFromTextureIdOrPlayer(query, EnumUtils.getEnumConstant(CapeType.class, type));
-            byte[] bytes = this.capeService.renderCape(cape, part, size).getBytes();
+            byte[] bytes = this.capeService.renderCape(cape, part, size);
 
             return ResponseEntity.ok()
                     .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())

@@ -36,8 +36,11 @@ public class StorageService {
                 .credentials(accessKey, secretKey)
                 .build();
         if (cacheEnabled) {
+            long maxWeightBytes = 100L * 1024 * 1024; // 100MB
             this.objectCache = CacheBuilder.newBuilder()
                     .expireAfterWrite(objectCacheTtl, TimeUnit.MINUTES)
+                    .maximumWeight(maxWeightBytes)
+                    .weigher((ObjectCacheKey _, byte[] value) -> value.length)
                     .build();
         }
 
@@ -98,6 +101,7 @@ public class StorageService {
         try {
             byte[] object = this.objectCache != null ? this.objectCache.getIfPresent(new ObjectCacheKey(bucket, fileName)) : null;
             if (object != null) {
+                log.debug("Got object {} from bucket {} (cached in-memory)", fileName, bucket.getName());
                 return object;
             }
 
@@ -149,7 +153,9 @@ public class StorageService {
     @Getter
     public enum Bucket {
         SKINS("mcutils-skins"),
+        RENDERED_SKINS("mcutils-rendered-skins"),
         VANILLA_CAPES("mcutils-vanilla-capes"),
+        RENDERED_VANILLA_CAPES("mcutils-rendered-vanilla-capes"),
         OPTIFINE_CAPES("mcutils-optifine-capes");
 
         private final String name;
