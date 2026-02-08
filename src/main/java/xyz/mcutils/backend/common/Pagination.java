@@ -39,7 +39,7 @@ public class Pagination<T> {
                 fetcher.apply(new PageCallback(this.itemsPerPage, skip)),
                 this.totalItems,
                 this.itemsPerPage,
-                (int) Math.ceil((double) totalItems / this.itemsPerPage)
+                (int) ((this.totalItems + this.itemsPerPage - 1) / this.itemsPerPage)
         );
     }
 
