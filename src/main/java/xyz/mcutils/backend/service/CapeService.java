@@ -27,10 +27,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @Service @Slf4j
@@ -106,7 +103,8 @@ public class CapeService {
             document = this.capeRepository.insert(new CapeDocument(
                     UUID.randomUUID(),
                     null,
-                    textureId
+                    textureId,
+                    new Date()
             ));
         }
 

@@ -125,6 +125,7 @@ public class PlayerService {
                 token.isLegacy(),
                 skin.getUuid(),
                 cape != null ? cape.getUuid() : null,
+                new Date(),
                 new Date()
         ));
 

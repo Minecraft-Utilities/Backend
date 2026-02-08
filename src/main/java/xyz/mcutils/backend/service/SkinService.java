@@ -27,6 +27,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -127,7 +128,8 @@ public class SkinService {
                 UUID.randomUUID(),
                 token.getTextureId(),
                 EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.getModel()),
-                Skin.isLegacySkin(token.getTextureId(), Skin.CDN_URL.formatted(token.getTextureId()))
+                Skin.isLegacySkin(token.getTextureId(), Skin.CDN_URL.formatted(token.getTextureId())),
+                new Date()
         ));
         log.debug("Created skin {} in {}ms", document.getTextureId(), System.currentTimeMillis() - start);
         return new Skin(document.getId(), document.getTextureId(), document.getModel(), document.isLegacy());

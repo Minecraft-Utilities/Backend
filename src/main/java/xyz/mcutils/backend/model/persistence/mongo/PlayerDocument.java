@@ -51,4 +51,9 @@ public class PlayerDocument {
      * The time this account was last updated.
      */
     private Date lastUpdated;
+
+    /**
+     * The date this player was first seen on.
+     */
+    private Date firstSeen;
 }
