@@ -41,6 +41,7 @@ public class CapeDocument {
     /**
      * The number of accounts that have this cape owned.
      */
+    @Indexed
     private long accountsOwned;
 
     /**
