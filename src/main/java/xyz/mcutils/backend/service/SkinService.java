@@ -91,10 +91,11 @@ public class SkinService {
      */
     public Skin createSkin(SkinTextureToken token, Player player) {
         long start = System.currentTimeMillis();
+        SkinTextureToken.Metadata metadata = token.getMetadata();
         SkinDocument document = this.skinRepository.insert(new SkinDocument(
                 UUID.randomUUID(),
                 token.getTextureId(),
-                EnumUtils.getEnumConstant(Skin.Model.class, token.getMetadata().getModel()),
+                EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.getModel()),
                 Skin.isLegacySkin(token.getTextureId(), Skin.CDN_URL.formatted(token.getTextureId()))
         ));
         log.debug("Created skin {} for player {} in {}ms", document.getTextureId(), player.getUsername(), System.currentTimeMillis() - start);
