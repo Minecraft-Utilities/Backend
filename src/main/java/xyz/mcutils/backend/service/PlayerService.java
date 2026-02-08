@@ -27,6 +27,7 @@ import xyz.mcutils.backend.repository.redis.PlayerNameCacheRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -114,10 +115,13 @@ public class PlayerService {
             PlayerDocument playerDocument = optionalPlayerDocument.get();
 
             Skin skin = this.skinService.getSkinByUuid(playerDocument.getSkin());
-            VanillaCape cape = this.capeService.capeCapeByUuid(playerDocument.getCape());
+
+            UUID capeId = playerDocument.getCape();
+            VanillaCape cape = capeId != null ? this.capeService.capeCapeByUuid(capeId) : null;
+
             Player player = new Player(playerDocument.getId(), playerDocument.getUsername(), playerDocument.isLegacyAccount(), skin, cape);
 
-            if (playerDocument.getLastUpdated().toInstant().isAfter(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
+            if (playerDocument.getLastUpdated().toInstant().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
                 MojangProfileToken token = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
                 if (token == null) {
                     throw new NotFoundException("Player with uuid '%s' was not found".formatted(uuid));
@@ -195,9 +199,11 @@ public class PlayerService {
         }
 
         // Player cape
-        String capeTextureId = skinAndCape.right().getTextureId();
-        if (player.getCape() != null ? !player.getCape().getTextureId().equals(capeTextureId) : capeTextureId != null) {
-            document.setCape(this.capeService.getCapeByTextureId(capeTextureId).getUuid());
+        CapeTextureToken right = skinAndCape.right();
+        String capeTextureId = right != null ? right.getTextureId() : null;
+        String currentCapeTextureId = player.getCape() != null ? player.getCape().getTextureId() : null;
+        if (!Objects.equals(currentCapeTextureId, capeTextureId)) {
+            document.setCape(capeTextureId != null ? this.capeService.getCapeByTextureId(capeTextureId).getUuid() : null);
             shouldSave = true;
         }
 
@@ -210,8 +216,8 @@ public class PlayerService {
         if (shouldSave) {
             document.setLastUpdated(new Date());
             this.playerRepository.save(document);
-            log.debug("Updated player {} in {}ms", player.getUsername(), System.currentTimeMillis() - start);
         }
+        log.debug("Updated player {} in {}ms", player.getUsername(), System.currentTimeMillis() - start);
     }
 
     /**
