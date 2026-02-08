@@ -8,7 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.Main;
-import xyz.mcutils.backend.model.persistence.redis.CachedPlayer;
+import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.persistence.redis.CachedPlayerName;
 import xyz.mcutils.backend.service.PlayerService;
 
@@ -28,7 +28,7 @@ public class PlayerController {
 
     @ResponseBody
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public CompletableFuture<ResponseEntity<CachedPlayer>> getPlayer(
+    public CompletableFuture<ResponseEntity<Player>> getPlayer(
             @Parameter(
                     description = "The UUID or Username of the player",
                     example = "ImFascinated"

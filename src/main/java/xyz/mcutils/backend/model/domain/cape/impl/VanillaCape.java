@@ -1,5 +1,6 @@
 package xyz.mcutils.backend.model.domain.cape.impl;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,10 +18,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @Getter @Slf4j
@@ -28,26 +26,25 @@ import java.util.concurrent.CompletableFuture;
 public class VanillaCape extends Cape<VanillaCape.Part> {
     private static final String CDN_URL = "https://textures.minecraft.net/texture/%s";
 
-    @Getter
-    public enum Part {
-        FRONT(VanillaCapeRenderer.INSTANCE);
+    /**
+     * The UUID of this skin.
+     */
+    @JsonIgnore
+    private UUID uuid;
 
-        private final Renderer<VanillaCape> renderer;
-
-        Part(Renderer<VanillaCape> renderer) {
-            this.renderer = renderer;
-        }
-    }
-
+    /**
+     * The name of this cape.
+     */
     private String name;
 
-    public VanillaCape(String name, String textureId) {
+    public VanillaCape(UUID uuid, String name, String textureId) {
         super(
                 textureId,
                 CDN_URL.formatted(textureId),
                 AppConfig.INSTANCE.getWebPublicUrl() + "/skins/%s/texture.png".formatted(textureId),
                 buildParts(textureId)
         );
+        this.uuid = uuid;
         this.name = name;
     }
 
@@ -89,7 +86,7 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
     }
 
     /**
-     * Checks if an Vanilla cape exists for the given player
+     * Checks if a Vanilla cape exists for the given player
      *
      * @param textureId the player's name to check for
      * @return a future that returns true or false
@@ -109,5 +106,16 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
             }
             return response.statusCode() == 200;
         });
+    }
+
+    @Getter
+    public enum Part {
+        FRONT(VanillaCapeRenderer.INSTANCE);
+
+        private final Renderer<VanillaCape> renderer;
+
+        Part(Renderer<VanillaCape> renderer) {
+            this.renderer = renderer;
+        }
     }
 }

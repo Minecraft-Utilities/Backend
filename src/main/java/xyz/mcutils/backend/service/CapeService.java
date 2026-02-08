@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
@@ -54,7 +55,7 @@ public class CapeService {
     private final CapeRepository capeRepository;
 
     @Autowired
-    public CapeService(StorageService minioService, PlayerService playerService, PlayerCapePartCacheRepository capePartRepository, CapeRepository capeRepository) {
+    public CapeService(StorageService minioService, @Lazy PlayerService playerService, PlayerCapePartCacheRepository capePartRepository, CapeRepository capeRepository) {
         this.minioService = minioService;
         this.playerService = playerService;
         this.capePartRepository = capePartRepository;
@@ -74,7 +75,7 @@ public class CapeService {
     public Map<String, VanillaCape> getCapes() {
         Map<String, VanillaCape>  capes = new HashMap<>();
         for (CapeDocument document : this.capeRepository.findAll()) {
-            capes.put(document.getTextureId(), new VanillaCape(document.getName(), document.getTextureId()));
+            capes.put(document.getTextureId(), new VanillaCape(document.getId(), document.getName(), document.getTextureId()));
         }
         return capes;
     }
@@ -86,10 +87,12 @@ public class CapeService {
      * @return the cape, or null if not found
      */
     public VanillaCape getCapeByTextureId(String textureId) {
+        long start = System.currentTimeMillis();
         Optional<CapeDocument> optionalCapeDocument = this.capeRepository.findByTextureId(textureId);
+        CapeDocument document;
+
         if (optionalCapeDocument.isPresent()) {
-            CapeDocument document = optionalCapeDocument.get();
-            return new VanillaCape(document.getName(), document.getTextureId());
+            document = optionalCapeDocument.get();
         } else {
             // Check to see if the cape texture is valid.
             boolean exists = false;
@@ -100,13 +103,32 @@ public class CapeService {
                 throw new NotFoundException("Cape with texture id " + textureId + " was not found");
             }
 
-            CapeDocument inserted = this.capeRepository.insert(new CapeDocument(
+            document = this.capeRepository.insert(new CapeDocument(
                     UUID.randomUUID(),
                     null,
                     textureId
             ));
-            return new VanillaCape(inserted.getName(), inserted.getTextureId());
         }
+
+        log.debug("Found vanilla cape by texture id {} in {}ms", document.getId(), System.currentTimeMillis() - start);
+        return new VanillaCape(document.getId(), document.getName(), document.getTextureId());
+    }
+
+    /**
+     * Gets a cape from the database using its UUID.
+     *
+     * @param uuid the uuid of the cape
+     * @return the cape, or null if not found
+     */
+    public VanillaCape capeCapeByUuid(UUID uuid) {
+        long start = System.currentTimeMillis();
+        Optional<CapeDocument> optionalCapeDocument = this.capeRepository.findById(uuid);
+        if (optionalCapeDocument.isPresent()) {
+            CapeDocument document = optionalCapeDocument.get();
+            log.debug("Found vanilla cape by uuid {} in {}ms", document.getId(), System.currentTimeMillis() - start);
+            return new VanillaCape(document.getId(), document.getName(), document.getTextureId());
+        }
+        return null;
     }
 
     /**
@@ -126,7 +148,7 @@ public class CapeService {
         if (query.length() > 16) {
             cape = this.getCapeByTextureId(query);
         } else {
-            Player player = this.playerService.getPlayer(query).getPlayer();
+            Player player = this.playerService.getPlayer(query);
             cape = player.getCape();
             if (cape == null) {
                 throw new NotFoundException("Player '%s' does not have a cape equipped".formatted(player.getUsername()));

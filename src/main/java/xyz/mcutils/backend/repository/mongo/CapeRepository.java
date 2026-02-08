@@ -5,13 +5,14 @@ import org.springframework.data.mongodb.repository.Query;
 import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * A repository for vanilla cape documents.
  *
  * @author Fascinated
  */
-public interface CapeRepository extends MongoRepository<CapeDocument, String> {
+public interface CapeRepository extends MongoRepository<CapeDocument, UUID> {
     /**
      * Finds a cape document by its texture id.
      *

@@ -7,18 +7,26 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.PlayerUtils;
+import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.exception.impl.RateLimitException;
+import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
-import xyz.mcutils.backend.model.persistence.redis.CachedPlayer;
+import xyz.mcutils.backend.model.domain.skin.Skin;
+import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 import xyz.mcutils.backend.model.persistence.redis.CachedPlayerName;
+import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
-import xyz.mcutils.backend.repository.redis.PlayerCacheRepository;
+import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
+import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.redis.PlayerNameCacheRepository;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -28,20 +36,27 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 @Slf4j
 public class PlayerService {
-    private final MojangService mojangService;
-    private final PlayerNameCacheRepository playerNameCacheRepository;
-    private final PlayerCacheRepository playerCacheRepository;
-
-    private final ConcurrentHashMap<String, CompletableFuture<CachedPlayer>> inFlightPlayerRequests = new ConcurrentHashMap<>();
+    private static final Duration PLAYER_UPDATE_INTERVAL = Duration.ofHours(3);
 
     @Value("${mc-utils.cache.player.enabled}")
     private boolean cacheEnabled;
 
+    private final MojangService mojangService;
+    private final SkinService skinService;
+    private final CapeService capeService;
+    private final PlayerNameCacheRepository playerNameCacheRepository;
+    private final PlayerRepository playerRepository;
+
+    private final ConcurrentHashMap<String, CompletableFuture<Player>> inFlightPlayerRequests = new ConcurrentHashMap<>();
+
     @Autowired
-    public PlayerService(@NonNull MojangService mojangService, @NonNull PlayerNameCacheRepository playerNameCacheRepository, @NonNull PlayerCacheRepository playerCacheRepository) {
+    public PlayerService(@NonNull MojangService mojangService, SkinService skinService, CapeService capeService, @NonNull PlayerNameCacheRepository playerNameCacheRepository,
+                         @NonNull PlayerRepository playerRepository) {
         this.mojangService = mojangService;
+        this.skinService = skinService;
+        this.capeService = capeService;
         this.playerNameCacheRepository = playerNameCacheRepository;
-        this.playerCacheRepository = playerCacheRepository;
+        this.playerRepository = playerRepository;
     }
 
     /**
@@ -51,15 +66,15 @@ public class PlayerService {
      * @param query the query to look up the player by (UUID or username)
      * @return the player
      */
-    public CachedPlayer getPlayer(String query) {
+    public Player getPlayer(String query) {
         UUID uuidFromQuery = PlayerUtils.getUuidFromString(query);
         String key = uuidFromQuery != null ? uuidFromQuery.toString() : query.toLowerCase();
-        CompletableFuture<CachedPlayer> future = new CompletableFuture<>();
-        CompletableFuture<CachedPlayer> existing = inFlightPlayerRequests.putIfAbsent(key, future);
+        CompletableFuture<Player> future = new CompletableFuture<>();
+        CompletableFuture<Player> existing = inFlightPlayerRequests.putIfAbsent(key, future);
 
         if (existing == null) {
             try {
-                CachedPlayer result = getPlayerInternal(query);
+                Player result = getPlayerInternal(query);
                 future.complete(result);
                 return result;
             } catch (Throwable t) {
@@ -87,46 +102,114 @@ public class PlayerService {
     /**
      * Resolves the player from cache or Mojang API. Called by getPlayer under coalescing.
      */
-    private CachedPlayer getPlayerInternal(String query) {
+    private Player getPlayerInternal(String query) {
         // Convert the id to uppercase to prevent case sensitivity
         UUID uuid = PlayerUtils.getUuidFromString(query);
         if (uuid == null) { // If the id is not a valid uuid, get the uuid from the username
             uuid = usernameToUuid(query).getUniqueId();
         }
 
-        long cacheStart = System.currentTimeMillis();
-        if (cacheEnabled) {
-            Optional<CachedPlayer> cachedPlayer = playerCacheRepository.findById(uuid);
-            if (cachedPlayer.isPresent()) {
-                log.debug("Got player {} from cache in {}ms", uuid, System.currentTimeMillis() - cacheStart);
-                CachedPlayer player = cachedPlayer.get();
-                player.setCached(true);
-                return player;
+        Optional<PlayerDocument> optionalPlayerDocument = this.playerRepository.findById(uuid);
+        if (optionalPlayerDocument.isPresent()) {
+            PlayerDocument playerDocument = optionalPlayerDocument.get();
+
+            Skin skin = this.skinService.getSkinByUuid(playerDocument.getSkin());
+            VanillaCape cape = this.capeService.capeCapeByUuid(playerDocument.getCape());
+            Player player = new Player(playerDocument.getId(), playerDocument.getUsername(), playerDocument.isLegacyAccount(), skin, cape);
+
+            if (playerDocument.getLastUpdated().toInstant().isAfter(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
+                MojangProfileToken token = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
+                if (token == null) {
+                    throw new NotFoundException("Player with uuid '%s' was not found".formatted(uuid));
+                }
+                this.updatePlayer(player, playerDocument, token);
             }
+            return player;
         }
 
-        long fetchStart = System.currentTimeMillis();
         try {
-            MojangProfileToken mojangProfile = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
-            if (mojangProfile == null) {
+            MojangProfileToken token = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
+            if (token == null) {
                 throw new NotFoundException("Player with uuid '%s' was not found".formatted(uuid));
             }
-            CachedPlayer player = new CachedPlayer(
-                    uuid, // Player UUID
-                    new Player(mojangProfile)
-            );
-
-            if (cacheEnabled) {
-                CompletableFuture.runAsync(() -> this.playerCacheRepository.save(player), Main.EXECUTOR)
-                        .exceptionally(ex -> {
-                            log.warn("Save failed for player {}: {}", player.getUniqueId(), ex.getMessage());
-                            return null;
-                        });
-            }
-            log.debug("Got player {} from Mojang API in {}ms", uuid, System.currentTimeMillis() - fetchStart);
-            return player;
+            return this.createPlayer(token);
         } catch (RateLimitException exception) {
             throw new MojangAPIRateLimitException();
+        }
+    }
+
+    /**
+     * Creates a new player from their {@link MojangProfileToken}
+     *
+     * @param token the token for the player
+     * @return the created player
+     */
+    public Player createPlayer(MojangProfileToken token) {
+        long start = System.currentTimeMillis();
+
+        Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
+        Skin skin = this.skinService.getSkinByTextureId(skinAndCape.right().getTextureId());
+        if (skin == null) {
+            skin = this.skinService.createSkin(skinAndCape.left());
+        }
+
+        VanillaCape cape = this.capeService.getCapeByTextureId(skinAndCape.left().getTextureId());
+
+        PlayerDocument document = this.playerRepository.insert(new PlayerDocument(
+                UUIDUtils.addDashes(token.getId()),
+                token.getName(),
+                token.isLegacy(),
+                skin.getUuid(),
+                cape.getUuid(),
+                new Date()
+        ));
+
+        log.debug("Created player {} in {}ms", document.getUsername(), System.currentTimeMillis() - start);
+        return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, cape);
+    }
+
+    /**
+     * Updates the player with their new data from the {@link MojangProfileToken}
+     *
+     * @param player the player to update
+     * @param document the player's document
+     * @param token the player's {@link MojangProfileToken} token
+     */
+    private void updatePlayer(Player player, PlayerDocument document, MojangProfileToken token) {
+        long start = System.currentTimeMillis();
+        Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
+        boolean shouldSave = false;
+
+        // Player username
+        if (!player.getUsername().equals(token.getName())) {
+            document.setUsername(token.getName());
+            shouldSave = true;
+        }
+
+        // Player skin
+        SkinTextureToken skinTextureToken = skinAndCape.left();
+        if (!player.getSkin().getTextureId().equals(skinTextureToken.getTextureId())) {
+            document.setSkin(this.skinService.getOrCreateSkinByTextureId(skinTextureToken).getUuid());
+            shouldSave = true;
+        }
+
+        // Player cape
+        String capeTextureId = skinAndCape.right().getTextureId();
+        if (player.getCape() != null ? !player.getCape().getTextureId().equals(capeTextureId) : capeTextureId != null) {
+            document.setCape(this.capeService.getCapeByTextureId(capeTextureId).getUuid());
+            shouldSave = true;
+        }
+
+        // Legacy account status
+        if (player.isLegacyAccount() != token.isLegacy()) {
+            document.setLegacyAccount(token.isLegacy());
+            shouldSave = true;
+        }
+
+        if (shouldSave) {
+            document.setLastUpdated(new Date());
+            this.playerRepository.save(document);
+            log.debug("Updated player {} in {}ms", player.getUsername(), System.currentTimeMillis() - start);
         }
     }
 

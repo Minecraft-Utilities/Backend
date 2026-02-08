@@ -5,13 +5,14 @@ import org.springframework.data.mongodb.repository.Query;
 import xyz.mcutils.backend.model.persistence.mongo.SkinDocument;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * A repository for Skin documents.
  *
  * @author Fascinated
  */
-public interface SkinRepository extends MongoRepository<SkinDocument, String> {
+public interface SkinRepository extends MongoRepository<SkinDocument, UUID> {
     /**
      * Finds a cape document by its texture id.
      *

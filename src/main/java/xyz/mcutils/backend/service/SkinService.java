@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
@@ -53,7 +54,7 @@ public class SkinService {
     private final PlayerService playerService;
 
     @Autowired
-    public SkinService(PlayerSkinPartCacheRepository skinPartRepository, SkinRepository skinRepository, StorageService minioService, PlayerService playerService) {
+    public SkinService(PlayerSkinPartCacheRepository skinPartRepository, SkinRepository skinRepository, StorageService minioService, @Lazy PlayerService playerService) {
         this.skinPartRepository = skinPartRepository;
         this.skinRepository = skinRepository;
         this.minioService = minioService;
@@ -71,25 +72,55 @@ public class SkinService {
      * @param textureId the skin to get
      * @return the skin, or null if not found
      */
-    public Skin getSkin(String textureId, Player player) {
+    public Skin getSkinByTextureId(String textureId) {
         long start = System.currentTimeMillis();
         Optional<SkinDocument> optionalSkinDocument = this.skinRepository.findByTextureId(textureId);
         if (optionalSkinDocument.isPresent()) {
             SkinDocument document = optionalSkinDocument.get();
-            log.debug("Found skin {} for player {} in {}ms", document.getTextureId(), player.getUsername(), System.currentTimeMillis() - start);
-            return new Skin(document.getTextureId(), document.getModel(), document.isLegacy(), player);
+            log.debug("Found skin by texture id {} in {}ms", document.getTextureId(), System.currentTimeMillis() - start);
+            return new Skin(document.getId(), document.getTextureId(), document.getModel(), document.isLegacy());
         }
         return null;
+    }
+
+    /**
+     * Gets a skin from the database using its UUID.
+     *
+     * @param uuid the skin to get
+     * @return the skin, or null if not found
+     */
+    public Skin getSkinByUuid(UUID uuid) {
+        long start = System.currentTimeMillis();
+        Optional<SkinDocument> optionalSkinDocument = this.skinRepository.findById(uuid);
+        if (optionalSkinDocument.isPresent()) {
+            SkinDocument document = optionalSkinDocument.get();
+            log.debug("Found skin by uuid {} in {}ms", document.getId(), System.currentTimeMillis() - start);
+            return new Skin(document.getId(), document.getTextureId(), document.getModel(), document.isLegacy());
+        }
+        return null;
+    }
+
+    /**
+     * Gets or creates the skin using the its {@link SkinTextureToken}
+     *
+     * @param token the texture token for the skin
+     * @return the skin
+     */
+    public Skin getOrCreateSkinByTextureId(SkinTextureToken token) {
+        Skin skin = this.getSkinByTextureId(token.getTextureId());
+        if (skin == null) {
+            return this.createSkin(token);
+        }
+        return skin;
     }
 
     /**
      * Creates a new skin and inserts it into the database.
      *
      * @param token the token for the skin from the {@link MojangProfileToken}
-     * @param player the player who is wearing this skin
      * @return the created skin
      */
-    public Skin createSkin(SkinTextureToken token, Player player) {
+    public Skin createSkin(SkinTextureToken token) {
         long start = System.currentTimeMillis();
         SkinTextureToken.Metadata metadata = token.getMetadata();
         SkinDocument document = this.skinRepository.insert(new SkinDocument(
@@ -98,8 +129,8 @@ public class SkinService {
                 EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.getModel()),
                 Skin.isLegacySkin(token.getTextureId(), Skin.CDN_URL.formatted(token.getTextureId()))
         ));
-        log.debug("Created skin {} for player {} in {}ms", document.getTextureId(), player.getUsername(), System.currentTimeMillis() - start);
-        return new Skin(document.getTextureId(), document.getModel(), document.isLegacy(), player);
+        log.debug("Created skin {} in {}ms", document.getTextureId(), System.currentTimeMillis() - start);
+        return new Skin(document.getId(), document.getTextureId(), document.getModel(), document.isLegacy());
     }
 
     /**
@@ -113,9 +144,9 @@ public class SkinService {
         // I really have no idea how long their sha-1 string length is
         // a player name can't be more than 16 chars, so just assume it's a texture id
         if (query.length() > 16) {
-            skin = Skin.fromId(query);
+            skin = this.getSkinByTextureId(query);
         } else {
-            Player player = this.playerService.getPlayer(query).getPlayer();
+            Player player = this.playerService.getPlayer(query);
             skin = player.getSkin();
         }
         return skin;

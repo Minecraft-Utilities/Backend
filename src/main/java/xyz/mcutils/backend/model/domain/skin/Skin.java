@@ -1,8 +1,8 @@
 package xyz.mcutils.backend.model.domain.skin;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
-import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.renderer.PartRenderable;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
@@ -14,16 +14,12 @@ import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.FullBodyRendererFr
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.domain.Texture;
 import xyz.mcutils.backend.model.domain.player.Player;
-import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.service.SkinService;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -33,21 +29,12 @@ import java.util.Set;
 public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart> {
     public static final String CDN_URL = "https://textures.minecraft.net/texture/%s";
 
-    @Getter
-    public enum SkinPart {
-        FACE(FaceRenderer.INSTANCE),
-        HEAD(HeadRenderer.INSTANCE),
-        BODY(BodyRenderer.INSTANCE),
-        FULLBODY_FRONT(FullBodyRendererFront.INSTANCE),
-        FULLBODY_BACK(FullBodyRendererBack.INSTANCE);
+    /**
+     * The UUID of this skin.
+     */
+    @JsonIgnore
+    private UUID uuid;
 
-        private final SkinRenderer renderer;
-
-        SkinPart(SkinRenderer renderer) {
-            this.renderer = renderer;
-        }
-
-    }
     /**
      * The model for the skin
      */
@@ -65,25 +52,30 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
     @Setter
     private Map<String, String> parts;
 
-    public Skin(String textureId, Model model, boolean legacy, Player player) {
+    public Skin(UUID uuid, String textureId, Model model, boolean legacy) {
         super(
                 textureId,
                 CDN_URL.formatted(textureId),
                 AppConfig.INSTANCE.getWebPublicUrl() + "/skins/%s/texture.png".formatted(textureId)
         );
-
+        this.uuid = uuid;
         this.model = model;
         this.legacy = legacy;
+    }
 
-        if (player != null) {
-            this.parts = new HashMap<>();
-            for (SkinPart part : SkinPart.values()) {
-                this.parts.put(part.name(), "%s/skins/%s/%s.png".formatted(
-                        AppConfig.INSTANCE.getWebPublicUrl(),
-                        player.getUniqueId(),
-                        part.name().toLowerCase()
-                ));
-            }
+    /**
+     * Adds the part URLs to the Skin.
+     *
+     * @param player the player to add the parts for
+     */
+    public void updateParts(Player player) {
+        this.parts = new HashMap<>();
+        for (SkinPart part : SkinPart.values()) {
+            this.parts.put(part.name(), "%s/skins/%s/%s.png".formatted(
+                    AppConfig.INSTANCE.getWebPublicUrl(),
+                    player.getUniqueId(),
+                    part.name().toLowerCase()
+            ));
         }
     }
 
@@ -95,43 +87,6 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
     @Override
     public BufferedImage render(SkinPart part, int size, RenderOptions options) {
         return part.getRenderer().render(this, size, options);
-    }
-
-    /**
-     * Gets the skin from a {@link SkinTextureToken}.
-     *
-     * @param token the skin texture token
-     * @param player the player
-     * @return the skin, or null if token is null
-     */
-    public static Skin fromToken(SkinTextureToken token, Player player) {
-        if (token == null) {
-            return null;
-        }
-        String textureId = token.getTextureId();
-        if (textureId == null) {
-            return null;
-        }
-        String modelName = token.getMetadata() != null && token.getMetadata().getModel() != null
-                ? token.getMetadata().getModel().toUpperCase()
-                : "DEFAULT";
-        return new Skin(textureId, EnumUtils.getEnumConstant(Model.class, modelName), Skin.isLegacySkin(textureId, CDN_URL.formatted(textureId)), player);
-    }
-
-    /**
-     * Creates a skin from only it's texture id.
-     * This is only used for the texture route.
-     *
-     * @param textureId the texture id of the skin
-     * @return the skin
-     */
-    public static Skin fromId(String textureId) {
-        return new Skin(
-                textureId,
-                Model.DEFAULT,
-                false,
-                null
-        );
     }
 
     @SneakyThrows
@@ -149,5 +104,21 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
     public enum Model {
         DEFAULT,
         SLIM
+    }
+
+    @Getter
+    public enum SkinPart {
+        FACE(FaceRenderer.INSTANCE),
+        HEAD(HeadRenderer.INSTANCE),
+        BODY(BodyRenderer.INSTANCE),
+        FULLBODY_FRONT(FullBodyRendererFront.INSTANCE),
+        FULLBODY_BACK(FullBodyRendererBack.INSTANCE);
+
+        private final SkinRenderer renderer;
+
+        SkinPart(SkinRenderer renderer) {
+            this.renderer = renderer;
+        }
+
     }
 }

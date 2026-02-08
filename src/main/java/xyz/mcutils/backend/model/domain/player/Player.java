@@ -4,22 +4,16 @@ import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.data.annotation.Id;
-import xyz.mcutils.backend.common.Tuple;
-import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.skin.Skin;
-import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
-import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
-import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
-import xyz.mcutils.backend.service.CapeService;
-import xyz.mcutils.backend.service.SkinService;
 
 import java.util.UUID;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
+@Setter
 @EqualsAndHashCode
 @ToString
 @Slf4j
@@ -63,31 +57,13 @@ public class Player {
     @Nullable
     private OptifineCape optifineCape;
 
-    /**
-     * The raw properties of the player
-     */
-    private MojangProfileToken.ProfileProperty[] rawProperties;
+    public Player(UUID uniqueId, String username, boolean legacyAccount, Skin skin, @Nullable VanillaCape cape) {
+        this.uniqueId = uniqueId;
+        this.username = username;
+        this.legacyAccount = legacyAccount;
+        this.skin = skin;
+        this.cape = cape;
 
-    public Player(MojangProfileToken profile) {
-        this.uniqueId = UUIDUtils.addDashes(profile.getId());
-        this.username = profile.getName();
-        this.legacyAccount = profile.isLegacy();
-        this.rawProperties = profile.getProperties();
-
-        // Get the skin and cape
-        Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = profile.getSkinAndCape();
-        if (skinAndCape != null) {
-            SkinTextureToken skinTextureToken = skinAndCape.left();
-            this.skin = SkinService.INSTANCE.getSkin(skinTextureToken.getTextureId(), this);
-            // Skin was not cached, create it
-            if (this.skin == null) {
-                skin = SkinService.INSTANCE.createSkin(skinTextureToken, this);
-            }
-            CapeTextureToken capeTextureToken = skinAndCape.right();
-            if (capeTextureToken != null) {
-                this.cape = CapeService.INSTANCE.getCapeByTextureId(capeTextureToken.getTextureId());
-            }
-        }
         try {
             if (OptifineCape.capeExists(this.username).get() == true) {
                 this.optifineCape = new OptifineCape(this.username);

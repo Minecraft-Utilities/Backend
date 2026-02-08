@@ -69,7 +69,7 @@ public class SkinController {
             ) @RequestParam(required = false, defaultValue = "true") boolean overlays
     ) {
         return CompletableFuture.supplyAsync(() -> {
-            var skin = playerService.getPlayer(query).getPlayer().getSkin();
+            Skin skin = playerService.getPlayer(query).getSkin();
             if (skin == null) {
                 throw new NotFoundException("Player has no skin");
             }
