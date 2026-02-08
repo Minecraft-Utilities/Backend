@@ -79,7 +79,8 @@ public class PlayerService {
             List<PlayerDocument.HistoryItem> capeHistoryItems = playerDocument.getCapeHistory();
             List<VanillaCape> capeHistory = capeHistoryItems != null ? capeHistoryItems.stream().map(historyItem -> this.capeService.getCapeByUuid(historyItem.uuid())).toList() : null;
 
-            Player player = new Player(playerDocument.getId(), playerDocument.getUsername(), playerDocument.isLegacyAccount(), skin, skinHistory, cape, capeHistory);
+            Player player = new Player(playerDocument.getId(), playerDocument.getUsername(), playerDocument.isLegacyAccount(), skin,
+                    skinHistory, cape, capeHistory, playerDocument.getLastUpdated(), playerDocument.getFirstSeen());
 
             // add part urls
             player.getSkinHistory().forEach(historySkin -> historySkin.updateParts(player));
@@ -138,7 +139,8 @@ public class PlayerService {
         ));
 
         log.debug("Created player {} in {}ms", document.getUsername(), System.currentTimeMillis() - start);
-        return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, List.of(skin), cape, capeUuid != null ? List.of(cape) : null);
+        return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, List.of(skin), cape,
+                capeUuid != null ? List.of(cape) : null, new Date(), new Date());
     }
 
     /**

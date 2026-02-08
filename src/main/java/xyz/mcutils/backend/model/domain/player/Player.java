@@ -8,6 +8,7 @@ import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -69,7 +70,18 @@ public class Player {
     @Nullable
     private OptifineCape optifineCape;
 
-    public Player(UUID uniqueId, String username, boolean legacyAccount, Skin skin, List<Skin> skinHistory, @Nullable VanillaCape cape, @Nullable List<VanillaCape> capeHistory) {
+    /**
+     * The time this account was last updated.
+     */
+    private Date lastUpdated;
+
+    /**
+     * The date this player was first seen on.
+     */
+    private Date firstSeen;
+
+    public Player(UUID uniqueId, String username, boolean legacyAccount, Skin skin, List<Skin> skinHistory, @Nullable VanillaCape cape, @Nullable List<VanillaCape> capeHistory,
+                  Date lastUpdated, Date firstSeen) {
         this.uniqueId = uniqueId;
         this.username = username;
         this.legacyAccount = legacyAccount;
@@ -77,6 +89,8 @@ public class Player {
         this.skinHistory = skinHistory;
         this.cape = cape;
         this.capeHistory = capeHistory;
+        this.lastUpdated = lastUpdated;
+        this.firstSeen = firstSeen;
 
         try {
             if (OptifineCape.capeExists(this.username).get() == true) {
