@@ -39,6 +39,11 @@ public class CapeDocument {
     private String textureId;
 
     /**
+     * The number of accounts that have this cape owned.
+     */
+    private long accountsOwned;
+
+    /**
      * The date this cape was first seen on.
      */
     private Date firstSeen;

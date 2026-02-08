@@ -5,6 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
@@ -50,13 +54,15 @@ public class CapeService {
     private final PlayerService playerService;
     private final PlayerCapePartCacheRepository capePartRepository;
     private final CapeRepository capeRepository;
+    private final MongoTemplate mongoTemplate;
 
     @Autowired
-    public CapeService(StorageService minioService, @Lazy PlayerService playerService, PlayerCapePartCacheRepository capePartRepository, CapeRepository capeRepository) {
+    public CapeService(StorageService minioService, @Lazy PlayerService playerService, PlayerCapePartCacheRepository capePartRepository, CapeRepository capeRepository, MongoTemplate mongoTemplate) {
         this.minioService = minioService;
         this.playerService = playerService;
         this.capePartRepository = capePartRepository;
         this.capeRepository = capeRepository;
+        this.mongoTemplate = mongoTemplate;
     }
 
     @PostConstruct
@@ -72,7 +78,7 @@ public class CapeService {
     public Map<String, VanillaCape> getCapes() {
         Map<String, VanillaCape>  capes = new HashMap<>();
         for (CapeDocument document : this.capeRepository.findAll()) {
-            capes.put(document.getTextureId(), new VanillaCape(document.getId(), document.getName(), document.getTextureId()));
+            capes.put(document.getTextureId(), new VanillaCape(document.getId(), document.getName(), document.getAccountsOwned(), document.getTextureId()));
         }
         return capes;
     }
@@ -104,12 +110,13 @@ public class CapeService {
                     UUID.randomUUID(),
                     null,
                     textureId,
+                    0,
                     new Date()
             ));
         }
 
         log.debug("Found vanilla cape by texture id {} in {}ms", document.getId(), System.currentTimeMillis() - start);
-        return new VanillaCape(document.getId(), document.getName(), document.getTextureId());
+        return new VanillaCape(document.getId(), document.getName(), document.getAccountsOwned(), document.getTextureId());
     }
 
     /**
@@ -124,7 +131,7 @@ public class CapeService {
         if (optionalCapeDocument.isPresent()) {
             CapeDocument document = optionalCapeDocument.get();
             log.debug("Found vanilla cape by uuid {} in {}ms", document.getId(), System.currentTimeMillis() - start);
-            return new VanillaCape(document.getId(), document.getName(), document.getTextureId());
+            return new VanillaCape(document.getId(), document.getName(), document.getAccountsOwned(), document.getTextureId());
         }
         return null;
     }
@@ -153,6 +160,17 @@ public class CapeService {
             }
         }
         return cape;
+    }
+
+    /**
+     * Increments {@link CapeDocument#getAccountsOwned()} by 1 for the given cape.
+     *
+     * @param capeId the cape document id
+     */
+    public void incrementAccountsOwned(UUID capeId) {
+        Query query = Query.query(Criteria.where("_id").is(capeId));
+        Update update = new Update().inc("accountsOwned", 1);
+        mongoTemplate.updateFirst(query, update, CapeDocument.class);
     }
 
     /**

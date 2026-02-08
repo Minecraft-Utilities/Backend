@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.service;
 
-import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,8 +43,8 @@ public class PlayerService {
     private final PlayerRepository playerRepository;
 
     @Autowired
-    public PlayerService(@NonNull MojangService mojangService, SkinService skinService, CapeService capeService, @NonNull PlayerNameCacheRepository playerNameCacheRepository,
-                         @NonNull PlayerRepository playerRepository) {
+    public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerNameCacheRepository playerNameCacheRepository,
+                         PlayerRepository playerRepository) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
@@ -138,6 +137,11 @@ public class PlayerService {
                 new Date()
         ));
 
+        // Increment the accounts owned for the cape
+        if (capeUuid != null) {
+            this.capeService.incrementAccountsOwned(capeUuid);
+        }
+
         log.debug("Created player {} in {}ms", document.getUsername(), System.currentTimeMillis() - start);
         return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, List.of(skin), cape,
                 capeUuid != null ? List.of(cape) : null, new Date(), new Date());
@@ -194,6 +198,8 @@ public class PlayerService {
                     ArrayList<PlayerDocument.HistoryItem> historyItems = new ArrayList<>(document.getCapeHistory());
                     historyItems.add(new PlayerDocument.HistoryItem(newCape.getUuid(), new Date()));
                     document.setCapeHistory(historyItems);
+
+                    this.capeService.incrementAccountsOwned(newCape.getUuid());
                 }
 
                 shouldSave = true;

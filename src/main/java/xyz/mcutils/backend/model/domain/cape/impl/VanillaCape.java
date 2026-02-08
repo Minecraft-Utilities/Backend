@@ -36,7 +36,12 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
      */
     private String name;
 
-    public VanillaCape(UUID uuid, String name, String textureId) {
+    /**
+     * The number of accounts that have this cape owned.
+     */
+    private long accountsOwned;
+
+    public VanillaCape(UUID uuid, String name, long accountsOwned, String textureId) {
         super(
                 textureId,
                 CDN_URL.formatted(textureId),
@@ -45,6 +50,7 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
         );
         this.uuid = uuid;
         this.name = name;
+        this.accountsOwned = accountsOwned;
     }
 
     @Override
