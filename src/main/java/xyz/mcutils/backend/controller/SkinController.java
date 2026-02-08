@@ -41,7 +41,7 @@ public class SkinController {
     ) {
         return CompletableFuture.supplyAsync(() -> {
             Skin skin = this.skinService.getSkinFromTextureIdOrPlayer(query);
-            byte[] texture = skinService.getSkinTexture(skin, false);
+            byte[] texture = skinService.getSkinTexture(skin.getTextureId(), skin.getTextureUrl(), false);
             return ResponseEntity.ok()
                     .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                     .contentType(MediaType.IMAGE_PNG)

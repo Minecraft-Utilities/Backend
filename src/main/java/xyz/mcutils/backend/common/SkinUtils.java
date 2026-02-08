@@ -3,7 +3,6 @@ package xyz.mcutils.backend.common;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.renderer.texture.PlayerModelCoordinates;
-import xyz.mcutils.backend.model.domain.skin.Skin;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -15,10 +14,10 @@ public class SkinUtils {
     /**
      * Upgrades a legacy 64×32 skin to 64×64 (1.8 format) if needed.
      *
-     * @param skin the skin to upgrade
+     * @param textureId the texture id of the skin being upgraded
      * @return PNG bytes (64×64 if input was 64×32, otherwise unchanged)
      */
-    public static byte[] upgradeLegacySkin(Skin skin, byte[] skinImage) {
+    public static byte[] upgradeLegacySkin(String textureId, byte[] skinImage) {
         try {
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(skinImage));
             if (image == null || image.getWidth() != 64 || image.getHeight() != 32) {
@@ -27,7 +26,7 @@ public class SkinUtils {
             long start = System.currentTimeMillis();
             BufferedImage upgraded = upgradeLegacySkin(image);
             byte[] bytes = ImageUtils.imageToBytes(upgraded);
-            log.debug("Upgraded legacy skin '{}' in {}ms", skin.getTextureId(), System.currentTimeMillis() - start);
+            log.debug("Upgraded legacy skin '{}' in {}ms", textureId, System.currentTimeMillis() - start);
             return bytes;
         } catch (Exception e) {
             log.warn("Could not upgrade legacy skin, using original: {}", e.getMessage());

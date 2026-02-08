@@ -31,6 +31,7 @@ import java.util.Set;
 @Slf4j
 @EqualsAndHashCode(callSuper = false)
 public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart> {
+    public static final String CDN_URL = "https://textures.minecraft.net/texture/%s";
 
     @Getter
     public enum SkinPart {
@@ -46,9 +47,6 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
             this.renderer = renderer;
         }
 
-        public SkinRenderer getRenderer() {
-            return renderer;
-        }
     }
     /**
      * The model for the skin
@@ -67,15 +65,15 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
     @Setter
     private Map<String, String> parts;
 
-    public Skin(String textureId, Model model, Player player) {
+    public Skin(String textureId, Model model, boolean legacy, Player player) {
         super(
                 textureId,
-                "https://textures.minecraft.net/texture/" + textureId,
+                CDN_URL.formatted(textureId),
                 AppConfig.INSTANCE.getWebPublicUrl() + "/skins/%s/texture.png".formatted(textureId)
         );
 
         this.model = model;
-        this.legacy = Skin.isLegacySkin(this);
+        this.legacy = legacy;
 
         if (player != null) {
             this.parts = new HashMap<>();
@@ -117,7 +115,7 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
         String modelName = token.getMetadata() != null && token.getMetadata().getModel() != null
                 ? token.getMetadata().getModel().toUpperCase()
                 : "DEFAULT";
-        return new Skin(textureId, EnumUtils.getEnumConstant(Model.class, modelName), player);
+        return new Skin(textureId, EnumUtils.getEnumConstant(Model.class, modelName), Skin.isLegacySkin(textureId, CDN_URL.formatted(textureId)), player);
     }
 
     /**
@@ -131,13 +129,14 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
         return new Skin(
                 textureId,
                 Model.DEFAULT,
+                false,
                 null
         );
     }
 
     @SneakyThrows
-    private static boolean isLegacySkin(Skin skin) {
-        BufferedImage image = ImageIO.read(new ByteArrayInputStream(SkinService.INSTANCE.getSkinTexture(skin, false)));
+    public static boolean isLegacySkin(String textureId, String textureUrl) {
+        BufferedImage image = ImageIO.read(new ByteArrayInputStream(SkinService.INSTANCE.getSkinTexture(textureId, textureUrl, false)));
         if (image == null) {
             return false;
         }

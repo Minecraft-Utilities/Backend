@@ -13,6 +13,7 @@ import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.service.CapeService;
+import xyz.mcutils.backend.service.SkinService;
 
 import java.util.UUID;
 
@@ -76,7 +77,12 @@ public class Player {
         // Get the skin and cape
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = profile.getSkinAndCape();
         if (skinAndCape != null) {
-            this.skin = Skin.fromToken(skinAndCape.left(), this);
+            SkinTextureToken skinTextureToken = skinAndCape.left();
+            this.skin = SkinService.INSTANCE.getSkin(skinTextureToken.getTextureId(), this);
+            // Skin was not cached, create it
+            if (this.skin == null) {
+                skin = SkinService.INSTANCE.createSkin(skinTextureToken, this);
+            }
             CapeTextureToken capeTextureToken = skinAndCape.right();
             if (capeTextureToken != null) {
                 this.cape = CapeService.INSTANCE.getCapeByTextureId(capeTextureToken.getTextureId());

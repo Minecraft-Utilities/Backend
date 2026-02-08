@@ -1,0 +1,43 @@
+package xyz.mcutils.backend.model.persistence.mongo;
+
+import lombok.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import xyz.mcutils.backend.model.domain.skin.Skin;
+
+import java.util.UUID;
+
+/**
+ * MongoDB document for Skins.
+ * Contains only persisted fields
+ *
+ * @author Fascinated
+ */
+@Document(collection = "skins")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class SkinDocument {
+    /**
+     * Mongo document id
+     */
+    @Id
+    private UUID id;
+
+    /**
+     * Texture id (SHA-1 hash).
+     */
+    private String textureId;
+
+    /**
+     * The skins model format.
+     */
+    private Skin.Model model;
+
+    /**
+     * Whether this skin is in the legacy format.
+     */
+    private boolean legacy;
+}

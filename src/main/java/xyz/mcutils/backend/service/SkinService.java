@@ -15,7 +15,11 @@ import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.domain.skin.Skin;
+import xyz.mcutils.backend.model.persistence.mongo.SkinDocument;
 import xyz.mcutils.backend.model.persistence.redis.CachedPlayerSkinPart;
+import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
+import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
+import xyz.mcutils.backend.repository.mongo.SkinRepository;
 import xyz.mcutils.backend.repository.redis.PlayerSkinPartCacheRepository;
 
 import javax.imageio.ImageIO;
@@ -23,6 +27,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @Service
@@ -43,12 +48,14 @@ public class SkinService {
     private int maxPartSize;
 
     private final PlayerSkinPartCacheRepository skinPartRepository;
+    private final SkinRepository skinRepository;
     private final StorageService minioService;
     private final PlayerService playerService;
 
     @Autowired
-    public SkinService(PlayerSkinPartCacheRepository skinPartRepository, StorageService minioService, PlayerService playerService) {
+    public SkinService(PlayerSkinPartCacheRepository skinPartRepository, SkinRepository skinRepository, StorageService minioService, PlayerService playerService) {
         this.skinPartRepository = skinPartRepository;
+        this.skinRepository = skinRepository;
         this.minioService = minioService;
         this.playerService = playerService;
     }
@@ -56,6 +63,42 @@ public class SkinService {
     @PostConstruct
     public void init() {
         INSTANCE = this;
+    }
+
+    /**
+     * Gets a skin from the database using its texture id.
+     *
+     * @param textureId the skin to get
+     * @return the skin, or null if not found
+     */
+    public Skin getSkin(String textureId, Player player) {
+        long start = System.currentTimeMillis();
+        Optional<SkinDocument> optionalSkinDocument = this.skinRepository.findByTextureId(textureId);
+        if (optionalSkinDocument.isPresent()) {
+            SkinDocument document = optionalSkinDocument.get();
+            log.debug("Found skin {} for player {} in {}ms", document.getTextureId(), player.getUsername(), System.currentTimeMillis() - start);
+            return new Skin(document.getTextureId(), document.getModel(), document.isLegacy(), player);
+        }
+        return null;
+    }
+
+    /**
+     * Creates a new skin and inserts it into the database.
+     *
+     * @param token the token for the skin from the {@link MojangProfileToken}
+     * @param player the player who is wearing this skin
+     * @return the created skin
+     */
+    public Skin createSkin(SkinTextureToken token, Player player) {
+        long start = System.currentTimeMillis();
+        SkinDocument document = this.skinRepository.insert(new SkinDocument(
+                UUID.randomUUID(),
+                token.getTextureId(),
+                EnumUtils.getEnumConstant(Skin.Model.class, token.getMetadata().getModel()),
+                Skin.isLegacySkin(token.getTextureId(), Skin.CDN_URL.formatted(token.getTextureId()))
+        ));
+        log.debug("Created skin {} for player {} in {}ms", document.getTextureId(), player.getUsername(), System.currentTimeMillis() - start);
+        return new Skin(document.getTextureId(), document.getModel(), document.isLegacy(), player);
     }
 
     /**
@@ -80,21 +123,22 @@ public class SkinService {
     /**
      * Gets the skin image for the given skin.
      *
-     * @param skin the skin to get the image for
+     * @param textureId the texture id of the skin to get
+     * @param textureUrl the texture url of the skin to get
      * @return the skin image
      */
-    public byte[] getSkinTexture(Skin skin, boolean upgrade) {
-        byte[] skinBytes = minioService.get(StorageService.Bucket.SKINS, skin.getTextureId() + ".png");
+    public byte[] getSkinTexture(String textureId, String textureUrl, boolean upgrade) {
+        byte[] skinBytes = minioService.get(StorageService.Bucket.SKINS, textureId + ".png");
         if (skinBytes == null) {
-            log.debug("Downloading skin image for skin {}", skin.getTextureId());
-            skinBytes = PlayerUtils.getImage(skin.getRawTextureUrl());
+            log.debug("Downloading skin image for skin {}", textureId);
+            skinBytes = PlayerUtils.getImage(textureUrl);
             if (skinBytes == null) {
-                throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(skin.getTextureId()));
+                throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(textureId));
             }
-            minioService.upload(StorageService.Bucket.SKINS, skin.getTextureId() + ".png", MediaType.IMAGE_PNG_VALUE, skinBytes);
-            log.debug("Saved skin image for skin {}", skin.getTextureId());
+            minioService.upload(StorageService.Bucket.SKINS, textureId + ".png", MediaType.IMAGE_PNG_VALUE, skinBytes);
+            log.debug("Saved skin image for skin {}", textureId);
         }
-        return upgrade ? SkinUtils.upgradeLegacySkin(skin, skinBytes) : skinBytes;
+        return upgrade ? SkinUtils.upgradeLegacySkin(textureId, skinBytes) : skinBytes;
     }
 
     /**

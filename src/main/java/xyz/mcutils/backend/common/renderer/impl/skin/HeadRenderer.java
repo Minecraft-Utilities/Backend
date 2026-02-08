@@ -42,7 +42,7 @@ public class HeadRenderer extends SkinRenderer {
      */
     @SneakyThrows
     public BufferedImage render(Skin skin, int size, RenderOptions options, double yawDeg, double pitchDeg) {
-        byte[] skinBytes = SkinService.INSTANCE.getSkinTexture(skin, true);
+        byte[] skinBytes = SkinService.INSTANCE.getSkinTexture(skin.getTextureId(), skin.getTextureUrl(), true);
         BufferedImage skinImage = SkinService.getSkinImage(skinBytes);
 
         List<Face> faces = PlayerHeadModel.buildFaces(skin, options.renderOverlays());
