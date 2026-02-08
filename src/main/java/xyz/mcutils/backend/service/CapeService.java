@@ -164,7 +164,7 @@ public class CapeService {
         if (query.length() > 16) {
             cape = this.getCapeByTextureId(query);
         } else {
-            Player player = this.playerService.getPlayer(query);
+            Player player = this.playerService.getPlayer(query, false);
             cape = player.getCape();
             if (cape == null) {
                 throw new NotFoundException("Player '%s' does not have a cape equipped".formatted(player.getUsername()));

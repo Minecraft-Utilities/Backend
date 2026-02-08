@@ -56,9 +56,10 @@ public class PlayerService {
      * Get a player from the database or from the Mojang API.
      *
      * @param query the query to look up the player by (UUID or username)
+     * @param fetchOptifineCape should we fetch the Optifine cape for this player?
      * @return the player
      */
-    public Player getPlayer(String query) {
+    public Player getPlayer(String query, boolean fetchOptifineCape) {
         // Convert the id to uppercase to prevent case sensitivity
         UUID uuid = PlayerUtils.getUuidFromString(query);
         if (uuid == null) { // If the id is not a valid uuid, get the uuid from the username
@@ -78,7 +79,7 @@ public class PlayerService {
             List<PlayerDocument.HistoryItem> capeHistoryItems = playerDocument.getCapeHistory();
             List<VanillaCape> capeHistory = capeHistoryItems != null ? capeHistoryItems.stream().map(historyItem -> this.capeService.getCapeByUuid(historyItem.uuid())).toList() : null;
 
-            Player player = new Player(playerDocument.getId(), playerDocument.getUsername(), playerDocument.isLegacyAccount(), skin,
+            Player player = new Player(fetchOptifineCape, playerDocument.getId(), playerDocument.getUsername(), playerDocument.isLegacyAccount(), skin,
                     skinHistory, cape, capeHistory, playerDocument.getLastUpdated(), playerDocument.getFirstSeen());
 
             if (playerDocument.getLastUpdated().toInstant().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
@@ -96,7 +97,7 @@ public class PlayerService {
             if (token == null) {
                 throw new NotFoundException("Player with uuid '%s' was not found".formatted(uuid));
             }
-            return this.createPlayer(token);
+            return this.createPlayer(token, fetchOptifineCape);
         } catch (RateLimitException exception) {
             throw new MojangAPIRateLimitException();
         }
@@ -106,9 +107,10 @@ public class PlayerService {
      * Creates a new player from their {@link MojangProfileToken}
      *
      * @param token the token for the player
+     * @param fetchOptifineCape should we fetch the Optifine cape for this player?
      * @return the created player
      */
-    public Player createPlayer(MojangProfileToken token) {
+    public Player createPlayer(MojangProfileToken token, boolean fetchOptifineCape) {
         long start = System.currentTimeMillis();
 
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
@@ -141,7 +143,7 @@ public class PlayerService {
         this.skinService.incrementAccountsUsed(skinUuid);
 
         log.debug("Created player {} in {}ms", document.getUsername(), System.currentTimeMillis() - start);
-        return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, List.of(skin), cape,
+        return new Player(fetchOptifineCape, document.getId(), document.getUsername(), document.isLegacyAccount(), skin, List.of(skin), cape,
                 capeUuid != null ? List.of(cape) : null, new Date(), new Date());
     }
 

@@ -162,7 +162,7 @@ public class SkinService {
         if (query.length() > 16) {
             skin = this.getSkinByTextureId(query);
         } else {
-            Player player = this.playerService.getPlayer(query);
+            Player player = this.playerService.getPlayer(query, false);
             skin = player.getSkin();
         }
 

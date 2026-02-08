@@ -80,7 +80,7 @@ public class Player {
      */
     private Date firstSeen;
 
-    public Player(UUID uniqueId, String username, boolean legacyAccount, Skin skin, List<Skin> skinHistory, @Nullable VanillaCape cape, @Nullable List<VanillaCape> capeHistory,
+    public Player(boolean fetchOptifineCape, UUID uniqueId, String username, boolean legacyAccount, Skin skin, List<Skin> skinHistory, @Nullable VanillaCape cape, @Nullable List<VanillaCape> capeHistory,
                   Date lastUpdated, Date firstSeen) {
         this.uniqueId = uniqueId;
         this.username = username;
@@ -92,10 +92,12 @@ public class Player {
         this.lastUpdated = lastUpdated;
         this.firstSeen = firstSeen;
 
-        try {
-            if (OptifineCape.capeExists(this.username).get() == true) {
-                this.optifineCape = new OptifineCape(this.username);
-            }
-        } catch (Exception ignored) { }
+        if (fetchOptifineCape) {
+            try {
+                if (OptifineCape.capeExists(this.username).get() == true) {
+                    this.optifineCape = new OptifineCape(this.username);
+                }
+            } catch (Exception ignored) { }
+        }
     }
 }
