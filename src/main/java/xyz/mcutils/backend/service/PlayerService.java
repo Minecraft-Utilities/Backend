@@ -269,7 +269,7 @@ public class PlayerService {
             }
             UUID uuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
             PlayerDocument playerDocument = new PlayerDocument(uuid, username, false, null, null,
-                    null, null, false, null, null);
+                    null, null, false, new Date(), new Date());
 
             if (cacheEnabled) {
                 CompletableFuture.runAsync(() -> this.playerRepository.save(playerDocument), Main.EXECUTOR)
