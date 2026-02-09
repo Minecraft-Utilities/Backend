@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.common.CoalescingLoader;
 import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
@@ -38,6 +39,7 @@ public class PlayerService {
     private final SkinService skinService;
     private final CapeService capeService;
     private final PlayerRepository playerRepository;
+    private final CoalescingLoader<String, Player> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     @Autowired
     public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerRepository playerRepository) {
@@ -55,47 +57,49 @@ public class PlayerService {
      * @return the player
      */
     public Player getPlayer(String query, boolean fetchOptifineCape) {
-        // Convert the id to uppercase to prevent case sensitivity
-        UUID uuid = PlayerUtils.getUuidFromString(query);
-        if (uuid == null) { // If the id is not a valid uuid, get the uuid from the username
-            uuid = this.usernameToUuid(query);
-        }
+        return playerLoader.get(query + "-" + fetchOptifineCape, () -> {
+            // Convert the id to uppercase to prevent case sensitivity
+            UUID uuid = PlayerUtils.getUuidFromString(query);
+            if (uuid == null) { // If the id is not a valid uuid, get the uuid from the username
+                uuid = this.usernameToUuid(query);
+            }
 
-        Optional<PlayerDocument> optionalPlayerDocument = this.playerRepository.findById(uuid);
-        if (optionalPlayerDocument.isPresent()) {
-            PlayerDocument playerDocument = optionalPlayerDocument.get();
+            Optional<PlayerDocument> optionalPlayerDocument = this.playerRepository.findById(uuid);
+            if (optionalPlayerDocument.isPresent()) {
+                PlayerDocument playerDocument = optionalPlayerDocument.get();
 
-            Skin skin = this.skinService.getSkinByUuid(playerDocument.getSkin());
-            List<PlayerDocument.HistoryItem> skinHistoryItems = playerDocument.getSkinHistory();
-            List<Skin> skinHistory = skinHistoryItems != null ? skinHistoryItems.stream().map(historyItem -> this.skinService.getSkinByUuid(historyItem.uuid())).toList() : null;
+                Skin skin = this.skinService.getSkinByUuid(playerDocument.getSkin());
+                List<PlayerDocument.HistoryItem> skinHistoryItems = playerDocument.getSkinHistory();
+                List<Skin> skinHistory = skinHistoryItems != null ? skinHistoryItems.stream().map(historyItem -> this.skinService.getSkinByUuid(historyItem.uuid())).toList() : null;
 
-            UUID capeId = playerDocument.getCape();
-            VanillaCape cape = capeId != null ? this.capeService.getCapeByUuid(capeId) : null;
-            List<PlayerDocument.HistoryItem> capeHistoryItems = playerDocument.getCapeHistory();
-            List<VanillaCape> capeHistory = capeHistoryItems != null ? capeHistoryItems.stream().map(historyItem -> this.capeService.getCapeByUuid(historyItem.uuid())).toList() : null;
+                UUID capeId = playerDocument.getCape();
+                VanillaCape cape = capeId != null ? this.capeService.getCapeByUuid(capeId) : null;
+                List<PlayerDocument.HistoryItem> capeHistoryItems = playerDocument.getCapeHistory();
+                List<VanillaCape> capeHistory = capeHistoryItems != null ? capeHistoryItems.stream().map(historyItem -> this.capeService.getCapeByUuid(historyItem.uuid())).toList() : null;
 
-            Player player = new Player(fetchOptifineCape, playerDocument.getId(), playerDocument.getUsername(), playerDocument.isLegacyAccount(), skin,
-                    skinHistory, cape, capeHistory, playerDocument.getLastUpdated(), playerDocument.getFirstSeen());
+                Player player = new Player(fetchOptifineCape, playerDocument.getId(), playerDocument.getUsername(), playerDocument.isLegacyAccount(), skin,
+                        skinHistory, cape, capeHistory, playerDocument.getLastUpdated(), playerDocument.getFirstSeen());
 
-            if (playerDocument.getLastUpdated().toInstant().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
+                if (playerDocument.getLastUpdated().toInstant().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
+                    MojangProfileToken token = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
+                    if (token == null) {
+                        throw new NotFoundException("Player with uuid '%s' was not found".formatted(uuid));
+                    }
+                    this.updatePlayer(player, playerDocument, token);
+                }
+                return player;
+            }
+
+            try {
                 MojangProfileToken token = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
                 if (token == null) {
                     throw new NotFoundException("Player with uuid '%s' was not found".formatted(uuid));
                 }
-                this.updatePlayer(player, playerDocument, token);
+                return this.createPlayer(token, fetchOptifineCape);
+            } catch (RateLimitException exception) {
+                throw new MojangAPIRateLimitException();
             }
-            return player;
-        }
-
-        try {
-            MojangProfileToken token = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
-            if (token == null) {
-                throw new NotFoundException("Player with uuid '%s' was not found".formatted(uuid));
-            }
-            return this.createPlayer(token, fetchOptifineCape);
-        } catch (RateLimitException exception) {
-            throw new MojangAPIRateLimitException();
-        }
+        });
     }
 
     /**

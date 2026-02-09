@@ -53,6 +53,8 @@ public class SkinService {
     private final PlayerService playerService;
     private final MongoTemplate mongoTemplate;
 
+    private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
+
     @Autowired
     public SkinService(SkinRepository skinRepository, StorageService storageService, @Lazy PlayerService playerService, MongoTemplate mongoTemplate) {
         this.skinRepository = skinRepository;
@@ -213,20 +215,23 @@ public class SkinService {
      *
      * @param textureId the texture id of the skin to get
      * @param textureUrl the texture url of the skin to get
+     * @param upgrade whether to upgrade legacy 64×32 skins to 64×64
      * @return the skin image
      */
     public byte[] getSkinTexture(String textureId, String textureUrl, boolean upgrade) {
-        byte[] skinBytes = storageService.get(StorageService.Bucket.SKINS, textureId + ".png");
-        if (skinBytes == null) {
-            log.debug("Downloading skin image for skin {}", textureId);
-            skinBytes = PlayerUtils.getImage(textureUrl);
+        return textureLoader.get(textureId + "-" + upgrade, () -> {
+            byte[] skinBytes = storageService.get(StorageService.Bucket.SKINS, textureId + ".png");
             if (skinBytes == null) {
-                throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(textureId));
+                log.debug("Downloading skin image for skin {}", textureId);
+                skinBytes = PlayerUtils.getImage(textureUrl);
+                if (skinBytes == null) {
+                    throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(textureId));
+                }
+                storageService.upload(StorageService.Bucket.SKINS, textureId + ".png", MediaType.IMAGE_PNG_VALUE, skinBytes);
+                log.debug("Saved skin image for skin {}", textureId);
             }
-            storageService.upload(StorageService.Bucket.SKINS, textureId + ".png", MediaType.IMAGE_PNG_VALUE, skinBytes);
-            log.debug("Saved skin image for skin {}", textureId);
-        }
-        return upgrade ? SkinUtils.upgradeLegacySkin(textureId, skinBytes) : skinBytes;
+            return upgrade ? SkinUtils.upgradeLegacySkin(textureId, skinBytes) : skinBytes;
+        });
     }
 
     /**
