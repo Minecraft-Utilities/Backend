@@ -63,19 +63,19 @@ mc-utils:
       cache: true
       limits:
         min_size: 64
-        max_size: 1024
+        max_size: 768
     cape:
       enabled: true
       cache: true
       limits:
         min_size: 64
-        max_size: 1024
+        max_size: 768
     server-preview:
       enabled: true
       cache: true
       limits:
         min_size: 64
-        max_size: 1024
+        max_size: 768
 
   # Server Pinger Settings
   server-pinger:
