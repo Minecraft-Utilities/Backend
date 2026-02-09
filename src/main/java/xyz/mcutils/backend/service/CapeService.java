@@ -208,16 +208,6 @@ public class CapeService {
     }
 
     /**
-     * Gets a cape image from bytes.
-     *
-     * @param capeBytes the cape bytes
-     * @return the cape image
-     */
-    public BufferedImage getCapeImage(byte[] capeBytes) {
-        return ImageUtils.decodeImage(capeBytes);
-    }
-
-    /**
      * Renders a cape part at the given size.
      * Canonical image is stored at max size; smaller requested sizes are produced by downscaling.
      *

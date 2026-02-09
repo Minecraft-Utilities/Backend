@@ -18,7 +18,7 @@ public class OptifineCapeRenderer extends Renderer<OptifineCape> {
     @SneakyThrows
     public BufferedImage render(OptifineCape input, int size, RenderOptions options) {
         byte[] capeBytes = CapeService.INSTANCE.getCapeTexture(input);
-        BufferedImage capeImage = CapeService.INSTANCE.getCapeImage(capeBytes);
+        BufferedImage capeImage = ImageUtils.decodeImage(capeBytes);
 
         // todo: needs to be improved, but it'll do for now
         boolean legacy = capeImage.getWidth() == 46 || capeImage.getHeight() == 22;

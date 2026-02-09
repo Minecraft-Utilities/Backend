@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.common.renderer.impl.skin;
 
 import lombok.SneakyThrows;
+import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.math.Vector3;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
@@ -43,7 +44,7 @@ public class HeadRenderer extends SkinRenderer {
     @SneakyThrows
     public BufferedImage render(Skin skin, int size, RenderOptions options, double yawDeg, double pitchDeg) {
         byte[] skinBytes = SkinService.INSTANCE.getSkinTexture(skin.getTextureId(), skin.getTextureUrl(), true);
-        BufferedImage skinImage = SkinService.getSkinImage(skinBytes);
+        BufferedImage skinImage = ImageUtils.decodeImage(skinBytes);
 
         List<Face> faces = PlayerHeadModel.buildFaces(skin, options.renderOverlays());
         ViewParams view = new ViewParams(HEAD_EYE, HEAD_TARGET, yawDeg, pitchDeg, ASPECT_RATIO);

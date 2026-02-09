@@ -235,16 +235,6 @@ public class SkinService {
     }
 
     /**
-     * Gets a skin image from bytes.
-     *
-     * @param skinBytes the skin bytes
-     * @return the skin image
-     */
-    public static BufferedImage getSkinImage(byte[] skinBytes) {
-        return ImageUtils.decodeImage(skinBytes);
-    }
-
-    /**
      * Renders a skin type from the player's skin.
      * Canonical image is stored at max size; smaller requested sizes are produced by downscaling.
      *

@@ -2,6 +2,7 @@ package xyz.mcutils.backend.common.renderer.impl.skin.fullbody;
 
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.math.Vector3;
 import xyz.mcutils.backend.common.renderer.model.impl.PlayerModel;
 import xyz.mcutils.backend.common.renderer.raster.Face;
@@ -39,7 +40,7 @@ public class FullBodyRendererBase {
     @SneakyThrows
     public BufferedImage render(Skin skin, Side side, boolean renderOverlays, int size, double yawDeg, double pitchDeg) {
         byte[] skinBytes = SkinService.INSTANCE.getSkinTexture(skin.getTextureId(), skin.getTextureUrl(), true);
-        BufferedImage skinImage = SkinService.getSkinImage(skinBytes);
+        BufferedImage skinImage = ImageUtils.decodeImage(skinBytes);
         List<Face> faces = PlayerModel.buildFaces(skin, renderOverlays);
         double yaw = yawDeg + (side == Side.BACK ? 180.0 : 0.0);
         ViewParams view = new ViewParams(EYE, TARGET, yaw, pitchDeg, ASPECT_RATIO);
