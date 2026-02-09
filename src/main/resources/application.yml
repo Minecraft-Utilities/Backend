@@ -55,7 +55,6 @@ mc-utils:
       ttl: 5 # in minutes
     s3:
       enabled: true
-      ttl: 60 # in minutes
 
   # Rendering Settings
   renderer:

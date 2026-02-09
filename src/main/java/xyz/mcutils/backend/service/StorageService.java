@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
-import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -28,8 +27,7 @@ public class StorageService {
     public StorageService(@Value("${mc-utils.s3.endpoint}") String endpoint,
                           @Value("${mc-utils.s3.accessKey}") String accessKey,
                           @Value("${mc-utils.s3.secretKey}") String secretKey,
-                          @Value("${mc-utils.cache.s3.enabled}") boolean cacheEnabled,
-                          @Value("${mc-utils.cache.s3.ttl}") int objectCacheTtl
+                          @Value("${mc-utils.cache.s3.enabled}") boolean cacheEnabled
     ) {
         this.minioClient = MinioClient.builder()
                 .endpoint(endpoint)
@@ -38,7 +36,6 @@ public class StorageService {
         if (cacheEnabled) {
             long maxWeightBytes = 100L * 1024 * 1024; // 100MB
             this.objectCache = CacheBuilder.newBuilder()
-                    .expireAfterWrite(objectCacheTtl, TimeUnit.MINUTES)
                     .maximumWeight(maxWeightBytes)
                     .weigher((ObjectCacheKey _, byte[] value) -> value.length)
                     .build();
