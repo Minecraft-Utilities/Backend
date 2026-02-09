@@ -23,12 +23,10 @@ import java.util.concurrent.TimeUnit;
 @Tag(name = "Skin Controller", description = "The Skin Controller is used to get skin images.")
 @Slf4j
 public class SkinController {
-    private final PlayerService playerService;
     private final SkinService skinService;
 
     @Autowired
-    public SkinController(PlayerService playerService, SkinService skinService) {
-        this.playerService = playerService;
+    public SkinController(SkinService skinService) {
         this.skinService = skinService;
     }
 

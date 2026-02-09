@@ -153,7 +153,8 @@ public class StorageService {
         RENDERED_SKINS("mcutils-rendered-skins"),
         VANILLA_CAPES("mcutils-vanilla-capes"),
         RENDERED_VANILLA_CAPES("mcutils-rendered-vanilla-capes"),
-        OPTIFINE_CAPES("mcutils-optifine-capes");
+        OPTIFINE_CAPES("mcutils-optifine-capes"),
+        RENDERED_OPTIFINE_CAPES("mcutils-rendered-optifine-capes");
 
         private final String name;
     }

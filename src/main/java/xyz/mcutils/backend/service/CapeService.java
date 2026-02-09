@@ -243,8 +243,14 @@ public class CapeService {
         String canonicalKey = "%s-%s-%s.png".formatted(cape.getClass().getName(), cape.getTextureId(), part.name());
         log.debug("Getting cape part for cape: {} (part {}, size {})", cape.getTextureId(), typeName, size);
 
+        StorageService.Bucket bucket = switch (cape) {
+            case VanillaCape _ -> StorageService.Bucket.RENDERED_VANILLA_CAPES;
+            case OptifineCape _ -> StorageService.Bucket.RENDERED_OPTIFINE_CAPES;
+            default -> throw new IllegalStateException("Unknown cape type: " + cape.getClass().getName());
+        };
+
         long cacheStart = System.currentTimeMillis();
-        byte[] canonicalBytes = cacheEnabled ? this.storageService.get(StorageService.Bucket.RENDERED_VANILLA_CAPES, canonicalKey) : null;
+        byte[] canonicalBytes = cacheEnabled ? this.storageService.get(bucket, canonicalKey) : null;
         BufferedImage canonicalImage = null;
 
         if (canonicalBytes == null) {
@@ -254,7 +260,7 @@ public class CapeService {
             log.debug("Took {}ms to render cape part for cape: {}", System.currentTimeMillis() - renderStart, cape.getTextureId());
             if (cacheEnabled) {
                 final byte[] toUpload = canonicalBytes;
-                CompletableFuture.runAsync(() -> this.storageService.upload(StorageService.Bucket.RENDERED_VANILLA_CAPES, canonicalKey, MediaType.IMAGE_PNG_VALUE, toUpload), Main.EXECUTOR)
+                CompletableFuture.runAsync(() -> this.storageService.upload(bucket, canonicalKey, MediaType.IMAGE_PNG_VALUE, toUpload), Main.EXECUTOR)
                     .exceptionally(ex -> {
                         log.warn("Save failed for cape part {}: {}", canonicalKey, ex.getMessage());
                         return null;
