@@ -29,9 +29,8 @@ public class SkinController {
         this.skinService = skinService;
     }
 
-    @ResponseBody
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Pagination.Page<Skin>> getCapes(
+    public ResponseEntity<Pagination.Page<Skin>> getSkins(
             @Parameter(
                     description = "The page of skins to get",
                     example = "1"

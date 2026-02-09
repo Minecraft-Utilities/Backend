@@ -15,7 +15,7 @@ import xyz.mcutils.backend.model.dto.response.HealthResponse;
 import xyz.mcutils.backend.model.dto.response.IndexResponse;
 import xyz.mcutils.backend.model.dto.response.StatisticsResponse;
 import xyz.mcutils.backend.service.MetricService;
-import xyz.mcutils.backend.service.StatisticsController;
+import xyz.mcutils.backend.service.StatisticsService;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -27,12 +27,12 @@ public class IndexController {
 
     private final BuildProperties buildProperties;
     private final AppConfig appConfig;
-    private final StatisticsController statisticsController;
+    private final StatisticsService statisticsService;
 
-    public IndexController(BuildProperties buildProperties, AppConfig appConfig, StatisticsController statisticsController) {
+    public IndexController(BuildProperties buildProperties, AppConfig appConfig, StatisticsService statisticsService) {
         this.buildProperties = buildProperties;
         this.appConfig = appConfig;
-        this.statisticsController = statisticsController;
+        this.statisticsService = statisticsService;
     }
 
     @GetMapping(value = "/")
@@ -45,13 +45,13 @@ public class IndexController {
     }
 
     @GetMapping(value = "/health")
-    public ResponseEntity<HealthResponse> home() {
+    public ResponseEntity<HealthResponse> health() {
         return ResponseEntity.ok(new HealthResponse("OK"));
     }
 
     @GetMapping(value = "/statistics") @SneakyThrows
     public StatisticsResponse getStatistics() {
-        return statisticsController.getStatistics();
+        return statisticsService.getStatistics();
     }
 
     @GetMapping(value = "/metrics", produces = MediaType.TEXT_PLAIN_VALUE) @SneakyThrows

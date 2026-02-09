@@ -26,7 +26,6 @@ public class PlayerController {
         this.playerService = playerManagerService;
     }
 
-    @ResponseBody
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public CompletableFuture<ResponseEntity<Player>> getPlayer(
             @Parameter(
@@ -40,7 +39,6 @@ public class PlayerController {
                         .body(player));
     }
 
-    @ResponseBody
     @GetMapping(value = "/uuid/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public CompletableFuture<ResponseEntity<UUID>> getPlayerUuid(
             @Parameter(

@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +19,7 @@ import xyz.mcutils.backend.service.ServerService;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping(value = "/servers")
@@ -35,7 +37,6 @@ public class ServerController {
         this.mojangService = mojangService;
     }
 
-    @ResponseBody
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<ServerRegistryEntry>> getServers(
             @Parameter(
@@ -48,17 +49,17 @@ public class ServerController {
                 .body(entries);
     }
 
-    @ResponseBody
-    @GetMapping(value = "/{platform}/{hostname}")
+    @GetMapping(value = "/{platform}/{hostname}", produces = MediaType.APPLICATION_JSON_VALUE)
     public CompletableFuture<ResponseEntity<CachedMinecraftServer>> getServer(
             @PathVariable String platform,
             @PathVariable String hostname
     ) {
         return CompletableFuture.supplyAsync(() -> serverService.getServer(platform, hostname), Main.EXECUTOR)
-                .thenApply(ResponseEntity::ok);
+                .thenApply(server -> ResponseEntity.ok()
+                        .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+                        .body(server));
     }
 
-    @ResponseBody
     @GetMapping(value = "/{hostname}/icon.png", produces = MediaType.IMAGE_PNG_VALUE)
     public CompletableFuture<ResponseEntity<byte[]>> getServerIcon(
             @Parameter(
@@ -68,11 +69,11 @@ public class ServerController {
     ) {
         return CompletableFuture.supplyAsync(() -> serverService.getServerFavicon(hostname), Main.EXECUTOR)
                 .thenApply(favicon -> ResponseEntity.ok()
+                        .cacheControl(CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic())
                         .contentType(MediaType.IMAGE_PNG)
                         .body(favicon));
     }
 
-    @ResponseBody
     @GetMapping(value = "/{platform}/{hostname}/preview.png", produces = MediaType.IMAGE_PNG_VALUE)
     public CompletableFuture<ResponseEntity<byte[]>> getServerPreview(
             @Parameter(
@@ -92,11 +93,11 @@ public class ServerController {
             CachedMinecraftServer server = serverService.getServer(platform, hostname);
             return serverService.getServerPreview(server, platform, size);
         }, Main.EXECUTOR).thenApply(preview -> ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic())
                 .contentType(MediaType.IMAGE_PNG)
                 .body(preview));
     }
 
-    @ResponseBody
     @GetMapping(value = "/blocked/{hostname}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ServerBlockedResponse> getServerBlockedStatus(
             @Parameter(

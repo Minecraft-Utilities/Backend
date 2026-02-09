@@ -31,14 +31,12 @@ public class CapeController {
         this.capeService = capeService;
     }
 
-    @ResponseBody
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<VanillaCape>> getCapes() {
         return ResponseEntity.ok()
                 .body(new ArrayList<>(capeService.getCapes().values()));
     }
 
-    @ResponseBody
     @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)
     public CompletableFuture<ResponseEntity<byte[]>> getCapeTexture(
             @Parameter(
@@ -55,7 +53,6 @@ public class CapeController {
         }, Main.EXECUTOR);
     }
 
-    @ResponseBody
     @GetMapping(value = "/{type}/{query}/{part}.png", produces = MediaType.IMAGE_PNG_VALUE)
     public CompletableFuture<ResponseEntity<byte[]>> getCapePart(
             @Parameter(
