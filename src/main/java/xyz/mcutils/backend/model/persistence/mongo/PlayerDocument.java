@@ -6,7 +6,6 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import xyz.mcutils.backend.model.domain.player.Player;
 
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -76,14 +75,6 @@ public class PlayerDocument {
      * The date this player was first seen on.
      */
     private Date firstSeen;
-
-    public List<HistoryItem> getSkinHistory() {
-        return skinHistory == null ? new ArrayList<>() : skinHistory;
-    }
-
-    public List<HistoryItem> getCapeHistory() {
-        return capeHistory == null ? new ArrayList<>() : capeHistory;
-    }
 
     /**
      * A history item used for Skins and Capes.

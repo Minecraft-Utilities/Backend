@@ -185,11 +185,12 @@ public class PlayerService {
             document.setSkin(newSkin.getUuid());
             player.setSkin(newSkin);
 
-            boolean skinInHistory = document.getSkinHistory().stream().anyMatch(historyItem -> historyItem.uuid().equals(newSkin.getUuid()));
+
+            List<PlayerDocument.HistoryItem> skinHistory = new ArrayList<>(document.getSkinHistory());
+            boolean skinInHistory = skinHistory.stream().anyMatch(historyItem -> historyItem.uuid().equals(newSkin.getUuid()));
             if (!skinInHistory) {
-                List<PlayerDocument.HistoryItem> historyItems = document.getSkinHistory();
-                historyItems.add(new PlayerDocument.HistoryItem(newSkin.getUuid(), new Date()));
-                document.setSkinHistory(historyItems);
+                skinHistory.add(new PlayerDocument.HistoryItem(newSkin.getUuid(), new Date()));
+                document.setSkinHistory(skinHistory);
 
                 this.skinService.incrementAccountsUsed(newSkin.getUuid());
             }
@@ -205,11 +206,11 @@ public class PlayerService {
                 document.setCape(capeTextureId != null ? newCape.getUuid() : null);
                 player.setCape(newCape);
 
-                boolean capeInHistory = document.getCapeHistory().stream().anyMatch(historyItem -> historyItem.uuid().equals(newCape.getUuid()));
+                List<PlayerDocument.HistoryItem> capeHistory = new ArrayList<>(document.getCapeHistory());
+                boolean capeInHistory = capeHistory.stream().anyMatch(historyItem -> historyItem.uuid().equals(newCape.getUuid()));
                 if (!capeInHistory) {
-                    List<PlayerDocument.HistoryItem> historyItems = document.getCapeHistory();
-                    historyItems.add(new PlayerDocument.HistoryItem(newCape.getUuid(), new Date()));
-                    document.setCapeHistory(historyItems);
+                    capeHistory.add(new PlayerDocument.HistoryItem(newCape.getUuid(), new Date()));
+                    document.setCapeHistory(capeHistory);
 
                     this.capeService.incrementAccountsOwned(newCape.getUuid());
                 }
