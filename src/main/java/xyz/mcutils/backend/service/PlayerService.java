@@ -234,12 +234,12 @@ public class PlayerService {
         } catch (Exception ignored) { }
         document.setHasOptifineCape(hasOptifineCape);
 
-        if (shouldSave) {
-            document.setLastUpdated(new Date());
-            player.setLastUpdated(new Date());
-            this.playerRepository.save(document);
-        }
-        log.debug("Updated player {} in {}ms", player.getUsername(), System.currentTimeMillis() - start);
+        Date now = new Date();
+        document.setLastUpdated(now);
+        player.setLastUpdated(now);
+        this.playerRepository.save(document);
+
+        log.debug("Updated player {} (changes saved) in {}ms", player.getUsername(), System.currentTimeMillis() - start);
     }
 
     /**
