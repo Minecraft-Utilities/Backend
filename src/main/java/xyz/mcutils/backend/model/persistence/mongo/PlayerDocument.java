@@ -61,6 +61,11 @@ public class PlayerDocument {
     private List<HistoryItem> capeHistory;
 
     /**
+     * Does this player have an Optifine cape equipped?
+     */
+    private boolean hasOptifineCape;
+
+    /**
      * The time this account was last updated.
      */
     @Indexed

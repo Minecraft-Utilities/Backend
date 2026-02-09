@@ -12,6 +12,7 @@ import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.exception.impl.RateLimitException;
+import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.domain.skin.Skin;
@@ -53,11 +54,10 @@ public class PlayerService {
      * Get a player from the database or from the Mojang API.
      *
      * @param query the query to look up the player by (UUID or username)
-     * @param fetchOptifineCape should we fetch the Optifine cape for this player?
      * @return the player
      */
-    public Player getPlayer(String query, boolean fetchOptifineCape) {
-        return playerLoader.get(query + "-" + fetchOptifineCape, () -> {
+    public Player getPlayer(String query) {
+        return playerLoader.get(query, () -> {
             // Convert the id to uppercase to prevent case sensitivity
             UUID uuid = PlayerUtils.getUuidFromString(query);
             if (uuid == null) { // If the id is not a valid uuid, get the uuid from the username
@@ -77,8 +77,8 @@ public class PlayerService {
                 List<PlayerDocument.HistoryItem> capeHistoryItems = playerDocument.getCapeHistory();
                 List<VanillaCape> capeHistory = capeHistoryItems != null ? capeHistoryItems.stream().map(historyItem -> this.capeService.getCapeByUuid(historyItem.uuid())).toList() : null;
 
-                Player player = new Player(fetchOptifineCape, playerDocument.getId(), playerDocument.getUsername(), playerDocument.isLegacyAccount(), skin,
-                        skinHistory, cape, capeHistory, playerDocument.getLastUpdated(), playerDocument.getFirstSeen());
+                Player player = new Player(playerDocument.getId(), playerDocument.getUsername(), playerDocument.isLegacyAccount(), skin,
+                        skinHistory, cape, capeHistory, playerDocument.isHasOptifineCape(), playerDocument.getLastUpdated(), playerDocument.getFirstSeen());
 
                 if (playerDocument.getLastUpdated().toInstant().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
                     MojangProfileToken token = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
@@ -95,7 +95,7 @@ public class PlayerService {
                 if (token == null) {
                     throw new NotFoundException("Player with uuid '%s' was not found".formatted(uuid));
                 }
-                return this.createPlayer(token, fetchOptifineCape);
+                return this.createPlayer(token);
             } catch (RateLimitException exception) {
                 throw new MojangAPIRateLimitException();
             }
@@ -106,10 +106,9 @@ public class PlayerService {
      * Creates a new player from their {@link MojangProfileToken}
      *
      * @param token the token for the player
-     * @param fetchOptifineCape should we fetch the Optifine cape for this player?
      * @return the created player
      */
-    public Player createPlayer(MojangProfileToken token, boolean fetchOptifineCape) {
+    public Player createPlayer(MojangProfileToken token) {
         long start = System.currentTimeMillis();
 
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
@@ -123,6 +122,12 @@ public class PlayerService {
 
         UUID skinUuid = skin.getUuid();
         UUID capeUuid = cape != null ? cape.getUuid() : null;
+
+        Boolean hasOptifineCape = false;
+        try {
+            hasOptifineCape = OptifineCape.capeExists(token.getName()).get();
+        } catch (Exception ignored) { }
+
         PlayerDocument document = this.playerRepository.insert(new PlayerDocument(
                 UUIDUtils.addDashes(token.getId()),
                 token.getName(),
@@ -131,6 +136,7 @@ public class PlayerService {
                 List.of(new PlayerDocument.HistoryItem(skinUuid, new Date())),
                 capeUuid,
                 capeUuid != null ? List.of(new PlayerDocument.HistoryItem(capeUuid, new Date())) : null,
+                hasOptifineCape,
                 new Date(),
                 new Date()
         ));
@@ -142,8 +148,8 @@ public class PlayerService {
         this.skinService.incrementAccountsUsed(skinUuid);
 
         log.debug("Created player {} in {}ms", document.getUsername(), System.currentTimeMillis() - start);
-        return new Player(fetchOptifineCape, document.getId(), document.getUsername(), document.isLegacyAccount(), skin, List.of(skin), cape,
-                capeUuid != null ? List.of(cape) : null, new Date(), new Date());
+        return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, List.of(skin), cape,
+                capeUuid != null ? List.of(cape) : null, document.isHasOptifineCape(), new Date(), new Date());
     }
 
     /**
@@ -214,6 +220,13 @@ public class PlayerService {
             shouldSave = true;
         }
 
+        // Optifine cape
+        Boolean hasOptifineCape = false;
+        try {
+            hasOptifineCape = OptifineCape.capeExists(token.getName()).get();
+        } catch (Exception ignored) { }
+        document.setHasOptifineCape(hasOptifineCape);
+
         if (shouldSave) {
             document.setLastUpdated(new Date());
             this.playerRepository.save(document);
@@ -248,7 +261,8 @@ public class PlayerService {
                 throw new NotFoundException("Player with username '%s' was not found".formatted(username));
             }
             UUID uuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
-            PlayerDocument playerDocument = new PlayerDocument(uuid, username, false, null, null, null, null, null, null);
+            PlayerDocument playerDocument = new PlayerDocument(uuid, username, false, null, null,
+                    null, null, false, null, null);
 
             if (cacheEnabled) {
                 CompletableFuture.runAsync(() -> this.playerRepository.save(playerDocument), Main.EXECUTOR)

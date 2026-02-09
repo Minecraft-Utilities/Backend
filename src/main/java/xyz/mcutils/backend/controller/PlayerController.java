@@ -32,13 +32,9 @@ public class PlayerController {
             @Parameter(
                     description = "The UUID or Username of the player",
                     example = "ImFascinated"
-            ) @PathVariable String id,
-            @Parameter(
-                    description = "Should we fetch the Optifine cape for this player?",
-                    example = "true"
-            ) @RequestParam(required = false, defaultValue = "true") boolean fetchOptifineCape
+            ) @PathVariable String id
     ) {
-        return CompletableFuture.supplyAsync(() -> this.playerService.getPlayer(id, fetchOptifineCape), Main.EXECUTOR)
+        return CompletableFuture.supplyAsync(() -> this.playerService.getPlayer(id), Main.EXECUTOR)
                 .thenApply(player -> ResponseEntity.ok()
                         .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                         .body(player));

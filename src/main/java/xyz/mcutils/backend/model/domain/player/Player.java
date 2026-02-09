@@ -12,7 +12,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
-@AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
@@ -80,8 +79,8 @@ public class Player {
      */
     private Date firstSeen;
 
-    public Player(boolean fetchOptifineCape, UUID uniqueId, String username, boolean legacyAccount, Skin skin, List<Skin> skinHistory, @Nullable VanillaCape cape, @Nullable List<VanillaCape> capeHistory,
-                  Date lastUpdated, Date firstSeen) {
+    public Player(UUID uniqueId, String username, boolean legacyAccount, Skin skin, List<Skin> skinHistory, @Nullable VanillaCape cape, @Nullable List<VanillaCape> capeHistory,
+                  boolean hasOptifineCape, Date lastUpdated, Date firstSeen) {
         this.uniqueId = uniqueId;
         this.username = username;
         this.legacyAccount = legacyAccount;
@@ -91,13 +90,6 @@ public class Player {
         this.capeHistory = capeHistory;
         this.lastUpdated = lastUpdated;
         this.firstSeen = firstSeen;
-
-        if (fetchOptifineCape) {
-            try {
-                if (OptifineCape.capeExists(this.username).get() == true) {
-                    this.optifineCape = new OptifineCape(this.username);
-                }
-            } catch (Exception ignored) { }
-        }
+        this.optifineCape = hasOptifineCape ? new OptifineCape(this.username) : null;
     }
 }

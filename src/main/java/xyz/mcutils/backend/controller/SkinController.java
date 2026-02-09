@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.Pagination;
 import xyz.mcutils.backend.model.domain.skin.Skin;
-import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.SkinService;
 
 import java.util.concurrent.CompletableFuture;
