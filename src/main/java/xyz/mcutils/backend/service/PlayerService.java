@@ -226,7 +226,7 @@ public class PlayerService {
     public UUID usernameToUuid(String username) {
         long cacheStart = System.currentTimeMillis();
         if (cacheEnabled) {
-            Optional<PlayerDocument> playerDocument = this.playerRepository.usernameToUuid(username);
+            Optional<PlayerDocument> playerDocument = this.playerRepository.usernameToUuid(username).stream().findFirst();
             if (playerDocument.isPresent()) {
                 // todo: check if this returns more than 1 player and force a refresh
                 //  for all the accounts, since obv accounts cant have the same username

@@ -4,6 +4,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,11 +24,11 @@ public interface PlayerRepository extends MongoRepository<PlayerDocument, UUID> 
 
     /**
      * Lookup a player by their username, case-insensitive.
-     * Only returns id; other fields are not loaded.
+     * Only returns id (other fields not loaded).
      *
      * @param username the player's username
-     * @return the player document with only username and id populated
+     * @return list of matching player documents, may be empty
      */
     @Query(value = "{ 'username': { $regex: ?0, $options: 'i' } }", fields = "{ '_id' : 1 }")
-    Optional<PlayerDocument> usernameToUuid(String username);
+    List<PlayerDocument> usernameToUuid(String username);
 }
