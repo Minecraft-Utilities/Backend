@@ -29,6 +29,6 @@ public interface PlayerRepository extends MongoRepository<PlayerDocument, UUID> 
      * @param username the player's username
      * @return list of matching player documents, may be empty
      */
-    @Query(value = "{ 'username': { $regex: ?0, $options: 'i' } }", fields = "{ '_id' : 1 }")
+    @Query(value = "{ 'username': ?0 }", fields = "{ '_id' : 1 }", collation = "{ 'locale' : 'en', 'strength' : 2 }")
     List<PlayerDocument> usernameToUuid(String username);
 }
