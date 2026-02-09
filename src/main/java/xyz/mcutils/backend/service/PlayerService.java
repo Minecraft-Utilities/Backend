@@ -187,7 +187,7 @@ public class PlayerService {
 
             boolean skinInHistory = document.getSkinHistory().stream().anyMatch(historyItem -> historyItem.uuid().equals(newSkin.getUuid()));
             if (!skinInHistory) {
-                ArrayList<PlayerDocument.HistoryItem> historyItems = new ArrayList<>(document.getSkinHistory());
+                List<PlayerDocument.HistoryItem> historyItems = document.getSkinHistory();
                 historyItems.add(new PlayerDocument.HistoryItem(newSkin.getUuid(), new Date()));
                 document.setSkinHistory(historyItems);
 
@@ -207,7 +207,7 @@ public class PlayerService {
 
                 boolean capeInHistory = document.getCapeHistory().stream().anyMatch(historyItem -> historyItem.uuid().equals(newCape.getUuid()));
                 if (!capeInHistory) {
-                    ArrayList<PlayerDocument.HistoryItem> historyItems = new ArrayList<>(document.getCapeHistory());
+                    List<PlayerDocument.HistoryItem> historyItems = document.getCapeHistory();
                     historyItems.add(new PlayerDocument.HistoryItem(newCape.getUuid(), new Date()));
                     document.setCapeHistory(historyItems);
 
