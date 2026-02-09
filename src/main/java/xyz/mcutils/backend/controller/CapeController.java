@@ -50,7 +50,7 @@ public class CapeController {
             byte[] bytes = capeService.getCapeTexture(cape);
 
             return ResponseEntity.ok()
-                    .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+                    .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic())
                     .body(bytes);
         }, Main.EXECUTOR);
     }
@@ -80,7 +80,7 @@ public class CapeController {
             byte[] bytes = this.capeService.renderCape(cape, part, size);
 
             return ResponseEntity.ok()
-                    .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+                    .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic())
                     .contentType(MediaType.IMAGE_PNG)
                     .body(bytes);
         }, Main.EXECUTOR);

@@ -52,7 +52,7 @@ public class SkinController {
             Skin skin = this.skinService.getSkinFromTextureIdOrPlayer(query);
             byte[] texture = skinService.getSkinTexture(skin.getTextureId(), skin.getTextureUrl(), false);
             return ResponseEntity.ok()
-                    .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+                    .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic())
                     .contentType(MediaType.IMAGE_PNG)
                     .body(texture);
         }, Main.EXECUTOR);
@@ -81,7 +81,7 @@ public class SkinController {
             Skin skin = this.skinService.getSkinFromTextureIdOrPlayer(query);
             byte[] bytes = skinService.renderSkin(skin, type, overlays, size);
             return ResponseEntity.ok()
-                    .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+                    .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic())
                     .contentType(MediaType.IMAGE_PNG)
                     .body(bytes);
         }, Main.EXECUTOR);
