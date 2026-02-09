@@ -14,12 +14,15 @@ import java.util.Base64;
 
 @Slf4j
 public class ImageUtils {
+
     /**
-     * Scale the given image to the provided scale.
+     * Scales the image by the given factor using nearest-neighbor sampling.
+     * Fast but can look blocky when downscaling; for smoother downscaling use
+     * {@link #resizeToHeight(BufferedImage, int)} or {@link #resizeSmooth(BufferedImage, double)}.
      *
      * @param image the image to scale
-     * @param scale  the scale to scale the image to
-     * @return the scaled image
+     * @param scale scale factor (e.g. 0.5 for half size, 2.0 for double)
+     * @return a new image with dimensions (width*scale, height*scale)
      */
     public static BufferedImage resize(BufferedImage image, double scale) {
         int newWidth = (int) (image.getWidth() * scale);
@@ -44,11 +47,13 @@ public class ImageUtils {
 
     /**
      * Resizes the image so its height equals the target height, preserving aspect ratio.
-     * Uses bilinear interpolation when downscaling for smoother results.
+     * When downscaling (targetHeight &lt; current height), uses bilinear interpolation with
+     * premultiplied alpha for smooth edges without fringing. When upscaling, uses
+     * nearest-neighbor. Returns the original image unchanged if height already matches.
      *
      * @param image        the image to resize
      * @param targetHeight the desired height in pixels
-     * @return the resized image
+     * @return the resized image, or the same instance if height already equals targetHeight
      */
     public static BufferedImage resizeToHeight(BufferedImage image, int targetHeight) {
         int h = image.getHeight();
@@ -64,7 +69,12 @@ public class ImageUtils {
 
     /**
      * Scales the image by the given factor using bilinear interpolation.
-     * Uses premultiplied alpha during scale to avoid fringing on transparent edges.
+     * Converts to premultiplied alpha before scaling and back to straight alpha after,
+     * so transparent edges do not show color fringing.
+     *
+     * @param image the image to scale
+     * @param scale scale factor (e.g. 0.5 for half size)
+     * @return a new scaled image
      */
     public static BufferedImage resizeSmooth(BufferedImage image, double scale) {
         int newWidth = Math.max(1, (int) (image.getWidth() * scale));
@@ -78,6 +88,14 @@ public class ImageUtils {
         return result;
     }
 
+    /**
+     * Converts the image from straight alpha to premultiplied alpha (R,G,B multiplied by A/255).
+     * Returns a new image; the original is unchanged. Used internally before bilinear scaling
+     * so that blending with transparent pixels does not produce fringing.
+     *
+     * @param image the image to convert
+     * @return a new image with premultiplied alpha
+     */
     private static BufferedImage toPremultipliedAlpha(BufferedImage image) {
         int w = image.getWidth();
         int h = image.getHeight();
@@ -99,6 +117,12 @@ public class ImageUtils {
         return out;
     }
 
+    /**
+     * Converts the image from premultiplied alpha back to straight alpha in place (R,G,B = R',G',B' * 255/A).
+     * Called after bilinear scaling to restore standard ARGB for output.
+     *
+     * @param image the image to convert in place
+     */
     private static void fromPremultipliedAlpha(BufferedImage image) {
         int w = image.getWidth();
         int h = image.getHeight();
@@ -124,11 +148,12 @@ public class ImageUtils {
     }
 
     /**
-     * Decodes image bytes (e.g. PNG) into a BufferedImage.
+     * Decodes raw image bytes (e.g. PNG) into a BufferedImage.
+     * Supports any format that {@link javax.imageio.ImageIO#read} can read.
      *
-     * @param bytes the image bytes
-     * @return the decoded image
-     * @throws IllegalStateException if decoding fails or the result is null
+     * @param bytes the image bytes (e.g. PNG, JPEG)
+     * @return the decoded image, never null
+     * @throws IllegalStateException if decoding fails or the format is not recognized
      */
     public static BufferedImage decodeImage(byte[] bytes) {
         try {
@@ -227,10 +252,10 @@ public class ImageUtils {
     }
 
     /**
-     * Convert an image to bytes (PNG). Uses PngEncoder for faster encoding than ImageIO.
+     * Encodes the image as PNG bytes. Uses PngEncoder for faster encoding than ImageIO.
      *
-     * @param image the image to convert
-     * @return the image as bytes
+     * @param image the image to encode
+     * @return the PNG bytes
      */
     @SneakyThrows
     public static byte[] imageToBytes(BufferedImage image) {
@@ -241,10 +266,13 @@ public class ImageUtils {
     }
 
     /**
-     * Convert a base64 string to an image.
+     * Decodes a base64-encoded image string into a BufferedImage.
+     * Accepts optional {@code data:image/png;base64,} prefix and strips whitespace
+     * (e.g. newlines in server favicon strings).
      *
-     * @param base64 the base64 string to convert
-     * @return the image
+     * @param base64 the base64 string (optionally with data URL prefix)
+     * @return the decoded image
+     * @throws Exception if the string is not valid base64 or cannot be decoded as an image
      */
     @SneakyThrows
     public static BufferedImage base64ToImage(String base64) {
