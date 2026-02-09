@@ -9,9 +9,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.model.domain.player.Player;
-import xyz.mcutils.backend.model.persistence.redis.CachedPlayerName;
 import xyz.mcutils.backend.service.PlayerService;
 
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -46,7 +46,7 @@ public class PlayerController {
 
     @ResponseBody
     @GetMapping(value = "/uuid/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public CompletableFuture<ResponseEntity<CachedPlayerName>> getPlayerUuid(
+    public CompletableFuture<ResponseEntity<UUID>> getPlayerUuid(
             @Parameter(
                     description = "The UUID or Username of the player",
                     example = "ImFascinated"

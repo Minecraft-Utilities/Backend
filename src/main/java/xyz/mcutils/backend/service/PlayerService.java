@@ -15,13 +15,11 @@ import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
-import xyz.mcutils.backend.model.persistence.redis.CachedPlayerName;
 import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
-import xyz.mcutils.backend.repository.redis.PlayerNameCacheRepository;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -39,16 +37,13 @@ public class PlayerService {
     private final MojangService mojangService;
     private final SkinService skinService;
     private final CapeService capeService;
-    private final PlayerNameCacheRepository playerNameCacheRepository;
     private final PlayerRepository playerRepository;
 
     @Autowired
-    public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerNameCacheRepository playerNameCacheRepository,
-                         PlayerRepository playerRepository) {
+    public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerRepository playerRepository) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
-        this.playerNameCacheRepository = playerNameCacheRepository;
         this.playerRepository = playerRepository;
     }
 
@@ -63,7 +58,7 @@ public class PlayerService {
         // Convert the id to uppercase to prevent case sensitivity
         UUID uuid = PlayerUtils.getUuidFromString(query);
         if (uuid == null) { // If the id is not a valid uuid, get the uuid from the username
-            uuid = usernameToUuid(query).getUniqueId();
+            uuid = this.usernameToUuid(query);
         }
 
         Optional<PlayerDocument> optionalPlayerDocument = this.playerRepository.findById(uuid);
@@ -228,19 +223,18 @@ public class PlayerService {
      * @param username the username of the player
      * @return the uuid of the player
      */
-    public CachedPlayerName usernameToUuid(String username) {
-        String normalizedUsername = username.toUpperCase();
-
+    public UUID usernameToUuid(String username) {
         long cacheStart = System.currentTimeMillis();
         if (cacheEnabled) {
-            Optional<CachedPlayerName> cachedPlayerName = playerNameCacheRepository.findById(normalizedUsername);
-            if (cachedPlayerName.isPresent()) {
-                CachedPlayerName playerName = cachedPlayerName.get();
-                log.debug("Got username {} -> {} from cache in {}ms", username, playerName.getUniqueId(), System.currentTimeMillis() - cacheStart);
-                playerName.setCached(true);
-                return playerName;
+            Optional<PlayerDocument> playerDocument = this.playerRepository.usernameToUuid(username);
+            if (playerDocument.isPresent()) {
+                // todo: check if this returns more than 1 player and force a refresh
+                //  for all the accounts, since obv accounts cant have the same username
+                log.debug("Got uuid for username {} from database in {}ms", username, System.currentTimeMillis() - cacheStart);
+                return playerDocument.get().getId();
             }
         }
+
 
         // Check the Mojang API
         long fetchStart = System.currentTimeMillis();
@@ -250,17 +244,17 @@ public class PlayerService {
                 throw new NotFoundException("Player with username '%s' was not found".formatted(username));
             }
             UUID uuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
-            CachedPlayerName playerName = new CachedPlayerName(normalizedUsername, username, uuid);
+            PlayerDocument playerDocument = new PlayerDocument(uuid, username, false, null, null, null, null, null, null);
 
             if (cacheEnabled) {
-                CompletableFuture.runAsync(() -> this.playerNameCacheRepository.save(playerName), Main.EXECUTOR)
+                CompletableFuture.runAsync(() -> this.playerRepository.save(playerDocument), Main.EXECUTOR)
                         .exceptionally(ex -> {
-                            log.warn("Save failed for player username lookup {}: {}", playerName, ex.getMessage());
+                            log.warn("Save failed for player username lookup {}: {}", playerDocument.getUsername(), ex.getMessage());
                             return null;
                         });
             }
-            log.debug("Got uuid for username {} in {}ms", username, System.currentTimeMillis() - fetchStart);
-            return playerName;
+            log.debug("Got uuid for username {} -> {} in {}ms", username, uuid, System.currentTimeMillis() - fetchStart);
+            return uuid;
         } catch (RateLimitException exception) {
             throw new MojangAPIRateLimitException();
         }
