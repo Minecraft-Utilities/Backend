@@ -136,12 +136,13 @@ public class SkinService {
      * Gets or creates the skin using the its {@link SkinTextureToken}
      *
      * @param token the texture token for the skin
+     * @param playerUuid the player's uuid who was seen wearing this skin
      * @return the skin
      */
-    public Skin getOrCreateSkinByTextureId(SkinTextureToken token) {
+    public Skin getOrCreateSkinByTextureId(SkinTextureToken token, UUID playerUuid) {
         Skin skin = this.getSkinByTextureId(token.getTextureId());
         if (skin == null) {
-            return this.createSkin(token);
+            return this.createSkin(token, playerUuid);
         }
         return skin;
     }
@@ -174,9 +175,10 @@ public class SkinService {
      * Creates a new skin and inserts it into the database.
      *
      * @param token the token for the skin from the {@link MojangProfileToken}
+     * @param playerUuid the player's uuid who was seen wearing this skin
      * @return the created skin
      */
-    public Skin createSkin(SkinTextureToken token) {
+    public Skin createSkin(SkinTextureToken token, UUID playerUuid) {
         long start = System.currentTimeMillis();
         SkinTextureToken.Metadata metadata = token.getMetadata();
         SkinDocument document = this.skinRepository.insert(new SkinDocument(
@@ -185,6 +187,7 @@ public class SkinService {
                 EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.getModel()),
                 Skin.isLegacySkin(token.getTextureId(), Skin.CDN_URL.formatted(token.getTextureId())),
                 0,
+                playerUuid,
                 new Date()
         ));
         log.debug("Created skin {} in {}ms", document.getTextureId(), System.currentTimeMillis() - start);

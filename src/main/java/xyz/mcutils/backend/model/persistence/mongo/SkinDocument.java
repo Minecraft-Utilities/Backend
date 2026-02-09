@@ -51,6 +51,11 @@ public class SkinDocument {
     private long accountsUsed;
 
     /**
+     * The first player seen using this cape.
+     */
+    private UUID firstPlayerSeenUsing;
+
+    /**
      * The date this skin was first seen on.
      */
     private Date firstSeen;

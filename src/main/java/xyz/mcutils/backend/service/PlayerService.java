@@ -117,11 +117,12 @@ public class PlayerService {
      */
     public Player createPlayer(MojangProfileToken token) {
         long start = System.currentTimeMillis();
+        UUID playerUuid = UUIDUtils.addDashes(token.getId());
 
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
         Skin skin = this.skinService.getSkinByTextureId(skinAndCape.left().getTextureId());
         if (skin == null) {
-            skin = this.skinService.createSkin(skinAndCape.left());
+            skin = this.skinService.createSkin(skinAndCape.left(), playerUuid);
         }
 
         CapeTextureToken capeTextureToken = skinAndCape.right();
@@ -136,7 +137,7 @@ public class PlayerService {
         } catch (Exception ignored) { }
 
         PlayerDocument document = this.playerRepository.save(new PlayerDocument(
-                UUIDUtils.addDashes(token.getId()),
+                playerUuid,
                 token.getName(),
                 token.isLegacy(),
                 skinUuid,
@@ -181,7 +182,7 @@ public class PlayerService {
         String skinTextureId = skinTextureToken != null ? skinTextureToken.getTextureId() : null;
         String currentSkinTextureId = player.getSkin() != null ? player.getSkin().getTextureId() : null;
         if (!Objects.equals(currentSkinTextureId, skinTextureId) && skinTextureToken != null) {
-            Skin newSkin = this.skinService.getOrCreateSkinByTextureId(skinTextureToken);
+            Skin newSkin = this.skinService.getOrCreateSkinByTextureId(skinTextureToken, player.getUniqueId());
             document.setSkin(newSkin.getUuid());
             player.setSkin(newSkin);
 
