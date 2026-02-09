@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.common.DomainUtils;
+import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.FuzzySearch;
 import xyz.mcutils.backend.model.domain.server.Platform;
@@ -17,9 +18,6 @@ import xyz.mcutils.backend.model.domain.serverregistry.ServerRegistryEntry;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -92,21 +90,12 @@ public class ServerRegistryService {
      * @return the bytes of the zipped repo
      */
     private byte[] downloadZip() {
-        try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(REGISTRY_REPOSITORY))
-                    .GET()
-                    .build();
-            HttpResponse<byte[]> response = Constants.HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());
-            if (response.statusCode() != 200) {
-                log.error("Server registry download failed with status code {}.", response.statusCode());
-                return null;
-            }
-            return response.body();
-        } catch (IOException | InterruptedException e) {
-            log.error("Server registry download failed.", e);
+        byte[] bytes = WebRequest.getAsByteArray(REGISTRY_REPOSITORY);
+        if (bytes == null) {
+            log.error("Server registry download failed.");
             return null;
         }
+        return bytes;
     }
 
     /**

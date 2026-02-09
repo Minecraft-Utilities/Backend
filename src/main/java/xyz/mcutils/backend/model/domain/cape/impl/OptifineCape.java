@@ -5,8 +5,8 @@ import com.google.common.cache.CacheBuilder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.common.EnumUtils;
+import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.common.renderer.Renderer;
 import xyz.mcutils.backend.common.renderer.impl.cape.OptifineCapeRenderer;
@@ -15,10 +15,6 @@ import xyz.mcutils.backend.model.domain.cape.Cape;
 import xyz.mcutils.backend.service.StorageService;
 
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
@@ -100,18 +96,7 @@ public class OptifineCape extends Cape<OptifineCape.Part> {
 
             boolean hasCape = StorageService.INSTANCE.exists(StorageService.Bucket.OPTIFINE_CAPES, playerName + ".png");
             if (!hasCape) {
-                try {
-                    HttpResponse<byte[]> response = Constants.HTTP_CLIENT.send(
-                            HttpRequest.newBuilder(URI.create(CDN_URL.formatted(playerName)))
-                                    .HEAD()
-                                    .build(),
-                            HttpResponse.BodyHandlers.ofByteArray());
-                    hasCape = response.statusCode() == 200;
-                } catch (IOException | InterruptedException e) {
-                    if (e instanceof InterruptedException) {
-                        Thread.currentThread().interrupt();
-                    }
-                }
+                hasCape = WebRequest.checkExists(CDN_URL.formatted(playerName));
             }
 
             log.debug("Optifine cape exists for player {}: {} in {}ms", playerName, hasCape, System.currentTimeMillis() - start);

@@ -4,8 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.common.EnumUtils;
+import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.common.renderer.Renderer;
 import xyz.mcutils.backend.common.renderer.impl.cape.VanillaCapeRenderer;
@@ -13,10 +13,6 @@ import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.domain.cape.Cape;
 
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
@@ -90,16 +86,7 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
         return CompletableFuture.supplyAsync(() -> {
             log.debug("Checking if Vanilla cape exists for player {}", textureId);
             String cdnUrl = CDN_URL.formatted(textureId);
-            HttpResponse<byte[]> response;
-            try {
-                response = Constants.HTTP_CLIENT.send(HttpRequest.newBuilder(URI.create(cdnUrl))
-                                .HEAD()
-                                .build(),
-                        HttpResponse.BodyHandlers.ofByteArray());
-            } catch (IOException | InterruptedException e) {
-                return false;
-            }
-            return response.statusCode() == 200;
+            return WebRequest.checkExists(cdnUrl);
         });
     }
 

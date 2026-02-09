@@ -118,4 +118,45 @@ public class WebRequest {
                 .onStatus(HttpStatusCode::isError, (_, _) -> {}) // Don't throw exceptions on error
                 .toEntity(clazz);
     }
+
+    /**
+     * Checks whether a resource exists at the given URL (HEAD request, 200 = exists).
+     *
+     * @param url the URL
+     * @return true if the resource exists (status 200), false otherwise or on error
+     */
+    public static boolean checkExists(String url) {
+        try {
+            ResponseEntity<Void> response = CLIENT.head()
+                    .uri(url)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (_, _) -> {})
+                    .toBodilessEntity();
+            return response.getStatusCode().isSameCodeAs(HttpStatus.OK);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Performs a GET request and returns the response body as a byte array.
+     *
+     * @param url the URL
+     * @return the response body, or null if status is not 2xx or on error
+     */
+    public static byte[] getAsByteArray(String url) {
+        try {
+            ResponseEntity<byte[]> response = CLIENT.get()
+                    .uri(url)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (_, _) -> {})
+                    .toEntity(byte[].class);
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                return null;
+            }
+            return response.getBody();
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }
