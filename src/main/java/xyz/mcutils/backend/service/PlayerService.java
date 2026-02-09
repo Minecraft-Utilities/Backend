@@ -156,7 +156,7 @@ public class PlayerService {
 
         log.debug("Created player {} in {}ms", document.getUsername(), System.currentTimeMillis() - start);
         return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, List.of(skin), cape,
-                capeUuid != null ? List.of(cape) : null, document.isHasOptifineCape(), new Date(0L), new Date(0L));
+                capeUuid != null ? List.of(cape) : null, document.isHasOptifineCape(), new Date(), new Date());
     }
 
     /**
