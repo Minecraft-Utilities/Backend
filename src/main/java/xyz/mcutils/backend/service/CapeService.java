@@ -241,23 +241,18 @@ public class CapeService {
         }
 
         String canonicalKey = "%s-%s-%s.png".formatted(cape.getClass().getName(), cape.getTextureId(), part.name());
-
         log.debug("Getting cape part for cape: {} (part {}, size {})", cape.getTextureId(), typeName, size);
 
-        byte[] canonicalBytes;
+        long cacheStart = System.currentTimeMillis();
+        byte[] canonicalBytes = cacheEnabled ? this.storageService.get(StorageService.Bucket.RENDERED_VANILLA_CAPES, canonicalKey) : null;
         BufferedImage canonicalImage = null;
 
-        long cacheStart = System.currentTimeMillis();
-        if (cacheEnabled) {
-            byte[] cached = this.storageService.get(StorageService.Bucket.RENDERED_VANILLA_CAPES, canonicalKey);
-            if (cached != null) {
-                log.debug("Got cape part for cape {} from cache in {}ms", cape.getTextureId(), System.currentTimeMillis() - cacheStart);
-                canonicalBytes = cached;
-            } else {
-                long renderStart = System.currentTimeMillis();
-                canonicalImage = ((Cape) cape).render(part, maxPartSize, RenderOptions.EMPTY);
-                canonicalBytes = ImageUtils.imageToBytes(canonicalImage);
-                log.debug("Took {}ms to render cape part for cape: {}", System.currentTimeMillis() - renderStart, cape.getTextureId());
+        if (canonicalBytes == null) {
+            long renderStart = System.currentTimeMillis();
+            canonicalImage = ((Cape) cape).render(part, maxPartSize, RenderOptions.EMPTY);
+            canonicalBytes = ImageUtils.imageToBytes(canonicalImage);
+            log.debug("Took {}ms to render cape part for cape: {}", System.currentTimeMillis() - renderStart, cape.getTextureId());
+            if (cacheEnabled) {
                 final byte[] toUpload = canonicalBytes;
                 CompletableFuture.runAsync(() -> this.storageService.upload(StorageService.Bucket.RENDERED_VANILLA_CAPES, canonicalKey, MediaType.IMAGE_PNG_VALUE, toUpload), Main.EXECUTOR)
                     .exceptionally(ex -> {
@@ -266,17 +261,14 @@ public class CapeService {
                     });
             }
         } else {
-            long renderStart = System.currentTimeMillis();
-            canonicalImage = ((Cape) cape).render(part, maxPartSize, RenderOptions.EMPTY);
-            canonicalBytes = ImageUtils.imageToBytes(canonicalImage);
-            log.debug("Took {}ms to render cape part for cape: {}", System.currentTimeMillis() - renderStart, cape.getTextureId());
+            log.debug("Got cape part for cape {} from cache in {}ms", cape.getTextureId(), System.currentTimeMillis() - cacheStart);
         }
 
         if (size == maxPartSize) {
             return canonicalBytes;
         }
+
         BufferedImage image = canonicalImage != null ? canonicalImage : ImageUtils.decodeImage(canonicalBytes);
-        BufferedImage scaled = ImageUtils.resizeToHeight(image, size);
-        return ImageUtils.imageToBytes(scaled);
+        return ImageUtils.imageToBytes(ImageUtils.resizeToHeight(image, size));
     }
 }
