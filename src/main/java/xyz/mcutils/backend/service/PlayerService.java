@@ -169,18 +169,18 @@ public class PlayerService {
     private void updatePlayer(Player player, PlayerDocument document, MojangProfileToken token) {
         long start = System.currentTimeMillis();
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
-        boolean shouldSave = false;
 
         // Player username
         if (!player.getUsername().equals(token.getName())) {
             document.setUsername(token.getName());
             player.setUsername(token.getName());
-            shouldSave = true;
         }
 
         // Player skin
         SkinTextureToken skinTextureToken = skinAndCape.left();
-        if (!player.getSkin().getTextureId().equals(skinTextureToken.getTextureId())) {
+        String skinTextureId = skinTextureToken != null ? skinTextureToken.getTextureId() : null;
+        String currentSkinTextureId = player.getSkin() != null ? player.getSkin().getTextureId() : null;
+        if (!Objects.equals(currentSkinTextureId, skinTextureId) && skinTextureToken != null) {
             Skin newSkin = this.skinService.getOrCreateSkinByTextureId(skinTextureToken);
             document.setSkin(newSkin.getUuid());
             player.setSkin(newSkin);
@@ -193,13 +193,11 @@ public class PlayerService {
 
                 this.skinService.incrementAccountsUsed(newSkin.getUuid());
             }
-
-            shouldSave = true;
         }
 
         // Player cape
-        CapeTextureToken right = skinAndCape.right();
-        String capeTextureId = right != null ? right.getTextureId() : null;
+        CapeTextureToken capeTextureToken = skinAndCape.right();
+        String capeTextureId = capeTextureToken != null ? capeTextureToken.getTextureId() : null;
         String currentCapeTextureId = player.getCape() != null ? player.getCape().getTextureId() : null;
         if (!Objects.equals(currentCapeTextureId, capeTextureId)) {
             VanillaCape newCape = this.capeService.getCapeByTextureId(capeTextureId);
@@ -215,8 +213,6 @@ public class PlayerService {
 
                     this.capeService.incrementAccountsOwned(newCape.getUuid());
                 }
-
-                shouldSave = true;
             }
         }
 
@@ -224,7 +220,6 @@ public class PlayerService {
         if (player.isLegacyAccount() != token.isLegacy()) {
             document.setLegacyAccount(token.isLegacy());
             player.setLegacyAccount(token.isLegacy());
-            shouldSave = true;
         }
 
         // Optifine cape
@@ -239,7 +234,7 @@ public class PlayerService {
         player.setLastUpdated(now);
         this.playerRepository.save(document);
 
-        log.debug("Updated player {} (changes saved) in {}ms", player.getUsername(), System.currentTimeMillis() - start);
+        log.debug("Updated player {} in {}ms", player.getUsername(), System.currentTimeMillis() - start);
     }
 
     /**
