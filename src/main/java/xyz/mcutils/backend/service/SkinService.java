@@ -95,11 +95,9 @@ public class SkinService {
      * @return the skin, or null if not found
      */
     public Skin getSkinByTextureId(String textureId) {
-        long start = System.currentTimeMillis();
         Optional<SkinDocument> optionalSkinDocument = this.skinRepository.findByTextureId(textureId);
         if (optionalSkinDocument.isPresent()) {
             SkinDocument document = optionalSkinDocument.get();
-            log.debug("Found skin by texture id {} in {}ms", document.getTextureId(), System.currentTimeMillis() - start);
             return new Skin(
                     document.getId(),
                     document.getTextureId(),
@@ -258,17 +256,12 @@ public class SkinService {
         }
 
         String canonicalKey = "%s-%s-%s.png".formatted(skin.getTextureId(), part.name(), renderOverlay);
-        log.debug("Getting skin part for skin texture: {} (part {}, size {})", skin.getTextureId(), typeName, size);
-
-        long cacheStart = System.currentTimeMillis();
         byte[] canonicalBytes = cacheEnabled ? this.storageService.get(StorageService.Bucket.RENDERED_SKINS, canonicalKey) : null;
         BufferedImage canonicalImage = null;
 
         if (canonicalBytes == null) {
-            long renderStart = System.currentTimeMillis();
             canonicalImage = skin.render(part, maxPartSize, RenderOptions.of(renderOverlay));
-            canonicalBytes = ImageUtils.imageToBytes(canonicalImage);
-            log.debug("Took {}ms to render skin part for skin texture: {}", System.currentTimeMillis() - renderStart, skin.getTextureId());
+            canonicalBytes = ImageUtils.imageToBytes(canonicalImage, 1);
             if (cacheEnabled) {
                 final byte[] toUpload = canonicalBytes;
                 CompletableFuture.runAsync(() -> this.storageService.upload(StorageService.Bucket.RENDERED_SKINS, canonicalKey, MediaType.IMAGE_PNG_VALUE, toUpload), Main.EXECUTOR)
@@ -277,8 +270,6 @@ public class SkinService {
                         return null;
                     });
             }
-        } else {
-            log.debug("Got skin part for skin texture {} from cache in {}ms", skin.getTextureId(), System.currentTimeMillis() - cacheStart);
         }
 
         if (size == maxPartSize) {
@@ -286,6 +277,6 @@ public class SkinService {
         }
 
         BufferedImage image = canonicalImage != null ? canonicalImage : ImageUtils.decodeImage(canonicalBytes);
-        return ImageUtils.imageToBytes(ImageUtils.resizeToHeight(image, size));
+        return ImageUtils.imageToBytes(ImageUtils.resizeToHeight(image, size), 1);
     }
 }

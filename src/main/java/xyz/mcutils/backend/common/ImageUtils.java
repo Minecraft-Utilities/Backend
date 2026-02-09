@@ -5,12 +5,13 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.imageio.ImageIO;
-import java.awt.geom.AffineTransform;
-import java.awt.image.AffineTransformOp;
+import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferInt;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Base64;
+import java.util.stream.IntStream;
 
 @Slf4j
 public class ImageUtils {
@@ -18,38 +19,51 @@ public class ImageUtils {
     /**
      * Scales the image by the given factor using nearest-neighbor sampling.
      * Fast but can look blocky when downscaling; for smoother downscaling use
-     * {@link #resizeToHeight(BufferedImage, int)} or {@link #resizeSmooth(BufferedImage, double)}.
+     * {@link #resizeToHeight(BufferedImage, int)}.
      *
      * @param image the image to scale
      * @param scale scale factor (e.g. 0.5 for half size, 2.0 for double)
      * @return a new image with dimensions (width*scale, height*scale)
      */
     public static BufferedImage resize(BufferedImage image, double scale) {
-        int newWidth = (int) (image.getWidth() * scale);
-        int newHeight = (int) (image.getHeight() * scale);
+        int w = image.getWidth();
+        int h = image.getHeight();
+        int newWidth = Math.max(1, (int) (w * scale));
+        int newHeight = Math.max(1, (int) (h * scale));
         BufferedImage scaled = new BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_ARGB);
-
-        // Direct pixel manipulation - fastest for nearest-neighbor
-        int[] srcPixels = image.getRGB(0, 0, image.getWidth(), image.getHeight(), null, 0, image.getWidth());
-        int[] destPixels = new int[newWidth * newHeight];
-
-        for (int y = 0; y < newHeight; y++) {
-            for (int x = 0; x < newWidth; x++) {
-                int srcX = (int) (x / scale);
-                int srcY = (int) (y / scale);
-                destPixels[y * newWidth + x] = srcPixels[srcY * image.getWidth() + srcX];
-            }
+        int[] srcPixels;
+        if (image.getRaster().getDataBuffer() instanceof DataBufferInt db) {
+            srcPixels = db.getData();
+        } else {
+            BufferedImage tmp = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g = tmp.createGraphics();
+            g.drawImage(image, 0, 0, null);
+            g.dispose();
+            srcPixels = ((DataBufferInt) tmp.getRaster().getDataBuffer()).getData();
         }
-
-        scaled.setRGB(0, 0, newWidth, newHeight, destPixels, 0, newWidth);
+        int[] destPixels = ((DataBufferInt) scaled.getRaster().getDataBuffer()).getData();
+        final long xStep = (newWidth > 1) ? ((long) w << 32) / newWidth : 0;
+        final long yStep = (newHeight > 1) ? ((long) h << 32) / newHeight : 0;
+        final int sw = w, sh = h;
+        IntStream.range(0, newHeight).parallel().forEach(y -> {
+            int srcY = (int) ((y * yStep) >> 32);
+            if (srcY >= sh) srcY = sh - 1;
+            int srcRow = srcY * sw;
+            int destRow = y * newWidth;
+            long srcX = 0;
+            for (int x = 0; x < newWidth; x++) {
+                int sx = (int) (srcX >> 32);
+                if (sx >= sw) sx = sw - 1;
+                destPixels[destRow + x] = srcPixels[srcRow + sx];
+                srcX += xStep;
+            }
+        });
         return scaled;
     }
 
     /**
-     * Resizes the image so its height equals the target height, preserving aspect ratio.
-     * When downscaling (targetHeight &lt; current height), uses bilinear interpolation with
-     * premultiplied alpha for smooth edges without fringing. When upscaling, uses
-     * nearest-neighbor. Returns the original image unchanged if height already matches.
+     * Resizes so height equals targetHeight. Uses nearest-neighbor for both up and down
+     * (fast). For smoother downscaling use {@link #resizeToHeightSmooth(BufferedImage, int)}.
      *
      * @param image        the image to resize
      * @param targetHeight the desired height in pixels
@@ -61,90 +75,7 @@ public class ImageUtils {
             return image;
         }
         double scale = (double) targetHeight / h;
-        if (scale < 1.0) {
-            return resizeSmooth(image, scale);
-        }
         return resize(image, scale);
-    }
-
-    /**
-     * Scales the image by the given factor using bilinear interpolation.
-     * Converts to premultiplied alpha before scaling and back to straight alpha after,
-     * so transparent edges do not show color fringing.
-     *
-     * @param image the image to scale
-     * @param scale scale factor (e.g. 0.5 for half size)
-     * @return a new scaled image
-     */
-    public static BufferedImage resizeSmooth(BufferedImage image, double scale) {
-        int newWidth = Math.max(1, (int) (image.getWidth() * scale));
-        int newHeight = Math.max(1, (int) (image.getHeight() * scale));
-        BufferedImage premul = toPremultipliedAlpha(image);
-        AffineTransform at = AffineTransform.getScaleInstance(scale, scale);
-        AffineTransformOp op = new AffineTransformOp(at, AffineTransformOp.TYPE_BILINEAR);
-        BufferedImage result = new BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_ARGB);
-        op.filter(premul, result);
-        fromPremultipliedAlpha(result);
-        return result;
-    }
-
-    /**
-     * Converts the image from straight alpha to premultiplied alpha (R,G,B multiplied by A/255).
-     * Returns a new image; the original is unchanged. Used internally before bilinear scaling
-     * so that blending with transparent pixels does not produce fringing.
-     *
-     * @param image the image to convert
-     * @return a new image with premultiplied alpha
-     */
-    private static BufferedImage toPremultipliedAlpha(BufferedImage image) {
-        int w = image.getWidth();
-        int h = image.getHeight();
-        int[] pixels = image.getRGB(0, 0, w, h, null, 0, w);
-        for (int i = 0; i < pixels.length; i++) {
-            int a = (pixels[i] >> 24) & 0xff;
-            int r = (pixels[i] >> 16) & 0xff;
-            int g = (pixels[i] >> 8) & 0xff;
-            int b = pixels[i] & 0xff;
-            if (a < 255) {
-                r = (r * a + 127) / 255;
-                g = (g * a + 127) / 255;
-                b = (b * a + 127) / 255;
-            }
-            pixels[i] = (a << 24) | (r << 16) | (g << 8) | b;
-        }
-        BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-        out.setRGB(0, 0, w, h, pixels, 0, w);
-        return out;
-    }
-
-    /**
-     * Converts the image from premultiplied alpha back to straight alpha in place (R,G,B = R',G',B' * 255/A).
-     * Called after bilinear scaling to restore standard ARGB for output.
-     *
-     * @param image the image to convert in place
-     */
-    private static void fromPremultipliedAlpha(BufferedImage image) {
-        int w = image.getWidth();
-        int h = image.getHeight();
-        int[] pixels = image.getRGB(0, 0, w, h, null, 0, w);
-        for (int i = 0; i < pixels.length; i++) {
-            int a = (pixels[i] >> 24) & 0xff;
-            if (a == 0) {
-                pixels[i] = 0;
-                continue;
-            }
-            int r = (pixels[i] >> 16) & 0xff;
-            int g = (pixels[i] >> 8) & 0xff;
-            int b = pixels[i] & 0xff;
-            r = (r * 255 + a / 2) / a;
-            g = (g * 255 + a / 2) / a;
-            b = (b * 255 + a / 2) / a;
-            if (r > 255) r = 255;
-            if (g > 255) g = 255;
-            if (b > 255) b = 255;
-            pixels[i] = (a << 24) | (r << 16) | (g << 8) | b;
-        }
-        image.setRGB(0, 0, w, h, pixels, 0, w);
     }
 
     /**
@@ -259,9 +190,22 @@ public class ImageUtils {
      */
     @SneakyThrows
     public static byte[] imageToBytes(BufferedImage image) {
+        return imageToBytes(image, 6);
+    }
+
+    /**
+     * Encodes the image as PNG bytes with the given compression level (0–9).
+     * Lower levels (1–2) are much faster with slightly larger output; use for render output.
+     *
+     * @param image            the image to encode
+     * @param compressionLevel 0 (none) to 9 (max); 1 is a good tradeoff for speed
+     * @return the PNG bytes
+     */
+    @SneakyThrows
+    public static byte[] imageToBytes(BufferedImage image, int compressionLevel) {
         return new PngEncoder()
                 .withBufferedImage(image)
-                .withCompressionLevel(6)
+                .withCompressionLevel(compressionLevel)
                 .toBytes();
     }
 
