@@ -24,10 +24,7 @@ import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.repository.mongo.SkinRepository;
 
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
@@ -238,16 +235,13 @@ public class SkinService {
      * @param skinBytes the skin bytes
      * @return the skin image
      */
-    public static BufferedImage getSkinImage(byte[] skinBytes) throws IOException {
-        BufferedImage skinImage = ImageIO.read(new ByteArrayInputStream(skinBytes));
-        if (skinImage == null) {
-            throw new IllegalStateException("Failed to load skin image");
-        }
-        return skinImage;
+    public static BufferedImage getSkinImage(byte[] skinBytes) {
+        return ImageUtils.decodeImage(skinBytes);
     }
 
     /**
      * Renders a skin type from the player's skin.
+     * Canonical image is stored at max size; smaller requested sizes are produced by downscaling.
      *
      * @param skin the player to get the skin for
      * @param typeName the name of the type
@@ -267,33 +261,36 @@ public class SkinService {
         if (part == null || !skin.supportsPart(part)) {
             throw new BadRequestException("Invalid or unsupported skin part: '%s'".formatted(typeName));
         }
-        String name = part.name();
-        String key = "%s-%s-%s-%s.png".formatted(skin.getTextureId(), name, size, renderOverlay);
 
+        String canonicalKey = "%s-%s-%s.png".formatted(skin.getTextureId(), part.name(), renderOverlay);
         log.debug("Getting skin part for skin texture: {} (part {}, size {})", skin.getTextureId(), typeName, size);
 
         long cacheStart = System.currentTimeMillis();
-        if (cacheEnabled) {
-            byte[] bytes = this.storageService.get(StorageService.Bucket.RENDERED_SKINS, key);
-            if (bytes != null) {
-                log.debug("Got skin part for skin texture {} from cache in {}ms", skin.getTextureId(), System.currentTimeMillis() - cacheStart);
-                return bytes;
+        byte[] canonicalBytes = cacheEnabled ? this.storageService.get(StorageService.Bucket.RENDERED_SKINS, canonicalKey) : null;
+        BufferedImage canonicalImage = null;
+
+        if (canonicalBytes == null) {
+            long renderStart = System.currentTimeMillis();
+            canonicalImage = skin.render(part, maxPartSize, RenderOptions.of(renderOverlay));
+            canonicalBytes = ImageUtils.imageToBytes(canonicalImage);
+            log.debug("Took {}ms to render skin part for skin texture: {}", System.currentTimeMillis() - renderStart, skin.getTextureId());
+            if (cacheEnabled) {
+                final byte[] toUpload = canonicalBytes;
+                CompletableFuture.runAsync(() -> this.storageService.upload(StorageService.Bucket.RENDERED_SKINS, canonicalKey, MediaType.IMAGE_PNG_VALUE, toUpload), Main.EXECUTOR)
+                    .exceptionally(ex -> {
+                        log.warn("Save failed for skin part {}: {}", canonicalKey, ex.getMessage());
+                        return null;
+                    });
             }
+        } else {
+            log.debug("Got skin part for skin texture {} from cache in {}ms", skin.getTextureId(), System.currentTimeMillis() - cacheStart);
         }
 
-        long renderStart = System.currentTimeMillis();
-        BufferedImage renderedPart = skin.render(part, size, RenderOptions.of(renderOverlay));
-        byte[] bytes = ImageUtils.imageToBytes(renderedPart);
-        log.debug("Took {}ms to render skin part for skin texture: {}", System.currentTimeMillis() - renderStart, skin.getTextureId());
-
-        // don't save to cache in development
-        if (cacheEnabled) {
-            CompletableFuture.runAsync(() -> this.storageService.upload(StorageService.Bucket.RENDERED_SKINS, key, MediaType.IMAGE_PNG_VALUE, bytes), Main.EXECUTOR)
-                .exceptionally(ex -> {
-                    log.warn("Save failed for skin part {}: {}", key, ex.getMessage());
-                    return null;
-                });
+        if (size == maxPartSize) {
+            return canonicalBytes;
         }
-        return bytes;
+
+        BufferedImage image = canonicalImage != null ? canonicalImage : ImageUtils.decodeImage(canonicalBytes);
+        return ImageUtils.imageToBytes(ImageUtils.resizeToHeight(image, size));
     }
 }

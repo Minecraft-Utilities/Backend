@@ -3,6 +3,7 @@ package xyz.mcutils.backend.model.domain.skin;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.renderer.PartRenderable;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
@@ -15,9 +16,7 @@ import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.domain.Texture;
 import xyz.mcutils.backend.service.SkinService;
 
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.util.*;
 
 @AllArgsConstructor
@@ -87,13 +86,13 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
         return part.getRenderer().render(this, size, options);
     }
 
-    @SneakyThrows
     public static boolean isLegacySkin(String textureId, String textureUrl) {
-        BufferedImage image = ImageIO.read(new ByteArrayInputStream(SkinService.INSTANCE.getSkinTexture(textureId, textureUrl, false)));
-        if (image == null) {
+        try {
+            BufferedImage image = ImageUtils.decodeImage(SkinService.INSTANCE.getSkinTexture(textureId, textureUrl, false));
+            return image.getWidth() == 64 && image.getHeight() == 32;
+        } catch (IllegalStateException e) {
             return false;
         }
-        return image.getWidth() == 64 && image.getHeight() == 32;
     }
 
     /**

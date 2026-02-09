@@ -25,10 +25,7 @@ import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
 import xyz.mcutils.backend.repository.mongo.CapeRepository;
 
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
@@ -216,16 +213,13 @@ public class CapeService {
      * @param capeBytes the cape bytes
      * @return the cape image
      */
-    public BufferedImage getCapeImage(byte[] capeBytes) throws IOException {
-        BufferedImage capeImage = ImageIO.read(new ByteArrayInputStream(capeBytes));
-        if (capeImage == null) {
-            throw new IllegalStateException("Failed to load cape image");
-        }
-        return capeImage;
+    public BufferedImage getCapeImage(byte[] capeBytes) {
+        return ImageUtils.decodeImage(capeBytes);
     }
 
     /**
      * Renders a cape part at the given size.
+     * Canonical image is stored at max size; smaller requested sizes are produced by downscaling.
      *
      * @param cape the cape to render
      * @param typeName the cape part type (e.g. FRONT)
@@ -246,31 +240,43 @@ public class CapeService {
             throw new BadRequestException("Invalid or unsupported cape part: '%s'".formatted(typeName));
         }
 
-        String key = "%s-%s-%s-%s.png".formatted(cape.getClass().getName(), cape.getTextureId(), part.name(), size);
+        String canonicalKey = "%s-%s-%s.png".formatted(cape.getClass().getName(), cape.getTextureId(), part.name());
 
         log.debug("Getting cape part for cape: {} (part {}, size {})", cape.getTextureId(), typeName, size);
 
+        byte[] canonicalBytes;
+        BufferedImage canonicalImage = null;
+
         long cacheStart = System.currentTimeMillis();
         if (cacheEnabled) {
-            byte[] bytes = this.storageService.get(StorageService.Bucket.RENDERED_VANILLA_CAPES, key);
-            if (bytes != null) {
+            byte[] cached = this.storageService.get(StorageService.Bucket.RENDERED_VANILLA_CAPES, canonicalKey);
+            if (cached != null) {
                 log.debug("Got cape part for cape {} from cache in {}ms", cape.getTextureId(), System.currentTimeMillis() - cacheStart);
-                return bytes;
+                canonicalBytes = cached;
+            } else {
+                long renderStart = System.currentTimeMillis();
+                canonicalImage = ((Cape) cape).render(part, maxPartSize, RenderOptions.EMPTY);
+                canonicalBytes = ImageUtils.imageToBytes(canonicalImage);
+                log.debug("Took {}ms to render cape part for cape: {}", System.currentTimeMillis() - renderStart, cape.getTextureId());
+                final byte[] toUpload = canonicalBytes;
+                CompletableFuture.runAsync(() -> this.storageService.upload(StorageService.Bucket.RENDERED_VANILLA_CAPES, canonicalKey, MediaType.IMAGE_PNG_VALUE, toUpload), Main.EXECUTOR)
+                    .exceptionally(ex -> {
+                        log.warn("Save failed for cape part {}: {}", canonicalKey, ex.getMessage());
+                        return null;
+                    });
             }
+        } else {
+            long renderStart = System.currentTimeMillis();
+            canonicalImage = ((Cape) cape).render(part, maxPartSize, RenderOptions.EMPTY);
+            canonicalBytes = ImageUtils.imageToBytes(canonicalImage);
+            log.debug("Took {}ms to render cape part for cape: {}", System.currentTimeMillis() - renderStart, cape.getTextureId());
         }
 
-        long renderStart = System.currentTimeMillis();
-        BufferedImage renderedPart = ((Cape) cape).render(part, size, RenderOptions.EMPTY);
-        byte[] bytes = ImageUtils.imageToBytes(renderedPart);
-        log.debug("Took {}ms to render cape part for cape: {}", System.currentTimeMillis() - renderStart, cape.getTextureId());
-
-        if (cacheEnabled) {
-            CompletableFuture.runAsync(() -> this.storageService.upload(StorageService.Bucket.RENDERED_VANILLA_CAPES, key, MediaType.IMAGE_PNG_VALUE, bytes), Main.EXECUTOR)
-                .exceptionally(ex -> {
-                    log.warn("Save failed for cape part {}: {}", key, ex.getMessage());
-                    return null;
-                });
+        if (size == maxPartSize) {
+            return canonicalBytes;
         }
-        return bytes;
+        BufferedImage image = canonicalImage != null ? canonicalImage : ImageUtils.decodeImage(canonicalBytes);
+        BufferedImage scaled = ImageUtils.resizeToHeight(image, size);
+        return ImageUtils.imageToBytes(scaled);
     }
 }

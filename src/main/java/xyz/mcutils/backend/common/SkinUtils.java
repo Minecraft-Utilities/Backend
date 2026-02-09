@@ -4,10 +4,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.renderer.texture.PlayerModelCoordinates;
 
-import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 
 @Slf4j
 public class SkinUtils {
@@ -19,8 +17,8 @@ public class SkinUtils {
      */
     public static byte[] upgradeLegacySkin(String textureId, byte[] skinImage) {
         try {
-            BufferedImage image = ImageIO.read(new ByteArrayInputStream(skinImage));
-            if (image == null || image.getWidth() != 64 || image.getHeight() != 32) {
+            BufferedImage image = ImageUtils.decodeImage(skinImage);
+            if (image.getWidth() != 64 || image.getHeight() != 32) {
                 return skinImage;
             }
             long start = System.currentTimeMillis();

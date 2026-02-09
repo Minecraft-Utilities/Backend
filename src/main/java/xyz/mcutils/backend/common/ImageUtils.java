@@ -5,8 +5,11 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.imageio.ImageIO;
+import java.awt.geom.AffineTransform;
+import java.awt.image.AffineTransformOp;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.util.Base64;
 
 @Slf4j
@@ -37,6 +40,106 @@ public class ImageUtils {
 
         scaled.setRGB(0, 0, newWidth, newHeight, destPixels, 0, newWidth);
         return scaled;
+    }
+
+    /**
+     * Resizes the image so its height equals the target height, preserving aspect ratio.
+     * Uses bilinear interpolation when downscaling for smoother results.
+     *
+     * @param image        the image to resize
+     * @param targetHeight the desired height in pixels
+     * @return the resized image
+     */
+    public static BufferedImage resizeToHeight(BufferedImage image, int targetHeight) {
+        int h = image.getHeight();
+        if (targetHeight == h) {
+            return image;
+        }
+        double scale = (double) targetHeight / h;
+        if (scale < 1.0) {
+            return resizeSmooth(image, scale);
+        }
+        return resize(image, scale);
+    }
+
+    /**
+     * Scales the image by the given factor using bilinear interpolation.
+     * Uses premultiplied alpha during scale to avoid fringing on transparent edges.
+     */
+    public static BufferedImage resizeSmooth(BufferedImage image, double scale) {
+        int newWidth = Math.max(1, (int) (image.getWidth() * scale));
+        int newHeight = Math.max(1, (int) (image.getHeight() * scale));
+        BufferedImage premul = toPremultipliedAlpha(image);
+        AffineTransform at = AffineTransform.getScaleInstance(scale, scale);
+        AffineTransformOp op = new AffineTransformOp(at, AffineTransformOp.TYPE_BILINEAR);
+        BufferedImage result = new BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_ARGB);
+        op.filter(premul, result);
+        fromPremultipliedAlpha(result);
+        return result;
+    }
+
+    private static BufferedImage toPremultipliedAlpha(BufferedImage image) {
+        int w = image.getWidth();
+        int h = image.getHeight();
+        int[] pixels = image.getRGB(0, 0, w, h, null, 0, w);
+        for (int i = 0; i < pixels.length; i++) {
+            int a = (pixels[i] >> 24) & 0xff;
+            int r = (pixels[i] >> 16) & 0xff;
+            int g = (pixels[i] >> 8) & 0xff;
+            int b = pixels[i] & 0xff;
+            if (a < 255) {
+                r = (r * a + 127) / 255;
+                g = (g * a + 127) / 255;
+                b = (b * a + 127) / 255;
+            }
+            pixels[i] = (a << 24) | (r << 16) | (g << 8) | b;
+        }
+        BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        out.setRGB(0, 0, w, h, pixels, 0, w);
+        return out;
+    }
+
+    private static void fromPremultipliedAlpha(BufferedImage image) {
+        int w = image.getWidth();
+        int h = image.getHeight();
+        int[] pixels = image.getRGB(0, 0, w, h, null, 0, w);
+        for (int i = 0; i < pixels.length; i++) {
+            int a = (pixels[i] >> 24) & 0xff;
+            if (a == 0) {
+                pixels[i] = 0;
+                continue;
+            }
+            int r = (pixels[i] >> 16) & 0xff;
+            int g = (pixels[i] >> 8) & 0xff;
+            int b = pixels[i] & 0xff;
+            r = (r * 255 + a / 2) / a;
+            g = (g * 255 + a / 2) / a;
+            b = (b * 255 + a / 2) / a;
+            if (r > 255) r = 255;
+            if (g > 255) g = 255;
+            if (b > 255) b = 255;
+            pixels[i] = (a << 24) | (r << 16) | (g << 8) | b;
+        }
+        image.setRGB(0, 0, w, h, pixels, 0, w);
+    }
+
+    /**
+     * Decodes image bytes (e.g. PNG) into a BufferedImage.
+     *
+     * @param bytes the image bytes
+     * @return the decoded image
+     * @throws IllegalStateException if decoding fails or the result is null
+     */
+    public static BufferedImage decodeImage(byte[] bytes) {
+        try {
+            BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
+            if (image == null) {
+                throw new IllegalStateException("Failed to decode image");
+            }
+            return image;
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to decode image", e);
+        }
     }
 
     /**
