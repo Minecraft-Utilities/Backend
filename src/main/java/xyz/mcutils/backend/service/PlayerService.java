@@ -68,14 +68,21 @@ public class PlayerService {
             if (optionalPlayerDocument.isPresent()) {
                 PlayerDocument playerDocument = optionalPlayerDocument.get();
 
-                Skin skin = this.skinService.getSkinByUuid(playerDocument.getSkin());
+                UUID skinId = playerDocument.getSkin();
+                Skin skin = skinId != null ? this.skinService.getSkinByUuid(skinId) : null;
                 List<PlayerDocument.HistoryItem> skinHistoryItems = playerDocument.getSkinHistory();
-                List<Skin> skinHistory = skinHistoryItems != null ? skinHistoryItems.stream().map(historyItem -> this.skinService.getSkinByUuid(historyItem.uuid())).toList() : null;
+                List<Skin> skinHistory = skinHistoryItems != null ? skinHistoryItems.stream()
+                        .filter(historyItem -> historyItem.uuid() != null)
+                        .map(historyItem -> this.skinService.getSkinByUuid(historyItem.uuid()))
+                        .toList() : null;
 
                 UUID capeId = playerDocument.getCape();
                 VanillaCape cape = capeId != null ? this.capeService.getCapeByUuid(capeId) : null;
                 List<PlayerDocument.HistoryItem> capeHistoryItems = playerDocument.getCapeHistory();
-                List<VanillaCape> capeHistory = capeHistoryItems != null ? capeHistoryItems.stream().map(historyItem -> this.capeService.getCapeByUuid(historyItem.uuid())).toList() : null;
+                List<VanillaCape> capeHistory = capeHistoryItems != null ? capeHistoryItems.stream()
+                        .filter(historyItem -> historyItem.uuid() != null)
+                        .map(historyItem -> this.capeService.getCapeByUuid(historyItem.uuid()))
+                        .toList() : null;
 
                 Player player = new Player(playerDocument.getId(), playerDocument.getUsername(), playerDocument.isLegacyAccount(), skin,
                         skinHistory, cape, capeHistory, playerDocument.isHasOptifineCape(), playerDocument.getLastUpdated(), playerDocument.getFirstSeen());
