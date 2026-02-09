@@ -135,7 +135,7 @@ public class PlayerService {
             hasOptifineCape = OptifineCape.capeExists(token.getName()).get();
         } catch (Exception ignored) { }
 
-        PlayerDocument document = this.playerRepository.insert(new PlayerDocument(
+        PlayerDocument document = this.playerRepository.save(new PlayerDocument(
                 UUIDUtils.addDashes(token.getId()),
                 token.getName(),
                 token.isLegacy(),
@@ -156,7 +156,7 @@ public class PlayerService {
 
         log.debug("Created player {} in {}ms", document.getUsername(), System.currentTimeMillis() - start);
         return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, List.of(skin), cape,
-                capeUuid != null ? List.of(cape) : null, document.isHasOptifineCape(), new Date(), new Date());
+                capeUuid != null ? List.of(cape) : null, document.isHasOptifineCape(), new Date(0L), new Date(0L));
     }
 
     /**
