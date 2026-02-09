@@ -2,6 +2,7 @@ package xyz.mcutils.backend.model.persistence.mongo;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import xyz.mcutils.backend.model.domain.player.Player;
 
@@ -31,6 +32,7 @@ public class PlayerDocument {
     /**
      * The username for the player.
      */
+    @Indexed
     private String username;
 
     /**
@@ -61,6 +63,7 @@ public class PlayerDocument {
     /**
      * The time this account was last updated.
      */
+    @Indexed
     private Date lastUpdated;
 
     /**
