@@ -236,6 +236,7 @@ public class PlayerService {
 
         if (shouldSave) {
             document.setLastUpdated(new Date());
+            player.setLastUpdated(new Date());
             this.playerRepository.save(document);
         }
         log.debug("Updated player {} in {}ms", player.getUsername(), System.currentTimeMillis() - start);
@@ -269,7 +270,7 @@ public class PlayerService {
             }
             UUID uuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
             PlayerDocument playerDocument = new PlayerDocument(uuid, username, false, null, null,
-                    null, null, false, new Date(), new Date());
+                    null, null, false, new Date(0L), new Date());
 
             if (cacheEnabled) {
                 CompletableFuture.runAsync(() -> this.playerRepository.save(playerDocument), Main.EXECUTOR)
