@@ -60,7 +60,9 @@ public class CapeController {
     public CompletableFuture<ResponseEntity<byte[]>> getCapePart(
             @Parameter(
                     description = "The type of the cape",
-                    schema = @Schema(example = "vanilla")
+                    schema = @Schema(
+                            implementation = CapeType.class
+                    )
             ) @PathVariable String type,
             @Parameter(
                     description = "The UUID or Username of the player or the cape's texture id",
