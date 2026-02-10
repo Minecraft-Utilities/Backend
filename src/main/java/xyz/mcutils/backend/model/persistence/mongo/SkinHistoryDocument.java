@@ -9,10 +9,6 @@ import org.springframework.data.mongodb.core.mapping.DocumentReference;
 import java.util.Date;
 import java.util.UUID;
 
-/**
- * A single skin history entry: one player equipped one skin at a given time.
- * Stored in collection "skin-history"; referenced from PlayerDocument via @DocumentReference lookup by playerId.
- */
 @Document(collection = "skin-history")
 @Getter
 @Setter
@@ -20,15 +16,26 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class SkinHistoryDocument {
-
+    /**
+     * Mongo document id
+     */
     @Id
     private UUID id;
 
+    /**
+     * The player this history entry belongs to.
+     */
     @Indexed
     private UUID playerId;
 
+    /**
+     * The skin that was equipped
+     */
     @DocumentReference(lookup = "{ '_id' : ?#{#target} }")
     private SkinDocument skin;
 
+    /**
+     * The time this skin was seen on the player.
+     */
     private Date timestamp;
 }

@@ -3,6 +3,7 @@ package xyz.mcutils.backend.service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.CoalescingLoader;
@@ -35,6 +36,7 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class PlayerService {
     private static final Duration PLAYER_UPDATE_INTERVAL = Duration.ofHours(3);
+    private static final int MAX_PLAYER_SEARCH_RESULTS = 5;
 
     @Value("${mc-utils.cache.player.enabled}")
     private boolean cacheEnabled;
@@ -281,7 +283,7 @@ public class PlayerService {
      * @return list of matching players with skin
      */
     public List<PlayerSearchEntry> searchPlayers(String query) {
-        return this.playerRepository.findByUsernameStartingWithIgnoreCase(query).stream()
+        return this.playerRepository.findByUsernameStartingWithIgnoreCase(query, PageRequest.of(0, MAX_PLAYER_SEARCH_RESULTS)).stream()
                 .map(doc -> new PlayerSearchEntry(doc.getId(), doc.getUsername(),
                         doc.getSkin() != null ? skinService.fromDocument(doc.getSkin()) : null))
                 .toList();

@@ -22,7 +22,7 @@ import java.util.UUID;
 @Builder
 public class CapeDocument {
     /**
-     * Mongo document id
+     * Mongo document id.
      */
     @Id
     private UUID id;

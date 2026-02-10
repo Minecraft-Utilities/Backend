@@ -16,15 +16,26 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class CapeHistoryDocument {
-
+    /**
+     * Mongo document id.
+     */
     @Id
     private UUID id;
 
+    /**
+     * The player this history entry belongs to.
+     */
     @Indexed
     private UUID playerId;
 
+    /**
+     * The cape that was equipped.
+     */
     @DocumentReference(lookup = "{ '_id' : ?#{#target} }")
     private CapeDocument cape;
 
+    /**
+     * The time this cape was seen on the player.
+     */
     private Date timestamp;
 }

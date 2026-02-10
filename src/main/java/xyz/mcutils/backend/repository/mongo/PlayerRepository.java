@@ -1,5 +1,6 @@
 package xyz.mcutils.backend.repository.mongo;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
@@ -35,8 +36,9 @@ public interface PlayerRepository extends MongoRepository<PlayerDocument, UUID> 
     /**
      * Search for players whose username starts with the given prefix, case-insensitive.
      *
-     * @param prefix the prefix to match (e.g. "steve" matches "Steve", "STEVE", "Steve_")
+     * @param prefix   the prefix to match (e.g. "steve" matches "Steve", "STEVE", "Steve_")
+     * @param pageable used to limit the number of results (e.g. {@code PageRequest.of(0, limit)})
      * @return list of matching player documents, may be empty
      */
-    List<PlayerDocument> findByUsernameStartingWithIgnoreCase(String prefix);
+    List<PlayerDocument> findByUsernameStartingWithIgnoreCase(String prefix, Pageable pageable);
 }

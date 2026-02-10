@@ -24,32 +24,62 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class PlayerDocument {
+    /**
+     * Mongo document id.
+     */
     @Id
     private UUID id;
 
+    /**
+     * The username for the player.
+     */
     @Indexed
     private String username;
 
+    /**
+     * Is this a legacy account?
+     */
     private boolean legacyAccount;
 
+    /**
+     * The player's current skin.
+     */
     @DocumentReference(lookup = "{ '_id' : ?#{#target} }")
     private SkinDocument skin;
 
+    /**
+     * The skins this player has previously equipped (including current).
+     */
     @ReadOnlyProperty
     @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'timestamp' : 1 }")
     private List<SkinHistoryDocument> skinHistory;
 
+    /**
+     * The player's current cape.
+     */
     @DocumentReference(lookup = "{ '_id' : ?#{#target} }")
     private CapeDocument cape;
 
+    /**
+     * The capes this player has previously equipped (including current).
+     */
     @ReadOnlyProperty
     @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'timestamp' : 1 }")
     private List<CapeHistoryDocument> capeHistory;
 
+    /**
+     * Does this player have an Optifine cape equipped?
+     */
     private boolean hasOptifineCape;
 
+    /**
+     * The time this account was last updated.
+     */
     @Indexed
     private Date lastUpdated;
 
+    /**
+     * The date this player was first seen on.
+     */
     private Date firstSeen;
 }
