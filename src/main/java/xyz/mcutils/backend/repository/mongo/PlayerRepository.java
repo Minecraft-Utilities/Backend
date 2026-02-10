@@ -31,4 +31,12 @@ public interface PlayerRepository extends MongoRepository<PlayerDocument, UUID> 
      */
     @Query(value = "{ 'username': ?0 }", fields = "{ '_id' : 1 }", collation = "{ 'locale' : 'en', 'strength' : 2 }")
     List<PlayerDocument> usernameToUuid(String username);
+
+    /**
+     * Search for players whose username starts with the given prefix, case-insensitive.
+     *
+     * @param prefix the prefix to match (e.g. "steve" matches "Steve", "STEVE", "Steve_")
+     * @return list of matching player documents, may be empty
+     */
+    List<PlayerDocument> findByUsernameStartingWithIgnoreCase(String prefix);
 }

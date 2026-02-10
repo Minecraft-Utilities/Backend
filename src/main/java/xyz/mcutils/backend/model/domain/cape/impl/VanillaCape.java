@@ -3,6 +3,7 @@ package xyz.mcutils.backend.model.domain.cape.impl;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.WebRequest;
@@ -35,6 +36,7 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
     /**
      * The number of accounts that have this cape owned.
      */
+    @Setter
     private long accountsOwned;
 
     public VanillaCape(UUID uuid, String name, long accountsOwned, String textureId) {

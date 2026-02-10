@@ -282,4 +282,16 @@ public class SkinService {
         BufferedImage image = canonicalImage != null ? canonicalImage : ImageUtils.decodeImage(canonicalBytes);
         return ImageUtils.imageToBytes(ImageUtils.resizeToHeight(image, size), 1);
     }
+
+    /**
+     * Converts a {@link SkinDocument} to a {@link Skin}.
+     *
+     * @param document the document to convert
+     * @return the converted skin
+     */
+    public Skin fromDocument(SkinDocument document) {
+        if (document == null) return null;
+        return new Skin(document.getId(), document.getTextureId(), document.getModel(),
+                document.isLegacy(), document.getAccountsUsed());
+    }
 }

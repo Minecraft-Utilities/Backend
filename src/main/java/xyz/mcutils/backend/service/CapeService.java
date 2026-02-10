@@ -267,4 +267,16 @@ public class CapeService {
         BufferedImage image = canonicalImage != null ? canonicalImage : ImageUtils.decodeImage(canonicalBytes);
         return ImageUtils.imageToBytes(ImageUtils.resizeToHeight(image, size), 1);
     }
+
+    /**
+     * Converts a {@link CapeDocument} to a {@link VanillaCape}.
+     *
+     * @param document the document to convert
+     * @return the converted cape
+     */
+    public VanillaCape fromDocument(CapeDocument document) {
+        if (document == null) return null;
+        return new VanillaCape(document.getId(), document.getName(),
+                document.getAccountsOwned(), document.getTextureId());
+    }
 }

@@ -5,7 +5,6 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.imageio.ImageIO;
-import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.ByteArrayInputStream;
@@ -31,16 +30,9 @@ public class ImageUtils {
         int newWidth = Math.max(1, (int) (w * scale));
         int newHeight = Math.max(1, (int) (h * scale));
         BufferedImage scaled = new BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_ARGB);
-        int[] srcPixels;
-        if (image.getRaster().getDataBuffer() instanceof DataBufferInt db) {
-            srcPixels = db.getData();
-        } else {
-            BufferedImage tmp = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-            Graphics2D g = tmp.createGraphics();
-            g.drawImage(image, 0, 0, null);
-            g.dispose();
-            srcPixels = ((DataBufferInt) tmp.getRaster().getDataBuffer()).getData();
-        }
+        int[] srcPixels = image.getRaster().getDataBuffer() instanceof DataBufferInt db
+                ? db.getData()
+                : image.getRGB(0, 0, w, h, null, 0, w);
         int[] destPixels = ((DataBufferInt) scaled.getRaster().getDataBuffer()).getData();
         final long xStep = (newWidth > 1) ? ((long) w << 32) / newWidth : 0;
         final long yStep = (newHeight > 1) ? ((long) h << 32) / newHeight : 0;

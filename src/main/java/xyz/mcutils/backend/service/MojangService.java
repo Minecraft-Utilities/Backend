@@ -51,17 +51,6 @@ public class MojangService {
     }
 
     /**
-     * Check if the hash for the given
-     * hostname is in the blocked server list.
-     *
-     * @param hostname the hostname to check
-     * @return whether the hostname is blocked
-     */
-    private boolean isServerHostnameBlocked(@NonNull String hostname) {
-        return blockedServerHashes.contains(Hashing.sha1().hashBytes(hostname.toLowerCase().getBytes(StandardCharsets.ISO_8859_1)).toString());
-    }
-
-    /**
      * Gets the Session Server profile of the
      * player with the given UUID.
      *
@@ -81,6 +70,17 @@ public class MojangService {
      */
     public MojangUsernameToUuidToken getUuidFromUsername(String id) {
         return WebRequest.getAsEntity(API_ENDPOINT + "/users/profiles/minecraft/" + id, MojangUsernameToUuidToken.class);
+    }
+
+    /**
+     * Check if the hash for the given
+     * hostname is in the blocked server list.
+     *
+     * @param hostname the hostname to check
+     * @return whether the hostname is blocked
+     */
+    private boolean isServerHostnameBlocked(@NonNull String hostname) {
+        return blockedServerHashes.contains(Hashing.sha1().hashBytes(hostname.toLowerCase().getBytes(StandardCharsets.ISO_8859_1)).toString());
     }
 
     /**

@@ -16,12 +16,15 @@ import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.domain.skin.Skin;
-import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
+import xyz.mcutils.backend.model.dto.response.PlayerSearchEntry;
+import xyz.mcutils.backend.model.persistence.mongo.*;
 import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
+import xyz.mcutils.backend.repository.mongo.CapeHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
+import xyz.mcutils.backend.repository.mongo.SkinHistoryRepository;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -40,14 +43,20 @@ public class PlayerService {
     private final SkinService skinService;
     private final CapeService capeService;
     private final PlayerRepository playerRepository;
+    private final SkinHistoryRepository skinHistoryRepository;
+    private final CapeHistoryRepository capeHistoryRepository;
     private final CoalescingLoader<String, Player> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     @Autowired
-    public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerRepository playerRepository) {
+    public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService,
+                         PlayerRepository playerRepository, SkinHistoryRepository skinHistoryRepository,
+                         CapeHistoryRepository capeHistoryRepository) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
         this.playerRepository = playerRepository;
+        this.skinHistoryRepository = skinHistoryRepository;
+        this.capeHistoryRepository = capeHistoryRepository;
     }
 
     /**
@@ -66,33 +75,37 @@ public class PlayerService {
 
             Optional<PlayerDocument> optionalPlayerDocument = this.playerRepository.findById(uuid);
             if (optionalPlayerDocument.isPresent()) {
-                PlayerDocument playerDocument = optionalPlayerDocument.get();
-
-                UUID skinId = playerDocument.getSkin();
-                Skin skin = skinId != null ? this.skinService.getSkinByUuid(skinId) : null;
-                List<PlayerDocument.HistoryItem> skinHistoryItems = playerDocument.getSkinHistory();
-                List<Skin> skinHistory = skinHistoryItems != null ? skinHistoryItems.stream()
-                        .filter(historyItem -> historyItem.uuid() != null)
-                        .map(historyItem -> this.skinService.getSkinByUuid(historyItem.uuid()))
-                        .toList() : null;
-
-                UUID capeId = playerDocument.getCape();
-                VanillaCape cape = capeId != null ? this.capeService.getCapeByUuid(capeId) : null;
-                List<PlayerDocument.HistoryItem> capeHistoryItems = playerDocument.getCapeHistory();
-                List<VanillaCape> capeHistory = capeHistoryItems != null ? capeHistoryItems.stream()
-                        .filter(historyItem -> historyItem.uuid() != null)
-                        .map(historyItem -> this.capeService.getCapeByUuid(historyItem.uuid()))
-                        .toList() : null;
-
-                Player player = new Player(playerDocument.getId(), playerDocument.getUsername(), playerDocument.isLegacyAccount(), skin,
-                        skinHistory, cape, capeHistory, playerDocument.isHasOptifineCape(), playerDocument.getLastUpdated(), playerDocument.getFirstSeen());
-
-                if (playerDocument.getLastUpdated().toInstant().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
-                    MojangProfileToken token = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
+                PlayerDocument document = optionalPlayerDocument.get();
+                Skin skin = document.getSkin() != null ? skinService.fromDocument(document.getSkin()) : null;
+                List<Skin> skinHistory = null;
+                if (document.getSkinHistory() != null && !document.getSkinHistory().isEmpty()) {
+                    skinHistory = document.getSkinHistory().stream()
+                            .map(sh -> sh.getSkin() != null ? skinService.fromDocument(sh.getSkin()) : null)
+                            .filter(Objects::nonNull)
+                            .toList();
+                    if (skinHistory.isEmpty()) {
+                        skinHistory = null;
+                    }
+                }
+                VanillaCape cape = document.getCape() != null ? capeService.fromDocument(document.getCape()) : null;
+                List<VanillaCape> capeHistory = null;
+                if (document.getCapeHistory() != null && !document.getCapeHistory().isEmpty()) {
+                    capeHistory = document.getCapeHistory().stream()
+                            .map(ch -> ch.getCape() != null ? capeService.fromDocument(ch.getCape()) : null)
+                            .filter(Objects::nonNull)
+                            .toList();
+                    if (capeHistory.isEmpty()) {
+                        capeHistory = null;
+                    }
+                }
+                Player player = new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, skinHistory, cape, capeHistory,
+                        document.isHasOptifineCape(), document.getLastUpdated(), document.getFirstSeen());
+                if (document.getLastUpdated().toInstant().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
+                    MojangProfileToken token = mojangService.getProfile(uuid.toString());
                     if (token == null) {
                         throw new NotFoundException("Player with uuid '%s' was not found".formatted(uuid));
                     }
-                    this.updatePlayer(player, playerDocument, token);
+                    this.updatePlayer(player, document, token);
                 }
                 return player;
             }
@@ -136,24 +149,39 @@ public class PlayerService {
             hasOptifineCape = OptifineCape.capeExists(token.getName()).get();
         } catch (Exception ignored) { }
 
-        PlayerDocument document = this.playerRepository.save(new PlayerDocument(
-                playerUuid,
-                token.getName(),
-                token.isLegacy(),
-                skinUuid,
-                List.of(new PlayerDocument.HistoryItem(skinUuid, new Date())),
-                capeUuid,
-                capeUuid != null ? List.of(new PlayerDocument.HistoryItem(capeUuid, new Date())) : null,
-                hasOptifineCape,
-                new Date(),
-                new Date()
-        ));
+        Date now = new Date();
+        PlayerDocument document = this.playerRepository.save(PlayerDocument.builder()
+                .id(playerUuid)
+                .username(token.getName())
+                .legacyAccount(token.isLegacy())
+                .skin(skinUuid != null ? SkinDocument.builder().id(skinUuid).build() : null)
+                .cape(capeUuid != null ? CapeDocument.builder().id(capeUuid).build() : null)
+                .hasOptifineCape(hasOptifineCape)
+                .lastUpdated(now)
+                .firstSeen(now)
+                .build());
 
-        // Increment the accounts owned for the cape
+        this.skinHistoryRepository.save(SkinHistoryDocument.builder()
+                .id(UUID.randomUUID())
+                .playerId(playerUuid)
+                .skin(SkinDocument.builder().id(skinUuid).build())
+                .timestamp(now)
+                .build());
         if (capeUuid != null) {
+            this.capeHistoryRepository.save(CapeHistoryDocument.builder()
+                    .id(UUID.randomUUID())
+                    .playerId(playerUuid)
+                    .cape(CapeDocument.builder().id(capeUuid).build())
+                    .timestamp(now)
+                    .build());
+        }
+
+        if (capeUuid != null && cape != null) {
             this.capeService.incrementAccountsOwned(capeUuid);
+            cape.setAccountsOwned(cape.getAccountsOwned() + 1); 
         }
         this.skinService.incrementAccountsUsed(skinUuid);
+        skin.setAccountsUsed(skin.getAccountsUsed() + 1);
 
         log.debug("Created player {} in {}ms", document.getUsername(), System.currentTimeMillis() - start);
         return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, List.of(skin), cape,
@@ -183,16 +211,19 @@ public class PlayerService {
         String currentSkinTextureId = player.getSkin() != null ? player.getSkin().getTextureId() : null;
         if (!Objects.equals(currentSkinTextureId, skinTextureId) && skinTextureToken != null) {
             Skin newSkin = this.skinService.getOrCreateSkinByTextureId(skinTextureToken, player.getUniqueId());
-            document.setSkin(newSkin.getUuid());
+            document.setSkin(SkinDocument.builder().id(newSkin.getUuid()).build());
             player.setSkin(newSkin);
 
-
-            List<PlayerDocument.HistoryItem> skinHistory = new ArrayList<>(document.getSkinHistory());
-            boolean skinInHistory = skinHistory.stream().anyMatch(historyItem -> historyItem.uuid().equals(newSkin.getUuid()));
+            Date now = new Date();
+            this.skinHistoryRepository.save(SkinHistoryDocument.builder()
+                    .id(UUID.randomUUID())
+                    .playerId(document.getId())
+                    .skin(SkinDocument.builder().id(newSkin.getUuid()).build())
+                    .timestamp(now)
+                    .build());
+            boolean skinInHistory = document.getSkinHistory() != null && document.getSkinHistory().stream()
+                    .anyMatch(sh -> sh.getSkin() != null && sh.getSkin().getId().equals(newSkin.getUuid()));
             if (!skinInHistory) {
-                skinHistory.add(new PlayerDocument.HistoryItem(newSkin.getUuid(), new Date()));
-                document.setSkinHistory(skinHistory);
-
                 this.skinService.incrementAccountsUsed(newSkin.getUuid());
             }
         }
@@ -204,15 +235,19 @@ public class PlayerService {
         if (!Objects.equals(currentCapeTextureId, capeTextureId)) {
             VanillaCape newCape = this.capeService.getCapeByTextureId(capeTextureId);
             if (newCape != null) {
-                document.setCape(capeTextureId != null ? newCape.getUuid() : null);
+                document.setCape(CapeDocument.builder().id(newCape.getUuid()).build());
                 player.setCape(newCape);
 
-                List<PlayerDocument.HistoryItem> capeHistory = new ArrayList<>(document.getCapeHistory());
-                boolean capeInHistory = capeHistory.stream().anyMatch(historyItem -> historyItem.uuid().equals(newCape.getUuid()));
+                Date now = new Date();
+                this.capeHistoryRepository.save(CapeHistoryDocument.builder()
+                        .id(UUID.randomUUID())
+                        .playerId(document.getId())
+                        .cape(CapeDocument.builder().id(newCape.getUuid()).build())
+                        .timestamp(now)
+                        .build());
+                boolean capeInHistory = document.getCapeHistory() != null && document.getCapeHistory().stream()
+                        .anyMatch(ch -> ch.getCape() != null && ch.getCape().getId().equals(newCape.getUuid()));
                 if (!capeInHistory) {
-                    capeHistory.add(new PlayerDocument.HistoryItem(newCape.getUuid(), new Date()));
-                    document.setCapeHistory(capeHistory);
-
                     this.capeService.incrementAccountsOwned(newCape.getUuid());
                 }
             }
@@ -240,6 +275,19 @@ public class PlayerService {
     }
 
     /**
+     * Search for players whose username starts with the given query, case-insensitive.
+     *
+     * @param query the prefix to match (e.g. "steve" matches "Steve", "STEVE")
+     * @return list of matching players with skin
+     */
+    public List<PlayerSearchEntry> searchPlayers(String query) {
+        return this.playerRepository.findByUsernameStartingWithIgnoreCase(query).stream()
+                .map(doc -> new PlayerSearchEntry(doc.getId(), doc.getUsername(),
+                        doc.getSkin() != null ? skinService.fromDocument(doc.getSkin()) : null))
+                .toList();
+    }
+
+    /**
      * Gets the player's uuid from their username.
      *
      * @param username the username of the player
@@ -261,13 +309,21 @@ public class PlayerService {
         // Check the Mojang API
         long fetchStart = System.currentTimeMillis();
         try {
-            MojangUsernameToUuidToken mojangUsernameToUuid = mojangService.getUuidFromUsername(username);
+            MojangUsernameToUuidToken mojangUsernameToUuid = this.mojangService.getUuidFromUsername(username);
             if (mojangUsernameToUuid == null) {
                 throw new NotFoundException("Player with username '%s' was not found".formatted(username));
             }
             UUID uuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
-            PlayerDocument playerDocument = new PlayerDocument(uuid, username, false, null, null,
-                    null, null, false, new Date(0L), new Date());
+            PlayerDocument playerDocument = PlayerDocument.builder()
+                    .id(uuid)
+                    .username(username)
+                    .legacyAccount(false)
+                    .skin(null)
+                    .cape(null)
+                    .hasOptifineCape(false)
+                    .lastUpdated(new Date(0L))
+                    .firstSeen(new Date())
+                    .build();
 
             if (cacheEnabled) {
                 CompletableFuture.runAsync(() -> this.playerRepository.save(playerDocument), Main.EXECUTOR)

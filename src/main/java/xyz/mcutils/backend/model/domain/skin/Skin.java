@@ -53,6 +53,7 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
     /**
      * The number of accounts that have used this skin before.
      */
+    @Setter
     private long accountsUsed;
 
     public Skin(UUID uuid, String textureId, Model model, boolean legacy, long accountsUsed) {

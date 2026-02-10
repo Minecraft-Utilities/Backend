@@ -9,8 +9,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.model.domain.player.Player;
+import xyz.mcutils.backend.model.dto.response.PlayerSearchEntry;
 import xyz.mcutils.backend.service.PlayerService;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -24,6 +26,18 @@ public class PlayerController {
     @Autowired
     public PlayerController(PlayerService playerManagerService) {
         this.playerService = playerManagerService;
+    }
+
+    @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<List<PlayerSearchEntry>> searchPlayers(
+            @Parameter(
+                    description = "The query to search for (username prefix, case-insensitive)",
+                    example = "ImFascinated"
+            ) @RequestParam String query
+    ) {
+        List<PlayerSearchEntry> entries = this.playerService.searchPlayers(query);
+        return ResponseEntity.ok()
+                .body(entries);
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
