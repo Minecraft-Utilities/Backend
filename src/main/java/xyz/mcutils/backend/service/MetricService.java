@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.metric.Metric;
 import xyz.mcutils.backend.metric.impl.api.RequestsMetric;
+import xyz.mcutils.backend.metric.impl.cape.skin.TrackedCapesMetric;
 import xyz.mcutils.backend.metric.impl.jvm.MemoryHeapMaxMetric;
 import xyz.mcutils.backend.metric.impl.jvm.MemoryNonHeapMetric;
 import xyz.mcutils.backend.metric.impl.jvm.MemoryUsageMetric;
@@ -34,6 +35,9 @@ public class MetricService {
 
         // Skin
         this.registerMetric(new TrackedSkinsMetric());
+
+        // Cape
+        this.registerMetric(new TrackedCapesMetric());
     }
 
     /**
