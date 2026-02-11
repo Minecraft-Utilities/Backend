@@ -20,6 +20,7 @@ import xyz.mcutils.backend.exception.impl.RateLimitException;
 
 import java.net.URISyntaxException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class WebRequest {
@@ -73,45 +74,62 @@ public class WebRequest {
                 .build();
     }
 
+    private static final int PROXY_REQUESTS_BEFORE_NEW_CONNECTION = 10;
+
     @Value("${mc-utils.http-proxy:}")
     private String httpProxy;
 
     private RestClient proxyClient;
+    private CloseableHttpClient proxyHttpClient;
+    private final AtomicInteger proxyRequestCount = new AtomicInteger(0);
 
     private RestClient getClient(boolean useProxy) {
         if (useProxy && StringUtils.hasText(httpProxy)) {
-            if (proxyClient == null) {
-                try {
-                    HttpHost proxyHost = HttpHost.create(httpProxy);
-                    DefaultProxyRoutePlanner routePlanner = new DefaultProxyRoutePlanner(proxyHost);
-                PoolingHttpClientConnectionManager proxyConnectionManager = new PoolingHttpClientConnectionManager();
-                proxyConnectionManager.setMaxTotal(DEFAULT_MAX_TOTAL_CONNECTIONS);
-                proxyConnectionManager.setDefaultMaxPerRoute(DEFAULT_MAX_CONNECTIONS_PER_ROUTE);
-                SocketConfig proxySocketConfig = SocketConfig.custom()
-                        .setSoTimeout(Timeout.of(DEFAULT_SOCKET_TIMEOUT_MS, TimeUnit.MILLISECONDS))
-                        .build();
-                proxyConnectionManager.setDefaultSocketConfig(proxySocketConfig);
-                RequestConfig proxyRequestConfig = RequestConfig.custom()
-                        .setResponseTimeout(Timeout.of(DEFAULT_SOCKET_TIMEOUT_MS, TimeUnit.MILLISECONDS))
-                        .setConnectionRequestTimeout(Timeout.of(DEFAULT_CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS))
-                        .build();
-                CloseableHttpClient proxyHttpClient = HttpClients.custom()
-                        .setConnectionManager(proxyConnectionManager)
-                        .setRoutePlanner(routePlanner)
-                        .setDefaultRequestConfig(proxyRequestConfig)
-                        .evictIdleConnections(Timeout.of(DEFAULT_CONNECTION_TIME_TO_LIVE_SECONDS, TimeUnit.SECONDS))
-                        .evictExpiredConnections()
-                        .build();
-                HttpComponentsClientHttpRequestFactory proxyRequestFactory = new HttpComponentsClientHttpRequestFactory(proxyHttpClient);
-                proxyRequestFactory.setConnectionRequestTimeout(DEFAULT_CONNECT_TIMEOUT_MS);
-                proxyClient = RestClient.builder()
-                        .requestFactory(proxyRequestFactory)
-                        .build();
-                } catch (URISyntaxException e) {
-                    return CLIENT;
+            synchronized (this) {
+                if (proxyClient != null && proxyRequestCount.incrementAndGet() % PROXY_REQUESTS_BEFORE_NEW_CONNECTION == 0) {
+                    try {
+                        if (proxyHttpClient != null) {
+                            proxyHttpClient.close();
+                        }
+                    } catch (Exception ignored) {
+                        // ignore on close
+                    }
+                    proxyHttpClient = null;
+                    proxyClient = null;
                 }
+                if (proxyClient == null) {
+                    try {
+                        HttpHost proxyHost = HttpHost.create(httpProxy);
+                        DefaultProxyRoutePlanner routePlanner = new DefaultProxyRoutePlanner(proxyHost);
+                        PoolingHttpClientConnectionManager proxyConnectionManager = new PoolingHttpClientConnectionManager();
+                        proxyConnectionManager.setMaxTotal(DEFAULT_MAX_TOTAL_CONNECTIONS);
+                        proxyConnectionManager.setDefaultMaxPerRoute(DEFAULT_MAX_CONNECTIONS_PER_ROUTE);
+                        SocketConfig proxySocketConfig = SocketConfig.custom()
+                                .setSoTimeout(Timeout.of(DEFAULT_SOCKET_TIMEOUT_MS, TimeUnit.MILLISECONDS))
+                                .build();
+                        proxyConnectionManager.setDefaultSocketConfig(proxySocketConfig);
+                        RequestConfig proxyRequestConfig = RequestConfig.custom()
+                                .setResponseTimeout(Timeout.of(DEFAULT_SOCKET_TIMEOUT_MS, TimeUnit.MILLISECONDS))
+                                .setConnectionRequestTimeout(Timeout.of(DEFAULT_CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS))
+                                .build();
+                        proxyHttpClient = HttpClients.custom()
+                                .setConnectionManager(proxyConnectionManager)
+                                .setRoutePlanner(routePlanner)
+                                .setDefaultRequestConfig(proxyRequestConfig)
+                                .evictIdleConnections(Timeout.of(DEFAULT_CONNECTION_TIME_TO_LIVE_SECONDS, TimeUnit.SECONDS))
+                                .evictExpiredConnections()
+                                .build();
+                        HttpComponentsClientHttpRequestFactory proxyRequestFactory = new HttpComponentsClientHttpRequestFactory(proxyHttpClient);
+                        proxyRequestFactory.setConnectionRequestTimeout(DEFAULT_CONNECT_TIMEOUT_MS);
+                        proxyClient = RestClient.builder()
+                                .requestFactory(proxyRequestFactory)
+                                .build();
+                    } catch (URISyntaxException e) {
+                        return CLIENT;
+                    }
+                }
+                return proxyClient;
             }
-            return proxyClient;
         }
         return CLIENT;
     }
