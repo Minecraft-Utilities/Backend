@@ -18,10 +18,10 @@ import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
+import xyz.mcutils.backend.model.redis.SubmitQueueItem;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -39,15 +39,15 @@ public class PlayerSubmitService {
 
     private final RateLimiter submitRateLimiter = RateLimiter.create(SUBMIT_RATE_PER_SECOND);
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, SubmitQueueItem> submitQueueTemplate;
     private final PlayerService playerService;
     private final MojangService mojangService;
     private final MongoTemplate mongoTemplate;
 
     @Autowired
-    public PlayerSubmitService(RedisTemplate<String, Object> redisTemplate, @Lazy PlayerService playerService, @Lazy MojangService mojangService,
+    public PlayerSubmitService(RedisTemplate<String, SubmitQueueItem> submitQueueTemplate, @Lazy PlayerService playerService, @Lazy MojangService mojangService,
                                MongoTemplate mongoTemplate) {
-        this.redisTemplate = redisTemplate;
+        this.submitQueueTemplate = submitQueueTemplate;
         this.playerService = playerService;
         this.mojangService = mojangService;
         this.mongoTemplate = mongoTemplate;
@@ -55,19 +55,15 @@ public class PlayerSubmitService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void startSubmitConsumer() {
-        ListOperations<String, Object> listOps = redisTemplate.opsForList();
+        ListOperations<String, SubmitQueueItem> listOps = submitQueueTemplate.opsForList();
         Main.EXECUTOR.submit(() -> {
             while (true) {
                 try {
-                    Object raw = listOps.leftPop(REDIS_QUEUE_KEY, BLPOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                    if (raw == null) {
-                        continue;
-                    }
+                    SubmitQueueItem item = listOps.leftPop(REDIS_QUEUE_KEY, BLPOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                    if (item == null) continue;
 
-                    Map<String, String> item = (Map<String, String>) raw;
-                    UUID id = UUID.fromString(item.get("id"));
-                    String byStr = item.get("by");
-                    UUID submittedBy = UUIDUtils.parseUuid(byStr != null ? byStr.trim() : "");
+                    UUID id = item.id();
+                    UUID submittedBy = item.submittedBy();
 
                     submitRateLimiter.acquire();
                     try {
@@ -85,14 +81,14 @@ public class PlayerSubmitService {
                                     Query.query(Criteria.where("_id").is(submittedBy)),
                                     new Update().inc("submittedUuids", 1),
                                     PlayerDocument.class
-                            );
+                                );
                         }
                     } catch (NotFoundException ignored) {
                     } catch (MojangAPIRateLimitException e) {
-                        listOps.rightPush(REDIS_QUEUE_KEY, Map.of("id", id.toString(), "by", byStr != null ? byStr : ""));
-                        try {
-                            Thread.sleep(2_000);
-                        } catch (InterruptedException ie) {
+                        listOps.rightPush(REDIS_QUEUE_KEY, item);
+                        try { 
+                            Thread.sleep(2_000); 
+                        } catch (InterruptedException ie) { 
                             Thread.currentThread().interrupt(); 
                         }
                     }
@@ -110,24 +106,21 @@ public class PlayerSubmitService {
      * @param submittedBy the identifier for who submitted
      */
     public void submitPlayers(List<String> players, String submittedBy) {
-        ListOperations<String, Object> listOps = redisTemplate.opsForList();
+        ListOperations<String, SubmitQueueItem> listOps = submitQueueTemplate.opsForList();
         int added = 0;
-        String by = submittedBy != null ? submittedBy : "";
+        UUID by = (submittedBy != null && !submittedBy.isBlank()) ? UUIDUtils.parseUuid(submittedBy.trim()) : null;
         for (String id : players) {
             if (id == null || id.isBlank()) {
                 continue;
             }
-
-            String trimmed = id.trim();
-            UUID uuid = UUIDUtils.parseUuid(trimmed);
+            UUID uuid = UUIDUtils.parseUuid(id.trim());
             if (uuid == null) {
                 continue;
             }
             if (this.playerService.exists(uuid)) {
                 continue;
             }
-
-            listOps.rightPush(REDIS_QUEUE_KEY, Map.of("id", trimmed, "by", by));
+            listOps.rightPush(REDIS_QUEUE_KEY, new SubmitQueueItem(uuid, by));
             added++;
         }
         Long size = listOps.size(REDIS_QUEUE_KEY);

@@ -9,10 +9,13 @@ import org.springframework.data.redis.connection.lettuce.LettuceClientConfigurat
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.repository.configuration.EnableRedisRepositories;
+import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
+
+import xyz.mcutils.backend.model.redis.SubmitQueueItem;
 
 /**
  * @author Braydon
@@ -46,6 +49,16 @@ public class RedisConfig {
         template.setHashKeySerializer(new StringRedisSerializer());
         template.setHashValueSerializer(serializer);
 
+        return template;
+    }
+
+    @Bean
+    public RedisTemplate<String, SubmitQueueItem> submitQueueRedisTemplate() {
+        RedisTemplate<String, SubmitQueueItem> template = new RedisTemplate<>();
+        template.setConnectionFactory(lettuceConnectionFactory());
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new JacksonJsonRedisSerializer<>(SubmitQueueItem.class));
+        template.afterPropertiesSet();
         return template;
     }
 
