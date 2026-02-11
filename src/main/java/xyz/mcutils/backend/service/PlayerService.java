@@ -5,6 +5,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.*;
@@ -215,6 +217,23 @@ public class PlayerService {
      */
     public boolean exists(UUID id) {
         return this.playerRepository.existsById(id);
+    }
+
+    /**
+     * Returns which of the given IDs exist in the database (single query).
+     *
+     * @param ids the uuids to check
+     * @return set of ids that exist
+     */
+    public Set<UUID> getExistingPlayerIds(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Set.of();
+        }
+        Query query = Query.query(Criteria.where("_id").in(ids));
+        query.fields().include("_id");
+        return this.mongoTemplate.find(query, PlayerDocument.class).stream()
+                .map(PlayerDocument::getId)
+                .collect(java.util.stream.Collectors.toSet());
     }
 
     /**

@@ -12,9 +12,16 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.ListOperations;
+import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.SetOperations;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
@@ -23,8 +30,6 @@ import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 import xyz.mcutils.backend.model.redis.SubmitQueueItem;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 
-import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -124,34 +129,62 @@ public class PlayerSubmitService {
      * @param submittedBy the identifier for who submitted
      */
     public void submitPlayers(List<String> players, String submittedBy) {
+        UUID by = (submittedBy != null && !submittedBy.isBlank()) ? UUIDUtils.parseUuid(submittedBy.trim()) : null;
+
+        // Parse and collect valid UUIDs
+        List<UUID> uuids = players.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .map(id -> UUIDUtils.parseUuid(id.trim()))
+                .filter(uuid -> uuid != null)
+                .distinct()
+                .toList();
+        if (uuids.isEmpty()) {
+            return;
+        }
+
+        // Batch check which already exist in DB
+        Set<UUID> existingIds = this.playerService.getExistingPlayerIds(uuids);
+        List<UUID> toEnqueue = uuids.stream()
+                .filter(uuid -> !existingIds.contains(uuid))
+                .toList();
+        if (toEnqueue.isEmpty()) {
+            return;
+        }
+
+        // Batch check which are already in the queue
+        List<Object> inQueueResults = redisTemplate.executePipelined(new SessionCallback<Object>() {
+            @Override
+            @SuppressWarnings("unchecked")
+            public <K, V> Object execute(RedisOperations<K, V> operations) {
+                SetOperations<K, V> setOps = operations.opsForSet();
+                for (UUID uuid : toEnqueue) {
+                    setOps.isMember((K) REDIS_QUEUE_SET_KEY, (V) uuid.toString());
+                }
+                return null;
+            }
+        });
+
+        List<SubmitQueueItem> items = new ArrayList<>();
+        List<String> idsToAddToSet = new ArrayList<>();
+        for (int i = 0; i < toEnqueue.size(); i++) {
+            if (Boolean.TRUE.equals(inQueueResults.get(i))) {
+                continue;
+            }
+            UUID uuid = toEnqueue.get(i);
+            items.add(new SubmitQueueItem(uuid, by));
+            idsToAddToSet.add(uuid.toString());
+        }
+        if (items.isEmpty()) {
+            return;
+        }
+
+        // Batch push to list and set (2 Redis calls instead of 2 per player)
         ListOperations<String, SubmitQueueItem> listOps = submitQueueTemplate.opsForList();
         SetOperations<String, Object> setOps = redisTemplate.opsForSet();
-        int added = 0;
-        UUID by = (submittedBy != null && !submittedBy.isBlank()) ? UUIDUtils.parseUuid(submittedBy.trim()) : null;
-        for (String id : players) {
-            if (id == null || id.isBlank()) {
-                continue;
-            }
+        listOps.rightPushAll(REDIS_QUEUE_KEY, items);
+        setOps.add(REDIS_QUEUE_SET_KEY, idsToAddToSet.toArray());
 
-            // parse the uuid
-            UUID uuid = UUIDUtils.parseUuid(id.trim());
-            if (uuid == null) {
-                continue;
-            }
-            if (this.playerService.exists(uuid)) {
-                continue;
-            }
-
-            // check if the player is already in the queue
-            if (Boolean.TRUE.equals(setOps.isMember(REDIS_QUEUE_SET_KEY, uuid.toString()))) {
-                continue;
-            }
-
-            listOps.rightPush(REDIS_QUEUE_KEY, new SubmitQueueItem(uuid, by));
-            setOps.add(REDIS_QUEUE_SET_KEY, uuid.toString());
-            added++;
-        }
         Long size = listOps.size(REDIS_QUEUE_KEY);
-        log.info("Submitted {} players to submit queue (total queued: {}, submittedBy: {})", added, size != null ? size : 0, submittedBy);
+        log.info("Submitted {} players to submit queue (total queued: {}, submittedBy: {})", items.size(), size != null ? size : 0, submittedBy);
     }
 }
