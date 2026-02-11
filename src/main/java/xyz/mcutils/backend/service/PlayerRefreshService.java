@@ -31,6 +31,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressWarnings("UnstableApiUsage")
 @Service
@@ -73,9 +74,12 @@ public class PlayerRefreshService {
                try {
                    Date cutoff = Date.from(Instant.now().minus(MIN_TIME_BETWEEN_UPDATES));
                    Page<PlayerDocument> players = this.playerRepository.findByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 100));
-                   log.info("Found {} players", players.getTotalElements());
+                   if (players.getTotalElements() > 0) {
+                       log.info("Found {} players to update", players.getTotalElements());
+                   }
 
                    // Run player updates in parallel
+                   AtomicInteger updated = new AtomicInteger();
                    Main.EXECUTOR.submit(() -> {
                        for (PlayerDocument playerDocument : players) {
                            MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
@@ -83,9 +87,13 @@ public class PlayerRefreshService {
                                continue;
                            }
                            this.updatePlayer(this.playerService.getPlayer(token.getId()), playerDocument, token);
+                           updated.getAndIncrement();
                        }
                    });
-
+                    if (updated.get() > 0) {
+                        log.info("Updated {} players", updated.get());
+                    }
+                   
                    Thread.sleep(1_000);
                } catch (InterruptedException e) {
                    Thread.currentThread().interrupt();
