@@ -15,7 +15,6 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import xyz.mcutils.backend.filter.MetricsAuthFilter;
 import xyz.mcutils.backend.filter.SecurityHeadersFilter;
-import xyz.mcutils.backend.log.RequestTimingFilter;
 
 @Getter
 @Slf4j
@@ -44,15 +43,6 @@ public class AppConfig {
         bean.setOrder(-1); // Run first so headers are on every response
         bean.setName("securityHeadersFilter");
         return bean;
-    }
-
-    @Bean
-    public FilterRegistrationBean<RequestTimingFilter> requestTimingFilter() {
-        FilterRegistrationBean<RequestTimingFilter> filterRegistrationBean = new FilterRegistrationBean<>(new RequestTimingFilter());
-        filterRegistrationBean.addUrlPatterns("/*");
-        filterRegistrationBean.setOrder(1);
-        filterRegistrationBean.setName("requestTimingFilter");
-        return filterRegistrationBean;
     }
 
     @Bean
