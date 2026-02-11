@@ -22,6 +22,7 @@ public class ExternalApiRequestsMetric extends Metric<ExternalApiRequestsMetric.
                         .name("external_api_request_duration_milliseconds")
                         .help("External API request duration in milliseconds")
                         .labelNames("api", "endpoint")
+                        .classicUpperBounds(10, 25, 50, 100, 250, 500, 1000, 2500, 5000)
                         .register(MetricService.REGISTRY)
         ));
     }
