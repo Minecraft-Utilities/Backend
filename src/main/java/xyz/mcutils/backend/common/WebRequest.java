@@ -26,8 +26,8 @@ public class WebRequest {
     /**
      * Default connection pool settings
      */
-    private static final int DEFAULT_MAX_TOTAL_CONNECTIONS = 200;
-    private static final int DEFAULT_MAX_CONNECTIONS_PER_ROUTE = 50;
+    private static final int DEFAULT_MAX_TOTAL_CONNECTIONS = 1000;
+    private static final int DEFAULT_MAX_CONNECTIONS_PER_ROUTE = 100;
     private static final int DEFAULT_CONNECT_TIMEOUT_MS = 2500;
     private static final int DEFAULT_SOCKET_TIMEOUT_MS = 10000;
     private static final int DEFAULT_CONNECTION_TIME_TO_LIVE_SECONDS = 60;
