@@ -44,6 +44,7 @@ public class PlayerService {
     private final MojangService mojangService;
     private final SkinService skinService;
     private final CapeService capeService;
+    private final PlayerRefreshService playerRefreshService;
     private final PlayerRepository playerRepository;
     private final SkinHistoryRepository skinHistoryRepository;
     private final CapeHistoryRepository capeHistoryRepository;
@@ -52,7 +53,7 @@ public class PlayerService {
     private final CoalescingLoader<String, Player> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     @Autowired
-    public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService,
+    public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerRefreshService playerRefreshService,
                          PlayerRepository playerRepository, SkinHistoryRepository skinHistoryRepository,
                          CapeHistoryRepository capeHistoryRepository, WebRequest webRequest,
                          MongoTemplate mongoTemplate) {
@@ -60,6 +61,7 @@ public class PlayerService {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
+        this.playerRefreshService = playerRefreshService;
         this.playerRepository = playerRepository;
         this.skinHistoryRepository = skinHistoryRepository;
         this.capeHistoryRepository = capeHistoryRepository;
@@ -113,7 +115,7 @@ public class PlayerService {
                     if (token == null) {
                         throw new NotFoundException("Player with uuid '%s' was not found".formatted(uuid));
                     }
-                    this.updatePlayer(player, document, token);
+                    this.playerRefreshService.updatePlayer(player, document, token);
                 }
                 return player;
             }
@@ -184,7 +186,7 @@ public class PlayerService {
                     .build());
         }
 
-        if (capeUuid != null && cape != null) {
+        if (capeUuid != null) {
             this.capeService.incrementAccountsOwned(capeUuid);
             cape.setAccountsOwned(cape.getAccountsOwned() + 1); 
         }
@@ -194,92 +196,6 @@ public class PlayerService {
         log.debug("Created player {} in {}ms", document.getUsername(), System.currentTimeMillis() - start);
         return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, List.of(skin), cape,
                 capeUuid != null ? List.of(cape) : null, document.isHasOptifineCape(), new Date(), new Date());
-    }
-
-    /**
-     * Updates the player with their new data from the {@link MojangProfileToken}
-     *
-     * @param player the player to update
-     * @param document the player's document
-     * @param token the player's {@link MojangProfileToken} token
-     */
-    private void updatePlayer(Player player, PlayerDocument document, MojangProfileToken token) {
-        long start = System.currentTimeMillis();
-        Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
-
-        // Player username
-        if (!player.getUsername().equals(token.getName())) {
-            document.setUsername(token.getName());
-            player.setUsername(token.getName());
-        }
-
-        // Player skin
-        SkinTextureToken skinTextureToken = skinAndCape.left();
-        String skinTextureId = skinTextureToken != null ? skinTextureToken.getTextureId() : null;
-        String currentSkinTextureId = player.getSkin() != null ? player.getSkin().getTextureId() : null;
-        if (!Objects.equals(currentSkinTextureId, skinTextureId) && skinTextureToken != null) {
-            Skin newSkin = this.skinService.getOrCreateSkinByTextureId(skinTextureToken, player.getUniqueId());
-            document.setSkin(SkinDocument.builder().id(newSkin.getUuid()).build());
-            player.setSkin(newSkin);
-
-            Date now = new Date();
-            this.skinHistoryRepository.save(SkinHistoryDocument.builder()
-                    .id(UUID.randomUUID())
-                    .playerId(document.getId())
-                    .skin(SkinDocument.builder().id(newSkin.getUuid()).build())
-                    .timestamp(now)
-                    .build());
-            boolean skinInHistory = document.getSkinHistory() != null && document.getSkinHistory().stream()
-                    .anyMatch(sh -> sh.getSkin() != null && sh.getSkin().getId().equals(newSkin.getUuid()));
-            if (!skinInHistory) {
-                this.skinService.incrementAccountsUsed(newSkin.getUuid());
-            }
-        }
-
-        // Player cape
-        CapeTextureToken capeTextureToken = skinAndCape.right();
-        String capeTextureId = capeTextureToken != null ? capeTextureToken.getTextureId() : null;
-        String currentCapeTextureId = player.getCape() != null ? player.getCape().getTextureId() : null;
-        if (!Objects.equals(currentCapeTextureId, capeTextureId)) {
-            VanillaCape newCape = this.capeService.getCapeByTextureId(capeTextureId);
-            if (newCape != null) {
-                document.setCape(CapeDocument.builder().id(newCape.getUuid()).build());
-                player.setCape(newCape);
-
-                Date now = new Date();
-                this.capeHistoryRepository.save(CapeHistoryDocument.builder()
-                        .id(UUID.randomUUID())
-                        .playerId(document.getId())
-                        .cape(CapeDocument.builder().id(newCape.getUuid()).build())
-                        .timestamp(now)
-                        .build());
-                boolean capeInHistory = document.getCapeHistory() != null && document.getCapeHistory().stream()
-                        .anyMatch(ch -> ch.getCape() != null && ch.getCape().getId().equals(newCape.getUuid()));
-                if (!capeInHistory) {
-                    this.capeService.incrementAccountsOwned(newCape.getUuid());
-                }
-            }
-        }
-
-        // Legacy account status
-        if (player.isLegacyAccount() != token.isLegacy()) {
-            document.setLegacyAccount(token.isLegacy());
-            player.setLegacyAccount(token.isLegacy());
-        }
-
-        // Optifine cape
-        Boolean hasOptifineCape = false;
-        try {
-            hasOptifineCape = OptifineCape.capeExists(token.getName(), webRequest).get();
-        } catch (Exception ignored) { }
-        document.setHasOptifineCape(hasOptifineCape);
-
-        Date now = new Date();
-        document.setLastUpdated(now);
-        player.setLastUpdated(now);
-        this.playerRepository.save(document);
-
-        log.debug("Updated player {} in {}ms", player.getUsername(), System.currentTimeMillis() - start);
     }
 
     /**

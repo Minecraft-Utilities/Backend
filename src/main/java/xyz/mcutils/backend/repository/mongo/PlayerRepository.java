@@ -1,10 +1,12 @@
 package xyz.mcutils.backend.repository.mongo;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,4 +43,13 @@ public interface PlayerRepository extends MongoRepository<PlayerDocument, UUID> 
      * @return list of matching player documents, may be empty
      */
     List<PlayerDocument> findByUsernameStartingWithIgnoreCase(String prefix, Pageable pageable);
+
+    /**
+     * Find players whose last update was before the given date, ordered by lastUpdated ascending (stalest first).
+     *
+     * @param before   only return players with lastUpdated &lt; before
+     * @param pageable page and size (e.g. first 1000)
+     * @return page of player documents
+     */
+    Page<PlayerDocument> findByLastUpdatedBeforeOrderByLastUpdatedAsc(Date before, Pageable pageable);
 }

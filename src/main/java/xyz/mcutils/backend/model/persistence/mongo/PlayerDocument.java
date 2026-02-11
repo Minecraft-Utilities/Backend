@@ -55,6 +55,13 @@ public class PlayerDocument {
     private List<SkinHistoryDocument> skinHistory;
 
     /**
+     * The usernames this player has previously used (including current).
+     */
+    @ReadOnlyProperty
+    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'timestamp' : 1 }")
+    private List<UsernameHistoryDocument> usernameHistory;
+
+    /**
      * The player's current cape.
      */
     @DocumentReference(lookup = "{ '_id' : ?#{#target} }")
