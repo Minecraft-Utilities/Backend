@@ -73,6 +73,7 @@ public class PlayerRefreshService {
                try {
                    Date cutoff = Date.from(Instant.now().minus(MIN_TIME_BETWEEN_UPDATES));
                    Page<PlayerDocument> players = this.playerRepository.findByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 100));
+                   log.info("Found {} players", players.getTotalElements());
 
                    // Run player updates in parallel
                    Main.EXECUTOR.submit(() -> {
