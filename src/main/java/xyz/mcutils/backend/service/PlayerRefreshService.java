@@ -57,7 +57,7 @@ public class PlayerRefreshService {
     private final WebRequest webRequest;
     private final MongoTemplate mongoTemplate;
 
-    private final RateLimiter playerUpdateRateLimiter = RateLimiter.create(100.0);
+    private final RateLimiter playerUpdateRateLimiter = RateLimiter.create(300.0);
 
     @Autowired
     public PlayerRefreshService(MojangService mojangService, SkinService skinService, CapeService capeService, @Lazy PlayerService playerService,

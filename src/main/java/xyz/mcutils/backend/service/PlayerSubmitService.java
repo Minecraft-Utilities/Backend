@@ -39,7 +39,7 @@ public class PlayerSubmitService {
 
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
-    private static final double SUBMIT_RATE_PER_SECOND = 200.0;
+    private static final double SUBMIT_RATE_PER_SECOND = 300.0;
     private static final long BLPOP_TIMEOUT_SECONDS = 2;
     private static final int SUBMIT_WORKER_THREADS = 250;
 
