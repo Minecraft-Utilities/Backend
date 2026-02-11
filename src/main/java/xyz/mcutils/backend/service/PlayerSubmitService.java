@@ -69,7 +69,9 @@ public class PlayerSubmitService {
             while (true) {
                 try {
                     SubmitQueueItem item = listOps.leftPop(REDIS_QUEUE_KEY, BLPOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                    if (item == null) continue;
+                    if (item == null) {
+                        continue;
+                    }
                     submitRateLimiter.acquire();
                     submitWorkers.submit(() -> {
                         SetOperations<String, Object> setOps = redisTemplate.opsForSet();
@@ -100,7 +102,7 @@ public class PlayerSubmitService {
                             } catch (MojangAPIRateLimitException e) {
                                 listOps.rightPush(REDIS_QUEUE_KEY, item);
                                 try {
-                                    Thread.sleep(2_000);
+                                    Thread.sleep(150);
                                 } catch (InterruptedException ie) {
                                     Thread.currentThread().interrupt();
                                 }
