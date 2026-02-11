@@ -43,7 +43,7 @@ import java.util.concurrent.Executors;
 @Log4j2
 public class PlayerRefreshService {
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofDays(1);
-    private static final int REFRESH_WORKER_THREADS = 150;
+    private static final int REFRESH_WORKER_THREADS = 250;
 
     private final ExecutorService refreshWorkers = Executors.newFixedThreadPool(REFRESH_WORKER_THREADS);
     private final MojangService mojangService;
