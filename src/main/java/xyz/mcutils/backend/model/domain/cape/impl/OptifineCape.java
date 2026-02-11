@@ -10,7 +10,6 @@ import xyz.mcutils.backend.common.renderer.Renderer;
 import xyz.mcutils.backend.common.renderer.impl.cape.OptifineCapeRenderer;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.domain.cape.Cape;
-import xyz.mcutils.backend.service.StorageService;
 
 import java.awt.image.BufferedImage;
 import java.util.EnumSet;
@@ -83,10 +82,7 @@ public class OptifineCape extends Cape<OptifineCape.Part> {
     public static CompletableFuture<Boolean> capeExists(String playerName, WebRequest webRequest) {
         return CompletableFuture.supplyAsync(() -> {
             long start = System.currentTimeMillis();
-            boolean hasCape = StorageService.INSTANCE.exists(StorageService.Bucket.OPTIFINE_CAPES, playerName + ".png");
-            if (!hasCape) {
-                hasCape = webRequest.checkExists(CDN_URL.formatted(playerName));
-            }
+            boolean hasCape = webRequest.checkExists(CDN_URL.formatted(playerName));
             log.debug("Optifine cape exists for player {}: {} in {}ms", playerName, hasCape, System.currentTimeMillis() - start);
             return hasCape;
         });
