@@ -4,6 +4,9 @@ import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
+import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.core5.http.io.SocketConfig;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +19,14 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import xyz.mcutils.backend.exception.impl.RateLimitException;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.X509Certificate;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -36,24 +47,48 @@ public class WebRequest {
     private static final CloseableHttpClient HTTP_CLIENT;
 
     static {
-        // Create connection pool manager
-        PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
-        connectionManager.setMaxTotal(DEFAULT_MAX_TOTAL_CONNECTIONS);
-        connectionManager.setDefaultMaxPerRoute(DEFAULT_MAX_CONNECTIONS_PER_ROUTE);
+        // Trust-all SSL (accept any cert; connection still encrypted). Use when JVM truststore or chain is incomplete.
+        SSLContext sslContext;
+        try {
+            sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, new TrustManager[]{
+                    new X509TrustManager() {
+                        @Override
+                        public void checkClientTrusted(X509Certificate[] chain, String authType) {
+                        }
 
-        // Configure socket settings
+                        @Override
+                        public void checkServerTrusted(X509Certificate[] chain, String authType) {
+                        }
+
+                        @Override
+                        public X509Certificate[] getAcceptedIssuers() {
+                            return new X509Certificate[0];
+                        }
+                    }
+            }, new java.security.SecureRandom());
+        } catch (NoSuchAlgorithmException | KeyManagementException e) {
+            throw new RuntimeException("Failed to create trust-all SSL context", e);
+        }
+
+        DefaultClientTlsStrategy tlsStrategy = new DefaultClientTlsStrategy(sslContext, NoopHostnameVerifier.INSTANCE);
+
         SocketConfig socketConfig = SocketConfig.custom()
                 .setSoTimeout(Timeout.of(DEFAULT_SOCKET_TIMEOUT_MS, TimeUnit.MILLISECONDS))
                 .build();
-        connectionManager.setDefaultSocketConfig(socketConfig);
 
-        // Configure request settings
+        PoolingHttpClientConnectionManager connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
+                .setTlsSocketStrategy(tlsStrategy)
+                .setMaxConnTotal(DEFAULT_MAX_TOTAL_CONNECTIONS)
+                .setMaxConnPerRoute(DEFAULT_MAX_CONNECTIONS_PER_ROUTE)
+                .setDefaultSocketConfig(socketConfig)
+                .build();
+
         RequestConfig requestConfig = RequestConfig.custom()
                 .setResponseTimeout(Timeout.of(DEFAULT_SOCKET_TIMEOUT_MS, TimeUnit.MILLISECONDS))
                 .setConnectionRequestTimeout(Timeout.of(DEFAULT_CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS))
                 .build();
 
-        // Create HTTP client with connection pooling
         HTTP_CLIENT = HttpClients.custom()
                 .setConnectionManager(connectionManager)
                 .setDefaultRequestConfig(requestConfig)
@@ -87,7 +122,8 @@ public class WebRequest {
     private String toRequestUrl(String url, boolean useProxy) {
         if (useProxy && StringUtils.hasText(httpProxy)) {
             String base = httpProxy.endsWith("/") ? httpProxy.substring(0, httpProxy.length() - 1) : httpProxy;
-            return base + "/" + url;
+            String encoded = URLEncoder.encode(url, StandardCharsets.UTF_8).replace("+", "%20");
+            return base + "/" + encoded;
         }
         return url;
     }
@@ -113,6 +149,7 @@ public class WebRequest {
      */
     public <T> T getAsEntity(String url, Class<T> clazz, boolean useProxy) throws RateLimitException {
         String requestUrl = toRequestUrl(url, useProxy);
+        System.out.println(requestUrl);
         ResponseEntity<T> responseEntity = CLIENT.get()
                 .uri(requestUrl)
                 .retrieve()
