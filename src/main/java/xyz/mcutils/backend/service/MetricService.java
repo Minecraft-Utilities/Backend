@@ -4,6 +4,7 @@ import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.metric.Metric;
+import xyz.mcutils.backend.metric.impl.api.ExternalApiRequestsMetric;
 import xyz.mcutils.backend.metric.impl.api.RequestsMetric;
 import xyz.mcutils.backend.metric.impl.cape.skin.TrackedCapesMetric;
 import xyz.mcutils.backend.metric.impl.jvm.MemoryHeapMaxMetric;
@@ -29,6 +30,7 @@ public class MetricService {
 
         // API
         this.registerMetric(new RequestsMetric());
+        this.registerMetric(new ExternalApiRequestsMetric());
 
         // Player
         this.registerMetric(new TrackedPlayersMetric());

@@ -31,3 +31,4 @@ application.yml
 target/
 data/
 /Minecraft-Utilities.iml
+dashboard.yml

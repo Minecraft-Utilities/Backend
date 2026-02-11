@@ -1,24 +1,32 @@
 package xyz.mcutils.backend.service;
 
-import com.google.common.base.Joiner;
-import com.google.common.base.Splitter;
-import com.google.common.collect.Lists;
-import com.google.common.hash.Hashing;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import xyz.mcutils.backend.common.WebRequest;
-import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
-import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Scanner;
+import java.util.Set;
+
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+
+import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
+import com.google.common.collect.Lists;
+import com.google.common.hash.Hashing;
+
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import xyz.mcutils.backend.common.WebRequest;
+import xyz.mcutils.backend.metric.impl.api.ExternalApiRequestsMetric;
+import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
+import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
 
 @Service
 @Slf4j
@@ -53,6 +61,8 @@ public class MojangService {
         updateBlockedServers();
     }
 
+    private static final String API_MOJANG = "mojang";
+
     /**
      * Gets the Session Server profile of the
      * player with the given UUID.
@@ -61,7 +71,15 @@ public class MojangService {
      * @return the profile
      */
     public MojangProfileToken getProfile(String id) {
-        return webRequest.getAsEntity(SESSION_SERVER_ENDPOINT + "/session/minecraft/profile/" + id, MojangProfileToken.class, true);
+        long start = System.currentTimeMillis();
+        boolean success = false;
+        try {
+            MojangProfileToken result = webRequest.getAsEntity(SESSION_SERVER_ENDPOINT + "/session/minecraft/profile/" + id, MojangProfileToken.class, true);
+            success = result != null;
+            return result;
+        } finally {
+            MetricService.getMetric(ExternalApiRequestsMetric.class).record(API_MOJANG, "player_lookup", success, System.currentTimeMillis() - start);
+        }
     }
 
     /**
@@ -72,7 +90,15 @@ public class MojangService {
      * @return the profile
      */
     public MojangUsernameToUuidToken getUuidFromUsername(String id) {
-        return webRequest.getAsEntity(API_ENDPOINT + "/users/profiles/minecraft/" + id, MojangUsernameToUuidToken.class, true);
+        long start = System.currentTimeMillis();
+        boolean success = false;
+        try {
+            MojangUsernameToUuidToken result = webRequest.getAsEntity(API_ENDPOINT + "/users/profiles/minecraft/" + id, MojangUsernameToUuidToken.class, true);
+            success = result != null;
+            return result;
+        } finally {
+            MetricService.getMetric(ExternalApiRequestsMetric.class).record(API_MOJANG, "username_lookup", success, System.currentTimeMillis() - start);
+        }
     }
 
     /**
