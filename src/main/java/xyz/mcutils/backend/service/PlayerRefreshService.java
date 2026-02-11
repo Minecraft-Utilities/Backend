@@ -14,6 +14,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
+import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
@@ -72,7 +73,7 @@ public class PlayerRefreshService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void startRefreshTask() {
-        Thread.ofVirtual().name("player-refresh").start(() -> {
+        Main.EXECUTOR.submit(() -> {
             while (true) {
                 playerUpdateRateLimiter.acquire();
                 try {
@@ -80,18 +81,15 @@ public class PlayerRefreshService {
                     Page<PlayerDocument> players = this.playerRepository.findByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 100));
                     if (players.getTotalElements() > 0) {
                         log.info("Found {} players to update", players.getTotalElements());
-                        int updated = 0;
                         for (PlayerDocument playerDocument : players) {
                             playerUpdateRateLimiter.acquire();
-                            MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
-                            if (token == null) {
-                                continue;
-                            }
-                            this.updatePlayer(this.playerService.getPlayer(token.getId()), playerDocument, token);
-                            updated++;
-                        }
-                        if (updated > 0) {
-                            log.info("Updated {} players", updated);
+                            Main.EXECUTOR.submit(() -> {
+                                MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
+                                if (token == null) {
+                                    return;
+                                }
+                                this.updatePlayer(this.playerService.getPlayer(token.getId()), playerDocument, token);
+                            });
                         }
                     }
                     Thread.sleep(1_000);

@@ -15,6 +15,7 @@ import org.springframework.data.redis.core.ListOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SetOperations;
 import org.springframework.stereotype.Service;
+import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
@@ -24,8 +25,6 @@ import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -40,11 +39,9 @@ public class PlayerSubmitService {
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final double SUBMIT_RATE_PER_SECOND = 200.0;
     private static final long BLPOP_TIMEOUT_SECONDS = 2;
-    /** Bounded worker pool so we never have more than this many in-flight submit tasks (avoids OOM). */
-    private static final int SUBMIT_WORKER_THREADS = 10;
 
+    /** Rate limit submission so in-flight ≈ rate × task duration (avoids OOM). */
     private final RateLimiter submitRateLimiter = RateLimiter.create(SUBMIT_RATE_PER_SECOND);
-    private final ExecutorService submitWorkers = Executors.newFixedThreadPool(SUBMIT_WORKER_THREADS);
 
     private final RedisTemplate<String, SubmitQueueItem> submitQueueTemplate;
     private final RedisTemplate<String, Object> redisTemplate;
@@ -65,54 +62,54 @@ public class PlayerSubmitService {
     @EventListener(ApplicationReadyEvent.class)
     public void startSubmitConsumer() {
         ListOperations<String, SubmitQueueItem> listOps = submitQueueTemplate.opsForList();
-        for (int i = 0; i < SUBMIT_WORKER_THREADS; i++) {
-            submitWorkers.submit(() -> {
-                SetOperations<String, Object> setOps = redisTemplate.opsForSet();
-                while (true) {
-                    try {
-                        SubmitQueueItem item = listOps.leftPop(REDIS_QUEUE_KEY, BLPOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                        if (item == null) continue;
+        Main.EXECUTOR.submit(() -> {
+            while (true) {
+                try {
+                    SubmitQueueItem item = listOps.leftPop(REDIS_QUEUE_KEY, BLPOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                    if (item == null) continue;
+                    submitRateLimiter.acquire();
+                    Main.EXECUTOR.submit(() -> {
+                        SetOperations<String, Object> setOps = redisTemplate.opsForSet();
                         UUID id = item.id();
                         UUID submittedBy = item.submittedBy();
                         try {
                             if (this.playerService.exists(id)) {
                                 setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
-                                continue;
+                                return;
                             }
-                            submitRateLimiter.acquire();
                             MojangProfileToken token = this.mojangService.getProfile(id.toString());
-                            if (token == null) {
-                                log.warn("Player with uuid '{}' was not found", id);
+                                if (token == null) {
+                                    log.warn("Player with uuid '{}' was not found", id);
+                                    setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
+                                    return;
+                                }
+                                this.playerService.createPlayer(token);
+                                if (submittedBy != null) {
+                                    this.mongoTemplate.updateFirst(
+                                            Query.query(Criteria.where("_id").is(submittedBy)),
+                                            new Update().inc("submittedUuids", 1),
+                                            PlayerDocument.class
+                                    );
+                                }
                                 setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
-                                continue;
+                            } catch (NotFoundException ignored) {
+                                setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
+                            } catch (MojangAPIRateLimitException e) {
+                                listOps.rightPush(REDIS_QUEUE_KEY, item);
+                                try {
+                                    Thread.sleep(2_000);
+                                } catch (InterruptedException ie) {
+                                    Thread.currentThread().interrupt();
+                                }
                             }
-                            this.playerService.createPlayer(token);
-                            if (submittedBy != null) {
-                                this.mongoTemplate.updateFirst(
-                                        Query.query(Criteria.where("_id").is(submittedBy)),
-                                        new Update().inc("submittedUuids", 1),
-                                        PlayerDocument.class
-                                );
-                            }
-                            setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
-                        } catch (NotFoundException ignored) {
-                            setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
-                        } catch (MojangAPIRateLimitException e) {
-                            listOps.rightPush(REDIS_QUEUE_KEY, item);
-                            try {
-                                Thread.sleep(2_000);
-                            } catch (InterruptedException ie) {
-                                Thread.currentThread().interrupt();
-                            }
-                        }
-                    } catch (QueryTimeoutException e) {
-                        // BLPOP timed out waiting for an item (empty queue) – continue
-                    } catch (Exception e) {
-                        log.warn("Submit consumer error", e);
-                    }
+                    });
+                } catch (QueryTimeoutException e) {
+                    // BLPOP timed out waiting for an item (empty queue) – continue
+                } catch (Exception e) {
+                    log.warn("Submit consumer error", e);
                 }
-            });
-        }
+            }
+        });
     }
 
     /**
