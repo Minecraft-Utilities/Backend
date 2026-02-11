@@ -70,38 +70,40 @@ public class PlayerSubmitService {
                     UUID id = item.id();
                     UUID submittedBy = item.submittedBy();
 
-                    submitRateLimiter.acquire();
-                    SetOperations<String, Object> setOps = redisTemplate.opsForSet();
-                    try {
-                        if (this.playerService.exists(id)) {
+                    Main.EXECUTOR.submit(() -> {
+                        SetOperations<String, Object> setOps = redisTemplate.opsForSet();
+                        try {
+                            if (this.playerService.exists(id)) {
+                                setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
+                                return;
+                            }
+                            submitRateLimiter.acquire();
+                            MojangProfileToken token = this.mojangService.getProfile(id.toString());
+                            if (token == null) {
+                                log.warn("Player with uuid '{}' was not found", id);
+                                setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
+                                return;
+                            }
+                            this.playerService.createPlayer(token);
+                            if (submittedBy != null) {
+                                this.mongoTemplate.updateFirst(
+                                        Query.query(Criteria.where("_id").is(submittedBy)),
+                                        new Update().inc("submittedUuids", 1),
+                                        PlayerDocument.class
+                                    );
+                            }
                             setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
-                            continue;
-                        }
-                        MojangProfileToken token = this.mojangService.getProfile(id.toString());
-                        if (token == null) {
-                            log.warn("Player with uuid '{}' was not found", id);
+                        } catch (NotFoundException ignored) {
                             setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
-                            continue;
+                        } catch (MojangAPIRateLimitException e) {
+                            listOps.rightPush(REDIS_QUEUE_KEY, item);
+                            try { 
+                                Thread.sleep(2_000); 
+                            } catch (InterruptedException ie) { 
+                                Thread.currentThread().interrupt(); 
+                            }
                         }
-                        this.playerService.createPlayer(token);
-                        if (submittedBy != null) {
-                            this.mongoTemplate.updateFirst(
-                                    Query.query(Criteria.where("_id").is(submittedBy)),
-                                    new Update().inc("submittedUuids", 1),
-                                    PlayerDocument.class
-                                );
-                        }
-                        setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
-                    } catch (NotFoundException ignored) {
-                        setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
-                    } catch (MojangAPIRateLimitException e) {
-                        listOps.rightPush(REDIS_QUEUE_KEY, item);
-                        try { 
-                            Thread.sleep(2_000); 
-                        } catch (InterruptedException ie) { 
-                            Thread.currentThread().interrupt(); 
-                        }
-                    }
+                    });
                 } catch (QueryTimeoutException e) {
                     // BLPOP timed out waiting for an item (empty queue) – continue
                 } catch (Exception e) {

@@ -35,7 +35,6 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressWarnings("UnstableApiUsage")
 @Service
@@ -82,24 +81,22 @@ public class PlayerRefreshService {
                    Page<PlayerDocument> players = this.playerRepository.findByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 100));
                    if (players.getTotalElements() > 0) {
                        log.info("Found {} players to update", players.getTotalElements());
-                   }
-
-                   // Run player updates in parallel
-                   AtomicInteger updated = new AtomicInteger();
-                   Main.EXECUTOR.submit(() -> {
-                       for (PlayerDocument playerDocument : players) {
-                           MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
-                           if (token == null) {
-                               continue;
+                       Main.EXECUTOR.submit(() -> {
+                           int updated = 0;
+                           for (PlayerDocument playerDocument : players) {
+                               playerUpdateRateLimiter.acquire();
+                               MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
+                               if (token == null) {
+                                   continue;
+                               }
+                               this.updatePlayer(this.playerService.getPlayer(token.getId()), playerDocument, token);
+                               updated++;
                            }
-                           this.updatePlayer(this.playerService.getPlayer(token.getId()), playerDocument, token);
-                           updated.getAndIncrement();
-                       }
-                   });
-                    if (updated.get() > 0) {
-                        log.info("Updated {} players", updated.get());
-                    }
-                   
+                           if (updated > 0) {
+                            log.info("Updated {} players", updated);
+                           }
+                       });
+                   }
                    Thread.sleep(1_000);
                } catch (InterruptedException e) {
                    Thread.currentThread().interrupt();
