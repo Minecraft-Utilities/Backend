@@ -114,7 +114,6 @@ public class WebRequest {
      */
     public <T> T getAsEntity(String url, Class<T> clazz, boolean useProxy) throws RateLimitException {
         String requestUrl = toRequestUrl(url, useProxy);
-        System.out.println(requestUrl);
         ResponseEntity<T> responseEntity = CLIENT.get()
                 .uri(requestUrl)
                 .retrieve()
