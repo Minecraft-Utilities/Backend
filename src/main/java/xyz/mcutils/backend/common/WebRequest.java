@@ -4,8 +4,6 @@ import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
-import org.apache.hc.client5.http.impl.routing.DefaultProxyRoutePlanner;
-import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.io.SocketConfig;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,9 +16,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import xyz.mcutils.backend.exception.impl.RateLimitException;
 
-import java.net.URISyntaxException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 public class WebRequest {
@@ -74,64 +70,26 @@ public class WebRequest {
                 .build();
     }
 
-    private static final int PROXY_REQUESTS_BEFORE_NEW_CONNECTION = 10;
-
+    /**
+     * URL proxy base (e.g. http://213.255.246.119:8080). When set and useProxy is true,
+     * the request URL becomes proxyBase + "/" + targetUrl (e.g. proxyBase/https://example.com/path).
+     */
     @Value("${mc-utils.http-proxy:}")
     private String httpProxy;
 
-    private RestClient proxyClient;
-    private CloseableHttpClient proxyHttpClient;
-    private final AtomicInteger proxyRequestCount = new AtomicInteger(0);
-
-    private RestClient getClient(boolean useProxy) {
+    /**
+     * Converts the given URL to a request URL, optionally via the URL proxy (proxy base + "/" + url).
+     *
+     * @param url the URL
+     * @param useProxy when true and httpProxy is set, the request goes to httpProxy/url
+     * @return the request URL
+     */
+    private String toRequestUrl(String url, boolean useProxy) {
         if (useProxy && StringUtils.hasText(httpProxy)) {
-            synchronized (this) {
-                if (proxyClient != null && proxyRequestCount.incrementAndGet() % PROXY_REQUESTS_BEFORE_NEW_CONNECTION == 0) {
-                    try {
-                        if (proxyHttpClient != null) {
-                            proxyHttpClient.close();
-                        }
-                    } catch (Exception ignored) {
-                        // ignore on close
-                    }
-                    proxyHttpClient = null;
-                    proxyClient = null;
-                }
-                if (proxyClient == null) {
-                    try {
-                        HttpHost proxyHost = HttpHost.create(httpProxy);
-                        DefaultProxyRoutePlanner routePlanner = new DefaultProxyRoutePlanner(proxyHost);
-                        PoolingHttpClientConnectionManager proxyConnectionManager = new PoolingHttpClientConnectionManager();
-                        proxyConnectionManager.setMaxTotal(DEFAULT_MAX_TOTAL_CONNECTIONS);
-                        proxyConnectionManager.setDefaultMaxPerRoute(DEFAULT_MAX_CONNECTIONS_PER_ROUTE);
-                        SocketConfig proxySocketConfig = SocketConfig.custom()
-                                .setSoTimeout(Timeout.of(DEFAULT_SOCKET_TIMEOUT_MS, TimeUnit.MILLISECONDS))
-                                .build();
-                        proxyConnectionManager.setDefaultSocketConfig(proxySocketConfig);
-                        RequestConfig proxyRequestConfig = RequestConfig.custom()
-                                .setResponseTimeout(Timeout.of(DEFAULT_SOCKET_TIMEOUT_MS, TimeUnit.MILLISECONDS))
-                                .setConnectionRequestTimeout(Timeout.of(DEFAULT_CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS))
-                                .build();
-                        proxyHttpClient = HttpClients.custom()
-                                .setConnectionManager(proxyConnectionManager)
-                                .setRoutePlanner(routePlanner)
-                                .setDefaultRequestConfig(proxyRequestConfig)
-                                .evictIdleConnections(Timeout.of(DEFAULT_CONNECTION_TIME_TO_LIVE_SECONDS, TimeUnit.SECONDS))
-                                .evictExpiredConnections()
-                                .build();
-                        HttpComponentsClientHttpRequestFactory proxyRequestFactory = new HttpComponentsClientHttpRequestFactory(proxyHttpClient);
-                        proxyRequestFactory.setConnectionRequestTimeout(DEFAULT_CONNECT_TIMEOUT_MS);
-                        proxyClient = RestClient.builder()
-                                .requestFactory(proxyRequestFactory)
-                                .build();
-                    } catch (URISyntaxException e) {
-                        return CLIENT;
-                    }
-                }
-                return proxyClient;
-            }
+            String base = httpProxy.endsWith("/") ? httpProxy.substring(0, httpProxy.length() - 1) : httpProxy;
+            return base + "/" + url;
         }
-        return CLIENT;
+        return url;
     }
 
     /**
@@ -146,17 +104,17 @@ public class WebRequest {
     }
 
     /**
-     * Gets a response from the given URL, optionally via the configured HTTP proxy.
+     * Gets a response from the given URL, optionally via the URL proxy (proxy base + "/" + url).
      *
      * @param url the url
-     * @param useProxy when true and httpProxy is set, the request is sent via the proxy
+     * @param useProxy when true and httpProxy is set, the request goes to httpProxy/url
      * @return the response
      * @param <T> the type of the response
      */
     public <T> T getAsEntity(String url, Class<T> clazz, boolean useProxy) throws RateLimitException {
-        RestClient client = getClient(useProxy);
-        ResponseEntity<T> responseEntity = client.get()
-                .uri(url)
+        String requestUrl = toRequestUrl(url, useProxy);
+        ResponseEntity<T> responseEntity = CLIENT.get()
+                .uri(requestUrl)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, (_, _) -> {}) // Don't throw exceptions on error
                 .toEntity(clazz);
@@ -181,15 +139,15 @@ public class WebRequest {
     }
 
     /**
-     * Gets a response from the given URL, optionally via the configured HTTP proxy.
+     * Gets a response from the given URL, optionally via the URL proxy (proxy base + "/" + url).
      *
      * @param url the url
-     * @param useProxy when true and httpProxy is set, the request is sent via the proxy
+     * @param useProxy when true and httpProxy is set, the request goes to httpProxy/url
      * @return the response
      */
     public ResponseEntity<?> get(String url, Class<?> clazz, boolean useProxy) {
-        return getClient(useProxy).get()
-                .uri(url)
+        return CLIENT.get()
+                .uri(toRequestUrl(url, useProxy))
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, (_, _) -> {}) // Don't throw exceptions on error
                 .toEntity(clazz);
@@ -206,16 +164,16 @@ public class WebRequest {
     }
 
     /**
-     * Checks whether a resource exists at the given URL, optionally via the configured HTTP proxy.
+     * Checks whether a resource exists at the given URL, optionally via the URL proxy (proxy base + "/" + url).
      *
      * @param url the URL
-     * @param useProxy when true and httpProxy is set, the request is sent via the proxy
+     * @param useProxy when true and httpProxy is set, the request goes to httpProxy/url
      * @return true if the resource exists (status 200), false otherwise or on error
      */
     public boolean checkExists(String url, boolean useProxy) {
         try {
-            ResponseEntity<Void> response = getClient(useProxy).head()
-                    .uri(url)
+            ResponseEntity<Void> response = CLIENT.head()
+                    .uri(toRequestUrl(url, useProxy))
                     .retrieve()
                     .onStatus(HttpStatusCode::isError, (_, _) -> {})
                     .toBodilessEntity();
@@ -236,16 +194,16 @@ public class WebRequest {
     }
 
     /**
-     * Performs a GET request and returns the response body as a byte array, optionally via the configured HTTP proxy.
+     * Performs a GET request and returns the response body as a byte array, optionally via the URL proxy (proxy base + "/" + url).
      *
      * @param url the URL
-     * @param useProxy when true and httpProxy is set, the request is sent via the proxy
+     * @param useProxy when true and httpProxy is set, the request goes to httpProxy/url
      * @return the response body, or null if status is not 2xx or on error
      */
     public byte[] getAsByteArray(String url, boolean useProxy) {
         try {
-            ResponseEntity<byte[]> response = getClient(useProxy).get()
-                    .uri(url)
+            ResponseEntity<byte[]> response = CLIENT.get()
+                    .uri(toRequestUrl(url, useProxy))
                     .retrieve()
                     .onStatus(HttpStatusCode::isError, (_, _) -> {})
                     .toEntity(byte[].class);
