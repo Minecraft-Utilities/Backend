@@ -82,7 +82,7 @@ public class PlayerRefreshService {
                 playerUpdateRateLimiter.acquire();
                 try {
                     Date cutoff = Date.from(Instant.now().minus(MIN_TIME_BETWEEN_UPDATES));
-                    Page<PlayerDocument> players = this.playerRepository.findByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 200));
+                    Page<PlayerDocument> players = this.playerRepository.findByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 500));
                     if (players.getTotalElements() > 0) {
                         for (PlayerDocument playerDocument : players) {
                             playerUpdateRateLimiter.acquire();
@@ -95,7 +95,7 @@ public class PlayerRefreshService {
                             });
                         }
                     }
-                    Thread.sleep(1_000);
+                    Thread.sleep(5_000);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
