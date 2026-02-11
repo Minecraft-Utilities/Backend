@@ -24,6 +24,7 @@ import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.repository.mongo.CapeHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.mongo.SkinHistoryRepository;
+import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -48,13 +49,14 @@ public class PlayerService {
     private final PlayerRepository playerRepository;
     private final SkinHistoryRepository skinHistoryRepository;
     private final CapeHistoryRepository capeHistoryRepository;
+    private final UsernameHistoryRepository usernameHistoryRepository;
     private final WebRequest webRequest;
     private final MongoTemplate mongoTemplate;
     private final CoalescingLoader<String, Player> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     @Autowired
     public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerRefreshService playerRefreshService,
-                         PlayerRepository playerRepository, SkinHistoryRepository skinHistoryRepository,
+                         PlayerRepository playerRepository, SkinHistoryRepository skinHistoryRepository, UsernameHistoryRepository usernameHistoryRepository,
                          CapeHistoryRepository capeHistoryRepository, WebRequest webRequest,
                          MongoTemplate mongoTemplate) {
         INSTANCE = this;
@@ -65,6 +67,7 @@ public class PlayerService {
         this.playerRepository = playerRepository;
         this.skinHistoryRepository = skinHistoryRepository;
         this.capeHistoryRepository = capeHistoryRepository;
+        this.usernameHistoryRepository = usernameHistoryRepository;
         this.webRequest = webRequest;
         this.mongoTemplate = mongoTemplate;
     }
@@ -185,6 +188,12 @@ public class PlayerService {
                     .timestamp(now)
                     .build());
         }
+        this.usernameHistoryRepository.save(UsernameHistoryDocument.builder()
+                .id(UUID.randomUUID())
+                .playerId(playerUuid)
+                .username(token.getName())
+                .timestamp(now)
+                .build());
 
         if (capeUuid != null) {
             this.capeService.incrementAccountsOwned(capeUuid);
