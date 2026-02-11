@@ -9,6 +9,10 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.Tuple;
@@ -48,13 +52,14 @@ public class PlayerRefreshService {
     private final CapeHistoryRepository capeHistoryRepository;
     private final UsernameHistoryRepository usernameHistoryRepository;
     private final WebRequest webRequest;
+    private final MongoTemplate mongoTemplate;
 
     private final RateLimiter playerUpdateRateLimiter = RateLimiter.create(100.0);
 
     @Autowired
     public PlayerRefreshService(MojangService mojangService, SkinService skinService, CapeService capeService, @Lazy PlayerService playerService,
                             PlayerRepository playerRepository, SkinHistoryRepository skinHistoryRepository, CapeHistoryRepository capeHistoryRepository,
-                            UsernameHistoryRepository usernameHistoryRepository, WebRequest webRequest) {
+                            UsernameHistoryRepository usernameHistoryRepository, WebRequest webRequest, MongoTemplate mongoTemplate) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
@@ -64,6 +69,7 @@ public class PlayerRefreshService {
         this.capeHistoryRepository = capeHistoryRepository;
         this.usernameHistoryRepository = usernameHistoryRepository;
         this.webRequest = webRequest;
+        this.mongoTemplate = mongoTemplate;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -193,7 +199,13 @@ public class PlayerRefreshService {
         }
 
         // Optifine cape
-        document.setHasOptifineCape(OptifineCape.capeExists(token.getName(), webRequest).get());
+        UUID playerId = document.getId();
+        OptifineCape.capeExists(token.getName(), webRequest)
+                .thenAccept(has -> mongoTemplate.updateFirst(
+                        Query.query(Criteria.where("_id").is(playerId)),
+                        new Update().set("hasOptifineCape", has),
+                        PlayerDocument.class
+                ));
 
         Date now = new Date();
         document.setLastUpdated(now);
