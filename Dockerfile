@@ -27,5 +27,5 @@ ENV PORT=80
 # Indicate that we're running in production
 ENV ENVIRONMENT=production
 
-# Run the jar file using JSON format for CMD (addressing the warning)
-CMD ["java", "-jar", "target/Minecraft-Utilities.jar", "-Djava.awt.headless=true"]
+# Start the application
+CMD ["java", "-XX:MaxRAMPercentage=75.0", "-Djava.awt.headless=true", "-jar", "target/Minecraft-Utilities.jar"]
