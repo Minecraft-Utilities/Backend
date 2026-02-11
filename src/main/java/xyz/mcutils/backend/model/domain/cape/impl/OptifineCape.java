@@ -1,7 +1,5 @@
 package xyz.mcutils.backend.model.domain.cape.impl;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,16 +18,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("HttpUrlsUsage")
 @Getter @Slf4j
 @NoArgsConstructor
 public class OptifineCape extends Cape<OptifineCape.Part> {
     private static final String CDN_URL = "http://s.optifine.net/capes/%s.png";
-    private static final Cache<String, Boolean> hasCapeCache =  CacheBuilder.newBuilder()
-            .expireAfterWrite(1, TimeUnit.DAYS)
-            .build();
 
     @Getter
     public enum Part {
@@ -89,19 +83,11 @@ public class OptifineCape extends Cape<OptifineCape.Part> {
     public static CompletableFuture<Boolean> capeExists(String playerName, WebRequest webRequest) {
         return CompletableFuture.supplyAsync(() -> {
             long start = System.currentTimeMillis();
-
-            Boolean cached = hasCapeCache.getIfPresent(playerName);
-            if (cached != null) {
-                return cached;
-            }
-
             boolean hasCape = StorageService.INSTANCE.exists(StorageService.Bucket.OPTIFINE_CAPES, playerName + ".png");
             if (!hasCape) {
                 hasCape = webRequest.checkExists(CDN_URL.formatted(playerName));
             }
-
             log.debug("Optifine cape exists for player {}: {} in {}ms", playerName, hasCape, System.currentTimeMillis() - start);
-            hasCapeCache.put(playerName, hasCape);
             return hasCape;
         });
     }
