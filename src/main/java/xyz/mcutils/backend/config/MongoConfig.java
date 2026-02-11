@@ -17,10 +17,16 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 public class MongoConfig {
 
     @Bean
-    public MongoClient mongoClient(@Value("${mc-utils.mongo.uri}") String uri) {
+    public MongoClient mongoClient(
+            @Value("${mc-utils.mongo.uri}") String uri,
+            @Value("${mc-utils.mongo.max-connection-pool-size:250}") int maxConnectionPoolSize,
+            @Value("${mc-utils.mongo.min-connection-pool-size:25}") int minConnectionPoolSize) {
         MongoClientSettings settings = MongoClientSettings.builder()
                 .applyConnectionString(new ConnectionString(uri))
                 .uuidRepresentation(UuidRepresentation.STANDARD)
+                .applyToConnectionPoolSettings(builder -> builder
+                        .maxSize(maxConnectionPoolSize)
+                        .minSize(minConnectionPoolSize))
                 .build();
         return MongoClients.create(settings);
     }

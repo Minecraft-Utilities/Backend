@@ -33,6 +33,8 @@ mc-utils:
   # MongoDB - Used for cape storage etc.
   mongo:
     uri: "mongodb://localhost:27017/mcutils" # With auth: mongodb://username:password@host:27017/mcutils
+    # max-connection-pool-size: 250  # default 250
+    # min-connection-pool-size: 25   # default 25
 
   # Redis - This is used for caching
   redis:
