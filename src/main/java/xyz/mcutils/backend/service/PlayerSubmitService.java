@@ -2,6 +2,7 @@ package xyz.mcutils.backend.service;
 
 import com.google.common.util.concurrent.RateLimiter;
 import lombok.extern.log4j.Log4j2;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
@@ -11,17 +12,8 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.data.redis.core.ListOperations;
-import org.springframework.data.redis.core.RedisOperations;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.SessionCallback;
-import org.springframework.data.redis.core.SetOperations;
+import org.springframework.data.redis.core.*;
 import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
@@ -30,6 +22,7 @@ import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 import xyz.mcutils.backend.model.redis.SubmitQueueItem;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -41,15 +34,14 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Log4j2
 public class PlayerSubmitService {
-
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final double SUBMIT_RATE_PER_SECOND = 300.0;
     private static final long BLPOP_TIMEOUT_SECONDS = 2;
     private static final int SUBMIT_WORKER_THREADS = 250;
 
-    private final RateLimiter submitRateLimiter = RateLimiter.create(SUBMIT_RATE_PER_SECOND);
-    private final ExecutorService submitWorkers = Executors.newFixedThreadPool(SUBMIT_WORKER_THREADS);
+    private static final RateLimiter submitRateLimiter = RateLimiter.create(SUBMIT_RATE_PER_SECOND);
+    private static final ExecutorService submitWorkers = Executors.newFixedThreadPool(SUBMIT_WORKER_THREADS);
 
     private final RedisTemplate<String, SubmitQueueItem> submitQueueTemplate;
     private final RedisTemplate<String, Object> redisTemplate;
@@ -135,7 +127,7 @@ public class PlayerSubmitService {
         List<UUID> uuids = players.stream()
                 .filter(id -> id != null && !id.isBlank())
                 .map(id -> UUIDUtils.parseUuid(id.trim()))
-                .filter(uuid -> uuid != null)
+                .filter(Objects::nonNull)
                 .distinct()
                 .toList();
         if (uuids.isEmpty()) {
@@ -152,10 +144,10 @@ public class PlayerSubmitService {
         }
 
         // Batch check which are already in the queue
-        List<Object> inQueueResults = redisTemplate.executePipelined(new SessionCallback<Object>() {
+        List<Object> inQueueResults = redisTemplate.executePipelined(new SessionCallback<>() {
             @Override
             @SuppressWarnings("unchecked")
-            public <K, V> Object execute(RedisOperations<K, V> operations) {
+            public <K, V> Object execute(@NonNull RedisOperations<K, V> operations) {
                 SetOperations<K, V> setOps = operations.opsForSet();
                 for (UUID uuid : toEnqueue) {
                     setOps.isMember((K) REDIS_QUEUE_SET_KEY, (V) uuid.toString());

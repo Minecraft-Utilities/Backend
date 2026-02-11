@@ -42,7 +42,8 @@ import java.util.concurrent.Executors;
 @Service
 @Log4j2
 public class PlayerRefreshService {
-    private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofDays(1);
+    private static final RateLimiter playerUpdateRateLimiter = RateLimiter.create(300.0);
+    private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofDays(14); // 2 weeks
     private static final int REFRESH_WORKER_THREADS = 250;
 
     private final ExecutorService refreshWorkers = Executors.newFixedThreadPool(REFRESH_WORKER_THREADS);
@@ -57,7 +58,6 @@ public class PlayerRefreshService {
     private final WebRequest webRequest;
     private final MongoTemplate mongoTemplate;
 
-    private final RateLimiter playerUpdateRateLimiter = RateLimiter.create(300.0);
 
     @Autowired
     public PlayerRefreshService(MojangService mojangService, SkinService skinService, CapeService capeService, @Lazy PlayerService playerService,
@@ -82,9 +82,8 @@ public class PlayerRefreshService {
                 playerUpdateRateLimiter.acquire();
                 try {
                     Date cutoff = Date.from(Instant.now().minus(MIN_TIME_BETWEEN_UPDATES));
-                    Page<PlayerDocument> players = this.playerRepository.findByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 100));
+                    Page<PlayerDocument> players = this.playerRepository.findByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 200));
                     if (players.getTotalElements() > 0) {
-                        log.info("Found {} players to update", players.getTotalElements());
                         for (PlayerDocument playerDocument : players) {
                             playerUpdateRateLimiter.acquire();
                             refreshWorkers.submit(() -> {
