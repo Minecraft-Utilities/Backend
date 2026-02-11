@@ -23,4 +23,16 @@ public class UUIDUtils {
         }
         return UUID.fromString(builder.toString());
     }
+
+    /**
+     * Parses a string as a UUID (32 hex chars or 36 with dashes). Returns null if invalid.
+     */
+    public static UUID parseUuid(String s) {
+        if (s == null || (s.length() != 32 && s.length() != 36)) return null;
+        try {
+            return s.length() == 36 ? UUID.fromString(s) : addDashes(s);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
 }

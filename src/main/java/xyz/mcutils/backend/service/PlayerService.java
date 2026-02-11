@@ -199,6 +199,16 @@ public class PlayerService {
     }
 
     /**
+     * Checks if a player exists in the database.
+     *
+     * @param id the uuid of the player
+     * @return true if the player exists, false otherwise
+     */
+    public boolean exists(UUID id) {
+        return this.playerRepository.existsById(id);
+    }
+
+    /**
      * Search for players whose username starts with the given query, case-insensitive.
      *
      * @param query the prefix to match (e.g. "steve" matches "Steve", "STEVE")

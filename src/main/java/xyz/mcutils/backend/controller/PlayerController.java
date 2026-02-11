@@ -2,6 +2,7 @@ package xyz.mcutils.backend.controller;
 
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
@@ -9,8 +10,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.model.domain.player.Player;
+import xyz.mcutils.backend.model.dto.request.SubmitPlayersRequest;
 import xyz.mcutils.backend.model.dto.response.PlayerSearchEntry;
 import xyz.mcutils.backend.service.PlayerService;
+import xyz.mcutils.backend.service.PlayerSubmitService;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,10 +25,12 @@ import java.util.concurrent.TimeUnit;
 @Tag(name = "Player Controller", description = "The Player Controller is used to get information about a player.")
 public class PlayerController {
     private final PlayerService playerService;
+    private final PlayerSubmitService playerSubmitService;
 
     @Autowired
-    public PlayerController(PlayerService playerManagerService) {
+    public PlayerController(PlayerService playerManagerService, PlayerSubmitService playerSubmitService) {
         this.playerService = playerManagerService;
+        this.playerSubmitService = playerSubmitService;
     }
 
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -63,5 +68,13 @@ public class PlayerController {
                 .thenApply(playerName -> ResponseEntity.ok()
                         .cacheControl(CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic())
                         .body(playerName));
+    }
+
+    @PostMapping(value = "/submit", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Void> submitPlayers(
+            @Parameter(description = "List of up to 100 players (UUID only)")
+            @Valid @RequestBody SubmitPlayersRequest request) {
+        playerSubmitService.submitPlayers(request.players(), request.submittedBy());
+        return ResponseEntity.accepted().build();
     }
 }

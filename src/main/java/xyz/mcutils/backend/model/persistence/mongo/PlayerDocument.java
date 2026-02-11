@@ -80,6 +80,11 @@ public class PlayerDocument {
     private boolean hasOptifineCape;
 
     /**
+     * The amount of new uuids this player has submitted.
+     */
+    private long submittedUuids;
+
+    /**
      * The time this account was last updated.
      */
     @Indexed
