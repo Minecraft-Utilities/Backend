@@ -25,6 +25,8 @@ import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -39,9 +41,10 @@ public class PlayerSubmitService {
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final double SUBMIT_RATE_PER_SECOND = 200.0;
     private static final long BLPOP_TIMEOUT_SECONDS = 2;
+    private static final int SUBMIT_WORKER_THREADS = 100;
 
-    /** Rate limit submission so in-flight ≈ rate × task duration (avoids OOM). */
     private final RateLimiter submitRateLimiter = RateLimiter.create(SUBMIT_RATE_PER_SECOND);
+    private final ExecutorService submitWorkers = Executors.newFixedThreadPool(SUBMIT_WORKER_THREADS);
 
     private final RedisTemplate<String, SubmitQueueItem> submitQueueTemplate;
     private final RedisTemplate<String, Object> redisTemplate;
@@ -68,7 +71,7 @@ public class PlayerSubmitService {
                     SubmitQueueItem item = listOps.leftPop(REDIS_QUEUE_KEY, BLPOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                     if (item == null) continue;
                     submitRateLimiter.acquire();
-                    Main.EXECUTOR.submit(() -> {
+                    submitWorkers.submit(() -> {
                         SetOperations<String, Object> setOps = redisTemplate.opsForSet();
                         UUID id = item.id();
                         UUID submittedBy = item.submittedBy();

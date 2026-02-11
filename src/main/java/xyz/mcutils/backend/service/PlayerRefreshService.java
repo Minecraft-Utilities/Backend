@@ -35,13 +35,17 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @SuppressWarnings("UnstableApiUsage")
 @Service
 @Log4j2
 public class PlayerRefreshService {
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofDays(1);
+    private static final int REFRESH_WORKER_THREADS = 100;
 
+    private final ExecutorService refreshWorkers = Executors.newFixedThreadPool(REFRESH_WORKER_THREADS);
     private final MojangService mojangService;
     private final SkinService skinService;
     private final CapeService capeService;
@@ -83,7 +87,7 @@ public class PlayerRefreshService {
                         log.info("Found {} players to update", players.getTotalElements());
                         for (PlayerDocument playerDocument : players) {
                             playerUpdateRateLimiter.acquire();
-                            Main.EXECUTOR.submit(() -> {
+                            refreshWorkers.submit(() -> {
                                 MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
                                 if (token == null) {
                                     return;
