@@ -6,10 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
-import xyz.mcutils.backend.common.CoalescingLoader;
-import xyz.mcutils.backend.common.PlayerUtils;
-import xyz.mcutils.backend.common.Tuple;
-import xyz.mcutils.backend.common.UUIDUtils;
+import xyz.mcutils.backend.common.*;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.exception.impl.RateLimitException;
@@ -47,18 +44,20 @@ public class PlayerService {
     private final PlayerRepository playerRepository;
     private final SkinHistoryRepository skinHistoryRepository;
     private final CapeHistoryRepository capeHistoryRepository;
+    private final WebRequest webRequest;
     private final CoalescingLoader<String, Player> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     @Autowired
     public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService,
                          PlayerRepository playerRepository, SkinHistoryRepository skinHistoryRepository,
-                         CapeHistoryRepository capeHistoryRepository) {
+                         CapeHistoryRepository capeHistoryRepository, WebRequest webRequest) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
         this.playerRepository = playerRepository;
         this.skinHistoryRepository = skinHistoryRepository;
         this.capeHistoryRepository = capeHistoryRepository;
+        this.webRequest = webRequest;
     }
 
     /**
@@ -148,7 +147,7 @@ public class PlayerService {
 
         Boolean hasOptifineCape = false;
         try {
-            hasOptifineCape = OptifineCape.capeExists(token.getName()).get();
+            hasOptifineCape = OptifineCape.capeExists(token.getName(), webRequest).get();
         } catch (Exception ignored) { }
 
         Date now = new Date();
@@ -264,7 +263,7 @@ public class PlayerService {
         // Optifine cape
         Boolean hasOptifineCape = false;
         try {
-            hasOptifineCape = OptifineCape.capeExists(token.getName()).get();
+            hasOptifineCape = OptifineCape.capeExists(token.getName(), webRequest).get();
         } catch (Exception ignored) { }
         document.setHasOptifineCape(hasOptifineCape);
 

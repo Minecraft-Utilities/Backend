@@ -27,6 +27,9 @@ mc-utils:
   # The URL of the API
   public-url: http://localhost
 
+  # Leave empty to disable
+  http-proxy:
+
   # MongoDB - Used for cape storage etc.
   mongo:
     uri: "mongodb://localhost:27017/mcutils" # With auth: mongodb://username:password@host:27017/mcutils

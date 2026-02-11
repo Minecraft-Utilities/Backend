@@ -46,7 +46,10 @@ public class MojangService {
      */
     private final Set<String> blockedServerHashes = Collections.synchronizedSet(new HashSet<>());
 
-    public MojangService() {
+    private final WebRequest webRequest;
+
+    public MojangService(WebRequest webRequest) {
+        this.webRequest = webRequest;
         updateBlockedServers();
     }
 
@@ -58,7 +61,7 @@ public class MojangService {
      * @return the profile
      */
     public MojangProfileToken getProfile(String id) {
-        return WebRequest.getAsEntity(SESSION_SERVER_ENDPOINT + "/session/minecraft/profile/" + id, MojangProfileToken.class);
+        return webRequest.getAsEntity(SESSION_SERVER_ENDPOINT + "/session/minecraft/profile/" + id, MojangProfileToken.class, true);
     }
 
     /**
@@ -69,7 +72,7 @@ public class MojangService {
      * @return the profile
      */
     public MojangUsernameToUuidToken getUuidFromUsername(String id) {
-        return WebRequest.getAsEntity(API_ENDPOINT + "/users/profiles/minecraft/" + id, MojangUsernameToUuidToken.class);
+        return webRequest.getAsEntity(API_ENDPOINT + "/users/profiles/minecraft/" + id, MojangUsernameToUuidToken.class, true);
     }
 
     /**

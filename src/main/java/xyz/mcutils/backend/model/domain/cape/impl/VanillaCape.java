@@ -82,13 +82,14 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
      * Checks if a Vanilla cape exists for the given player
      *
      * @param textureId the player's name to check for
+     * @param webRequest the HTTP client
      * @return a future that returns true or false
      */
-    public static CompletableFuture<Boolean> capeExists(String textureId) {
+    public static CompletableFuture<Boolean> capeExists(String textureId, WebRequest webRequest) {
         return CompletableFuture.supplyAsync(() -> {
             log.debug("Checking if Vanilla cape exists for player {}", textureId);
             String cdnUrl = CDN_URL.formatted(textureId);
-            return WebRequest.checkExists(cdnUrl);
+            return webRequest.checkExists(cdnUrl);
         });
     }
 

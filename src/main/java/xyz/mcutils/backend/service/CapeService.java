@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.PlayerUtils;
+import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
@@ -49,13 +50,15 @@ public class CapeService {
     private final PlayerService playerService;
     private final CapeRepository capeRepository;
     private final MongoTemplate mongoTemplate;
+    private final WebRequest webRequest;
 
     @Autowired
-    public CapeService(StorageService storageService, @Lazy PlayerService playerService, CapeRepository capeRepository, MongoTemplate mongoTemplate) {
+    public CapeService(StorageService storageService, @Lazy PlayerService playerService, CapeRepository capeRepository, MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.storageService = storageService;
         this.playerService = playerService;
         this.capeRepository = capeRepository;
         this.mongoTemplate = mongoTemplate;
+        this.webRequest = webRequest;
     }
 
     @PostConstruct
@@ -98,7 +101,7 @@ public class CapeService {
             // Check to see if the cape texture is valid.
             boolean exists = false;
             try {
-                exists = VanillaCape.capeExists(textureId).get();
+                exists = VanillaCape.capeExists(textureId, webRequest).get();
             } catch (Exception ignored) { }
             if (!exists) {
                 throw new NotFoundException("Cape with texture id " + textureId + " was not found");
@@ -197,7 +200,7 @@ public class CapeService {
         byte[] capeBytes = storageService.get(bucket, cape.getTextureId() + ".png");
         if (capeBytes == null) {
             log.debug("Downloading skin image for skin {}", cape.getTextureId());
-            capeBytes = PlayerUtils.getImage(cape.getRawTextureUrl());
+            capeBytes = PlayerUtils.getImage(cape.getRawTextureUrl(), webRequest);
             if (capeBytes == null) {
                 throw new IllegalStateException("Cape with id '%s' was not found".formatted(cape.getTextureId()));
             }

@@ -35,10 +35,12 @@ public class PlayerUtils {
     /**
      * Gets the image data from the URL.
      *
+     * @param url the URL to fetch
+     * @param webRequest the HTTP client
      * @return the image data
      */
     @SneakyThrows @JsonIgnore
-    public static byte[] getImage(String url) {
-        return WebRequest.getAsByteArray(url);
+    public static byte[] getImage(String url, WebRequest webRequest) {
+        return webRequest.getAsByteArray(url);
     }
 }

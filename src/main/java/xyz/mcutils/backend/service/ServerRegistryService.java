@@ -10,9 +10,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Constants;
 import xyz.mcutils.backend.common.DomainUtils;
-import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.FuzzySearch;
+import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.model.domain.server.Platform;
 import xyz.mcutils.backend.model.domain.serverregistry.ServerRegistryEntry;
 
@@ -33,12 +33,14 @@ public class ServerRegistryService {
     private static final int MAX_RETURNED_RESULTS = 5;
 
     private final GitHub githubClient;
+    private final WebRequest webRequest;
     private String lastSeenHash = null;
     private final List<ServerRegistryEntry> entries = new CopyOnWriteArrayList<>();
 
     @SneakyThrows
-    public ServerRegistryService() {
-        githubClient = GitHub.connectAnonymously();
+    public ServerRegistryService(WebRequest webRequest) {
+        this.webRequest = webRequest;
+        this.githubClient = GitHub.connectAnonymously();
         this.updateRegistry();
     }
 
@@ -90,7 +92,7 @@ public class ServerRegistryService {
      * @return the bytes of the zipped repo
      */
     private byte[] downloadZip() {
-        byte[] bytes = WebRequest.getAsByteArray(REGISTRY_REPOSITORY);
+        byte[] bytes = webRequest.getAsByteArray(REGISTRY_REPOSITORY);
         if (bytes == null) {
             log.error("Server registry download failed.");
             return null;

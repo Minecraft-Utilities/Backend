@@ -83,9 +83,10 @@ public class OptifineCape extends Cape<OptifineCape.Part> {
      * Checks if an optifine cape exists for the given player
      *
      * @param playerName the player's name to check for
+     * @param webRequest the HTTP client
      * @return a future that returns true or false
      */
-    public static CompletableFuture<Boolean> capeExists(String playerName) {
+    public static CompletableFuture<Boolean> capeExists(String playerName, WebRequest webRequest) {
         return CompletableFuture.supplyAsync(() -> {
             long start = System.currentTimeMillis();
 
@@ -96,7 +97,7 @@ public class OptifineCape extends Cape<OptifineCape.Part> {
 
             boolean hasCape = StorageService.INSTANCE.exists(StorageService.Bucket.OPTIFINE_CAPES, playerName + ".png");
             if (!hasCape) {
-                hasCape = WebRequest.checkExists(CDN_URL.formatted(playerName));
+                hasCape = webRequest.checkExists(CDN_URL.formatted(playerName));
             }
 
             log.debug("Optifine cape exists for player {}: {} in {}ms", playerName, hasCape, System.currentTimeMillis() - start);

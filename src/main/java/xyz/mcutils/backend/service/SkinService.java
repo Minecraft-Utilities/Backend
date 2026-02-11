@@ -52,15 +52,17 @@ public class SkinService {
     private final StorageService storageService;
     private final PlayerService playerService;
     private final MongoTemplate mongoTemplate;
+    private final WebRequest webRequest;
 
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     @Autowired
-    public SkinService(SkinRepository skinRepository, StorageService storageService, @Lazy PlayerService playerService, MongoTemplate mongoTemplate) {
+    public SkinService(SkinRepository skinRepository, StorageService storageService, @Lazy PlayerService playerService, MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.skinRepository = skinRepository;
         this.storageService = storageService;
         this.playerService = playerService;
-        this.mongoTemplate = mongoTemplate;  
+        this.mongoTemplate = mongoTemplate;
+        this.webRequest = webRequest;
     }
 
     @PostConstruct
@@ -224,7 +226,7 @@ public class SkinService {
             byte[] skinBytes = storageService.get(StorageService.Bucket.SKINS, textureId + ".png");
             if (skinBytes == null) {
                 log.debug("Downloading skin image for skin {}", textureId);
-                skinBytes = PlayerUtils.getImage(textureUrl);
+                skinBytes = PlayerUtils.getImage(textureUrl, webRequest);
                 if (skinBytes == null) {
                     throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(textureId));
                 }
