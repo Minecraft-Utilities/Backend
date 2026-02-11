@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.*;
@@ -32,6 +33,8 @@ import java.util.concurrent.CompletableFuture;
 @Service
 @Slf4j
 public class PlayerService {
+    public static PlayerService INSTANCE;
+
     private static final Duration PLAYER_UPDATE_INTERVAL = Duration.ofHours(3);
     private static final int MAX_PLAYER_SEARCH_RESULTS = 5;
 
@@ -45,12 +48,15 @@ public class PlayerService {
     private final SkinHistoryRepository skinHistoryRepository;
     private final CapeHistoryRepository capeHistoryRepository;
     private final WebRequest webRequest;
+    private final MongoTemplate mongoTemplate;
     private final CoalescingLoader<String, Player> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     @Autowired
     public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService,
                          PlayerRepository playerRepository, SkinHistoryRepository skinHistoryRepository,
-                         CapeHistoryRepository capeHistoryRepository, WebRequest webRequest) {
+                         CapeHistoryRepository capeHistoryRepository, WebRequest webRequest,
+                         MongoTemplate mongoTemplate) {
+        INSTANCE = this;
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
@@ -58,6 +64,7 @@ public class PlayerService {
         this.skinHistoryRepository = skinHistoryRepository;
         this.capeHistoryRepository = capeHistoryRepository;
         this.webRequest = webRequest;
+        this.mongoTemplate = mongoTemplate;
     }
 
     /**
@@ -338,5 +345,14 @@ public class PlayerService {
         } catch (RateLimitException exception) {
             throw new MojangAPIRateLimitException();
         }
+    }
+
+    /**
+     * Gets the number of tracked players.
+     *
+     * @return the number of tracked players
+     */
+    public long getTrackedPlayerCount() {
+        return this.mongoTemplate.estimatedCount(PlayerDocument.class);
     }
 }

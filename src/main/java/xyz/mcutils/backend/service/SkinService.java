@@ -296,4 +296,11 @@ public class SkinService {
         return new Skin(document.getId(), document.getTextureId(), document.getModel(),
                 document.isLegacy(), document.getAccountsUsed());
     }
+
+    /**
+     * Returns an estimated count of tracked skins for fast statistics.
+     */
+    public long getTrackedSkinCount() {
+        return this.mongoTemplate.estimatedCount(SkinDocument.class);
+    }
 }

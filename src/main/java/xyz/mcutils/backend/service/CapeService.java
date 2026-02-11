@@ -282,4 +282,11 @@ public class CapeService {
         return new VanillaCape(document.getId(), document.getName(),
                 document.getAccountsOwned(), document.getTextureId());
     }
+
+    /**
+     * Returns an estimated count of tracked capes for fast statistics.
+     */
+    public long getTrackedCapeCount() {
+        return this.mongoTemplate.estimatedCount(CapeDocument.class);
+    }
 }

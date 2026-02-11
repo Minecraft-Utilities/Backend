@@ -8,6 +8,8 @@ import xyz.mcutils.backend.metric.impl.api.RequestsMetric;
 import xyz.mcutils.backend.metric.impl.jvm.MemoryHeapMaxMetric;
 import xyz.mcutils.backend.metric.impl.jvm.MemoryNonHeapMetric;
 import xyz.mcutils.backend.metric.impl.jvm.MemoryUsageMetric;
+import xyz.mcutils.backend.metric.impl.player.TrackedPlayersMetric;
+import xyz.mcutils.backend.metric.impl.skin.TrackedSkinsMetric;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,6 +28,12 @@ public class MetricService {
 
         // API
         this.registerMetric(new RequestsMetric());
+
+        // Player
+        this.registerMetric(new TrackedPlayersMetric());
+
+        // Skin
+        this.registerMetric(new TrackedSkinsMetric());
     }
 
     /**
