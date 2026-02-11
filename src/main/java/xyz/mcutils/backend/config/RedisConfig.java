@@ -12,10 +12,9 @@ import org.springframework.data.redis.repository.configuration.EnableRedisReposi
 import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import xyz.mcutils.backend.model.redis.SubmitQueueItem;
 
 import java.time.Duration;
-
-import xyz.mcutils.backend.model.redis.SubmitQueueItem;
 
 /**
  * @author Braydon
@@ -76,7 +75,7 @@ public class RedisConfig {
 
         LettuceClientConfiguration clientConfig =
                 LettuceClientConfiguration.builder()
-                        .commandTimeout(Duration.ofSeconds(2))
+                        .commandTimeout(Duration.ofSeconds(10))
                         .shutdownTimeout(Duration.ofMillis(100))
                         .build();
 

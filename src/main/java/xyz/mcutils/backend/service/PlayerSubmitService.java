@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -34,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 public class PlayerSubmitService {
 
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
-    private static final double SUBMIT_RATE_PER_SECOND = 20.0;
+    private static final double SUBMIT_RATE_PER_SECOND = 100.0;
     private static final long BLPOP_TIMEOUT_SECONDS = 2;
 
     private final RateLimiter submitRateLimiter = RateLimiter.create(SUBMIT_RATE_PER_SECOND);
@@ -92,6 +93,8 @@ public class PlayerSubmitService {
                             Thread.currentThread().interrupt(); 
                         }
                     }
+                } catch (QueryTimeoutException e) {
+                    // BLPOP timed out waiting for an item (empty queue) – continue
                 } catch (Exception e) {
                     log.warn("Submit consumer error", e);
                 }

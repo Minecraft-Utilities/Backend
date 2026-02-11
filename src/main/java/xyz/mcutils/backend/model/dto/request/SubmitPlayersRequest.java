@@ -10,12 +10,12 @@ import java.util.List;
  * Request body for submitting players to the submit queue.
  * Each element is a UUID (with or without dashes).
  *
- * @param players     list of player identifiers (UUID), 1–100 elements
+ * @param players     list of player uuids
  * @param submittedBy optional uuid of the player who submitted them
  */
 public record SubmitPlayersRequest(
         @NotEmpty(message = "players must not be empty")
-        @Size(min = 1, max = 100, message = "players must contain between 1 and 100 identifiers")
+        @Size(min = 1, max = 500, message = "players must contain between 1 and 500 uuids")
         List<@NotBlank(message = "each player identifier must not be blank") String> players,
         String submittedBy
 ) {}
