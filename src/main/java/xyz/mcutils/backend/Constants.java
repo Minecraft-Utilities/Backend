@@ -7,7 +7,6 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 
 public class Constants {
-    public static final String REQUEST_START_TIME_ATTRIBUTE = "requestStartTime";
     public static final Gson GSON = new GsonBuilder()
             .setDateFormat("MM-dd-yyyy HH:mm:ss")
             .setPrettyPrinting()
