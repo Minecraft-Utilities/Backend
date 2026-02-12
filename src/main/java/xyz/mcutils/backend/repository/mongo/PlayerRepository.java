@@ -33,7 +33,7 @@ public interface PlayerRepository extends MongoRepository<PlayerDocument, UUID> 
      * @param username the player's username
      * @return list of matching player documents, may be empty
      */
-    @Query(value = "{ 'username': ?0 }", fields = "{ '_id' : 1 }", collation = "{ 'locale' : 'en', 'strength' : 2 }")
+    @Query(value = "{ 'username': ?0 }", fields = "{ '_id' : 1 }", collation = "{ 'locale' : 'en', 'strength' : 2 }", hint = "username_case_insensitive")
     List<PlayerDocument> usernameToUuid(String username);
 
     /**
@@ -44,7 +44,7 @@ public interface PlayerRepository extends MongoRepository<PlayerDocument, UUID> 
      * @param pageable     used to limit the number of results (e.g. {@code PageRequest.of(0, limit)})
      * @return list of matching player documents, may be empty
      */
-    @Query(value = "{ 'username': { $regex: ?0 } }", collation = "{ 'locale' : 'en', 'strength' : 2 }")
+    @Query(value = "{ 'username': { $regex: ?0 } }", collation = "{ 'locale' : 'en', 'strength' : 2 }", hint = "username_case_insensitive")
     List<PlayerDocument> findByUsernameStartingWithIgnoreCase(String regexPattern, Pageable pageable);
 
     /**
