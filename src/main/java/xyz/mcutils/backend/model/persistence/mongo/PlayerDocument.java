@@ -43,6 +43,7 @@ public class PlayerDocument {
     /**
      * The player's current skin.
      */
+    @Indexed(name = "skin")
     @DocumentReference(lookup = "{ '_id' : ?#{#target} }")
     private SkinDocument skin;
 
@@ -63,6 +64,7 @@ public class PlayerDocument {
     /**
      * The player's current cape.
      */
+    @Indexed(name = "cape")
     @DocumentReference(lookup = "{ '_id' : ?#{#target} }")
     private CapeDocument cape;
 
