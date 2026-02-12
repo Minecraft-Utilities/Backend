@@ -127,7 +127,7 @@ public final class PlayerModelCoordinates {
 
     /**
      * Legacy 64×32 skin layout coordinates and upgrade mappings for converting
-     * to modern 64×64 format. Legacy skins have no overlays — only base layer.
+     * to modern 64×64 format.
      * Left arm/leg are created by mirroring the right arm/leg.
      * <p>
      * Each copy rect is {@code {dx1, dy1, dx2, dy2, sx1, sy1, sx2, sy2}}.
@@ -151,15 +151,6 @@ public final class PlayerModelCoordinates {
                 {40, 52, 36, 64, 44, 20, 48, 32},
                 {44, 52, 40, 64, 40, 20, 44, 32},
                 {48, 52, 44, 64, 52, 20, 56, 32},
-        };
-
-        public static final int[][] CLEAR_OVERLAYS = {
-                {32, 0, 64, 16},
-                {0, 32, 16, 48},
-                {16, 32, 40, 48},
-                {40, 32, 56, 48},
-                {0, 48, 16, 64},
-                {48, 48, 64, 64},
         };
     }
 

@@ -27,8 +27,7 @@ public class PlayerModel {
      */
     public static List<Face> buildFaces(Skin skin, boolean renderOverlays) {
         boolean slim = skin.getModel() == Skin.Model.SLIM;
-        boolean legacy = skin.isLegacy();
-        return FACE_CACHE.computeIfAbsent(new FaceCacheKey(slim, renderOverlays && !legacy), cacheKey -> {
+        return FACE_CACHE.computeIfAbsent(new FaceCacheKey(slim, renderOverlays), cacheKey -> {
             List<Face> faces = new ArrayList<>();
 
             // Base layer: head, body, left arm, right arm, left leg, right leg

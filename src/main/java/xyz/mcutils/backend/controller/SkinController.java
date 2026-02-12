@@ -56,10 +56,14 @@ public class SkinController {
             @Parameter(
                     description = "The UUID or Username of the player or the skin's texture id",
                     example = "ImFascinated"
-            ) @PathVariable String query
+            ) @PathVariable String query,
+            @Parameter(
+                    description = "Whether to upgrade the skin to the modern format",
+                    example = "true"
+            ) @RequestParam(required = false, defaultValue = "true") boolean upgrade
     ) {
         Skin skin = this.skinService.getSkinFromTextureIdOrPlayer(query);
-        byte[] texture = skinService.getSkinTexture(skin.getTextureId(), skin.getTextureUrl(), false);
+        byte[] texture = skinService.getSkinTexture(skin.getTextureId(), skin.getTextureUrl(), upgrade);
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic())
                 .contentType(MediaType.IMAGE_PNG)
