@@ -15,10 +15,12 @@ import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.*;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
+import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.domain.skin.Skin;
+import xyz.mcutils.backend.model.dto.response.SkinsResponse;
 import xyz.mcutils.backend.model.persistence.mongo.SkinDocument;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
@@ -76,16 +78,16 @@ public class SkinService {
      * @param page the page to get
      * @return the paginated list of skins
      */
-    public Pagination.Page<Skin> getPaginatedSkins(int page) {
-        Pagination<Skin> pagination = new Pagination<Skin>()
+    public Pagination.Page<SkinsResponse> getPaginatedSkins(int page) {
+        Pagination<SkinsResponse> pagination = new Pagination<SkinsResponse>()
                 .setItemsPerPage(SKINS_PER_PAGE)
                 .setTotalItems(this.getTrackedSkinCount());
         return pagination.getPage(page, (pageCallback) -> this.skinRepository.findListByOrderByAccountsUsedDescIdAsc(PageRequest.of(page - 1, pageCallback.getLimit()))
-                .stream().map(skinDocument -> new Skin(
-                        skinDocument.getId(),
-                        skinDocument.getTextureId(),
-                        skinDocument.getModel(),
-                        skinDocument.isLegacy(),
+                .stream().map(skinDocument -> new SkinsResponse(
+                        "%s/skins/%s/fullbody_front.png".formatted(
+                                AppConfig.INSTANCE.getWebPublicUrl(),
+                                skinDocument.getTextureId()
+                        ),
                         skinDocument.getAccountsUsed()
                 )).toList());
     }

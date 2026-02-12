@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.common.Pagination;
 import xyz.mcutils.backend.model.domain.skin.Skin;
+import xyz.mcutils.backend.model.dto.response.SkinsResponse;
 import xyz.mcutils.backend.service.SkinService;
 
 import java.util.concurrent.TimeUnit;
@@ -28,7 +29,7 @@ public class SkinController {
     }
 
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Pagination.Page<Skin>> getSkins(
+    public ResponseEntity<Pagination.Page<SkinsResponse>> getSkins(
             @Parameter(
                     description = "The page of skins to get",
                     example = "1"
