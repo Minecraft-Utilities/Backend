@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 public class PlayerSubmitService {
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
-    private static final double SUBMIT_RATE_PER_SECOND = 300.0;
+    private static final int SUBMIT_RATE_PER_SECOND = 300;
     private static final int SUBMIT_WORKER_THREADS = 250;
 
     private static final RateLimiter submitRateLimiter = RateLimiter.create(SUBMIT_RATE_PER_SECOND);
@@ -67,7 +67,7 @@ public class PlayerSubmitService {
 
         Main.EXECUTOR.submit(() -> {
             while (true) {
-                List<SubmitQueueItem> batch = listOps.range(REDIS_QUEUE_KEY, 0, 50);
+                List<SubmitQueueItem> batch = listOps.range(REDIS_QUEUE_KEY, 0, SUBMIT_RATE_PER_SECOND);
                 if (batch.isEmpty()) {
                     continue;
                 }
