@@ -27,8 +27,7 @@ public class PlayerHeadModel {
      */
     public static List<Face> buildFaces(Skin skin, boolean renderOverlays) {
         boolean slim = skin.getModel() == Skin.Model.SLIM;
-        boolean legacy = skin.isLegacy();
-        return FACE_CACHE.computeIfAbsent(new FaceCacheKey(slim, renderOverlays), k -> buildFacesUncached(k.slim(), k.renderOverlays() && !legacy));
+        return FACE_CACHE.computeIfAbsent(new FaceCacheKey(slim, renderOverlays), k -> buildFacesUncached(k.slim(), k.renderOverlays()));
     }
 
     private static List<Face> buildFacesUncached(boolean slim, boolean renderOverlays) {
