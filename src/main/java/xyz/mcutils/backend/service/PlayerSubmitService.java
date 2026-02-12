@@ -34,8 +34,8 @@ import java.util.concurrent.Executors;
 public class PlayerSubmitService {
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
-    private static final int SUBMIT_RATE_PER_SECOND = 300;
-    private static final int SUBMIT_WORKER_THREADS = 250;
+    private static final int SUBMIT_RATE_PER_SECOND = 1000;
+    private static final int SUBMIT_WORKER_THREADS = 100;
 
     private static final RateLimiter submitRateLimiter = RateLimiter.create(SUBMIT_RATE_PER_SECOND);
     private static final ExecutorService submitWorkers = Executors.newFixedThreadPool(SUBMIT_WORKER_THREADS);
@@ -63,8 +63,7 @@ public class PlayerSubmitService {
 
         Main.EXECUTOR.submit(() -> {
             while (true) {
-                // Atomically take and remove up to SUBMIT_RATE_PER_SECOND items (range is read-only)
-                List<SubmitQueueItem> batch = takeBatchFromQueue();
+                List<SubmitQueueItem> batch = takeBatchFromQueue(50);
                 if (batch.isEmpty()) {
                     continue;
                 }
@@ -76,18 +75,21 @@ public class PlayerSubmitService {
     }
 
     /**
-     * Atomically reads and removes up to {@value #SUBMIT_RATE_PER_SECOND} items from the head of the queue.
+     * Atomically reads and removes up to x items from the head of the queue.
      * Uses a Redis transaction (LRANGE + LTRIM) so items are not processed twice.
+     * 
+     * @param batchSize the size of the batch to take
+     * @return the batch of items
      */
     @SuppressWarnings("unchecked")
-    private List<SubmitQueueItem> takeBatchFromQueue() {
+    private List<SubmitQueueItem> takeBatchFromQueue(int batchSize) {
         List<Object> results = submitQueueTemplate.execute(new SessionCallback<>() {
             @Override
             @SuppressWarnings("rawtypes")
             public List<Object> execute(RedisOperations operations) {
                 operations.multi();
-                operations.opsForList().range(REDIS_QUEUE_KEY, 0, SUBMIT_RATE_PER_SECOND - 1);
-                operations.opsForList().trim(REDIS_QUEUE_KEY, SUBMIT_RATE_PER_SECOND, -1);
+                operations.opsForList().range(REDIS_QUEUE_KEY, 0, batchSize - 1);
+                operations.opsForList().trim(REDIS_QUEUE_KEY, batchSize, -1);
                 return operations.exec();
             }
         });

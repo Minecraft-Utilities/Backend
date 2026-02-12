@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import xyz.mcutils.backend.model.dto.response.ErrorResponse;
 
@@ -20,6 +21,19 @@ public final class ExceptionControllerAdvice {
      * @param ex the raised exception
      * @return the error response
      */
+    /**
+     * Async request took longer than the configured timeout (e.g. slow skin/cape/server lookup).
+     * Return 503 so clients can retry; log at WARN since this is an expected condition under load.
+     */
+    @ExceptionHandler(AsyncRequestTimeoutException.class)
+    public ResponseEntity<ErrorResponse> handleAsyncRequestTimeout(AsyncRequestTimeoutException ex) {
+        log.warn("Async request timed out: {}", ex.getMessage());
+        return new ResponseEntity<>(
+                new ErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, "Request timed out. Please try again."),
+                HttpStatus.SERVICE_UNAVAILABLE
+        );
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleException(@NonNull Exception ex) {
         HttpStatus status = null; // Get the HTTP status
