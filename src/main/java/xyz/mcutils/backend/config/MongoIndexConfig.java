@@ -7,6 +7,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.query.Collation;
 import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
+import xyz.mcutils.backend.model.persistence.mongo.SkinDocument;
 
 /**
  * Ensures MongoDB indexes required for efficient queries.
@@ -28,6 +29,11 @@ public class MongoIndexConfig {
                 new Index().on("username", Sort.Direction.ASC)
                         .named("username_case_insensitive")
                         .collation(Collation.of("en").strength(Collation.ComparisonLevel.secondary()))
+        );
+        // Paginated skins list: sort by accountsUsed desc, then _id asc
+        mongoTemplate.indexOps(SkinDocument.class).createIndex(
+                new Index().on("accountsUsed", Sort.Direction.DESC).on("_id", Sort.Direction.ASC)
+                        .named("accountsUsed_desc_id_asc")
         );
     }
 }

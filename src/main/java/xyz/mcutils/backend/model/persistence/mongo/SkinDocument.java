@@ -47,7 +47,6 @@ public class SkinDocument {
     /**
      * The number of accounts that have used this
      */
-    @Indexed
     private long accountsUsed;
 
     /**
