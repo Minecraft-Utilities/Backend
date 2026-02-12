@@ -84,6 +84,7 @@ public class SkinService {
                 .setTotalItems(this.getTrackedSkinCount());
         return pagination.getPage(page, (pageCallback) -> this.skinRepository.findListByOrderByAccountsUsedDescIdAsc(PageRequest.of(page - 1, pageCallback.getLimit()))
                 .stream().map(skinDocument -> new SkinsResponse(
+                        skinDocument.getId(),
                         "%s/skins/%s/fullbody_front.png".formatted(
                                 AppConfig.INSTANCE.getWebPublicUrl(),
                                 skinDocument.getTextureId()
