@@ -3,7 +3,6 @@ package xyz.mcutils.backend.service;
 import com.google.common.net.InetAddresses;
 import io.minio.org.apache.commons.validator.routines.InetAddressValidator;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
@@ -64,14 +63,18 @@ public class ServerService {
     private List<String> blacklistedSubnets;
 
     private final MojangService mojangService;
+    private final MaxMindService maxMindService;
+    private final DNSService dnsService;
     private final ServerRegistryService serverRegistryService;
     private final MinecraftServerCacheRepository serverCacheRepository;
     private final ServerPreviewCacheRepository serverPreviewCacheRepository;
 
-    @Autowired
-    public ServerService(MojangService mojangService, ServerRegistryService serverRegistryService, MinecraftServerCacheRepository serverCacheRepository,
+    public ServerService(MojangService mojangService, MaxMindService maxMindService, DNSService dnsService,
+                         ServerRegistryService serverRegistryService, MinecraftServerCacheRepository serverCacheRepository,
                          ServerPreviewCacheRepository serverPreviewCacheRepository) {
         this.mojangService = mojangService;
+        this.maxMindService = maxMindService;
+        this.dnsService = dnsService;
         this.serverRegistryService = serverRegistryService;
         this.serverCacheRepository = serverCacheRepository;
         this.serverPreviewCacheRepository = serverPreviewCacheRepository;
@@ -123,7 +126,7 @@ public class ServerService {
 
         List<DNSRecord> dnsRecords = new ArrayList<>();
 
-        SRVRecord srvRecord = platform == Platform.JAVA ? DNSService.resolveSRV(hostname) : null; // Resolve the SRV record
+        SRVRecord srvRecord = platform == Platform.JAVA ? dnsService.resolveSRV(hostname) : null; // Resolve the SRV record
         if (srvRecord != null) { // SRV was resolved, use the hostname and port
             dnsRecords.add(srvRecord); // Going to need this for later
             InetSocketAddress socketAddress = srvRecord.getSocketAddress();
@@ -131,7 +134,7 @@ public class ServerService {
             port = socketAddress.getPort();
         }
 
-        ARecord aRecord = DNSService.resolveA(hostname); // Resolve the A record so we can get the IPv4 address
+        ARecord aRecord = dnsService.resolveA(hostname); // Resolve the A record so we can get the IPv4 address
         String ip = aRecord == null ? null : aRecord.getAddress(); // Get the IP address
         if (ip != null) { // Was the IP resolved?
             dnsRecords.add(aRecord); // Going to need this for later
@@ -155,7 +158,7 @@ public class ServerService {
         log.debug("Successfully pinged server: {}:{} in {}ms", hostname, port, System.currentTimeMillis() - pingStart);
 
         // Populate the server's ip lookup data
-        IpLookup ipLookup = MaxMindService.INSTANCE.lookupIp(ip);
+        IpLookup ipLookup = maxMindService.lookupIp(ip);
         cachedServer.getServer().setLocation(ipLookup.location());
         cachedServer.getServer().setAsn(ipLookup.asn());
 

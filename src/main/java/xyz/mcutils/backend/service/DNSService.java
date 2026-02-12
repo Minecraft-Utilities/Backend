@@ -26,17 +26,15 @@ public class DNSService {
      * The prefix to use for Minecraft Java SRV queries.
      */
     private static final String SRV_QUERY_PREFIX = "_minecraft._tcp.%s";
-    private static Cache<DnsCacheKey, DNSRecord> objectCache;
+    private final Cache<DnsCacheKey, DNSRecord> objectCache;
 
     public DNSService(
             @Value("${mc-utils.cache.dns.enabled}") boolean cacheEnabled,
             @Value("${mc-utils.cache.dns.ttl}") int objectCacheTtl
     ) {
-        if (cacheEnabled) {
-            objectCache = CacheBuilder.newBuilder()
-                    .expireAfterWrite(objectCacheTtl, TimeUnit.MINUTES)
-                    .build();
-        }
+        this.objectCache = cacheEnabled
+                ? CacheBuilder.newBuilder().expireAfterWrite(objectCacheTtl, TimeUnit.MINUTES).build()
+                : null;
     }
 
     /**
@@ -47,7 +45,7 @@ public class DNSService {
      * @return the resolved address and port, null if none
      */
     @SneakyThrows
-    public static SRVRecord resolveSRV(@NonNull String hostname) {
+    public SRVRecord resolveSRV(@NonNull String hostname) {
         DNSRecord dnsRecord = objectCache != null ? objectCache.getIfPresent(new DnsCacheKey(hostname.toUpperCase(), Type.SRV)) : null;
         if (dnsRecord != null) {
             return (SRVRecord) dnsRecord;
@@ -75,7 +73,7 @@ public class DNSService {
      * @return the resolved address, null if none
      */
     @SneakyThrows
-    public static ARecord resolveA(@NonNull String hostname) {
+    public ARecord resolveA(@NonNull String hostname) {
         DNSRecord dnsRecord = objectCache != null ? objectCache.getIfPresent(new DnsCacheKey(hostname.toUpperCase(), Type.A)) : null;
         if (dnsRecord != null) {
             return (ARecord) dnsRecord;

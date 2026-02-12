@@ -139,7 +139,9 @@ public class ServerRegistryService {
                         EnumUtils.getEnumConstant(Platform.class, manifest.get("platform").getAsString())
                 ));
             }
-        } catch (IOException ignored) { }
+        } catch (IOException e) {
+            log.warn("Failed to extract manifests from zip", e);
+        }
         return result;
     }
 
@@ -148,9 +150,10 @@ public class ServerRegistryService {
      */
     @Scheduled(cron = "0 */10 * * * *") @SneakyThrows
     private void updateRegistry() {
-        Optional<GHCommit> commit = Arrays.stream(githubClient.getRepository(REPOSITORY_OWNER + "/" + REPOSITORY_NAME).listCommits().toArray()).findFirst();
-        GHCommit ghCommit = commit.orElse(null);
-        String commitHash = Objects.requireNonNull(ghCommit).getSHA1();
+        GHCommit ghCommit = (GHCommit) Arrays.stream(githubClient.getRepository(REPOSITORY_OWNER + "/" + REPOSITORY_NAME).listCommits().toArray())
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No commits in repository"));
+        String commitHash = ghCommit.getSHA1();
 
         if (lastSeenHash != null && lastSeenHash.equals(commitHash)) {
             return;

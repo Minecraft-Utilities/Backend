@@ -2,7 +2,6 @@ package xyz.mcutils.backend.service;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -52,7 +51,6 @@ public class CapeService {
     private final MongoTemplate mongoTemplate;
     private final WebRequest webRequest;
 
-    @Autowired
     public CapeService(StorageService storageService, @Lazy PlayerService playerService, CapeRepository capeRepository, MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.storageService = storageService;
         this.playerService = playerService;
@@ -91,6 +89,9 @@ public class CapeService {
      * @return the cape, or null if not found
      */
     public VanillaCape getCapeByTextureId(String textureId) {
+        if (textureId == null || textureId.isBlank()) {
+            return null;
+        }
         long start = System.currentTimeMillis();
         Optional<CapeDocument> optionalCapeDocument = this.capeRepository.findByTextureId(textureId);
         CapeDocument document;
@@ -102,7 +103,9 @@ public class CapeService {
             boolean exists = false;
             try {
                 exists = VanillaCape.capeExists(textureId, webRequest).get();
-            } catch (Exception ignored) { }
+            } catch (Exception ex) {
+                log.debug("Cape existence check failed for textureId {}", textureId, ex);
+            }
             if (!exists) {
                 throw new NotFoundException("Cape with texture id " + textureId + " was not found");
             }
@@ -185,10 +188,10 @@ public class CapeService {
     }
 
     /**
-     * Gets the skin image for the given skin.
+     * Gets the cape image for the given cape.
      *
-     * @param cape the skin to get the image for
-     * @return the skin image
+     * @param cape the cape to get the image for
+     * @return the cape image
      */
     public byte[] getCapeTexture(Cape<?> cape) {
         StorageService.Bucket bucket = switch (cape) {

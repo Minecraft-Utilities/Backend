@@ -1,7 +1,7 @@
 package xyz.mcutils.backend.service;
 
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -57,12 +57,10 @@ public class PlayerService {
     private final MongoTemplate mongoTemplate;
     private final CoalescingLoader<String, Player> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
-    @Autowired
     public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerRefreshService playerRefreshService,
                          PlayerRepository playerRepository, SkinHistoryRepository skinHistoryRepository, UsernameHistoryRepository usernameHistoryRepository,
                          CapeHistoryRepository capeHistoryRepository, WebRequest webRequest,
                          MongoTemplate mongoTemplate) {
-        INSTANCE = this;
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
@@ -73,6 +71,11 @@ public class PlayerService {
         this.usernameHistoryRepository = usernameHistoryRepository;
         this.webRequest = webRequest;
         this.mongoTemplate = mongoTemplate;
+    }
+
+    @PostConstruct
+    public void init() {
+        INSTANCE = this;
     }
 
     /**
@@ -88,56 +91,57 @@ public class PlayerService {
             if (uuid == null) { // If the id is not a valid uuid, get the uuid from the username
                 uuid = this.usernameToUuid(query);
             }
+            final UUID playerUuid = uuid;
 
-            Optional<PlayerDocument> optionalPlayerDocument = this.playerRepository.findById(uuid);
-            if (optionalPlayerDocument.isPresent()) {
-                PlayerDocument document = optionalPlayerDocument.get();
-                Skin skin = document.getSkin() != null ? skinService.fromDocument(document.getSkin()) : null;
-                List<Skin> skinHistory = null;
-                if (document.getSkinHistory() != null && !document.getSkinHistory().isEmpty()) {
-                    skinHistory = document.getSkinHistory().stream()
-                            .map(sh -> sh.getSkin() != null ? skinService.fromDocument(sh.getSkin()) : null)
-                            .filter(Objects::nonNull)
-                            .toList();
-                    if (skinHistory.isEmpty()) {
-                        skinHistory = null;
-                    }
-                }
-                VanillaCape cape = document.getCape() != null ? capeService.fromDocument(document.getCape()) : null;
-                List<VanillaCape> capeHistory = null;
-                if (document.getCapeHistory() != null && !document.getCapeHistory().isEmpty()) {
-                    capeHistory = document.getCapeHistory().stream()
-                            .map(ch -> ch.getCape() != null ? capeService.fromDocument(ch.getCape()) : null)
-                            .filter(Objects::nonNull)
-                            .toList();
-                    if (capeHistory.isEmpty()) {
-                        capeHistory = null;
-                    }
-                }
-                List<UsernameHistory> usernameHistory = document.getUsernameHistory() != null ? document.getUsernameHistory().stream()
-                        .map(uh -> new UsernameHistory(uh.getUsername(), uh.getTimestamp()))
-                        .toList() : null;
-                Player player = new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, skinHistory, cape, capeHistory,
-                        document.isHasOptifineCape(), usernameHistory, document.getLastUpdated(), document.getFirstSeen());
-                if (document.getLastUpdated().toInstant().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
-                    MojangProfileToken token = mojangService.getProfile(uuid.toString());
-                    if (token == null) {
-                        throw new NotFoundException("Player with uuid '%s' was not found".formatted(uuid));
-                    }
-                    this.playerRefreshService.updatePlayer(player, document, token);
-                }
-                return player;
-            }
-
-            try {
-                MojangProfileToken token = mojangService.getProfile(uuid.toString()); // Get the player profile from Mojang
-                if (token == null) {
-                    throw new NotFoundException("Player with uuid '%s' was not found".formatted(uuid));
-                }
-                return this.createPlayer(token);
-            } catch (RateLimitException exception) {
-                throw new MojangAPIRateLimitException();
-            }
+            return this.playerRepository.findById(playerUuid)
+                    .map(document -> {
+                        Skin skin = document.getSkin() != null ? skinService.fromDocument(document.getSkin()) : null;
+                        List<Skin> skinHistory = null;
+                        if (document.getSkinHistory() != null && !document.getSkinHistory().isEmpty()) {
+                            skinHistory = document.getSkinHistory().stream()
+                                    .map(sh -> sh.getSkin() != null ? skinService.fromDocument(sh.getSkin()) : null)
+                                    .filter(Objects::nonNull)
+                                    .toList();
+                            if (skinHistory.isEmpty()) {
+                                skinHistory = null;
+                            }
+                        }
+                        VanillaCape cape = document.getCape() != null ? capeService.fromDocument(document.getCape()) : null;
+                        List<VanillaCape> capeHistory = null;
+                        if (document.getCapeHistory() != null && !document.getCapeHistory().isEmpty()) {
+                            capeHistory = document.getCapeHistory().stream()
+                                    .map(ch -> ch.getCape() != null ? capeService.fromDocument(ch.getCape()) : null)
+                                    .filter(Objects::nonNull)
+                                    .toList();
+                            if (capeHistory.isEmpty()) {
+                                capeHistory = null;
+                            }
+                        }
+                        List<UsernameHistory> usernameHistory = document.getUsernameHistory() != null ? document.getUsernameHistory().stream()
+                                .map(uh -> new UsernameHistory(uh.getUsername(), uh.getTimestamp()))
+                                .toList() : null;
+                        Player player = new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, skinHistory, cape, capeHistory,
+                                document.isHasOptifineCape(), usernameHistory, document.getLastUpdated(), document.getFirstSeen());
+                        if (document.getLastUpdated().toInstant().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
+                            MojangProfileToken token = mojangService.getProfile(playerUuid.toString());
+                            if (token == null) {
+                                throw new NotFoundException("Player with uuid '%s' was not found".formatted(playerUuid));
+                            }
+                            this.playerRefreshService.updatePlayer(player, document, token);
+                        }
+                        return player;
+                    })
+                    .orElseGet(() -> {
+                        try {
+                            MojangProfileToken token = mojangService.getProfile(playerUuid.toString());
+                            if (token == null) {
+                                throw new NotFoundException("Player with uuid '%s' was not found".formatted(playerUuid));
+                            }
+                            return this.createPlayer(token);
+                        } catch (RateLimitException exception) {
+                            throw new MojangAPIRateLimitException();
+                        }
+                    });
         });
     }
 
@@ -166,7 +170,9 @@ public class PlayerService {
         Boolean hasOptifineCape = false;
         try {
             hasOptifineCape = OptifineCape.capeExists(token.getName(), webRequest).get();
-        } catch (Exception ignored) { }
+        } catch (Exception ex) {
+            log.debug("Optifine cape check failed for {}", token.getName(), ex);
+        }
 
         Date now = new Date();
         PlayerDocument document = this.playerRepository.save(PlayerDocument.builder()
@@ -235,9 +241,9 @@ public class PlayerService {
         }
         Query query = Query.query(Criteria.where("_id").in(ids));
         query.fields().include("_id");
-        return this.mongoTemplate.find(query, PlayerDocument.class).stream()
+        return Set.copyOf(this.mongoTemplate.find(query, PlayerDocument.class).stream()
                 .map(PlayerDocument::getId)
-                .collect(java.util.stream.Collectors.toSet());
+                .toList());
     }
 
     /**
@@ -267,13 +273,10 @@ public class PlayerService {
         if (cacheEnabled) {
             Optional<PlayerDocument> playerDocument = this.playerRepository.usernameToUuid(username).stream().findFirst();
             if (playerDocument.isPresent()) {
-                // todo: check if this returns more than 1 player and force a refresh
-                //  for all the accounts, since obv accounts cant have the same username
                 log.debug("Got uuid for username {} from database in {}ms", username, System.currentTimeMillis() - cacheStart);
                 return playerDocument.get().getId();
             }
         }
-
 
         // Check the Mojang API
         long fetchStart = System.currentTimeMillis();

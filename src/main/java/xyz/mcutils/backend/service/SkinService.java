@@ -2,7 +2,6 @@ package xyz.mcutils.backend.service;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
@@ -32,7 +31,6 @@ import xyz.mcutils.backend.repository.mongo.SkinRepository;
 import java.awt.image.BufferedImage;
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -63,7 +61,6 @@ public class SkinService {
 
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
-    @Autowired
     public SkinService(SkinRepository skinRepository, PlayerRepository playerRepository, StorageService storageService, @Lazy PlayerService playerService,
                        MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.skinRepository = skinRepository;
@@ -107,20 +104,17 @@ public class SkinService {
      * @return the skin DTO
      */
     public SkinDTO getSkinDto(UUID id) {
-        Optional<SkinDocument> optionalSkinDocument = this.skinRepository.findById(id);
-        if (optionalSkinDocument.isEmpty()) {
-            throw new NotFoundException("Skin with id '%s' not found'".formatted(id));
-        }
-        SkinDocument skinDocument = optionalSkinDocument.get();
+        SkinDocument skinDocument = this.skinRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Skin with id '%s' not found".formatted(id)));
         String firstSeenUsing = skinDocument.getFirstPlayerSeenUsing() != null
                 ? this.playerRepository.findById(skinDocument.getFirstPlayerSeenUsing()).map(PlayerDocument::getUsername).orElse("Unknown")
                 : "Unknown";
 
-        Query q = Query.query(Criteria.where("skin").is(skinDocument.getId()));
-        q.with(PageRequest.of(0, 250));
-        q.fields().include("username");
-        q.withHint("skin");
-        List<String> accountsSeenUsing = this.mongoTemplate.find(q, PlayerDocument.class).stream()
+        Query query = Query.query(Criteria.where("skin").is(skinDocument.getId()));
+        query.with(PageRequest.of(0, 250));
+        query.fields().include("username");
+        query.withHint("skin");
+        List<String> accountsSeenUsing = this.mongoTemplate.find(query, PlayerDocument.class).stream()
                 .map(PlayerDocument::getUsername)
                 .toList();
 
@@ -143,18 +137,9 @@ public class SkinService {
      * @return the skin, or null if not found
      */
     public Skin getSkinByTextureId(String textureId) {
-        Optional<SkinDocument> optionalSkinDocument = this.skinRepository.findByTextureId(textureId);
-        if (optionalSkinDocument.isPresent()) {
-            SkinDocument document = optionalSkinDocument.get();
-            return new Skin(
-                    document.getId(),
-                    document.getTextureId(),
-                    document.getModel(),
-                    document.isLegacy(),
-                    document.getAccountsUsed()
-            );
-        }
-        return null;
+        return this.skinRepository.findByTextureId(textureId)
+                .map(this::fromDocument)
+                .orElse(null);
     }
 
     /**
@@ -165,19 +150,12 @@ public class SkinService {
      */
     public Skin getSkinByUuid(UUID id) {
         long start = System.currentTimeMillis();
-        Optional<SkinDocument> optionalSkinDocument = this.skinRepository.findById(id);
-        if (optionalSkinDocument.isPresent()) {
-            SkinDocument document = optionalSkinDocument.get();
-            log.debug("Found skin by uuid {} in {}ms", document.getId(), System.currentTimeMillis() - start);
-            return new Skin(
-                    document.getId(),
-                    document.getTextureId(),
-                    document.getModel(),
-                    document.isLegacy(),
-                    document.getAccountsUsed()
-            );
-        }
-        return null;
+        return this.skinRepository.findById(id)
+                .map(doc -> {
+                    log.debug("Found skin by uuid {} in {}ms", doc.getId(), System.currentTimeMillis() - start);
+                    return fromDocument(doc);
+                })
+                .orElse(null);
     }
 
     /**
@@ -251,10 +229,10 @@ public class SkinService {
     /**
      * Increments {@link SkinDocument#getAccountsUsed()} by 1 for the given skin.
      *
-     * @param capeId the skin document id
+     * @param skinId the skin document id
      */
-    public void incrementAccountsUsed(UUID capeId) {
-        Query query = Query.query(Criteria.where("_id").is(capeId));
+    public void incrementAccountsUsed(UUID skinId) {
+        Query query = Query.query(Criteria.where("_id").is(skinId));
         Update update = new Update().inc("accountsUsed", 1);
         mongoTemplate.updateFirst(query, update, SkinDocument.class);
     }
@@ -338,7 +316,9 @@ public class SkinService {
      * @return the converted skin
      */
     public Skin fromDocument(SkinDocument document) {
-        if (document == null) return null;
+        if (document == null) {
+            return null;
+        }
         return new Skin(document.getId(), document.getTextureId(), document.getModel(),
                 document.isLegacy(), document.getAccountsUsed());
     }

@@ -1,9 +1,8 @@
 package xyz.mcutils.backend.service;
 
 import com.google.common.util.concurrent.RateLimiter;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
@@ -30,7 +29,7 @@ import java.util.concurrent.Executors;
  */
 @SuppressWarnings("UnstableApiUsage")
 @Service
-@Log4j2
+@Slf4j
 public class PlayerSubmitService {
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
@@ -46,7 +45,6 @@ public class PlayerSubmitService {
     private final MojangService mojangService;
     private final MongoTemplate mongoTemplate;
 
-    @Autowired
     public PlayerSubmitService(RedisTemplate<String, SubmitQueueItem> submitQueueTemplate, RedisTemplate<String, Object> redisTemplate,
                                @Lazy PlayerService playerService, @Lazy MojangService mojangService, MongoTemplate mongoTemplate) {
         this.submitQueueTemplate = submitQueueTemplate;
@@ -116,22 +114,22 @@ public class PlayerSubmitService {
                 return;
             }
             MojangProfileToken token = this.mojangService.getProfile(id.toString());
-                if (token == null) {
-                    log.warn("Player with uuid '{}' was not found", id);
-                    setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
-                    return;
-                }
-                this.playerService.createPlayer(token);
-                if (submittedBy != null) {
-                    this.mongoTemplate.updateFirst(
-                            Query.query(Criteria.where("_id").is(submittedBy)),
-                            new Update().inc("submittedUuids", 1),
-                            PlayerDocument.class
-                    );
-                }
+            if (token == null) {
+                log.warn("Player with uuid '{}' was not found", id);
                 setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
-            } catch (NotFoundException ignored) {
-                setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
+                return;
+            }
+            this.playerService.createPlayer(token);
+            if (submittedBy != null) {
+                this.mongoTemplate.updateFirst(
+                        Query.query(Criteria.where("_id").is(submittedBy)),
+                        new Update().inc("submittedUuids", 1),
+                        PlayerDocument.class
+                );
+            }
+            setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
+        } catch (NotFoundException ignored) {
+            setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
         } catch (MojangAPIRateLimitException e) {
             listOps.rightPush(REDIS_QUEUE_KEY, item);
             try {

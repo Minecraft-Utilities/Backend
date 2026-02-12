@@ -37,6 +37,7 @@ public class MojangService {
     private static final String SESSION_SERVER_ENDPOINT = "https://sessionserver.mojang.com";
     private static final String API_ENDPOINT = "https://api.mojang.com";
     private static final String FETCH_BLOCKED_SERVERS = SESSION_SERVER_ENDPOINT + "/blockedservers";
+    private static final String API_MOJANG = "mojang";
 
     /**
      * A list of banned server hashes provided by Mojang.
@@ -53,8 +54,6 @@ public class MojangService {
         this.webRequest = webRequest;
         updateBlockedServers();
     }
-
-    private static final String API_MOJANG = "mojang";
 
     /**
      * Gets the Session Server profile of the
@@ -170,6 +169,7 @@ public class MojangService {
             while (scanner.hasNext()) {
                 hashes.add(scanner.next());
             }
+            blockedServerHashes.clear();
             blockedServerHashes.addAll(hashes);
             log.info("Fetched {} blocked server hashes", blockedServerHashes.size());
         } catch (IOException e) {

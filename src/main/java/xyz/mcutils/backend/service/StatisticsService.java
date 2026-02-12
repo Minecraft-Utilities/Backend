@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.model.dto.response.StatisticsResponse;
 
@@ -11,7 +10,6 @@ public class StatisticsService {
     private final SkinService skinService;
     private final CapeService capeService;
 
-    @Autowired
     public StatisticsService(PlayerService playerService, SkinService skinService, CapeService capeService) {
         this.playerService = playerService;
         this.skinService = skinService;

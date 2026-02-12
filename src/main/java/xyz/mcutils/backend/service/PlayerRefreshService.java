@@ -2,8 +2,7 @@ package xyz.mcutils.backend.service;
 
 import com.google.common.util.concurrent.RateLimiter;
 import lombok.SneakyThrows;
-import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
@@ -40,7 +39,7 @@ import java.util.concurrent.Executors;
 
 @SuppressWarnings("UnstableApiUsage")
 @Service
-@Log4j2
+@Slf4j
 public class PlayerRefreshService {
     private static final RateLimiter playerUpdateRateLimiter = RateLimiter.create(300.0);
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofDays(14); // 2 weeks
@@ -59,7 +58,6 @@ public class PlayerRefreshService {
     private final MongoTemplate mongoTemplate;
 
 
-    @Autowired
     public PlayerRefreshService(MojangService mojangService, SkinService skinService, CapeService capeService, @Lazy PlayerService playerService,
                             PlayerRepository playerRepository, SkinHistoryRepository skinHistoryRepository, CapeHistoryRepository capeHistoryRepository,
                             UsernameHistoryRepository usernameHistoryRepository, WebRequest webRequest, MongoTemplate mongoTemplate) {
@@ -113,13 +111,13 @@ public class PlayerRefreshService {
      */
     @SneakyThrows
     public void updatePlayer(Player player, PlayerDocument document, MojangProfileToken token) {
+        Date now = new Date();
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
 
         // Player username
         if (!player.getUsername().equals(token.getName())) {
             document.setUsername(token.getName());
             player.setUsername(token.getName());
-            Date now = new Date();
             this.usernameHistoryRepository.save(UsernameHistoryDocument.builder()
                     .id(UUID.randomUUID())
                     .playerId(document.getId())
@@ -127,6 +125,7 @@ public class PlayerRefreshService {
                     .timestamp(now)
                     .build());
         }
+        // Ensure current display name is in history if missing.
         String currentUsername = document.getUsername();
         boolean usernameInHistory = document.getUsernameHistory() != null && document.getUsernameHistory().stream()
                 .anyMatch(uh -> currentUsername != null && currentUsername.equals(uh.getUsername()));
@@ -135,7 +134,7 @@ public class PlayerRefreshService {
                     .id(UUID.randomUUID())
                     .playerId(document.getId())
                     .username(currentUsername)
-                    .timestamp(new Date())
+                    .timestamp(now)
                     .build());
         }
 
@@ -148,7 +147,6 @@ public class PlayerRefreshService {
             document.setSkin(SkinDocument.builder().id(newSkin.getUuid()).build());
             player.setSkin(newSkin);
 
-            Date now = new Date();
             this.skinHistoryRepository.save(SkinHistoryDocument.builder()
                     .id(UUID.randomUUID())
                     .playerId(document.getId())
@@ -172,7 +170,6 @@ public class PlayerRefreshService {
                 document.setCape(CapeDocument.builder().id(newCape.getUuid()).build());
                 player.setCape(newCape);
 
-                Date now = new Date();
                 this.capeHistoryRepository.save(CapeHistoryDocument.builder()
                         .id(UUID.randomUUID())
                         .playerId(document.getId())
@@ -202,7 +199,6 @@ public class PlayerRefreshService {
                         PlayerDocument.class
                 ));
 
-        Date now = new Date();
         document.setLastUpdated(now);
         player.setLastUpdated(now);
         this.playerRepository.save(document);

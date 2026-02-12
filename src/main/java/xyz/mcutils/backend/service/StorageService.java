@@ -8,7 +8,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -23,7 +22,6 @@ public class StorageService {
     private Cache<ObjectCacheKey, byte[]> objectCache;
 
     @SneakyThrows
-    @Autowired
     public StorageService(@Value("${mc-utils.s3.endpoint}") String endpoint,
                           @Value("${mc-utils.s3.accessKey}") String accessKey,
                           @Value("${mc-utils.s3.secretKey}") String secretKey,
@@ -82,6 +80,7 @@ public class StorageService {
             }
             log.debug("Uploaded object {} to bucket {} in {}ms", fileName, bucket.getName(),  System.currentTimeMillis() - before);
         } catch (Exception ex) {
+            // Upload is best-effort: callers may rely on the object being present only when no error is logged.
             log.error("Failed to upload file to bucket {}", bucket.getName(), ex);
         }
     }
