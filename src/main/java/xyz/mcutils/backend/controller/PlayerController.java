@@ -8,7 +8,6 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.dto.request.SubmitPlayersRequest;
 import xyz.mcutils.backend.model.dto.response.PlayerSearchEntry;
@@ -17,7 +16,6 @@ import xyz.mcutils.backend.service.PlayerSubmitService;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @RestController
@@ -46,28 +44,28 @@ public class PlayerController {
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public CompletableFuture<ResponseEntity<Player>> getPlayer(
+    public ResponseEntity<Player> getPlayer(
             @Parameter(
                     description = "The UUID or Username of the player",
                     example = "ImFascinated"
             ) @PathVariable String id
     ) {
-        return CompletableFuture.supplyAsync(() -> this.playerService.getPlayer(id), Main.EXECUTOR)
-                .thenApply(player -> ResponseEntity.ok()
-                        .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
-                        .body(player));
+        Player player = this.playerService.getPlayer(id);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+                .body(player);
     }
 
     @GetMapping(value = "/uuid/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public CompletableFuture<ResponseEntity<UUID>> getPlayerUuid(
+    public ResponseEntity<UUID> getPlayerUuid(
             @Parameter(
                     description = "The UUID or Username of the player",
                     example = "ImFascinated"
             ) @PathVariable String id) {
-        return CompletableFuture.supplyAsync(() -> this.playerService.usernameToUuid(id), Main.EXECUTOR)
-                .thenApply(playerName -> ResponseEntity.ok()
-                        .cacheControl(CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic())
-                        .body(playerName));
+        UUID uuid = this.playerService.usernameToUuid(id);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic())
+                .body(uuid);
     }
 
     @PostMapping(value = "/submit", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)

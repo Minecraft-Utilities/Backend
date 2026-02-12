@@ -9,12 +9,10 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.Pagination;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.service.SkinService;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 @RestController
@@ -41,24 +39,22 @@ public class SkinController {
     }
 
     @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)
-    public CompletableFuture<ResponseEntity<byte[]>> getPlayerSkinTexture(
+    public ResponseEntity<byte[]> getPlayerSkinTexture(
             @Parameter(
                     description = "The UUID or Username of the player or the skin's texture id",
                     example = "ImFascinated"
             ) @PathVariable String query
     ) {
-        return CompletableFuture.supplyAsync(() -> {
-            Skin skin = this.skinService.getSkinFromTextureIdOrPlayer(query);
-            byte[] texture = skinService.getSkinTexture(skin.getTextureId(), skin.getTextureUrl(), false);
-            return ResponseEntity.ok()
-                    .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic())
-                    .contentType(MediaType.IMAGE_PNG)
-                    .body(texture);
-        }, Main.EXECUTOR);
+        Skin skin = this.skinService.getSkinFromTextureIdOrPlayer(query);
+        byte[] texture = skinService.getSkinTexture(skin.getTextureId(), skin.getTextureUrl(), false);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic())
+                .contentType(MediaType.IMAGE_PNG)
+                .body(texture);
     }
 
     @GetMapping(value = "/{query}/{type}.png", produces = MediaType.IMAGE_PNG_VALUE)
-    public CompletableFuture<ResponseEntity<byte[]>> getPlayerSkin(
+    public ResponseEntity<byte[]> getPlayerSkin(
             @Parameter(
                     description = "The UUID or Username of the player",
                     example = "ImFascinated"
@@ -76,13 +72,11 @@ public class SkinController {
                     example = "true"
             ) @RequestParam(required = false, defaultValue = "true") boolean overlays
     ) {
-        return CompletableFuture.supplyAsync(() -> {
-            Skin skin = this.skinService.getSkinFromTextureIdOrPlayer(query);
-            byte[] bytes = skinService.renderSkin(skin, type, overlays, size);
-            return ResponseEntity.ok()
-                    .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic())
-                    .contentType(MediaType.IMAGE_PNG)
-                    .body(bytes);
-        }, Main.EXECUTOR);
+        Skin skin = this.skinService.getSkinFromTextureIdOrPlayer(query);
+        byte[] bytes = skinService.renderSkin(skin, type, overlays, size);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic())
+                .contentType(MediaType.IMAGE_PNG)
+                .body(bytes);
     }
 }
