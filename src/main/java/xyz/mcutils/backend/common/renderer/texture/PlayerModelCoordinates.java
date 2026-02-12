@@ -144,7 +144,6 @@ public final class PlayerModelCoordinates {
         };
 
         public static final int[][] LEFT_ARM_COPIES = {
-                {16, 32, 0, 48, 40, 16, 56, 32},
                 {40, 48, 36, 52, 44, 16, 48, 20},
                 {44, 48, 40, 52, 48, 16, 52, 20},
                 {36, 52, 32, 64, 48, 20, 52, 32},
