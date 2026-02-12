@@ -7,15 +7,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
-import org.springframework.dao.QueryTimeoutException;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.*;
 import org.springframework.stereotype.Service;
-import org.xbill.DNS.tools.primary;
-
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
@@ -27,7 +24,6 @@ import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Dedicated submit queue for tracking new players.
@@ -67,18 +63,39 @@ public class PlayerSubmitService {
 
         Main.EXECUTOR.submit(() -> {
             while (true) {
-                List<SubmitQueueItem> batch = listOps.range(REDIS_QUEUE_KEY, 0, SUBMIT_RATE_PER_SECOND);
+                // Atomically take and remove up to SUBMIT_RATE_PER_SECOND items (range is read-only)
+                List<SubmitQueueItem> batch = takeBatchFromQueue();
                 if (batch.isEmpty()) {
                     continue;
                 }
 
-                // Acquire all permits upfront
                 submitRateLimiter.acquire(batch.size());
-                
-                // Submit all work
                 batch.forEach(item -> submitWorkers.submit(() -> processItem(item, listOps, setOps)));
             }
         });
+    }
+
+    /**
+     * Atomically reads and removes up to {@value #SUBMIT_RATE_PER_SECOND} items from the head of the queue.
+     * Uses a Redis transaction (LRANGE + LTRIM) so items are not processed twice.
+     */
+    @SuppressWarnings("unchecked")
+    private List<SubmitQueueItem> takeBatchFromQueue() {
+        List<Object> results = submitQueueTemplate.execute(new SessionCallback<>() {
+            @Override
+            @SuppressWarnings("rawtypes")
+            public List<Object> execute(RedisOperations operations) {
+                operations.multi();
+                operations.opsForList().range(REDIS_QUEUE_KEY, 0, SUBMIT_RATE_PER_SECOND - 1);
+                operations.opsForList().trim(REDIS_QUEUE_KEY, SUBMIT_RATE_PER_SECOND, -1);
+                return operations.exec();
+            }
+        });
+        if (results == null || results.isEmpty()) {
+            return List.of();
+        }
+        Object first = results.get(0);
+        return first instanceof List<?> list ? (List<SubmitQueueItem>) list : List.of();
     }
 
     /**
