@@ -10,7 +10,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 /**
  * A repository for Player documents.
@@ -37,15 +36,17 @@ public interface PlayerRepository extends MongoRepository<PlayerDocument, UUID> 
     List<PlayerDocument> usernameToUuid(String username);
 
     /**
-     * Search for players whose username starts with the given prefix, case-insensitive.
-     * Uses a case-insensitive index when the query is run with matching collation.
+     * Search for players whose username is in the range [prefixInclusive, prefixEndExclusive), case-insensitive.
+     * Uses a range scan on the case-insensitive index (fast). Caller must pass prefixEndExclusive as the
+     * lexicographically smallest string greater than any username starting with the prefix (e.g. "wildd" → "wilde").
      *
-     * @param regexPattern the regex pattern for the prefix (e.g. {@code "^steve"} — caller should use {@link Pattern#quote(String)} to escape the prefix)
-     * @param pageable     used to limit the number of results (e.g. {@code PageRequest.of(0, limit)})
+     * @param prefixInclusive   lower bound (inclusive), e.g. "wildd"
+     * @param prefixEndExclusive upper bound (exclusive), e.g. "wilde"
+     * @param pageable         page and size
      * @return list of matching player documents, may be empty
      */
-    @Query(value = "{ 'username': { $regex: ?0 } }", collation = "{ 'locale' : 'en', 'strength' : 2 }", hint = "username_case_insensitive")
-    List<PlayerDocument> findByUsernameStartingWithIgnoreCase(String regexPattern, Pageable pageable);
+    @Query(value = "{ 'username': { $gte: ?0, $lt: ?1 } }", collation = "{ 'locale' : 'en', 'strength' : 2 }", hint = "username_case_insensitive")
+    List<PlayerDocument> findByUsernameStartingWithIgnoreCase(String prefixInclusive, String prefixEndExclusive, Pageable pageable);
 
     /**
      * Find players whose last update was before the given date, ordered by lastUpdated ascending (stalest first).

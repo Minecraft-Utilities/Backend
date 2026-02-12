@@ -32,7 +32,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.regex.Pattern;
 
 @Service
 @Slf4j
@@ -244,7 +243,10 @@ public class PlayerService {
      * @return list of matching players with skin
      */
     public List<PlayerSearchEntry> searchPlayers(String query) {
-        return this.playerRepository.findByUsernameStartingWithIgnoreCase("^" + Pattern.quote(query), PageRequest.of(0, MAX_PLAYER_SEARCH_RESULTS)).stream()
+        String prefixEnd = query.isEmpty() ? "\uFFFF"
+                : query.charAt(query.length() - 1) == Character.MAX_VALUE ? query + "\uFFFF"
+                : query.substring(0, query.length() - 1) + (char) (query.charAt(query.length() - 1) + 1);
+        return this.playerRepository.findByUsernameStartingWithIgnoreCase(query, prefixEnd, PageRequest.of(0, MAX_PLAYER_SEARCH_RESULTS)).stream()
                 .map(doc -> new PlayerSearchEntry(doc.getId(), doc.getUsername(),
                         doc.getSkin() != null ? skinService.fromDocument(doc.getSkin()) : null))
                 .toList();
