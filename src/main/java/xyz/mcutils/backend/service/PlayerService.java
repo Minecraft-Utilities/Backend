@@ -16,6 +16,7 @@ import xyz.mcutils.backend.exception.impl.RateLimitException;
 import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
+import xyz.mcutils.backend.model.domain.player.UsernameHistory;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.dto.response.PlayerSearchEntry;
 import xyz.mcutils.backend.model.persistence.mongo.*;
@@ -113,8 +114,11 @@ public class PlayerService {
                         capeHistory = null;
                     }
                 }
+                List<UsernameHistory> usernameHistory = document.getUsernameHistory() != null ? document.getUsernameHistory().stream()
+                        .map(uh -> new UsernameHistory(uh.getUsername(), uh.getTimestamp()))
+                        .toList() : null;
                 Player player = new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, skinHistory, cape, capeHistory,
-                        document.isHasOptifineCape(), document.getLastUpdated(), document.getFirstSeen());
+                        document.isHasOptifineCape(), usernameHistory, document.getLastUpdated(), document.getFirstSeen());
                 if (document.getLastUpdated().toInstant().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
                     MojangProfileToken token = mojangService.getProfile(uuid.toString());
                     if (token == null) {
@@ -206,7 +210,7 @@ public class PlayerService {
 
         log.debug("Created player {} in {}ms", document.getUsername(), System.currentTimeMillis() - start);
         return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, List.of(skin), cape,
-                capeUuid != null ? List.of(cape) : null, document.isHasOptifineCape(), new Date(), new Date());
+                capeUuid != null ? List.of(cape) : null, document.isHasOptifineCape(), List.of(new UsernameHistory(token.getName(), now)), new Date(), new Date());
     }
 
     /**
