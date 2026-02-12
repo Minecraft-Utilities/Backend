@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.model.dto.response;
+package xyz.mcutils.backend.model.dto.response.skin;
 
 import java.util.UUID;
 
@@ -9,7 +9,7 @@ import java.util.UUID;
  * @param imageUrl the URL for the rendered skin image
  * @param accountsUsed the amount of accounts that have used this skin before
  */
-public record SkinsResponse(
+public record SkinsPageDTO(
         UUID id,
         String imageUrl,
         long accountsUsed

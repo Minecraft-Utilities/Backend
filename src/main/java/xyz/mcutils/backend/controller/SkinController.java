@@ -11,9 +11,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.common.Pagination;
 import xyz.mcutils.backend.model.domain.skin.Skin;
-import xyz.mcutils.backend.model.dto.response.SkinsResponse;
+import xyz.mcutils.backend.model.dto.response.skin.SkinDTO;
+import xyz.mcutils.backend.model.dto.response.skin.SkinsPageDTO;
 import xyz.mcutils.backend.service.SkinService;
 
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @RestController
@@ -29,7 +31,7 @@ public class SkinController {
     }
 
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Pagination.Page<SkinsResponse>> getSkins(
+    public ResponseEntity<Pagination.Page<SkinsPageDTO>> getSkins(
             @Parameter(
                     description = "The page of skins to get",
                     example = "1"
@@ -37,6 +39,16 @@ public class SkinController {
     ) {
         return ResponseEntity.ok()
                 .body(skinService.getPaginatedSkins(page));
+    }
+
+    @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<SkinDTO> getSkin(
+            @Parameter(
+                    description = "The UUID of the skin"
+            ) @PathVariable UUID id
+    ) {
+        return ResponseEntity.ok()
+                .body(skinService.getSkinDto(id));
     }
 
     @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)

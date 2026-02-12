@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -20,10 +21,13 @@ import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.domain.skin.Skin;
-import xyz.mcutils.backend.model.dto.response.SkinsResponse;
+import xyz.mcutils.backend.model.dto.response.skin.SkinDTO;
+import xyz.mcutils.backend.model.dto.response.skin.SkinsPageDTO;
+import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 import xyz.mcutils.backend.model.persistence.mongo.SkinDocument;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
+import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.mongo.SkinRepository;
 
 import java.awt.image.BufferedImage;
@@ -51,6 +55,7 @@ public class SkinService {
     private int maxPartSize;
 
     private final SkinRepository skinRepository;
+    private final PlayerRepository playerRepository;
     private final StorageService storageService;
     private final PlayerService playerService;
     private final MongoTemplate mongoTemplate;
@@ -59,8 +64,10 @@ public class SkinService {
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     @Autowired
-    public SkinService(SkinRepository skinRepository, StorageService storageService, @Lazy PlayerService playerService, MongoTemplate mongoTemplate, WebRequest webRequest) {
+    public SkinService(SkinRepository skinRepository, PlayerRepository playerRepository, StorageService storageService, @Lazy PlayerService playerService,
+                       MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.skinRepository = skinRepository;
+        this.playerRepository = playerRepository;
         this.storageService = storageService;
         this.playerService = playerService;
         this.mongoTemplate = mongoTemplate;
@@ -78,12 +85,12 @@ public class SkinService {
      * @param page the page to get
      * @return the paginated list of skins
      */
-    public Pagination.Page<SkinsResponse> getPaginatedSkins(int page) {
-        Pagination<SkinsResponse> pagination = new Pagination<SkinsResponse>()
+    public Pagination.Page<SkinsPageDTO> getPaginatedSkins(int page) {
+        Pagination<SkinsPageDTO> pagination = new Pagination<SkinsPageDTO>()
                 .setItemsPerPage(SKINS_PER_PAGE)
                 .setTotalItems(this.getTrackedSkinCount());
         return pagination.getPage(page, (pageCallback) -> this.skinRepository.findListByOrderByAccountsUsedDescIdAsc(PageRequest.of(page - 1, pageCallback.getLimit()))
-                .stream().map(skinDocument -> new SkinsResponse(
+                .stream().map(skinDocument -> new SkinsPageDTO(
                         skinDocument.getId(),
                         "%s/skins/%s/fullbody_front.png".formatted(
                                 AppConfig.INSTANCE.getWebPublicUrl(),
@@ -91,6 +98,36 @@ public class SkinService {
                         ),
                         skinDocument.getAccountsUsed()
                 )).toList());
+    }
+
+    /**
+     * Gets the DTO for the given skin.
+     *
+     * @param id the UUID of the skin
+     * @return the skin DTO
+     */
+    public SkinDTO getSkinDto(UUID id) {
+        Optional<SkinDocument> optionalSkinDocument = this.skinRepository.findById(id);
+        if (optionalSkinDocument.isEmpty()) {
+            throw new NotFoundException("Skin with id '%s' not found'".formatted(id));
+        }
+
+        SkinDocument skinDocument = optionalSkinDocument.get();
+        Player firstPlayerSeenUsing = this.playerService.getPlayer(skinDocument.getFirstPlayerSeenUsing().toString());
+
+        return new SkinDTO(
+                skinDocument.getId(),
+                "%s/skins/%s/fullbody_front.png".formatted(
+                        AppConfig.INSTANCE.getWebPublicUrl(),
+                        skinDocument.getTextureId()
+                ),
+                skinDocument.getAccountsUsed(),
+                firstPlayerSeenUsing.getUsername(),
+                this.playerRepository.findBySkinId(
+                        skinDocument.getId(),
+                        Pageable.ofSize(100)
+                ).stream().map(PlayerDocument::getUsername).toList()
+        );
     }
 
     /**
@@ -117,12 +154,12 @@ public class SkinService {
     /**
      * Gets a skin from the database using its UUID.
      *
-     * @param uuid the skin to get
+     * @param id the skin to get
      * @return the skin, or null if not found
      */
-    public Skin getSkinByUuid(UUID uuid) {
+    public Skin getSkinByUuid(UUID id) {
         long start = System.currentTimeMillis();
-        Optional<SkinDocument> optionalSkinDocument = this.skinRepository.findById(uuid);
+        Optional<SkinDocument> optionalSkinDocument = this.skinRepository.findById(id);
         if (optionalSkinDocument.isPresent()) {
             SkinDocument document = optionalSkinDocument.get();
             log.debug("Found skin by uuid {} in {}ms", document.getId(), System.currentTimeMillis() - start);

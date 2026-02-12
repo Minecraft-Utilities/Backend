@@ -56,4 +56,14 @@ public interface PlayerRepository extends MongoRepository<PlayerDocument, UUID> 
      * @return page of player documents
      */
     Page<PlayerDocument> findByLastUpdatedBeforeOrderByLastUpdatedAsc(Date before, Pageable pageable);
+
+    /**
+     * Find players that have the given skin equipped (by skin document id), with pagination.
+     *
+     * @param skinId   the skin document id
+     * @param pageable page and size
+     * @return page of player documents
+     */
+    @Query("{ 'skin': ?0 }")
+    Page<PlayerDocument> findBySkinId(UUID skinId, Pageable pageable);
 }
