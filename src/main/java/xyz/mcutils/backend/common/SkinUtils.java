@@ -65,11 +65,6 @@ public class SkinUtils {
             ImageUtils.copyRect(upgraded, rect[0], rect[1], rect[2], rect[3], rect[4], rect[5], rect[6], rect[7], scale);
         }
 
-        // Clear overlay regions (HEADZ, BODYZ, RAZ, LAZ, LLZ) — legacy skins have no overlays
-        for (int[] region : PlayerModelCoordinates.LegacyUpgrade.CLEAR_OVERLAYS) {
-            ImageUtils.setAreaTransparentIfOpaque(upgraded, region[0], region[1], region[2], region[3], scale);
-        }
-
         return upgraded;
     }
 }
