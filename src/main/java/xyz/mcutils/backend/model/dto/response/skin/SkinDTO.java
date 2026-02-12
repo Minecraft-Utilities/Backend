@@ -10,7 +10,7 @@ import java.util.UUID;
  * @param imageUrl the URL for the rendered skin image
  * @param accountsUsed the amount of accounts that have used this skin before
  * @param firstSeenUsing the name of the account first seen using this skin
- * @param accountsSeenUsing the first 100 accounts using this cape
+ * @param accountsSeenUsing the accounts using this cape
  */
 public record SkinDTO(
         UUID id,

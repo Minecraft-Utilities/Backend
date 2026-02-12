@@ -125,7 +125,7 @@ public class SkinService {
                 firstPlayerSeenUsing.getUsername(),
                 this.playerRepository.findBySkinId(
                         skinDocument.getId(),
-                        Pageable.ofSize(100)
+                        Pageable.ofSize(250)
                 ).stream().map(PlayerDocument::getUsername).toList()
         );
     }
