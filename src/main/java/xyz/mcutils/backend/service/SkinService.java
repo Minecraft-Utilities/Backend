@@ -80,8 +80,8 @@ public class SkinService {
         Pagination<Skin> pagination = new Pagination<Skin>()
                 .setItemsPerPage(SKINS_PER_PAGE)
                 .setTotalItems(this.getTrackedSkinCount());
-        return pagination.getPage(page, (pageCallback) -> this.skinRepository.findAllByOrderByAccountsUsedDescIdAsc(PageRequest.of(page - 1, pageCallback.getLimit()))
-                .getContent().stream().map(skinDocument -> new Skin(
+        return pagination.getPage(page, (pageCallback) -> this.skinRepository.findListByOrderByAccountsUsedDescIdAsc(PageRequest.of(page - 1, pageCallback.getLimit()))
+                .stream().map(skinDocument -> new Skin(
                         skinDocument.getId(),
                         skinDocument.getTextureId(),
                         skinDocument.getModel(),

@@ -6,6 +6,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import xyz.mcutils.backend.model.persistence.mongo.SkinDocument;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,4 +33,10 @@ public interface SkinRepository extends MongoRepository<SkinDocument, UUID> {
      * @return a page of skin documents
      */
     Page<SkinDocument> findAllByOrderByAccountsUsedDescIdAsc(Pageable pageable);
+
+    /**
+     * Same ordering as {@link #findAllByOrderByAccountsUsedDescIdAsc(Pageable)} but returns a list only.
+     * Use this when total count is provided separately (e.g. estimated) to avoid an extra count query.
+     */
+    List<SkinDocument> findListByOrderByAccountsUsedDescIdAsc(Pageable pageable);
 }
