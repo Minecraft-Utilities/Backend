@@ -10,6 +10,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * A repository for Player documents.
@@ -37,12 +38,14 @@ public interface PlayerRepository extends MongoRepository<PlayerDocument, UUID> 
 
     /**
      * Search for players whose username starts with the given prefix, case-insensitive.
+     * Uses a case-insensitive index when the query is run with matching collation.
      *
-     * @param prefix   the prefix to match (e.g. "steve" matches "Steve", "STEVE", "Steve_")
-     * @param pageable used to limit the number of results (e.g. {@code PageRequest.of(0, limit)})
+     * @param regexPattern the regex pattern for the prefix (e.g. {@code "^steve"} — caller should use {@link Pattern#quote(String)} to escape the prefix)
+     * @param pageable     used to limit the number of results (e.g. {@code PageRequest.of(0, limit)})
      * @return list of matching player documents, may be empty
      */
-    List<PlayerDocument> findByUsernameStartingWithIgnoreCase(String prefix, Pageable pageable);
+    @Query(value = "{ 'username': { $regex: ?0 } }", collation = "{ 'locale' : 'en', 'strength' : 2 }")
+    List<PlayerDocument> findByUsernameStartingWithIgnoreCase(String regexPattern, Pageable pageable);
 
     /**
      * Find players whose last update was before the given date, ordered by lastUpdated ascending (stalest first).

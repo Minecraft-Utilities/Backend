@@ -33,7 +33,6 @@ public class PlayerDocument {
     /**
      * The username for the player.
      */
-    @Indexed
     private String username;
 
     /**
