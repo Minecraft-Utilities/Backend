@@ -14,6 +14,8 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.data.redis.core.*;
 import org.springframework.stereotype.Service;
+import org.xbill.DNS.tools.primary;
+
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
@@ -37,7 +39,6 @@ public class PlayerSubmitService {
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final double SUBMIT_RATE_PER_SECOND = 300.0;
-    private static final long BLPOP_TIMEOUT_SECONDS = 2;
     private static final int SUBMIT_WORKER_THREADS = 250;
 
     private static final RateLimiter submitRateLimiter = RateLimiter.create(SUBMIT_RATE_PER_SECOND);
@@ -62,56 +63,64 @@ public class PlayerSubmitService {
     @EventListener(ApplicationReadyEvent.class)
     public void startSubmitConsumer() {
         ListOperations<String, SubmitQueueItem> listOps = submitQueueTemplate.opsForList();
+        SetOperations<String, Object> setOps = redisTemplate.opsForSet();
+
         Main.EXECUTOR.submit(() -> {
             while (true) {
-                try {
-                    SubmitQueueItem item = listOps.leftPop(REDIS_QUEUE_KEY, BLPOP_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                    if (item == null) {
-                        continue;
-                    }
-                    submitRateLimiter.acquire();
-                    submitWorkers.submit(() -> {
-                        SetOperations<String, Object> setOps = redisTemplate.opsForSet();
-                        UUID id = item.id();
-                        UUID submittedBy = item.submittedBy();
-                        try {
-                            if (this.playerService.exists(id)) {
-                                setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
-                                return;
-                            }
-                            MojangProfileToken token = this.mojangService.getProfile(id.toString());
-                                if (token == null) {
-                                    log.warn("Player with uuid '{}' was not found", id);
-                                    setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
-                                    return;
-                                }
-                                this.playerService.createPlayer(token);
-                                if (submittedBy != null) {
-                                    this.mongoTemplate.updateFirst(
-                                            Query.query(Criteria.where("_id").is(submittedBy)),
-                                            new Update().inc("submittedUuids", 1),
-                                            PlayerDocument.class
-                                    );
-                                }
-                                setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
-                            } catch (NotFoundException ignored) {
-                                setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
-                            } catch (MojangAPIRateLimitException e) {
-                                listOps.rightPush(REDIS_QUEUE_KEY, item);
-                                try {
-                                    Thread.sleep(150);
-                                } catch (InterruptedException ie) {
-                                    Thread.currentThread().interrupt();
-                                }
-                            }
-                    });
-                } catch (QueryTimeoutException e) {
-                    // BLPOP timed out waiting for an item (empty queue) – continue
-                } catch (Exception e) {
-                    log.warn("Submit consumer error", e);
+                List<SubmitQueueItem> batch = listOps.range(REDIS_QUEUE_KEY, 0, 50);
+                if (batch.isEmpty()) {
+                    continue;
                 }
+
+                // Acquire all permits upfront
+                submitRateLimiter.acquire(batch.size());
+                
+                // Submit all work
+                batch.forEach(item -> submitWorkers.submit(() -> processItem(item, listOps, setOps)));
             }
         });
+    }
+
+    /**
+     * Processes a single item from the submit queue.
+     *
+     * @param item the item to process
+     * @param listOps the list operations
+     * @param setOps the set operations
+     */
+    private void processItem(SubmitQueueItem item, ListOperations<String, SubmitQueueItem> listOps, SetOperations<String, Object> setOps) {
+        UUID id = item.id();
+        UUID submittedBy = item.submittedBy();
+        try {
+            if (this.playerService.exists(id)) {
+                setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
+                return;
+            }
+            MojangProfileToken token = this.mojangService.getProfile(id.toString());
+                if (token == null) {
+                    log.warn("Player with uuid '{}' was not found", id);
+                    setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
+                    return;
+                }
+                this.playerService.createPlayer(token);
+                if (submittedBy != null) {
+                    this.mongoTemplate.updateFirst(
+                            Query.query(Criteria.where("_id").is(submittedBy)),
+                            new Update().inc("submittedUuids", 1),
+                            PlayerDocument.class
+                    );
+                }
+                setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
+            } catch (NotFoundException ignored) {
+                setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
+        } catch (MojangAPIRateLimitException e) {
+            listOps.rightPush(REDIS_QUEUE_KEY, item);
+            try {
+                Thread.sleep(150);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     /**
