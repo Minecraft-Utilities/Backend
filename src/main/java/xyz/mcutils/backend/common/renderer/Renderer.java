@@ -22,6 +22,6 @@ public abstract class Renderer<T> {
      * @return The rendered image.
      */
     public BufferedImage render(T input, int size) {
-        return render(input, size, RenderOptions.EMPTY);
+        return render(input, size, RenderOptions.DEFAULT);
     }
 }

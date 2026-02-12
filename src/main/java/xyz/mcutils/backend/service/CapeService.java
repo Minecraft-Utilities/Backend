@@ -251,7 +251,7 @@ public class CapeService {
 
         if (canonicalBytes == null) {
             long renderStart = System.currentTimeMillis();
-            canonicalImage = ((Cape) cape).render(part, maxPartSize, RenderOptions.EMPTY);
+            canonicalImage = ((Cape) cape).render(part, maxPartSize, RenderOptions.DEFAULT);
             canonicalBytes = ImageUtils.imageToBytes(canonicalImage, 1);
             log.debug("Took {}ms to render cape part for cape: {}", System.currentTimeMillis() - renderStart, cape.getTextureId());
             if (cacheEnabled) {

@@ -60,6 +60,7 @@ public class SkinService {
     private final WebRequest webRequest;
 
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
+    private final CoalescingLoader<String, byte[]> renderLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     public SkinService(SkinRepository skinRepository, PlayerRepository playerRepository, StorageService storageService, @Lazy PlayerService playerService,
                        MongoTemplate mongoTemplate, WebRequest webRequest) {
@@ -286,26 +287,28 @@ public class SkinService {
 
         String canonicalKey = "%s-%s-%s.png".formatted(skin.getTextureId(), part.name(), renderOverlay);
         byte[] canonicalBytes = cacheEnabled ? this.storageService.get(StorageService.Bucket.RENDERED_SKINS, canonicalKey) : null;
-        BufferedImage canonicalImage = null;
 
         if (canonicalBytes == null) {
-            canonicalImage = skin.render(part, maxPartSize, RenderOptions.of(renderOverlay));
-            canonicalBytes = ImageUtils.imageToBytes(canonicalImage, 1);
-            if (cacheEnabled) {
-                final byte[] toUpload = canonicalBytes;
-                CompletableFuture.runAsync(() -> this.storageService.upload(StorageService.Bucket.RENDERED_SKINS, canonicalKey, MediaType.IMAGE_PNG_VALUE, toUpload), Main.EXECUTOR)
-                    .exceptionally(ex -> {
-                        log.warn("Save failed for skin part {}: {}", canonicalKey, ex.getMessage());
-                        return null;
-                    });
-            }
+            canonicalBytes = renderLoader.get(canonicalKey, () -> {
+                BufferedImage img = skin.render(part, maxPartSize, new RenderOptions(renderOverlay));
+                byte[] bytes = ImageUtils.imageToBytes(img, 1);
+                if (cacheEnabled) {
+                    final byte[] toUpload = bytes;
+                    CompletableFuture.runAsync(() -> this.storageService.upload(StorageService.Bucket.RENDERED_SKINS, canonicalKey, MediaType.IMAGE_PNG_VALUE, toUpload), Main.EXECUTOR)
+                        .exceptionally(ex -> {
+                            log.warn("Save failed for skin part {}: {}", canonicalKey, ex.getMessage());
+                            return null;
+                        });
+                }
+                return bytes;
+            });
         }
 
         if (size == maxPartSize) {
             return canonicalBytes;
         }
 
-        BufferedImage image = canonicalImage != null ? canonicalImage : ImageUtils.decodeImage(canonicalBytes);
+        BufferedImage image = ImageUtils.decodeImage(canonicalBytes);
         return ImageUtils.imageToBytes(ImageUtils.resizeToHeight(image, size), 1);
     }
 

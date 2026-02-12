@@ -17,6 +17,6 @@ public abstract class SkinRenderer extends Renderer<Skin> {
      * @return the rendered skin part
      */
     public BufferedImage render(Skin skin, boolean renderOverlays, int size) {
-        return render(skin, size, RenderOptions.of(renderOverlays));
+        return render(skin, size, new RenderOptions(renderOverlays));
     }
 }
