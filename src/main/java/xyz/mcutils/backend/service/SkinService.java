@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -32,6 +31,7 @@ import xyz.mcutils.backend.repository.mongo.SkinRepository;
 
 import java.awt.image.BufferedImage;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -111,9 +111,18 @@ public class SkinService {
         if (optionalSkinDocument.isEmpty()) {
             throw new NotFoundException("Skin with id '%s' not found'".formatted(id));
         }
-
         SkinDocument skinDocument = optionalSkinDocument.get();
-        Player firstPlayerSeenUsing = this.playerService.getPlayer(skinDocument.getFirstPlayerSeenUsing().toString());
+        String firstSeenUsing = skinDocument.getFirstPlayerSeenUsing() != null
+                ? this.playerRepository.findById(skinDocument.getFirstPlayerSeenUsing()).map(PlayerDocument::getUsername).orElse("Unknown")
+                : "Unknown";
+
+        Query q = Query.query(Criteria.where("skin").is(skinDocument.getId()));
+        q.with(PageRequest.of(0, 250));
+        q.fields().include("username");
+        q.withHint("skin");
+        List<String> accountsSeenUsing = this.mongoTemplate.find(q, PlayerDocument.class).stream()
+                .map(PlayerDocument::getUsername)
+                .toList();
 
         return new SkinDTO(
                 skinDocument.getId(),
@@ -122,11 +131,8 @@ public class SkinService {
                         skinDocument.getTextureId()
                 ),
                 skinDocument.getAccountsUsed(),
-                firstPlayerSeenUsing.getUsername(),
-                this.playerRepository.findBySkinId(
-                        skinDocument.getId(),
-                        Pageable.ofSize(500)
-                ).stream().map(PlayerDocument::getUsername).toList()
+                firstSeenUsing,
+                accountsSeenUsing
         );
     }
 
