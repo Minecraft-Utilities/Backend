@@ -9,6 +9,8 @@ import org.apache.hc.core5.http.io.SocketConfig;
 import org.apache.hc.core5.util.Timeout;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+
+import jakarta.annotation.PostConstruct;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -23,52 +25,23 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class WebRequest {
-    /**
-     * Default connection pool settings
-     */
-    private static final int DEFAULT_MAX_TOTAL_CONNECTIONS = 1000;
-    private static final int DEFAULT_MAX_CONNECTIONS_PER_ROUTE = 100;
-    private static final int DEFAULT_CONNECT_TIMEOUT_MS = 2500;
-    private static final int DEFAULT_SOCKET_TIMEOUT_MS = 10000;
-    private static final int DEFAULT_CONNECTION_TIME_TO_LIVE_SECONDS = 60;
+    @Value("${mc-utils.http-client.max-total-connections}")
+    private int maxTotalConnections;
 
-    /**
-     * The web client with connection pooling.
-     */
-    private static final RestClient CLIENT;
-    private static final CloseableHttpClient HTTP_CLIENT;
+    @Value("${mc-utils.http-client.max-connections-per-route}")
+    private int maxConnectionsPerRoute;
 
-    static {
-        SocketConfig socketConfig = SocketConfig.custom()
-                .setSoTimeout(Timeout.of(DEFAULT_SOCKET_TIMEOUT_MS, TimeUnit.MILLISECONDS))
-                .build();
+    @Value("${mc-utils.http-client.connect-timeout-ms}")
+    private int connectTimeoutMs;
 
-        PoolingHttpClientConnectionManager connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
-                .setMaxConnTotal(DEFAULT_MAX_TOTAL_CONNECTIONS)
-                .setMaxConnPerRoute(DEFAULT_MAX_CONNECTIONS_PER_ROUTE)
-                .setDefaultSocketConfig(socketConfig)
-                .build();
+    @Value("${mc-utils.http-client.socket-timeout-ms}")
+    private int socketTimeoutMs;
 
-        RequestConfig requestConfig = RequestConfig.custom()
-                .setResponseTimeout(Timeout.of(DEFAULT_SOCKET_TIMEOUT_MS, TimeUnit.MILLISECONDS))
-                .setConnectionRequestTimeout(Timeout.of(DEFAULT_CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS))
-                .build();
+    @Value("${mc-utils.http-client.connection-time-to-live-seconds}")
+    private int connectionTimeToLiveSeconds;
 
-        HTTP_CLIENT = HttpClients.custom()
-                .setConnectionManager(connectionManager)
-                .setDefaultRequestConfig(requestConfig)
-                .evictIdleConnections(Timeout.of(DEFAULT_CONNECTION_TIME_TO_LIVE_SECONDS, TimeUnit.SECONDS))
-                .evictExpiredConnections()
-                .build();
-
-        // Create request factory with pooled client
-        HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(HTTP_CLIENT);
-        requestFactory.setConnectionRequestTimeout(DEFAULT_CONNECT_TIMEOUT_MS);
-
-        CLIENT = RestClient.builder()
-                .requestFactory(requestFactory)
-                .build();
-    }
+    private RestClient client;
+    private CloseableHttpClient httpClient;
 
     /**
      * URL proxy base (e.g. http://213.255.246.119:8080). When set and useProxy is true,
@@ -76,6 +49,38 @@ public class WebRequest {
      */
     @Value("${mc-utils.http-proxy:}")
     private String httpProxy;
+
+    @PostConstruct
+    private void initHttpClient() {
+        SocketConfig socketConfig = SocketConfig.custom()
+                .setSoTimeout(Timeout.of(socketTimeoutMs, TimeUnit.MILLISECONDS))
+                .build();
+
+        PoolingHttpClientConnectionManager connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
+                .setMaxConnTotal(maxTotalConnections)
+                .setMaxConnPerRoute(maxConnectionsPerRoute)
+                .setDefaultSocketConfig(socketConfig)
+                .build();
+
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setResponseTimeout(Timeout.of(socketTimeoutMs, TimeUnit.MILLISECONDS))
+                .setConnectionRequestTimeout(Timeout.of(connectTimeoutMs, TimeUnit.MILLISECONDS))
+                .build();
+
+        httpClient = HttpClients.custom()
+                .setConnectionManager(connectionManager)
+                .setDefaultRequestConfig(requestConfig)
+                .evictIdleConnections(Timeout.of(connectionTimeToLiveSeconds, TimeUnit.SECONDS))
+                .evictExpiredConnections()
+                .build();
+
+        HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(httpClient);
+        requestFactory.setConnectionRequestTimeout(connectTimeoutMs);
+
+        client = RestClient.builder()
+                .requestFactory(requestFactory)
+                .build();
+    }
 
     /**
      * Converts the given URL to a request URL, optionally via the URL proxy (proxy base + "/" + url).
@@ -114,7 +119,7 @@ public class WebRequest {
      */
     public <T> T getAsEntity(String url, Class<T> clazz, boolean useProxy) throws RateLimitException {
         String requestUrl = toRequestUrl(url, useProxy);
-        ResponseEntity<T> responseEntity = CLIENT.get()
+        ResponseEntity<T> responseEntity = client.get()
                 .uri(requestUrl)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, (_, _) -> {}) // Don't throw exceptions on error
@@ -147,7 +152,7 @@ public class WebRequest {
      * @return the response
      */
     public ResponseEntity<?> get(String url, Class<?> clazz, boolean useProxy) {
-        return CLIENT.get()
+        return client.get()
                 .uri(toRequestUrl(url, useProxy))
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, (_, _) -> {}) // Don't throw exceptions on error
@@ -173,7 +178,7 @@ public class WebRequest {
      */
     public boolean checkExists(String url, boolean useProxy) {
         try {
-            ResponseEntity<Void> response = CLIENT.head()
+            ResponseEntity<Void> response = client.head()
                     .uri(toRequestUrl(url, useProxy))
                     .retrieve()
                     .onStatus(HttpStatusCode::isError, (_, _) -> {})
@@ -203,7 +208,7 @@ public class WebRequest {
      */
     public byte[] getAsByteArray(String url, boolean useProxy) {
         try {
-            ResponseEntity<byte[]> response = CLIENT.get()
+            ResponseEntity<byte[]> response = client.get()
                     .uri(toRequestUrl(url, useProxy))
                     .retrieve()
                     .onStatus(HttpStatusCode::isError, (_, _) -> {})
