@@ -37,6 +37,7 @@ public class SkinHistoryDocument {
     /**
      * The time this skin was last used by the player.
      */
+    @Indexed
     private Date lastUsed;
 
     /**

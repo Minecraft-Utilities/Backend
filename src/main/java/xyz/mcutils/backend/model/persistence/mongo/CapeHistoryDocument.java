@@ -37,6 +37,7 @@ public class CapeHistoryDocument {
     /**
      * The time this cape was last used by the player.
      */
+    @Indexed
     private Date lastUsed;
 
     /**

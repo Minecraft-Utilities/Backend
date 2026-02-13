@@ -58,7 +58,7 @@ public class PlayerDocument {
      * The usernames this player has previously used (including current).
      */
     @ReadOnlyProperty
-    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'lastUsed' : 1 }")
+    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'timestamp' : 1 }")
     private List<UsernameHistoryDocument> usernameHistory;
 
     /**
