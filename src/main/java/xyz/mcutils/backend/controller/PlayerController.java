@@ -15,7 +15,6 @@ import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.PlayerSubmitService;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @RestController
@@ -54,18 +53,6 @@ public class PlayerController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
                 .body(player);
-    }
-
-    @GetMapping(value = "/uuid/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<UUID> getPlayerUuid(
-            @Parameter(
-                    description = "The UUID or Username of the player",
-                    example = "ImFascinated"
-            ) @PathVariable String id) {
-        UUID uuid = this.playerService.usernameToUuid(id);
-        return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic())
-                .body(uuid);
     }
 
     @PostMapping(value = "/submit", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)

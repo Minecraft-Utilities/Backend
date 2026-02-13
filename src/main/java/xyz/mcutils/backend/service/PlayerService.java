@@ -33,7 +33,6 @@ import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 
 @Service
 @Slf4j
@@ -87,37 +86,43 @@ public class PlayerService {
      */
     public Player getPlayer(String query) {
         return playerLoader.get(query, () -> {
-            // Convert the id to uppercase to prevent case sensitivity
-            UUID uuid = PlayerUtils.getUuidFromString(query);
-            if (uuid == null) { // If the id is not a valid uuid, get the uuid from the username
-                uuid = this.usernameToUuid(query);
+            boolean isUsername = query.length() <= 16;
+            Optional<PlayerDocument> playerDocument = isUsername ? this.getPlayerByUsername(query) : this.playerRepository.findById(UUIDUtils.parseUuid(query));
+            UUID playerUuid;
+            if (playerDocument.isEmpty()) {
+                MojangUsernameToUuidToken mojangUsernameToUuid = this.mojangService.getUuidFromUsername(query);
+                if (mojangUsernameToUuid == null) {
+                    throw new NotFoundException("Player with username '%s' was not found".formatted(query));
+                }
+                playerUuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
+            } else {
+                playerUuid = playerDocument.get().getId();
             }
-            final UUID playerUuid = uuid;
 
-            return this.playerRepository.findById(playerUuid)
-                    .map(document -> {
-                        Player player = fromDocument(document);
-                        if (document.getLastUpdated().toInstant().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
-                            MojangProfileToken token = mojangService.getProfile(playerUuid.toString());
-                            if (token == null) {
-                                throw new NotFoundException("Player with uuid '%s' was not found".formatted(playerUuid));
-                            }
-                            this.playerRefreshService.updatePlayer(player, document, token);
-                            this.playerRepository.save(document);
+            UUID finalPlayerUuid = playerUuid;
+            return playerDocument.map(document -> {
+                    Player player = fromDocument(document);
+                    if (document.getLastUpdated().toInstant().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
+                        MojangProfileToken token = mojangService.getProfile(finalPlayerUuid.toString());
+                        if (token == null) {
+                            throw new NotFoundException("Player with uuid '%s' was not found".formatted(finalPlayerUuid));
                         }
-                        return player;
-                    })
-                    .orElseGet(() -> {
-                        try {
-                            MojangProfileToken token = mojangService.getProfile(playerUuid.toString());
-                            if (token == null) {
-                                throw new NotFoundException("Player with uuid '%s' was not found".formatted(playerUuid));
-                            }
-                            return this.createPlayer(token);
-                        } catch (RateLimitException exception) {
-                            throw new MojangAPIRateLimitException();
+                        this.playerRefreshService.updatePlayer(player, document, token);
+                        this.playerRepository.save(document);
+                    }
+                    return player;
+                })
+                .orElseGet(() -> {
+                    try {
+                        MojangProfileToken token = mojangService.getProfile(finalPlayerUuid.toString());
+                        if (token == null) {
+                            throw new NotFoundException("Player with uuid '%s' was not found".formatted(finalPlayerUuid));
                         }
-                    });
+                        return this.createPlayer(token);
+                    } catch (RateLimitException exception) {
+                        throw new MojangAPIRateLimitException();
+                    }
+                });
         });
     }
 
@@ -261,58 +266,17 @@ public class PlayerService {
     }
 
     /**
-     * Gets the player's uuid from their username.
+     * Gets a player by their username.
      *
      * @param username the username of the player
-     * @return the uuid of the player
+     * @return the player document
      */
-    public UUID usernameToUuid(String username) {
-        long cacheStart = System.currentTimeMillis();
-        if (cacheEnabled) {
-            Query query = Query.query(Criteria.where("username").is(username))
-                    .collation(Collation.of("en").strength(Collation.ComparisonLevel.secondary()));
-            List<UUID> found = this.mongoTemplate.query(PlayerDocument.class)
-                    .distinct("_id")
-                    .as(UUID.class)
-                    .matching(query)
-                    .all();
-            if (!found.isEmpty()) {
-                log.debug("Got uuid for username {} from database in {}ms", username, System.currentTimeMillis() - cacheStart);
-                return found.getFirst();
-            }
+    public Optional<PlayerDocument> getPlayerByUsername(String username) {
+        List<PlayerDocument> playerDocuments = this.playerRepository.usernameToUuid(username);
+        if (playerDocuments.isEmpty()) {
+            return Optional.empty();
         }
-
-        // Check the Mojang API
-        long fetchStart = System.currentTimeMillis();
-        try {
-            MojangUsernameToUuidToken mojangUsernameToUuid = this.mojangService.getUuidFromUsername(username);
-            if (mojangUsernameToUuid == null) {
-                throw new NotFoundException("Player with username '%s' was not found".formatted(username));
-            }
-            UUID uuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
-            PlayerDocument playerDocument = PlayerDocument.builder()
-                    .id(uuid)
-                    .username(username)
-                    .legacyAccount(false)
-                    .skin(null)
-                    .cape(null)
-                    .hasOptifineCape(false)
-                    .lastUpdated(new Date(0L))
-                    .firstSeen(new Date())
-                    .build();
-
-            if (cacheEnabled) {
-                CompletableFuture.runAsync(() -> this.playerRepository.save(playerDocument), Main.EXECUTOR)
-                        .exceptionally(ex -> {
-                            log.warn("Save failed for player username lookup {}: {}", playerDocument.getUsername(), ex.getMessage());
-                            return null;
-                        });
-            }
-            log.debug("Got uuid for username {} -> {} in {}ms", username, uuid, System.currentTimeMillis() - fetchStart);
-            return uuid;
-        } catch (RateLimitException exception) {
-            throw new MojangAPIRateLimitException();
-        }
+        return Optional.of(playerDocuments.getFirst());
     }
 
     /**
