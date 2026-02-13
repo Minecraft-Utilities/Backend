@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Collation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
@@ -271,10 +272,12 @@ public class PlayerService {
             return Set.of();
         }
         Query query = Query.query(Criteria.where("_id").in(ids));
-        query.fields().include("_id");
-        return Set.copyOf(this.mongoTemplate.find(query, PlayerDocument.class).stream()
-                .map(PlayerDocument::getId)
-                .toList());
+        List<UUID> found = this.mongoTemplate.query(PlayerDocument.class)
+                .distinct("_id")
+                .as(UUID.class)
+                .matching(query)
+                .all();
+        return Set.copyOf(found);
     }
 
     /**
@@ -287,9 +290,18 @@ public class PlayerService {
         String prefixEnd = query.isEmpty() ? "\uFFFF"
                 : query.charAt(query.length() - 1) == Character.MAX_VALUE ? query + "\uFFFF"
                 : query.substring(0, query.length() - 1) + (char) (query.charAt(query.length() - 1) + 1);
-        return this.playerRepository.findByUsernameStartingWithIgnoreCase(query, prefixEnd, PageRequest.of(0, MAX_PLAYER_SEARCH_RESULTS)).stream()
-                .map(doc -> new PlayerSearchEntry(doc.getId(), doc.getUsername(),
-                        doc.getSkin() != null ? skinService.fromDocument(doc.getSkin()) : null))
+        Query q = Query.query(Criteria.where("username").gte(query).lt(prefixEnd))
+                .collation(Collation.of("en").strength(Collation.ComparisonLevel.secondary()))
+                .withHint("username_case_insensitive")
+                .with(PageRequest.of(0, MAX_PLAYER_SEARCH_RESULTS));
+        return MongoUtils.findWithFields(mongoTemplate, q, PlayerDocument.class, "_id", "username", "skin").stream()
+                .map(doc -> {
+                    UUID id = doc.get("_id", UUID.class);
+                    String username = doc.getString("username");
+                    UUID skinId = doc.get("skin", UUID.class);
+                    Skin skin = skinId != null ? skinService.fromDocument(mongoTemplate.findById(skinId, SkinDocument.class)) : null;
+                    return new PlayerSearchEntry(id, username, skin);
+                })
                 .toList();
     }
 
@@ -302,10 +314,16 @@ public class PlayerService {
     public UUID usernameToUuid(String username) {
         long cacheStart = System.currentTimeMillis();
         if (cacheEnabled) {
-            Optional<PlayerDocument> playerDocument = this.playerRepository.usernameToUuid(username).stream().findFirst();
-            if (playerDocument.isPresent()) {
+            Query query = Query.query(Criteria.where("username").is(username))
+                    .collation(Collation.of("en").strength(Collation.ComparisonLevel.secondary()));
+            List<UUID> found = this.mongoTemplate.query(PlayerDocument.class)
+                    .distinct("_id")
+                    .as(UUID.class)
+                    .matching(query)
+                    .all();
+            if (!found.isEmpty()) {
                 log.debug("Got uuid for username {} from database in {}ms", username, System.currentTimeMillis() - cacheStart);
-                return playerDocument.get().getId();
+                return found.getFirst();
             }
         }
 
