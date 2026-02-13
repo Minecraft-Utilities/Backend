@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -26,7 +27,6 @@ import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 import xyz.mcutils.backend.model.persistence.mongo.SkinDocument;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
-import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.mongo.SkinRepository;
 
 import java.awt.image.BufferedImage;
@@ -55,7 +55,6 @@ public class SkinService {
     private int maxPartSize;
 
     private final SkinRepository skinRepository;
-    private final PlayerRepository playerRepository;
     private final PlayerService playerService;
     private final MongoTemplate mongoTemplate;
     private final WebRequest webRequest;
@@ -71,10 +70,9 @@ public class SkinService {
 
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
-    public SkinService(SkinRepository skinRepository, PlayerRepository playerRepository, @Lazy PlayerService playerService,
+    public SkinService(SkinRepository skinRepository, @Lazy PlayerService playerService,
                        MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.skinRepository = skinRepository;
-        this.playerRepository = playerRepository;
         this.playerService = playerService;
         this.mongoTemplate = mongoTemplate;
         this.webRequest = webRequest;
@@ -95,15 +93,21 @@ public class SkinService {
         Pagination<SkinsPageDTO> pagination = new Pagination<SkinsPageDTO>()
                 .setItemsPerPage(SKINS_PER_PAGE)
                 .setTotalItems(this.getTrackedSkinCount());
-        return pagination.getPage(page, (pageCallback) -> this.skinRepository.findListByOrderByAccountsUsedDescIdAsc(PageRequest.of(page - 1, pageCallback.getLimit()))
-                .stream().map(skinDocument -> new SkinsPageDTO(
-                        skinDocument.getId(),
-                        "%s/skins/%s/fullbody_front.png".formatted(
-                                AppConfig.INSTANCE.getWebPublicUrl(),
-                                skinDocument.getTextureId()
-                        ),
-                        skinDocument.getAccountsUsed()
-                )).toList());
+        return pagination.getPage(page, (pageCallback) -> {
+            Query q = new Query()
+                    .with(PageRequest.of(page - 1, pageCallback.getLimit()))
+                    .with(Sort.by(Sort.Order.desc("accountsUsed"), Sort.Order.asc("_id")));
+            return MongoUtils.findWithFields(mongoTemplate, q, SkinDocument.class, "_id", "textureId", "accountsUsed").stream()
+                    .map(doc -> new SkinsPageDTO(
+                            doc.get("_id", UUID.class),
+                            "%s/skins/%s/fullbody_front.png".formatted(
+                                    AppConfig.INSTANCE.getWebPublicUrl(),
+                                    doc.getString("textureId")
+                            ),
+                            doc.get("accountsUsed", Number.class) != null ? doc.get("accountsUsed", Number.class).longValue() : 0L
+                    ))
+                    .toList();
+        });
     }
 
     /**
@@ -115,9 +119,14 @@ public class SkinService {
     public SkinDTO getSkinDto(UUID id) {
         SkinDocument skinDocument = this.skinRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Skin with id '%s' not found".formatted(id)));
-        String firstSeenUsing = skinDocument.getFirstPlayerSeenUsing() != null
-                ? this.playerRepository.findById(skinDocument.getFirstPlayerSeenUsing()).map(PlayerDocument::getUsername).orElse("Unknown")
-                : "Unknown";
+        String firstSeenUsing = "Unknown";
+        if (skinDocument.getFirstPlayerSeenUsing() != null) {
+            Query firstQuery = Query.query(Criteria.where("_id").is(skinDocument.getFirstPlayerSeenUsing())).limit(1);
+            List<org.bson.Document> firstDoc = MongoUtils.findWithFields(mongoTemplate, firstQuery, PlayerDocument.class, "_id", "username");
+            if (!firstDoc.isEmpty()) {
+                firstSeenUsing = firstDoc.getFirst().getString("username");
+            }
+        }
 
         Query query = Query.query(Criteria.where("skin").is(skinDocument.getId()))
                 .with(PageRequest.of(0, 500))

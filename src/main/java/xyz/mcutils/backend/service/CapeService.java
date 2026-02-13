@@ -6,6 +6,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -14,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.ImageUtils;
+import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
@@ -78,13 +80,16 @@ public class CapeService {
      * @return the known capes
      */
     public Map<String, VanillaCape> getCapes() {
-        Map<String, VanillaCape>  capes = new LinkedHashMap<>();
-        for (CapeDocument document : this.capeRepository.findAllByOrderByAccountsOwnedDescIdAsc()) {
-            capes.put(document.getTextureId(), new VanillaCape(
-                    document.getId(),
-                    document.getName(),
-                    document.getAccountsOwned(),
-                    document.getTextureId()
+        Map<String, VanillaCape> capes = new LinkedHashMap<>();
+        Query q = new Query().with(Sort.by(Sort.Order.desc("accountsOwned"), Sort.Order.asc("_id")));
+        List<org.bson.Document> docs = MongoUtils.findWithFields(mongoTemplate, q, CapeDocument.class, "_id", "name", "accountsOwned", "textureId");
+        for (org.bson.Document doc : docs) {
+            Number accountsOwned = doc.get("accountsOwned", Number.class);
+            capes.put(doc.getString("textureId"), new VanillaCape(
+                    doc.get("_id", UUID.class),
+                    doc.getString("name"),
+                    accountsOwned != null ? accountsOwned.longValue() : 0L,
+                    doc.getString("textureId")
             ));
         }
         return capes;
