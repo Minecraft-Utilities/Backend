@@ -3,12 +3,12 @@ package xyz.mcutils.backend.common;
 
 import lombok.NonNull;
 import lombok.experimental.UtilityClass;
+import xyz.mcutils.backend.exception.impl.BadRequestException;
 
 import java.util.UUID;
 
 @UtilityClass
 public class UUIDUtils {
-
     /**
      * Add dashes to a UUID.
      *
@@ -27,12 +27,14 @@ public class UUIDUtils {
     /**
      * Parses a string as a UUID (32 hex chars or 36 with dashes). Returns null if invalid.
      */
-    public static UUID parseUuid(String s) {
-        if (s == null || (s.length() != 32 && s.length() != 36)) return null;
+    public static UUID parseUuid(String uuidString) {
+        if (uuidString == null || (uuidString.length() != 32 && uuidString.length() != 36)) {
+            throw new BadRequestException("Invalid UUID string '%s'".formatted(uuidString));
+        }
         try {
-            return s.length() == 36 ? UUID.fromString(s) : addDashes(s);
+            return uuidString.length() == 36 ? UUID.fromString(uuidString) : addDashes(uuidString);
         } catch (IllegalArgumentException e) {
-            return null;
+            throw new BadRequestException("Invalid UUID string '%s'".formatted(uuidString));
         }
     }
 }
