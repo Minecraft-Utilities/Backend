@@ -29,24 +29,31 @@ import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.mongo.SkinHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
 
+import org.springframework.data.mongodb.core.BulkOperations;
+import org.springframework.data.mongodb.core.BulkOperations.BulkMode;
+
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 @SuppressWarnings("UnstableApiUsage")
 @Service
 @Slf4j
 public class PlayerRefreshService {
-    private static final RateLimiter playerUpdateRateLimiter = RateLimiter.create(600.0);
+    private static final RateLimiter playerUpdateRateLimiter = RateLimiter.create(1000.0);
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofDays(1);
-    private static final int REFRESH_WORKER_THREADS = 250;
+    private static final int REFRESH_WORKER_THREADS = 150;
 
     private final ExecutorService refreshWorkers = Executors.newFixedThreadPool(REFRESH_WORKER_THREADS);
     private final MojangService mojangService;
@@ -80,22 +87,48 @@ public class PlayerRefreshService {
     public void startRefreshTask() {
         Main.EXECUTOR.submit(() -> {
             while (true) {
-                playerUpdateRateLimiter.acquire();
                 try {
                     Date cutoff = Date.from(Instant.now().minus(MIN_TIME_BETWEEN_UPDATES));
                     List<PlayerDocument> players = this.playerRepository.findListByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 2500));
-                    if (!players.isEmpty()) {
-                        for (PlayerDocument playerDocument : players) {
+                    if (players.isEmpty()) {
+                        continue;
+                    }
+
+                    // Process the players
+                    List<PlayerDocument> updatedDocs = Collections.synchronizedList(new ArrayList<>());
+                    List<Future<?>> futures = new ArrayList<>();
+                    for (PlayerDocument playerDocument : players) {
+                        Future<?> future = refreshWorkers.submit(() -> {
                             playerUpdateRateLimiter.acquire();
-                            refreshWorkers.submit(() -> {
-                                MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
-                                if (token == null) {
-                                    return;
-                                }
-                                this.updatePlayer(this.playerService.getPlayer(token.getId()), playerDocument, token);
-                            });
+                            MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
+                            if (token == null) {
+                                return;
+                            }
+                            Player player = this.playerService.fromDocument(playerDocument);
+                            this.updatePlayer(player, playerDocument, token);
+                            updatedDocs.add(playerDocument);
+                        });
+                        futures.add(future);
+                    }
+
+                    // Wait for all the futures to complete
+                    for (Future<?> future : futures) {
+                        try {
+                            future.get();
+                        } catch (ExecutionException e) {
+                            log.warn("Player refresh task failed", e.getCause());
                         }
                     }
+
+                    // Save the updated documents in bulk
+                    if (!updatedDocs.isEmpty()) {
+                        BulkOperations bulkOps = mongoTemplate.bulkOps(BulkMode.ORDERED, PlayerDocument.class);
+                        for (PlayerDocument doc : updatedDocs) {
+                            bulkOps.replaceOne(Query.query(Criteria.where("_id").is(doc.getId())), doc);
+                        }
+                        bulkOps.execute();
+                    }
+
                     Thread.sleep(1_000);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -136,7 +169,6 @@ public class PlayerRefreshService {
 
         document.setLastUpdated(now);
         player.setLastUpdated(now);
-        this.playerRepository.save(document);
     }
 
     /**

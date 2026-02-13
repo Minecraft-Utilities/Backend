@@ -34,13 +34,10 @@ import java.util.concurrent.TimeUnit;
 public class PlayerSubmitService {
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
-    private static final int SUBMIT_RATE_PER_SECOND = 1000;
-    private static final int SUBMIT_WORKER_THREADS = 250;
     private static final int BATCH_SIZE = 2500;
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
-
-    private static final RateLimiter submitRateLimiter = RateLimiter.create(SUBMIT_RATE_PER_SECOND);
-    private static final ExecutorService submitWorkers = Executors.newFixedThreadPool(SUBMIT_WORKER_THREADS);
+    private static final RateLimiter submitRateLimiter = RateLimiter.create(1000);
+    private static final ExecutorService submitWorkers = Executors.newFixedThreadPool(150);
 
     public static PlayerSubmitService INSTANCE;
 
