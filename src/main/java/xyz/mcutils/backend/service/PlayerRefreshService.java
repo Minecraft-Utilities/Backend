@@ -105,93 +105,25 @@ public class PlayerRefreshService {
     /**
      * Updates the player with their new data from the {@link MojangProfileToken}
      *
-     * @param player the player to update
+     * @param player   the player to update
      * @param document the player's document
-     * @param token the player's {@link MojangProfileToken} token
+     * @param token    the player's {@link MojangProfileToken} token
      */
     @SneakyThrows
     public void updatePlayer(Player player, PlayerDocument document, MojangProfileToken token) {
         Date now = new Date();
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
+        UUID playerId = document.getId();
 
-        // Player username
-        if (!player.getUsername().equals(token.getName())) {
-            document.setUsername(token.getName());
-            player.setUsername(token.getName());
-            this.usernameHistoryRepository.save(UsernameHistoryDocument.builder()
-                    .id(UUID.randomUUID())
-                    .playerId(document.getId())
-                    .username(token.getName())
-                    .timestamp(now)
-                    .build());
-        }
-        // Ensure current display name is in history if missing.
-        String currentUsername = document.getUsername();
-        boolean usernameInHistory = document.getUsernameHistory() != null && document.getUsernameHistory().stream()
-                .anyMatch(uh -> currentUsername != null && currentUsername.equals(uh.getUsername()));
-        if (!usernameInHistory && currentUsername != null) {
-            this.usernameHistoryRepository.save(UsernameHistoryDocument.builder()
-                    .id(UUID.randomUUID())
-                    .playerId(document.getId())
-                    .username(currentUsername)
-                    .timestamp(now)
-                    .build());
-        }
+        updateUsername(player, document, token.getName(), now);
+        updateSkin(player, document, skinAndCape.left(), now);
+        updateCape(player, document, skinAndCape.right(), now);
 
-        // Player skin
-        SkinTextureToken skinTextureToken = skinAndCape.left();
-        String skinTextureId = skinTextureToken != null ? skinTextureToken.getTextureId() : null;
-        String currentSkinTextureId = player.getSkin() != null ? player.getSkin().getTextureId() : null;
-        if (!Objects.equals(currentSkinTextureId, skinTextureId) && skinTextureToken != null) {
-            Skin newSkin = this.skinService.getOrCreateSkinByTextureId(skinTextureToken, player.getUniqueId());
-            document.setSkin(SkinDocument.builder().id(newSkin.getUuid()).build());
-            player.setSkin(newSkin);
-
-            this.skinHistoryRepository.save(SkinHistoryDocument.builder()
-                    .id(UUID.randomUUID())
-                    .playerId(document.getId())
-                    .skin(SkinDocument.builder().id(newSkin.getUuid()).build())
-                    .timestamp(now)
-                    .build());
-            boolean skinInHistory = document.getSkinHistory() != null && document.getSkinHistory().stream()
-                    .anyMatch(sh -> sh.getSkin() != null && sh.getSkin().getId().equals(newSkin.getUuid()));
-            if (!skinInHistory) {
-                this.skinService.incrementAccountsUsed(newSkin.getUuid());
-            }
-        }
-
-        // Player cape
-        CapeTextureToken capeTextureToken = skinAndCape.right();
-        String capeTextureId = capeTextureToken != null ? capeTextureToken.getTextureId() : null;
-        String currentCapeTextureId = player.getCape() != null ? player.getCape().getTextureId() : null;
-        if (!Objects.equals(currentCapeTextureId, capeTextureId)) {
-            VanillaCape newCape = this.capeService.getCapeByTextureId(capeTextureId);
-            if (newCape != null) {
-                document.setCape(CapeDocument.builder().id(newCape.getUuid()).build());
-                player.setCape(newCape);
-
-                this.capeHistoryRepository.save(CapeHistoryDocument.builder()
-                        .id(UUID.randomUUID())
-                        .playerId(document.getId())
-                        .cape(CapeDocument.builder().id(newCape.getUuid()).build())
-                        .timestamp(now)
-                        .build());
-                boolean capeInHistory = document.getCapeHistory() != null && document.getCapeHistory().stream()
-                        .anyMatch(ch -> ch.getCape() != null && ch.getCape().getId().equals(newCape.getUuid()));
-                if (!capeInHistory) {
-                    this.capeService.incrementAccountsOwned(newCape.getUuid());
-                }
-            }
-        }
-
-        // Legacy account status
         if (player.isLegacyAccount() != token.isLegacy()) {
             document.setLegacyAccount(token.isLegacy());
             player.setLegacyAccount(token.isLegacy());
         }
 
-        // Optifine cape
-        UUID playerId = document.getId();
         OptifineCape.capeExists(token.getName(), webRequest)
                 .thenAccept(has -> mongoTemplate.updateFirst(
                         Query.query(Criteria.where("_id").is(playerId)),
@@ -202,5 +134,130 @@ public class PlayerRefreshService {
         document.setLastUpdated(now);
         player.setLastUpdated(now);
         this.playerRepository.save(document);
+    }
+
+    /**
+     * Updates the player's username from the profile and ensures it is in history.
+     *
+     * @param player   the player to update
+     * @param document the player's document
+     * @param newName  the new username from the Mojang profile
+     * @param now      the timestamp to use for history entries
+     */
+    private void updateUsername(Player player, PlayerDocument document, String newName, Date now) {
+        UUID playerId = document.getId();
+        if (!player.getUsername().equals(newName)) {
+            document.setUsername(newName);
+            player.setUsername(newName);
+            this.usernameHistoryRepository.save(UsernameHistoryDocument.builder()
+                    .id(UUID.randomUUID())
+                    .playerId(playerId)
+                    .username(newName)
+                    .timestamp(now)
+                    .build());
+        }
+        String current = document.getUsername();
+        boolean currentNotInHistory = current != null && (document.getUsernameHistory() == null
+                || document.getUsernameHistory().stream().noneMatch(uh -> current.equals(uh.getUsername())));
+        if (currentNotInHistory) {
+            this.usernameHistoryRepository.save(UsernameHistoryDocument.builder()
+                    .id(UUID.randomUUID())
+                    .playerId(playerId)
+                    .username(current)
+                    .timestamp(now)
+                    .build());
+        }
+    }
+
+    /**
+     * Updates the player's current skin from the profile and records skin history.
+     *
+     * @param player   the player to update
+     * @param document the player's document
+     * @param skinToken the skin texture from the Mojang profile, or null if no skin
+     * @param now      the timestamp to use for history (lastUsed)
+     */
+    private void updateSkin(Player player, PlayerDocument document, SkinTextureToken skinToken, Date now) {
+        if (skinToken == null) {
+            return;
+        }
+
+        String newTextureId = skinToken.getTextureId();
+        String currentTextureId = player.getSkin() != null ? player.getSkin().getTextureId() : null;
+        boolean skinChanged = !Objects.equals(currentTextureId, newTextureId);
+
+        if (skinChanged) {
+            Skin newSkin = this.skinService.getOrCreateSkinByTextureId(skinToken, player.getUniqueId());
+            document.setSkin(SkinDocument.builder().id(newSkin.getUuid()).build());
+            player.setSkin(newSkin);
+        }
+
+        if (player.getSkin() != null) {
+            UUID playerId = document.getId();
+            UUID skinId = player.getSkin().getUuid();
+            boolean newHistoryEntry = this.skinHistoryRepository.findFirstByPlayerIdAndSkinId(playerId, skinId)
+                    .map(existing -> {
+                        existing.setLastUsed(now);
+                        this.skinHistoryRepository.save(existing);
+                        return false;
+                    })
+                    .orElseGet(() -> {
+                        this.skinHistoryRepository.save(SkinHistoryDocument.builder()
+                                .id(UUID.randomUUID())
+                                .playerId(playerId)
+                                .skin(SkinDocument.builder().id(skinId).build())
+                                .lastUsed(now)
+                                .timestamp(now)
+                                .build());
+                        return true;
+                    });
+            if (newHistoryEntry) {
+                this.skinService.incrementAccountsUsed(skinId);
+            }
+        }
+    }
+
+    /**
+     * Updates the player's current cape from the profile and records cape history.
+     *
+     * @param player    the player to update
+     * @param document  the player's document
+     * @param capeToken the cape texture from the Mojang profile, or null if no cape
+     * @param now       the timestamp to use for history (lastUsed)
+     */
+    private void updateCape(Player player, PlayerDocument document, CapeTextureToken capeToken, Date now) {
+        String newTextureId = capeToken != null ? capeToken.getTextureId() : null;
+        String currentTextureId = player.getCape() != null ? player.getCape().getTextureId() : null;
+        boolean capeChanged = !Objects.equals(currentTextureId, newTextureId);
+
+        if (capeChanged) {
+            VanillaCape newCape = newTextureId != null ? this.capeService.getCapeByTextureId(newTextureId) : null;
+            document.setCape(newCape != null ? CapeDocument.builder().id(newCape.getUuid()).build() : null);
+            player.setCape(newCape);
+        }
+
+        if (player.getCape() != null) {
+            UUID playerId = document.getId();
+            UUID capeId = player.getCape().getUuid();
+            boolean newHistoryEntry = this.capeHistoryRepository.findFirstByPlayerIdAndCapeId(playerId, capeId)
+                    .map(existing -> {
+                        existing.setLastUsed(now);
+                        this.capeHistoryRepository.save(existing);
+                        return false;
+                    })
+                    .orElseGet(() -> {
+                        this.capeHistoryRepository.save(CapeHistoryDocument.builder()
+                                .id(UUID.randomUUID())
+                                .playerId(playerId)
+                                .cape(CapeDocument.builder().id(capeId).build())
+                                .lastUsed(now)
+                                .timestamp(now)
+                                .build());
+                        return true;
+                    });
+            if (newHistoryEntry) {
+                this.capeService.incrementAccountsOwned(capeId);
+            }
+        }
     }
 }

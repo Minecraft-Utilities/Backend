@@ -35,7 +35,12 @@ public class SkinHistoryDocument {
     private SkinDocument skin;
 
     /**
-     * The time this skin was seen on the player.
+     * The time this skin was last used by the player.
+     */
+    private Date lastUsed;
+
+    /**
+     * The time this skin was first seen on the player.
      */
     private Date timestamp;
 }

@@ -35,6 +35,11 @@ public class CapeHistoryDocument {
     private CapeDocument cape;
 
     /**
+     * The time this cape was last used by the player.
+     */
+    private Date lastUsed;
+
+    /**
      * The time this cape was seen on the player.
      */
     private Date timestamp;

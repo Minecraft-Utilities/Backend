@@ -210,6 +210,7 @@ public class PlayerService {
                 .id(UUID.randomUUID())
                 .playerId(playerUuid)
                 .skin(SkinDocument.builder().id(skinUuid).build())
+                .lastUsed(now)
                 .timestamp(now)
                 .build());
         if (capeUuid != null) {
@@ -217,6 +218,7 @@ public class PlayerService {
                     .id(UUID.randomUUID())
                     .playerId(playerUuid)
                     .cape(CapeDocument.builder().id(capeUuid).build())
+                    .lastUsed(now)
                     .timestamp(now)
                     .build());
         }
