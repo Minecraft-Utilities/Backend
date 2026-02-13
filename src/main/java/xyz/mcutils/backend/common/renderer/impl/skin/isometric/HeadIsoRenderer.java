@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.common.renderer.impl.skin;
+package xyz.mcutils.backend.common.renderer.impl.skin.isometric;
 
 import lombok.SneakyThrows;
 import xyz.mcutils.backend.common.ImageUtils;
@@ -15,8 +15,8 @@ import xyz.mcutils.backend.service.SkinService;
 import java.awt.image.BufferedImage;
 import java.util.List;
 
-public class HeadRenderer extends SkinRenderer {
-    public static final HeadRenderer INSTANCE = new HeadRenderer();
+public class HeadIsoRenderer extends SkinRenderer {
+    public static final HeadIsoRenderer INSTANCE = new HeadIsoRenderer();
 
     private static final double PITCH_DEG = 35.0;
     private static final double YAW_DEG = 45.0;

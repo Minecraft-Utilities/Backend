@@ -15,8 +15,8 @@ import java.awt.image.BufferedImage;
 
 @AllArgsConstructor
 @Getter
-public class BodyRenderer extends SkinRenderer {
-    public static final BodyRenderer INSTANCE = new BodyRenderer();
+public class BackRenderer extends SkinRenderer {
+    public static final BackRenderer INSTANCE = new BackRenderer();
 
     private static final int LOGICAL_W = 16;
     private static final int LOGICAL_H = 32;
@@ -39,17 +39,17 @@ public class BodyRenderer extends SkinRenderer {
         int armW = slim ? 3 : 4;
 
         drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(4, scale), RendererUtils.scaleLogicalCoord(0, scale), RendererUtils.scaleLogical(8, scale), RendererUtils.scaleLogical(8, scale),
-                PlayerModelCoordinates.Skin.FACE, slim, overlays);
+                PlayerModelCoordinates.Skin.HEAD_BACK, slim, overlays);
         drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(4, scale), RendererUtils.scaleLogicalCoord(8, scale), RendererUtils.scaleLogical(8, scale), RendererUtils.scaleLogical(12, scale),
-                PlayerModelCoordinates.Skin.BODY_FRONT, slim, overlays);
+                PlayerModelCoordinates.Skin.BODY_BACK, slim, overlays);
         drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(leftArmX, scale), RendererUtils.scaleLogicalCoord(8, scale), RendererUtils.scaleLogical(armW, scale), RendererUtils.scaleLogical(12, scale),
-                PlayerModelCoordinates.Skin.LEFT_ARM_FRONT, slim, overlays);
+                PlayerModelCoordinates.Skin.LEFT_ARM_BACK, slim, overlays);
         drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(rightArmX, scale), RendererUtils.scaleLogicalCoord(8, scale), RendererUtils.scaleLogical(armW, scale), RendererUtils.scaleLogical(12, scale),
-                PlayerModelCoordinates.Skin.RIGHT_ARM_FRONT, slim, overlays);
-        drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(8, scale), RendererUtils.scaleLogicalCoord(20, scale), RendererUtils.scaleLogical(4, scale), RendererUtils.scaleLogical(12, scale),
-                PlayerModelCoordinates.Skin.LEFT_LEG_FRONT, slim, overlays);
+                PlayerModelCoordinates.Skin.RIGHT_ARM_BACK, slim, overlays);
         drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(4, scale), RendererUtils.scaleLogicalCoord(20, scale), RendererUtils.scaleLogical(4, scale), RendererUtils.scaleLogical(12, scale),
-                PlayerModelCoordinates.Skin.RIGHT_LEG_FRONT, slim, overlays);
+                PlayerModelCoordinates.Skin.LEFT_LEG_BACK, slim, overlays);
+        drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(8, scale), RendererUtils.scaleLogicalCoord(20, scale), RendererUtils.scaleLogical(4, scale), RendererUtils.scaleLogical(12, scale),
+                PlayerModelCoordinates.Skin.RIGHT_LEG_BACK, slim, overlays);
 
         g.dispose();
         return out;

@@ -9,6 +9,7 @@ import org.kohsuke.github.GitHub;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Constants;
+import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.DomainUtils;
 import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.FuzzySearch;
@@ -44,7 +45,9 @@ public class ServerRegistryService {
     public ServerRegistryService(WebRequest webRequest) {
         this.webRequest = webRequest;
         this.githubClient = GitHub.connectAnonymously();
-        this.updateRegistry();
+
+        // run async so it doesn't block the application startup
+        Main.EXECUTOR.submit(this::updateRegistry);
     }
 
     /**

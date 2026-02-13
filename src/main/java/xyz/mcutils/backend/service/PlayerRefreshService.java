@@ -163,7 +163,7 @@ public class PlayerRefreshService {
     }
 
     /**
-     * Updates the player's username from the profile and ensures it is in history.
+     * Updates the player's username from the profile and records username history.
      *
      * @param player   the player to update
      * @param document the player's document
@@ -171,8 +171,37 @@ public class PlayerRefreshService {
      * @param now      the timestamp to use for history entries
      */
     private void updateUsername(Player player, PlayerDocument document, String newName, Date now) {
-        UUID playerId = document.getId();
-        if (!player.getUsername().equals(newName)) {
+        String current = document.getUsername();
+        if (current != null) {
+            UUID playerId = document.getId();
+            boolean currentNotInHistory = this.usernameHistoryRepository.findFirstByPlayerIdAndUsername(playerId, current)
+                    .map(existing -> {
+                        existing.setTimestamp(now);
+                        this.usernameHistoryRepository.save(existing);
+                        return false;
+                    })
+                    .orElseGet(() -> {
+                        this.usernameHistoryRepository.save(UsernameHistoryDocument.builder()
+                                .id(UUID.randomUUID())
+                                .playerId(playerId)
+                                .username(current)
+                                .timestamp(now)
+                                .build());
+                        return true;
+                    });
+            if (currentNotInHistory) {
+                Set<UsernameHistory> usernameHistory = player.getUsernameHistory();
+                if (usernameHistory == null) {
+                    usernameHistory = new HashSet<>();
+                    player.setUsernameHistory(usernameHistory);
+                }
+                usernameHistory.add(new UsernameHistory(current, now));
+            }
+        }
+
+        boolean usernameChanged = !Objects.equals(player.getUsername(), newName);
+        if (usernameChanged) {
+            UUID playerId = document.getId();
             document.setUsername(newName);
             player.setUsername(newName);
             this.usernameHistoryRepository.save(UsernameHistoryDocument.builder()
@@ -188,28 +217,10 @@ public class PlayerRefreshService {
             }
             usernameHistory.add(new UsernameHistory(newName, now));
         }
-        String current = document.getUsername();
-        boolean currentNotInHistory = current != null && (document.getUsernameHistory() == null
-                || document.getUsernameHistory().stream().noneMatch(entry -> current.equals(entry.getUsername())));
-        if (currentNotInHistory) {
-            this.usernameHistoryRepository.save(UsernameHistoryDocument.builder()
-                    .id(UUID.randomUUID())
-                    .playerId(playerId)
-                    .username(current)
-                    .timestamp(now)
-                    .build());
-            Set<UsernameHistory> usernameHistory = player.getUsernameHistory();
-            if (usernameHistory == null) {
-                usernameHistory = new HashSet<>();
-                player.setUsernameHistory(usernameHistory);
-            }
-            usernameHistory.add(new UsernameHistory(current, now));
-        }
     }
 
     /**
      * Updates the player's current skin from the profile and records skin history.
-     * Ensures the current skin is in history even when the profile does not return a skin (currentNotInHistory).
      *
      * @param player   the player to update
      * @param document the player's document
@@ -262,7 +273,6 @@ public class PlayerRefreshService {
 
     /**
      * Updates the player's current cape from the profile and records cape history.
-     * Ensures the current cape is in history before any update (currentNotInHistory), including when about to clear.
      *
      * @param player    the player to update
      * @param document  the player's document

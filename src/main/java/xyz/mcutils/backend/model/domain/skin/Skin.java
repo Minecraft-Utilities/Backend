@@ -8,11 +8,12 @@ import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.common.renderer.PartRenderable;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
+import xyz.mcutils.backend.common.renderer.impl.skin.BackRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.BodyRenderer;
 import xyz.mcutils.backend.common.renderer.impl.skin.FaceRenderer;
-import xyz.mcutils.backend.common.renderer.impl.skin.HeadRenderer;
-import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.FullBodyRendererBack;
-import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.FullBodyRendererFront;
+import xyz.mcutils.backend.common.renderer.impl.skin.isometric.FullBodyIsoRendererBack;
+import xyz.mcutils.backend.common.renderer.impl.skin.isometric.FullBodyIsoRendererFront;
+import xyz.mcutils.backend.common.renderer.impl.skin.isometric.HeadIsoRenderer;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.domain.Texture;
 
@@ -105,11 +106,15 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
 
     @Getter
     public enum SkinPart {
+        // 2D
         FACE(FaceRenderer.INSTANCE),
-        HEAD(HeadRenderer.INSTANCE),
         BODY(BodyRenderer.INSTANCE),
-        FULLBODY_FRONT(FullBodyRendererFront.INSTANCE),
-        FULLBODY_BACK(FullBodyRendererBack.INSTANCE);
+        BACK(BackRenderer.INSTANCE),
+
+        // Isometric
+        HEAD_ISO(HeadIsoRenderer.INSTANCE),
+        FULLBODY_ISO_FRONT(FullBodyIsoRendererFront.INSTANCE),
+        FULLBODY_ISO_BACK(FullBodyIsoRendererBack.INSTANCE);
 
         private final SkinRenderer renderer;
 

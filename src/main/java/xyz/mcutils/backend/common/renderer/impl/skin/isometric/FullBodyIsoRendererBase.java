@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.common.renderer.impl.skin.fullbody;
+package xyz.mcutils.backend.common.renderer.impl.skin.isometric;
 
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -20,8 +20,8 @@ import java.util.List;
  * to {@link Isometric3DRenderer} with view params for FRONT or BACK.
  */
 @Slf4j
-public class FullBodyRendererBase {
-    public static final FullBodyRendererBase INSTANCE = new FullBodyRendererBase();
+public class FullBodyIsoRendererBase {
+    public static final FullBodyIsoRendererBase INSTANCE = new FullBodyIsoRendererBase();
 
     private static final double ASPECT_RATIO = 512.0 / 869.0;
     private static final double PITCH_DEG = 45.0;
