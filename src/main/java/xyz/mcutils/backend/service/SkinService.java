@@ -100,7 +100,7 @@ public class SkinService {
             return MongoUtils.findWithFields(mongoTemplate, q, SkinDocument.class, "_id", "textureId", "accountsUsed").stream()
                     .map(doc -> new SkinsPageDTO(
                             doc.get("_id", UUID.class),
-                            "%s/skins/%s/fullbody_front.png".formatted(
+                            "%s/skins/%s/fullbody_iso_front.png".formatted(
                                     AppConfig.INSTANCE.getWebPublicUrl(),
                                     doc.getString("textureId")
                             ),
@@ -137,7 +137,7 @@ public class SkinService {
 
         return new SkinDTO(
                 skinDocument.getId(),
-                "%s/skins/%s/fullbody_front.png".formatted(
+                "%s/skins/%s/fullbody_iso_front.png".formatted(
                         AppConfig.INSTANCE.getWebPublicUrl(),
                         skinDocument.getTextureId()
                 ),
