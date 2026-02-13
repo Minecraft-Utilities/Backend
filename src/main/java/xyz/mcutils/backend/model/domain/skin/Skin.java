@@ -50,13 +50,7 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
     @Setter
     private Map<String, String> parts;
 
-    /**
-     * The number of accounts that have used this skin before.
-     */
-    @Setter
-    private long accountsUsed;
-
-    public Skin(UUID uuid, String textureId, Model model, boolean legacy, long accountsUsed) {
+    public Skin(UUID uuid, String textureId, Model model, boolean legacy) {
         super(
                 textureId,
                 CDN_URL.formatted(textureId),
@@ -65,7 +59,6 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
         this.uuid = uuid;
         this.model = model;
         this.legacy = legacy;
-        this.accountsUsed = accountsUsed;
 
         this.parts = new HashMap<>();
         for (SkinPart part : SkinPart.values()) {
@@ -87,6 +80,13 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
         return part.getRenderer().render(this, size, options);
     }
 
+    /**
+     * Checks if a skin is a legacy skin.
+     *
+     * @param textureId the texture id of the skin
+     * @param textureUrl the texture url of the skin
+     * @return true if the skin is a legacy skin, false otherwise
+     */
     public static boolean isLegacySkin(String textureId, String textureUrl) {
         try {
             BufferedImage image = ImageUtils.decodeImage(SkinService.INSTANCE.getSkinTexture(textureId, textureUrl, false));

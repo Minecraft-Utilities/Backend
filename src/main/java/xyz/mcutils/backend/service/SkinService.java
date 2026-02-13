@@ -60,7 +60,6 @@ public class SkinService {
     private final WebRequest webRequest;
 
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
-    private final CoalescingLoader<String, byte[]> renderLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     public SkinService(SkinRepository skinRepository, PlayerRepository playerRepository, StorageService storageService, @Lazy PlayerService playerService,
                        MongoTemplate mongoTemplate, WebRequest webRequest) {
@@ -218,13 +217,7 @@ public class SkinService {
                 new Date()
         ));
         log.debug("Created skin {} in {}ms", document.getTextureId(), System.currentTimeMillis() - start);
-        return new Skin(
-                document.getId(),
-                document.getTextureId(),
-                document.getModel(),
-                document.isLegacy(),
-                document.getAccountsUsed()
-        );
+        return fromDocument(document);
     }
 
     /**
@@ -289,19 +282,17 @@ public class SkinService {
         byte[] canonicalBytes = cacheEnabled ? this.storageService.get(StorageService.Bucket.RENDERED_SKINS, canonicalKey) : null;
 
         if (canonicalBytes == null) {
-            canonicalBytes = renderLoader.get(canonicalKey, () -> {
-                BufferedImage img = skin.render(part, maxPartSize, new RenderOptions(renderOverlay));
-                byte[] bytes = ImageUtils.imageToBytes(img, 1);
-                if (cacheEnabled) {
-                    final byte[] toUpload = bytes;
-                    CompletableFuture.runAsync(() -> this.storageService.upload(StorageService.Bucket.RENDERED_SKINS, canonicalKey, MediaType.IMAGE_PNG_VALUE, toUpload), Main.EXECUTOR)
-                        .exceptionally(ex -> {
-                            log.warn("Save failed for skin part {}: {}", canonicalKey, ex.getMessage());
-                            return null;
-                        });
-                }
-                return bytes;
-            });
+            BufferedImage img = skin.render(part, maxPartSize, new RenderOptions(renderOverlay));
+            byte[] bytes = ImageUtils.imageToBytes(img, 1);
+            if (cacheEnabled) {
+                final byte[] toUpload = bytes;
+                CompletableFuture.runAsync(() -> this.storageService.upload(StorageService.Bucket.RENDERED_SKINS, canonicalKey, MediaType.IMAGE_PNG_VALUE, toUpload), Main.EXECUTOR)
+                    .exceptionally(ex -> {
+                        log.warn("Save failed for skin part {}: {}", canonicalKey, ex.getMessage());
+                        return null;
+                    });
+            }
+            canonicalBytes = bytes;
         }
 
         if (size == maxPartSize) {
@@ -322,8 +313,7 @@ public class SkinService {
         if (document == null) {
             return null;
         }
-        return new Skin(document.getId(), document.getTextureId(), document.getModel(),
-                document.isLegacy(), document.getAccountsUsed());
+        return new Skin(document.getId(), document.getTextureId(), document.getModel(), document.isLegacy());
     }
 
     /**

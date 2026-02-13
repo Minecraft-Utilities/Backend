@@ -96,32 +96,52 @@ public class PlayerService {
             return this.playerRepository.findById(playerUuid)
                     .map(document -> {
                         Skin skin = document.getSkin() != null ? skinService.fromDocument(document.getSkin()) : null;
-                        List<Skin> skinHistory = null;
+                        
+                        // Skin history
+                        Set<Skin> skinHistory = null;
                         if (document.getSkinHistory() != null && !document.getSkinHistory().isEmpty()) {
-                            skinHistory = document.getSkinHistory().stream()
-                                    .map(sh -> sh.getSkin() != null ? skinService.fromDocument(sh.getSkin()) : null)
-                                    .filter(Objects::nonNull)
-                                    .toList();
-                            if (skinHistory.isEmpty()) {
-                                skinHistory = null;
+                            skinHistory = new HashSet<>();
+                            for (SkinHistoryDocument entry : document.getSkinHistory()) {
+                                if (entry.getSkin() != null) {
+                                    skinHistory.add(skinService.fromDocument(entry.getSkin()));
+                                }
                             }
                         }
+
+                        // Cape history
                         VanillaCape cape = document.getCape() != null ? capeService.fromDocument(document.getCape()) : null;
-                        List<VanillaCape> capeHistory = null;
+                        Set<VanillaCape> capeHistory = null;
                         if (document.getCapeHistory() != null && !document.getCapeHistory().isEmpty()) {
-                            capeHistory = document.getCapeHistory().stream()
-                                    .map(ch -> ch.getCape() != null ? capeService.fromDocument(ch.getCape()) : null)
-                                    .filter(Objects::nonNull)
-                                    .toList();
-                            if (capeHistory.isEmpty()) {
-                                capeHistory = null;
+                            capeHistory = new HashSet<>();
+                            for (CapeHistoryDocument entry : document.getCapeHistory()) {
+                                if (entry.getCape() != null) {
+                                    capeHistory.add(capeService.fromDocument(entry.getCape()));
+                                }
                             }
                         }
-                        List<UsernameHistory> usernameHistory = document.getUsernameHistory() != null ? document.getUsernameHistory().stream()
-                                .map(uh -> new UsernameHistory(uh.getUsername(), uh.getTimestamp()))
-                                .toList() : null;
-                        Player player = new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, skinHistory, cape, capeHistory,
-                                document.isHasOptifineCape(), usernameHistory, document.getLastUpdated(), document.getFirstSeen());
+
+                        // Username history
+                        Set<UsernameHistory> usernameHistory = null;
+                        if (document.getUsernameHistory() != null && !document.getUsernameHistory().isEmpty()) {
+                            usernameHistory = new HashSet<>();
+                            for (UsernameHistoryDocument entry : document.getUsernameHistory()) {
+                                usernameHistory.add(new UsernameHistory(entry.getUsername(), entry.getTimestamp()));
+                            }
+                        }
+
+                        Player player = new Player(
+                                document.getId(),
+                                document.getUsername(),
+                                document.isLegacyAccount(),
+                                skin,
+                                skinHistory,
+                                cape,
+                                capeHistory,
+                                document.isHasOptifineCape(),
+                                usernameHistory,
+                                document.getLastUpdated(),
+                                document.getFirstSeen()
+                        );
                         if (document.getLastUpdated().toInstant().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
                             MojangProfileToken token = mojangService.getProfile(playerUuid.toString());
                             if (token == null) {
@@ -209,14 +229,23 @@ public class PlayerService {
 
         if (capeUuid != null) {
             this.capeService.incrementAccountsOwned(capeUuid);
-            cape.setAccountsOwned(cape.getAccountsOwned() + 1); 
         }
         this.skinService.incrementAccountsUsed(skinUuid);
-        skin.setAccountsUsed(skin.getAccountsUsed() + 1);
 
         log.debug("Created player {} in {}ms", document.getUsername(), System.currentTimeMillis() - start);
-        return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, List.of(skin), cape,
-                capeUuid != null ? List.of(cape) : null, document.isHasOptifineCape(), List.of(new UsernameHistory(token.getName(), now)), new Date(), new Date());
+        return new Player(
+                document.getId(),
+                document.getUsername(),
+                document.isLegacyAccount(),
+                skin,
+                Set.of(skin),
+                cape,
+                capeUuid != null ? Set.of(cape) : null,
+                document.isHasOptifineCape(),
+                Set.of(new UsernameHistory(token.getName(), now)),
+                new Date(),
+                new Date()
+        );
     }
 
     /**
