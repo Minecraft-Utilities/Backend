@@ -41,7 +41,7 @@ import java.util.concurrent.Executors;
 @Service
 @Slf4j
 public class PlayerRefreshService {
-    private static final RateLimiter playerUpdateRateLimiter = RateLimiter.create(300.0);
+    private static final RateLimiter playerUpdateRateLimiter = RateLimiter.create(600.0);
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofDays(1);
     private static final int REFRESH_WORKER_THREADS = 250;
 
@@ -80,7 +80,7 @@ public class PlayerRefreshService {
                 playerUpdateRateLimiter.acquire();
                 try {
                     Date cutoff = Date.from(Instant.now().minus(MIN_TIME_BETWEEN_UPDATES));
-                    Page<PlayerDocument> players = this.playerRepository.findByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 500));
+                    Page<PlayerDocument> players = this.playerRepository.findByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 2500));
                     if (players.getTotalElements() > 0) {
                         for (PlayerDocument playerDocument : players) {
                             playerUpdateRateLimiter.acquire();
@@ -93,7 +93,7 @@ public class PlayerRefreshService {
                             });
                         }
                     }
-                    Thread.sleep(5_000);
+                    Thread.sleep(1_000);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
