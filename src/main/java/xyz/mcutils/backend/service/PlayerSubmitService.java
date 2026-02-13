@@ -20,6 +20,7 @@ import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 import xyz.mcutils.backend.model.redis.SubmitQueueItem;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,7 +38,7 @@ public class PlayerSubmitService {
     private static final int BATCH_SIZE = 2500;
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
     private static final RateLimiter submitRateLimiter = RateLimiter.create(1000);
-    private static final ExecutorService submitWorkers = Executors.newFixedThreadPool(150);
+    private static final ExecutorService submitWorkers = Executors.newFixedThreadPool(250);
 
     public static PlayerSubmitService INSTANCE;
 
@@ -69,6 +70,7 @@ public class PlayerSubmitService {
                     // Block instead of busy-spin: one BLPOP call instead of thousands of empty MULTI/EXEC
                     SubmitQueueItem one = listOps.leftPop(REDIS_QUEUE_KEY, EMPTY_QUEUE_BLOCK_SECONDS, TimeUnit.SECONDS);
                     if (one == null) {
+                        Thread.sleep(Duration.ofSeconds(60).toMillis());
                         continue;
                     }
                     batch = new ArrayList<>(takeBatchFromQueue(BATCH_SIZE - 1));

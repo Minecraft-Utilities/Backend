@@ -53,7 +53,7 @@ import java.util.concurrent.Future;
 public class PlayerRefreshService {
     private static final RateLimiter playerUpdateRateLimiter = RateLimiter.create(1000.0);
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofDays(1);
-    private static final int REFRESH_WORKER_THREADS = 150;
+    private static final int REFRESH_WORKER_THREADS = 250;
 
     private final ExecutorService refreshWorkers = Executors.newFixedThreadPool(REFRESH_WORKER_THREADS);
     private final MojangService mojangService;
@@ -91,6 +91,7 @@ public class PlayerRefreshService {
                     Date cutoff = Date.from(Instant.now().minus(MIN_TIME_BETWEEN_UPDATES));
                     List<PlayerDocument> players = this.playerRepository.findListByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 2500));
                     if (players.isEmpty()) {
+                        Thread.sleep(Duration.ofSeconds(60).toMillis());
                         continue;
                     }
 
@@ -128,8 +129,6 @@ public class PlayerRefreshService {
                         }
                         bulkOps.execute();
                     }
-
-                    Thread.sleep(1_000);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
