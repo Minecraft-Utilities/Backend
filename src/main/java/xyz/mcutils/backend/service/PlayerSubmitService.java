@@ -39,6 +39,8 @@ public class PlayerSubmitService {
     private static final RateLimiter submitRateLimiter = RateLimiter.create(SUBMIT_RATE_PER_SECOND);
     private static final ExecutorService submitWorkers = Executors.newFixedThreadPool(SUBMIT_WORKER_THREADS);
 
+    public static PlayerSubmitService INSTANCE;
+
     private final RedisTemplate<String, SubmitQueueItem> submitQueueTemplate;
     private final RedisTemplate<String, Object> redisTemplate;
     private final PlayerService playerService;
@@ -52,6 +54,7 @@ public class PlayerSubmitService {
         this.playerService = playerService;
         this.mojangService = mojangService;
         this.mongoTemplate = mongoTemplate;
+        INSTANCE = this;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -204,5 +207,15 @@ public class PlayerSubmitService {
 
         Long size = listOps.size(REDIS_QUEUE_KEY);
         log.info("Submitted {} players to submit queue (total queued: {}, submittedBy: {})", items.size(), size != null ? size : 0, submittedBy);
+    }
+
+    /**
+     * Returns the current size of the submission queue (for metrics).
+     *
+     * @return the number of items in the submit queue, or 0 if unavailable
+     */
+    public long getSubmissionQueueSize() {
+        Long size = submitQueueTemplate.opsForList().size(REDIS_QUEUE_KEY);
+        return size != null ? size : 0L;
     }
 }
