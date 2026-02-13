@@ -120,7 +120,7 @@ public class SkinService {
                 : "Unknown";
 
         Query query = Query.query(Criteria.where("skin").is(skinDocument.getId()))
-                .with(PageRequest.of(0, 100))
+                .with(PageRequest.of(0, 500))
                 .withHint("skin");
         List<String> accountsSeenUsing = MongoUtils.findWithFields(mongoTemplate, query, PlayerDocument.class, "_id", "username").stream()
                 .map(doc -> doc.getString("username"))
