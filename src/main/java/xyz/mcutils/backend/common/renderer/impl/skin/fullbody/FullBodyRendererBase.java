@@ -39,7 +39,7 @@ public class FullBodyRendererBase {
      */
     @SneakyThrows
     public BufferedImage render(Skin skin, Side side, boolean renderOverlays, int size, double yawDeg, double pitchDeg) {
-        byte[] skinBytes = SkinService.INSTANCE.getSkinTexture(skin.getTextureId(), skin.getTextureUrl(), true);
+        byte[] skinBytes = SkinService.INSTANCE.getSkinTexture(skin.getTextureId(), skin.getRawTextureUrl(), true);
         BufferedImage skinImage = ImageUtils.decodeImage(skinBytes);
         List<Face> faces = PlayerModel.buildFaces(skin, renderOverlays);
         double yaw = yawDeg + (side == Side.BACK ? 180.0 : 0.0);

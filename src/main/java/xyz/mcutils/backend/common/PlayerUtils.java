@@ -1,7 +1,5 @@
 package xyz.mcutils.backend.common;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
@@ -30,17 +28,5 @@ public class PlayerUtils {
             return uuid;
         }
         return null;
-    }
-
-    /**
-     * Gets the image data from the URL.
-     *
-     * @param url the URL to fetch
-     * @param webRequest the HTTP client
-     * @return the image data
-     */
-    @SneakyThrows @JsonIgnore
-    public static byte[] getImage(String url, WebRequest webRequest) {
-        return webRequest.getAsByteArray(url);
     }
 }

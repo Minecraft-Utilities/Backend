@@ -244,7 +244,7 @@ public class SkinService {
             byte[] skinBytes = storageService.get(StorageService.Bucket.SKINS, textureId + ".png");
             if (skinBytes == null) {
                 log.debug("Downloading skin image for skin {}", textureId);
-                skinBytes = PlayerUtils.getImage(textureUrl, webRequest);
+                skinBytes = webRequest.getAsByteArray(textureUrl);
                 if (skinBytes == null) {
                     throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(textureId));
                 }

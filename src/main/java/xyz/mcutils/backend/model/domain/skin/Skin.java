@@ -90,7 +90,7 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
      */
     public static boolean isLegacySkin(String textureUrl, WebRequest webRequest) {
         try {
-            BufferedImage image = ImageUtils.decodeImage(PlayerUtils.getImage(textureUrl, webRequest));
+            BufferedImage image = ImageUtils.decodeImage(webRequest.getAsByteArray(textureUrl));
             return image.getWidth() == 64 && image.getHeight() == 32;
         } catch (IllegalStateException e) {
             return false;

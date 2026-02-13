@@ -203,7 +203,7 @@ public class CapeService {
         byte[] capeBytes = storageService.get(bucket, cape.getTextureId() + ".png");
         if (capeBytes == null) {
             log.debug("Downloading skin image for skin {}", cape.getTextureId());
-            capeBytes = PlayerUtils.getImage(cape.getRawTextureUrl(), webRequest);
+            capeBytes = webRequest.getAsByteArray(cape.getRawTextureUrl());
             if (capeBytes == null) {
                 throw new IllegalStateException("Cape with id '%s' was not found".formatted(cape.getTextureId()));
             }
