@@ -64,31 +64,7 @@ public class PlayerSubmitService {
 
         Main.EXECUTOR.submit(() -> {
             while (true) {
-                List<SubmitQueueItem> batch = takeBatchFromQueue(50);
-                if (batch.isEmpty()) {
-                    continue;
-                }
-
-                submitRateLimiter.acquire(batch.size());
-                batch.forEach(item -> submitWorkers.submit(() -> processItem(item, listOps, setOps)));
-            }
-        });
-
-        Main.EXECUTOR.submit(() -> {
-            while (true) {
-                List<SubmitQueueItem> batch = takeBatchFromQueue(50);
-                if (batch.isEmpty()) {
-                    continue;
-                }
-
-                submitRateLimiter.acquire(batch.size());
-                batch.forEach(item -> submitWorkers.submit(() -> processItem(item, listOps, setOps)));
-            }
-        });
-
-        Main.EXECUTOR.submit(() -> {
-            while (true) {
-                List<SubmitQueueItem> batch = takeBatchFromQueue(50);
+                List<SubmitQueueItem> batch = takeBatchFromQueue(2500);
                 if (batch.isEmpty()) {
                     continue;
                 }
