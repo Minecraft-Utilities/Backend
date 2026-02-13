@@ -2,6 +2,7 @@ package xyz.mcutils.backend.model.persistence.mongo;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.DocumentReference;
@@ -10,6 +11,7 @@ import java.util.Date;
 import java.util.UUID;
 
 @Document(collection = "cape-history")
+@CompoundIndex(name = "playerId_cape_unique", def = "{ 'playerId' : 1, 'cape' : 1 }", unique = true)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -25,7 +27,6 @@ public class CapeHistoryDocument {
     /**
      * The player this history entry belongs to.
      */
-    @Indexed
     private UUID playerId;
 
     /**

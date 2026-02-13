@@ -2,13 +2,14 @@ package xyz.mcutils.backend.model.persistence.mongo;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.Date;
 import java.util.UUID;
 
 @Document(collection = "username-history")
+@CompoundIndex(name = "playerId_username_unique", def = "{ 'playerId' : 1, 'username' : 1 }", unique = true)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -24,7 +25,6 @@ public class UsernameHistoryDocument {
     /**
      * The player this history entry belongs to.
      */
-    @Indexed
     private UUID playerId;
 
     /**
