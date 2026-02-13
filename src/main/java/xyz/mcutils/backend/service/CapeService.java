@@ -1,5 +1,7 @@
 package xyz.mcutils.backend.service;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,7 +14,6 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.ImageUtils;
-import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
@@ -28,6 +29,8 @@ import xyz.mcutils.backend.repository.mongo.CapeRepository;
 import java.awt.image.BufferedImage;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 @Service @Slf4j
 public class CapeService {
@@ -50,6 +53,11 @@ public class CapeService {
     private final CapeRepository capeRepository;
     private final MongoTemplate mongoTemplate;
     private final WebRequest webRequest;
+
+    private final Cache<String, byte[]> capeTextureCache = CacheBuilder.newBuilder()
+            .expireAfterAccess(6, TimeUnit.HOURS)
+            .maximumSize(1000)
+            .build();
 
     public CapeService(StorageService storageService, @Lazy PlayerService playerService, CapeRepository capeRepository, MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.storageService = storageService;
@@ -129,28 +137,6 @@ public class CapeService {
     }
 
     /**
-     * Gets a cape from the database using its UUID.
-     *
-     * @param uuid the uuid of the cape
-     * @return the cape, or null if not found
-     */
-    public VanillaCape getCapeByUuid(UUID uuid) {
-        long start = System.currentTimeMillis();
-        Optional<CapeDocument> optionalCapeDocument = this.capeRepository.findById(uuid);
-        if (optionalCapeDocument.isPresent()) {
-            CapeDocument document = optionalCapeDocument.get();
-            log.debug("Found vanilla cape by uuid {} in {}ms", document.getId(), System.currentTimeMillis() - start);
-            return new VanillaCape(
-                    document.getId(),
-                    document.getName(),
-                    document.getAccountsOwned(),
-                    document.getTextureId()
-            );
-        }
-        return null;
-    }
-
-    /**
      * Gets a Cape from the texture id or the player's name / uuid.
      *
      * @param query the query to search for
@@ -194,21 +180,20 @@ public class CapeService {
      * @return the cape image
      */
     public byte[] getCapeTexture(Cape<?> cape) {
-        StorageService.Bucket bucket = switch (cape) {
-            case VanillaCape _ -> StorageService.Bucket.VANILLA_CAPES;
-            case OptifineCape _ -> StorageService.Bucket.OPTIFINE_CAPES;
-            default -> null;
-        };
-
-        byte[] capeBytes = storageService.get(bucket, cape.getTextureId() + ".png");
-        if (capeBytes == null) {
-            log.debug("Downloading skin image for skin {}", cape.getTextureId());
-            capeBytes = webRequest.getAsByteArray(cape.getRawTextureUrl());
-            if (capeBytes == null) {
-                throw new IllegalStateException("Cape with id '%s' was not found".formatted(cape.getTextureId()));
-            }
-            storageService.upload(bucket, cape.getTextureId() + ".png", MediaType.IMAGE_PNG_VALUE, capeBytes);
-            log.debug("Saved cape image for skin {}", cape.getTextureId());
+        byte[] capeBytes;
+        try {
+            long start = System.currentTimeMillis();
+            capeBytes = this.capeTextureCache.get("%s-%s.png".formatted(cape.getClass().getName(), cape.getTextureId()), () -> {
+                log.debug("Downloading cape image for skin {}", cape.getTextureId());
+                byte[] bytes = webRequest.getAsByteArray(cape.getRawTextureUrl());
+                if (bytes == null) {
+                    throw new IllegalStateException("Cape image for skin '%s' was not found".formatted(cape.getTextureId()));
+                }
+                log.debug("Downloaded cape image for skin {} in {}ms", cape.getTextureId(),  System.currentTimeMillis() - start);
+                return bytes;
+            });
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
         }
         return capeBytes;
     }

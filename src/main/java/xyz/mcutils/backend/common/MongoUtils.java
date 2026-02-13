@@ -5,7 +5,6 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Generic MongoDB helpers. Use to run queries with field projection without defining

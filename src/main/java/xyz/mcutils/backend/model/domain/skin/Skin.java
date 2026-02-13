@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.ImageUtils;
-import xyz.mcutils.backend.common.PlayerUtils;
 import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.common.renderer.PartRenderable;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
@@ -16,7 +15,6 @@ import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.FullBodyRendererBa
 import xyz.mcutils.backend.common.renderer.impl.skin.fullbody.FullBodyRendererFront;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.domain.Texture;
-import xyz.mcutils.backend.service.SkinService;
 
 import java.awt.image.BufferedImage;
 import java.util.*;

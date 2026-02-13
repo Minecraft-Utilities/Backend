@@ -1,5 +1,7 @@
 package xyz.mcutils.backend.service;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,7 +11,6 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.*;
@@ -32,7 +33,8 @@ import java.awt.image.BufferedImage;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -54,18 +56,25 @@ public class SkinService {
 
     private final SkinRepository skinRepository;
     private final PlayerRepository playerRepository;
-    private final StorageService storageService;
     private final PlayerService playerService;
     private final MongoTemplate mongoTemplate;
     private final WebRequest webRequest;
 
+    private final Cache<String, byte[]> skinTextureCache = CacheBuilder.newBuilder()
+            .expireAfterAccess(6, TimeUnit.HOURS)
+            .maximumSize(1000)
+            .build();
+    private final Cache<String, byte[]> renderedSkinCache = CacheBuilder.newBuilder()
+            .expireAfterAccess(6, TimeUnit.HOURS)
+            .maximumSize(5000)
+            .build();
+
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
-    public SkinService(SkinRepository skinRepository, PlayerRepository playerRepository, StorageService storageService, @Lazy PlayerService playerService,
+    public SkinService(SkinRepository skinRepository, PlayerRepository playerRepository, @Lazy PlayerService playerService,
                        MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.skinRepository = skinRepository;
         this.playerRepository = playerRepository;
-        this.storageService = storageService;
         this.playerService = playerService;
         this.mongoTemplate = mongoTemplate;
         this.webRequest = webRequest;
@@ -139,22 +148,6 @@ public class SkinService {
     public Skin getSkinByTextureId(String textureId) {
         return this.skinRepository.findByTextureId(textureId)
                 .map(this::fromDocument)
-                .orElse(null);
-    }
-
-    /**
-     * Gets a skin from the database using its UUID.
-     *
-     * @param id the skin to get
-     * @return the skin, or null if not found
-     */
-    public Skin getSkinByUuid(UUID id) {
-        long start = System.currentTimeMillis();
-        return this.skinRepository.findById(id)
-                .map(doc -> {
-                    log.debug("Found skin by uuid {} in {}ms", doc.getId(), System.currentTimeMillis() - start);
-                    return fromDocument(doc);
-                })
                 .orElse(null);
     }
 
@@ -241,15 +234,20 @@ public class SkinService {
      */
     public byte[] getSkinTexture(String textureId, String textureUrl, boolean upgrade) {
         return textureLoader.get(textureId + "-" + upgrade, () -> {
-            byte[] skinBytes = storageService.get(StorageService.Bucket.SKINS, textureId + ".png");
-            if (skinBytes == null) {
-                log.debug("Downloading skin image for skin {}", textureId);
-                skinBytes = webRequest.getAsByteArray(textureUrl);
-                if (skinBytes == null) {
-                    throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(textureId));
-                }
-                storageService.upload(StorageService.Bucket.SKINS, textureId + ".png", MediaType.IMAGE_PNG_VALUE, skinBytes);
-                log.debug("Saved skin image for skin {}", textureId);
+            byte[] skinBytes;
+            try {
+                long start = System.currentTimeMillis();
+                skinBytes = this.skinTextureCache.get(textureId + ".png", () -> {
+                    log.debug("Downloading skin image for skin {}", textureId);
+                    byte[] bytes = webRequest.getAsByteArray(textureUrl);
+                    if (bytes == null) {
+                        throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(textureId));
+                    }
+                    log.debug("Downloaded skin image for skin {} in {}ms", textureId,  System.currentTimeMillis() - start);
+                    return bytes;
+                });
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
             }
             return upgrade ? SkinUtils.upgradeLegacySkin(textureId, skinBytes) : skinBytes;
         });
@@ -279,18 +277,13 @@ public class SkinService {
         }
 
         String canonicalKey = "%s-%s-%s.png".formatted(skin.getTextureId(), part.name(), renderOverlay);
-        byte[] canonicalBytes = cacheEnabled ? this.storageService.get(StorageService.Bucket.RENDERED_SKINS, canonicalKey) : null;
+        byte[] canonicalBytes = cacheEnabled ? this.renderedSkinCache.getIfPresent(canonicalKey) : null;
 
         if (canonicalBytes == null) {
             BufferedImage img = skin.render(part, maxPartSize, new RenderOptions(renderOverlay));
             byte[] bytes = ImageUtils.imageToBytes(img, 1);
             if (cacheEnabled) {
-                final byte[] toUpload = bytes;
-                CompletableFuture.runAsync(() -> this.storageService.upload(StorageService.Bucket.RENDERED_SKINS, canonicalKey, MediaType.IMAGE_PNG_VALUE, toUpload), Main.EXECUTOR)
-                    .exceptionally(ex -> {
-                        log.warn("Save failed for skin part {}: {}", canonicalKey, ex.getMessage());
-                        return null;
-                    });
+                this.renderedSkinCache.put(canonicalKey, bytes);
             }
             canonicalBytes = bytes;
         }
