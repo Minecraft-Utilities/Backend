@@ -23,6 +23,7 @@ import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Dedicated submit queue for tracking new players.
@@ -34,7 +35,9 @@ public class PlayerSubmitService {
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final int SUBMIT_RATE_PER_SECOND = 1000;
-    private static final int SUBMIT_WORKER_THREADS = 100;
+    private static final int SUBMIT_WORKER_THREADS = 250;
+    private static final int BATCH_SIZE = 2500;
+    private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
 
     private static final RateLimiter submitRateLimiter = RateLimiter.create(SUBMIT_RATE_PER_SECOND);
     private static final ExecutorService submitWorkers = Executors.newFixedThreadPool(SUBMIT_WORKER_THREADS);
@@ -64,9 +67,15 @@ public class PlayerSubmitService {
 
         Main.EXECUTOR.submit(() -> {
             while (true) {
-                List<SubmitQueueItem> batch = takeBatchFromQueue(2500);
+                List<SubmitQueueItem> batch = takeBatchFromQueue(BATCH_SIZE);
                 if (batch.isEmpty()) {
-                    continue;
+                    // Block instead of busy-spin: one BLPOP call instead of thousands of empty MULTI/EXEC
+                    SubmitQueueItem one = listOps.leftPop(REDIS_QUEUE_KEY, EMPTY_QUEUE_BLOCK_SECONDS, TimeUnit.SECONDS);
+                    if (one == null) {
+                        continue;
+                    }
+                    batch = new ArrayList<>(takeBatchFromQueue(BATCH_SIZE - 1));
+                    batch.add(0, one);
                 }
 
                 submitRateLimiter.acquire(batch.size());
