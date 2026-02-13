@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -32,6 +31,7 @@ import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -80,8 +80,8 @@ public class PlayerRefreshService {
                 playerUpdateRateLimiter.acquire();
                 try {
                     Date cutoff = Date.from(Instant.now().minus(MIN_TIME_BETWEEN_UPDATES));
-                    Page<PlayerDocument> players = this.playerRepository.findByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 2500));
-                    if (players.getTotalElements() > 0) {
+                    List<PlayerDocument> players = this.playerRepository.findListByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 2500));
+                    if (!players.isEmpty()) {
                         for (PlayerDocument playerDocument : players) {
                             playerUpdateRateLimiter.acquire();
                             refreshWorkers.submit(() -> {

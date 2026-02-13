@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.repository.mongo;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
@@ -51,11 +50,11 @@ public interface PlayerRepository extends MongoRepository<PlayerDocument, UUID> 
     /**
      * Find players whose last update was before the given date, ordered by lastUpdated ascending (stalest first).
      *
-     * @param before   only return players with lastUpdated &lt; before
-     * @param pageable page and size (e.g. first 1000)
-     * @return page of player documents
+     * @param before   only return players with lastUpdated before
+     * @param pageable page and size (e.g. first 2500)
+     * @return list of player documents (no total count query)
      */
-    Page<PlayerDocument> findByLastUpdatedBeforeOrderByLastUpdatedAsc(Date before, Pageable pageable);
+    List<PlayerDocument> findListByLastUpdatedBeforeOrderByLastUpdatedAsc(Date before, Pageable pageable);
 
 
     /**
