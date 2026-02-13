@@ -42,7 +42,7 @@ import java.util.concurrent.Executors;
 @Slf4j
 public class PlayerRefreshService {
     private static final RateLimiter playerUpdateRateLimiter = RateLimiter.create(300.0);
-    private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofDays(14); // 2 weeks
+    private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofDays(1);
     private static final int REFRESH_WORKER_THREADS = 250;
 
     private final ExecutorService refreshWorkers = Executors.newFixedThreadPool(REFRESH_WORKER_THREADS);
