@@ -211,7 +211,7 @@ public class SkinService {
                 UUID.randomUUID(),
                 token.getTextureId(),
                 EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.getModel()),
-                Skin.isLegacySkin(token.getTextureId(), Skin.CDN_URL.formatted(token.getTextureId())),
+                Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), webRequest),
                 0,
                 playerUuid,
                 new Date()

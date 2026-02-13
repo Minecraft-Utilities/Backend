@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.ImageUtils;
+import xyz.mcutils.backend.common.PlayerUtils;
+import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.common.renderer.PartRenderable;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.common.renderer.SkinRenderer;
@@ -83,13 +85,12 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
     /**
      * Checks if a skin is a legacy skin.
      *
-     * @param textureId the texture id of the skin
      * @param textureUrl the texture url of the skin
      * @return true if the skin is a legacy skin, false otherwise
      */
-    public static boolean isLegacySkin(String textureId, String textureUrl) {
+    public static boolean isLegacySkin(String textureUrl, WebRequest webRequest) {
         try {
-            BufferedImage image = ImageUtils.decodeImage(SkinService.INSTANCE.getSkinTexture(textureId, textureUrl, false));
+            BufferedImage image = ImageUtils.decodeImage(PlayerUtils.getImage(textureUrl, webRequest));
             return image.getWidth() == 64 && image.getHeight() == 32;
         } catch (IllegalStateException e) {
             return false;
