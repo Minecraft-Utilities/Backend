@@ -119,12 +119,11 @@ public class SkinService {
                 ? this.playerRepository.findById(skinDocument.getFirstPlayerSeenUsing()).map(PlayerDocument::getUsername).orElse("Unknown")
                 : "Unknown";
 
-        Query query = Query.query(Criteria.where("skin").is(skinDocument.getId()));
-        query.with(PageRequest.of(0, 100));
-        query.fields().include("username");
-        query.withHint("skin");
-        List<String> accountsSeenUsing = this.mongoTemplate.find(query, PlayerDocument.class).stream()
-                .map(PlayerDocument::getUsername)
+        Query query = Query.query(Criteria.where("skin").is(skinDocument.getId()))
+                .with(PageRequest.of(0, 100))
+                .withHint("skin");
+        List<String> accountsSeenUsing = MongoUtils.findWithFields(mongoTemplate, query, PlayerDocument.class, "_id", "username").stream()
+                .map(doc -> doc.getString("username"))
                 .toList();
 
         return new SkinDTO(
