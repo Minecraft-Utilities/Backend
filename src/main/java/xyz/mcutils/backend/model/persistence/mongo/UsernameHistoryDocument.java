@@ -10,7 +10,7 @@ import java.util.Date;
 import java.util.UUID;
 
 @Document(collection = "username-history")
-@CompoundIndex(name = "playerId_username_unique", def = "{ 'playerId' : 1, 'username' : 1 }", unique = true)
+@CompoundIndex(name = "playerId_username_unique", def = "{ 'playerId' : 1, 'username' : 1 }")
 @CompoundIndex(name = "playerId_asc_timestamp_asc", def = "{ 'playerId' : 1, 'timestamp' : 1 }")
 @Getter
 @Setter
