@@ -137,6 +137,7 @@ public class SkinService {
 
         return new SkinDTO(
                 skinDocument.getId(),
+                skinDocument.getTextureId(),
                 "%s/skins/%s/fullbody_iso_front.png".formatted(
                         AppConfig.INSTANCE.getWebPublicUrl(),
                         skinDocument.getTextureId()
