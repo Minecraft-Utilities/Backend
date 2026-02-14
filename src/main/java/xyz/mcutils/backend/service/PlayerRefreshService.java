@@ -40,7 +40,7 @@ import java.util.concurrent.Semaphore;
 @Slf4j
 public class PlayerRefreshService {
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofHours(1);
-    private static final int REFRESH_WORKER_THREADS = 25;
+    private static final int REFRESH_WORKER_THREADS = 30;
 
     private final Semaphore refreshConcurrencyLimit = new Semaphore(REFRESH_WORKER_THREADS);
     
