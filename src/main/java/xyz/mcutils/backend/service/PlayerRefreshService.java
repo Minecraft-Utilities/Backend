@@ -78,7 +78,7 @@ public class PlayerRefreshService {
             while (true) {
                 try {
                     Date cutoff = Date.from(Instant.now().minus(MIN_TIME_BETWEEN_UPDATES));
-                    List<PlayerDocument> players = this.playerRepository.findListByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 2500));
+                    List<PlayerDocument> players = this.playerRepository.findListByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 500));
                     if (players.isEmpty()) {
                         Thread.sleep(Duration.ofSeconds(60).toMillis());
                         continue;
