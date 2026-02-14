@@ -42,7 +42,7 @@ import java.util.concurrent.Semaphore;
 public class PlayerRefreshService {
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofHours(1);
     private static final int REFRESH_WORKER_THREADS = 250;
-    private static final int REFRESH_STREAM_CHUNK_SIZE = 1_000;
+    private static final int REFRESH_STREAM_CHUNK_SIZE = 10_000;
 
     private final Semaphore refreshConcurrencyLimit = new Semaphore(REFRESH_WORKER_THREADS);
     
