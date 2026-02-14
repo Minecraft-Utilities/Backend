@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.mongodb.core.BulkOperations;
 import org.springframework.data.mongodb.core.BulkOperations.BulkMode;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -26,6 +26,7 @@ import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.repository.mongo.CapeHistoryRepository;
+import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.mongo.SkinHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
 
@@ -33,7 +34,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Stream;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 
@@ -41,8 +41,7 @@ import java.util.concurrent.Semaphore;
 @Slf4j
 public class PlayerRefreshService {
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofHours(1);
-    private static final int REFRESH_WORKER_THREADS = 250;
-    private static final int REFRESH_STREAM_CHUNK_SIZE = 10_000;
+    private static final int REFRESH_WORKER_THREADS = 750;
 
     private final Semaphore refreshConcurrencyLimit = new Semaphore(REFRESH_WORKER_THREADS);
     
@@ -50,6 +49,7 @@ public class PlayerRefreshService {
     private final SkinService skinService;
     private final CapeService capeService;
     private final PlayerService playerService;
+    private final PlayerRepository playerRepository;
     private final SkinHistoryRepository skinHistoryRepository;
     private final CapeHistoryRepository capeHistoryRepository;
     private final UsernameHistoryRepository usernameHistoryRepository;
@@ -58,12 +58,13 @@ public class PlayerRefreshService {
 
 
     public PlayerRefreshService(MojangService mojangService, SkinService skinService, CapeService capeService, @Lazy PlayerService playerService,
-                            SkinHistoryRepository skinHistoryRepository, CapeHistoryRepository capeHistoryRepository,
+                            PlayerRepository playerRepository, SkinHistoryRepository skinHistoryRepository, CapeHistoryRepository capeHistoryRepository,
                             UsernameHistoryRepository usernameHistoryRepository, WebRequest webRequest, MongoTemplate mongoTemplate) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
         this.playerService = playerService;
+        this.playerRepository = playerRepository;
         this.skinHistoryRepository = skinHistoryRepository;
         this.capeHistoryRepository = capeHistoryRepository;
         this.usernameHistoryRepository = usernameHistoryRepository;
@@ -77,30 +78,13 @@ public class PlayerRefreshService {
             while (true) {
                 try {
                     Date cutoff = Date.from(Instant.now().minus(MIN_TIME_BETWEEN_UPDATES));
-                    Query query = Query.query(Criteria.where("lastUpdated").lt(cutoff))
-                            .with(Sort.by("lastUpdated").ascending())
-                            .limit(10_000);
-
-                    boolean hadDocuments = false;
-                    try (Stream<PlayerDocument> stream = mongoTemplate.stream(query, PlayerDocument.class)) {
-                        Iterator<PlayerDocument> it = stream.iterator();
-                        List<PlayerDocument> chunk = new ArrayList<>(REFRESH_STREAM_CHUNK_SIZE);
-                        while (it.hasNext()) {
-                            hadDocuments = true;
-                            chunk.add(it.next());
-                            if (chunk.size() >= REFRESH_STREAM_CHUNK_SIZE) {
-                                processRefreshChunk(chunk);
-                                chunk = new ArrayList<>(REFRESH_STREAM_CHUNK_SIZE);
-                            }
-                        }
-                        if (!chunk.isEmpty()) {
-                            processRefreshChunk(chunk);
-                        }
-                    }
-                    if (!hadDocuments) {
+                    List<PlayerDocument> players = playerRepository.findListByLastUpdatedBeforeOrderByLastUpdatedAsc(
+                            cutoff, PageRequest.of(0, 20_000));
+                    if (players.isEmpty()) {
                         Thread.sleep(Duration.ofSeconds(60).toMillis());
                         continue;
                     }
+                    this.processRefreshChunk(players);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
@@ -108,19 +92,14 @@ public class PlayerRefreshService {
             }
         });
     }
-
+    
     /**
-     * Processes a chunk of players: fetches each player's profile from the Mojang API, applies
-     * updates (username, skin, cape, legacy flag, Optifine cape), then bulk-saves all successfully
-     * updated documents to MongoDB. Concurrency is limited by {@link #refreshConcurrencyLimit};
-     * failed profile lookups are skipped and do not cause the method to fail.
-     *
-     * @param chunk non-empty list of player documents to refresh (not modified, but their
-     *              in-memory state is updated and persisted if the Mojang lookup succeeds)
-     * @throws InterruptedException if the current thread is interrupted while waiting for
-     *                               refresh tasks to complete
+     * Refreshes a chunk of players from the Mojang API.
+     * 
+     * @param chunk the chunk of players to refresh
      */
-    private void processRefreshChunk(List<PlayerDocument> chunk) throws InterruptedException {
+    @SneakyThrows
+    private void processRefreshChunk(List<PlayerDocument> chunk) {
         List<PlayerDocument> updatedDocs = Collections.synchronizedList(new ArrayList<>());
         List<Future<?>> futures = new ArrayList<>();
         for (PlayerDocument playerDocument : chunk) {
