@@ -69,6 +69,7 @@ public class SkinService {
             .build();
 
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
+    private final CoalescingLoader<String, Skin> skinByTextureIdLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     public SkinService(SkinRepository skinRepository, @Lazy PlayerService playerService,
                        MongoTemplate mongoTemplate, WebRequest webRequest) {
@@ -161,18 +162,21 @@ public class SkinService {
     }
 
     /**
-     * Gets or creates the skin using the its {@link SkinTextureToken}
+     * Gets or creates the skin using the its {@link SkinTextureToken}.
+     * Concurrent lookups for the same textureId share a single load (coalesced).
      *
      * @param token the texture token for the skin
      * @param playerUuid the player's uuid who was seen wearing this skin
      * @return the skin
      */
     public Skin getOrCreateSkinByTextureId(SkinTextureToken token, UUID playerUuid) {
-        Skin skin = this.getSkinByTextureId(token.getTextureId());
-        if (skin == null) {
-            return this.createSkin(token, playerUuid);
-        }
-        return skin;
+        return skinByTextureIdLoader.get(token.getTextureId(), () -> {
+            Skin skin = this.getSkinByTextureId(token.getTextureId());
+            if (skin == null) {
+                return this.createSkin(token, playerUuid);
+            }
+            return skin;
+        });
     }
 
     /**

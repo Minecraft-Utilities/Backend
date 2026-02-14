@@ -14,6 +14,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.common.CoalescingLoader;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.WebRequest;
@@ -61,6 +62,8 @@ public class CapeService {
             .maximumSize(1000)
             .build();
 
+    private final CoalescingLoader<String, VanillaCape> capeByTextureIdLoader = new CoalescingLoader<>(Main.EXECUTOR);
+
     public CapeService(StorageService storageService, @Lazy PlayerService playerService, CapeRepository capeRepository, MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.storageService = storageService;
         this.playerService = playerService;
@@ -96,7 +99,8 @@ public class CapeService {
     }
 
     /**
-     * Gets a cape from the database using its texture id.
+     * Gets a cape from the database using its texture id (creates if valid and missing).
+     * Concurrent lookups for the same textureId share a single load (coalesced).
      *
      * @param textureId the cape to get
      * @return the cape, or null if not found
@@ -105,6 +109,10 @@ public class CapeService {
         if (textureId == null || textureId.isBlank()) {
             return null;
         }
+        return capeByTextureIdLoader.get(textureId, () -> loadCapeByTextureId(textureId));
+    }
+
+    private VanillaCape loadCapeByTextureId(String textureId) {
         long start = System.currentTimeMillis();
         Optional<CapeDocument> optionalCapeDocument = this.capeRepository.findByTextureId(textureId);
         CapeDocument document;
@@ -112,7 +120,6 @@ public class CapeService {
         if (optionalCapeDocument.isPresent()) {
             document = optionalCapeDocument.get();
         } else {
-            // Check to see if the cape texture is valid.
             boolean exists = false;
             try {
                 exists = VanillaCape.capeExists(textureId, webRequest).get();
