@@ -45,7 +45,7 @@ import java.util.concurrent.Future;
 public class PlayerRefreshService {
     private static final RateLimiter playerUpdateRateLimiter = RateLimiter.create(1000.0);
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofHours(1);
-    private static final int REFRESH_WORKER_THREADS = 250;
+    private static final int REFRESH_WORKER_THREADS = 500;
 
     private final ExecutorService refreshWorkers = Executors.newFixedThreadPool(REFRESH_WORKER_THREADS);
     private final MojangService mojangService;
