@@ -41,7 +41,7 @@ import java.util.concurrent.Semaphore;
 @Slf4j
 public class PlayerRefreshService {
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofHours(1);
-    private static final int REFRESH_WORKER_THREADS = 500;
+    private static final int REFRESH_WORKER_THREADS = 250;
 
     private final Semaphore refreshConcurrencyLimit = new Semaphore(REFRESH_WORKER_THREADS);
     
@@ -78,7 +78,7 @@ public class PlayerRefreshService {
             while (true) {
                 try {
                     Date cutoff = Date.from(Instant.now().minus(MIN_TIME_BETWEEN_UPDATES));
-                    List<PlayerDocument> players = this.playerRepository.findListByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 500));
+                    List<PlayerDocument> players = this.playerRepository.findListByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, PageRequest.of(0, 10_000));
                     if (players.isEmpty()) {
                         Thread.sleep(Duration.ofSeconds(60).toMillis());
                         continue;
