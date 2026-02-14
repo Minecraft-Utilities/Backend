@@ -4,8 +4,10 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.boot.WebApplicationType;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -33,6 +35,10 @@ public class Main {
         }
         log.info("Found configuration at '{}'", config.getAbsolutePath()); // Log the found config
 
-        SpringApplication.run(Main.class, args); // Start the application
+        if (args.length > 0) {
+            new SpringApplicationBuilder(Main.class).web(WebApplicationType.NONE).run(args);
+        } else {
+            SpringApplication.run(Main.class, args);
+        }
     }
 }
