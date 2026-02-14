@@ -142,15 +142,14 @@ public class PlayerSubmitService {
     private void processItem(SubmitQueueItem item, ListOperations<String, SubmitQueueItem> listOps, SetOperations<String, Object> setOps) {
         UUID id = item.id();
         UUID submittedBy = item.submittedBy();
+        boolean requeued = false;
         try {
             if (this.playerService.exists(id)) {
-                setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
                 return;
             }
             MojangProfileToken token = this.mojangService.getProfile(id.toString());
             if (token == null) {
                 log.warn("Player with uuid '{}' was not found", id);
-                setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
                 return;
             }
             this.playerService.createPlayer(token);
@@ -161,12 +160,16 @@ public class PlayerSubmitService {
                         PlayerDocument.class
                 );
             }
-            setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
         } catch (NotFoundException ignored) {
-            setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
+            // fall through to finally
         } catch (MojangAPIRateLimitException e) {
             listOps.rightPush(REDIS_QUEUE_KEY, item);
             LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(150));
+            requeued = true;
+        } finally {
+            if (!requeued) {
+                setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
+            }
         }
     }
 
