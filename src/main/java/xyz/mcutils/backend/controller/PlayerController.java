@@ -57,9 +57,9 @@ public class PlayerController {
 
     @PostMapping(value = "/submit", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Void> submitPlayers(
-            @Parameter(description = "List of up to 100 players (UUID only)")
+            @Parameter(description = "List of player UUIDs")
             @Valid @RequestBody SubmitPlayersRequest request) {
-        playerSubmitService.submitPlayers(request.players(), request.submittedBy());
+        playerSubmitService.submitPlayers(request.uuids(), request.submittedBy());
         return ResponseEntity.accepted().build();
     }
 }
