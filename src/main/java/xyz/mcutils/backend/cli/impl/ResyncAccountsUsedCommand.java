@@ -2,6 +2,8 @@ package xyz.mcutils.backend.cli.impl;
 
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
+import org.springframework.data.mongodb.core.BulkOperations;
+import org.springframework.data.mongodb.core.BulkOperations.BulkMode;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.data.mongodb.core.aggregation.AggregationResults;
@@ -63,19 +65,18 @@ public class ResyncAccountsUsedCommand implements Runnable {
                 SkinDocument.class
         );
 
-        int updated = 0;
+        BulkOperations bulkOps = mongoTemplate.bulkOps(BulkMode.UNORDERED, SkinDocument.class);
         for (Document doc : docs) {
             UUID skinId = doc.get("_id", UUID.class);
             Number countNum = doc.get("count", Number.class);
             if (skinId == null || countNum == null) continue;
-            mongoTemplate.updateFirst(
+            bulkOps.updateOne(
                     Query.query(Criteria.where("_id").is(skinId)),
-                    new Update().set("accountsUsed", countNum.longValue()),
-                    SkinDocument.class
+                    new Update().set("accountsUsed", countNum.longValue())
             );
-            updated++;
         }
-        log.info("Resynced accountsUsed for {} skins", updated);
+        bulkOps.execute();
+        log.info("Resynced accountsUsed for {} skins", docs.size());
     }
 
     private void resyncCapeAccountsOwned() {
@@ -96,18 +97,17 @@ public class ResyncAccountsUsedCommand implements Runnable {
                 CapeDocument.class
         );
 
-        int updated = 0;
+        BulkOperations bulkOps = mongoTemplate.bulkOps(BulkMode.UNORDERED, CapeDocument.class);
         for (Document doc : docs) {
             UUID capeId = doc.get("_id", UUID.class);
             Number countNum = doc.get("count", Number.class);
             if (capeId == null || countNum == null) continue;
-            mongoTemplate.updateFirst(
+            bulkOps.updateOne(
                     Query.query(Criteria.where("_id").is(capeId)),
-                    new Update().set("accountsOwned", countNum.longValue()),
-                    CapeDocument.class
+                    new Update().set("accountsOwned", countNum.longValue())
             );
-            updated++;
         }
-        log.info("Resynced accountsOwned for {} capes", updated);
+        bulkOps.execute();
+        log.info("Resynced accountsOwned for {} capes", docs.size());
     }
 }
