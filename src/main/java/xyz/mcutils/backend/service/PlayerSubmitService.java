@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.service;
 
-import com.google.common.util.concurrent.RateLimiter;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -22,14 +21,15 @@ import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * Dedicated submit queue for tracking new players.
  */
-@SuppressWarnings("UnstableApiUsage")
 @Service
 @Slf4j
 public class PlayerSubmitService {
@@ -37,8 +37,9 @@ public class PlayerSubmitService {
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final int BATCH_SIZE = 2500;
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
-    private static final RateLimiter submitRateLimiter = RateLimiter.create(1000);
-    private static final ExecutorService submitWorkers = Executors.newFixedThreadPool(250);
+    private static final int SUBMIT_WORKER_THREADS = 250;
+
+    private final Semaphore submitConcurrencyLimit = new Semaphore(SUBMIT_WORKER_THREADS);
 
     public static PlayerSubmitService INSTANCE;
 
@@ -65,20 +66,42 @@ public class PlayerSubmitService {
 
         Main.EXECUTOR.submit(() -> {
             while (true) {
-                List<SubmitQueueItem> batch = takeBatchFromQueue(BATCH_SIZE);
-                if (batch.isEmpty()) {
-                    // Block instead of busy-spin: one BLPOP call instead of thousands of empty MULTI/EXEC
-                    SubmitQueueItem one = listOps.leftPop(REDIS_QUEUE_KEY, EMPTY_QUEUE_BLOCK_SECONDS, TimeUnit.SECONDS);
-                    if (one == null) {
-                        Thread.sleep(Duration.ofSeconds(60).toMillis());
-                        continue;
+                try {
+                    List<SubmitQueueItem> batch = takeBatchFromQueue(BATCH_SIZE);
+                    if (batch.isEmpty()) {
+                        SubmitQueueItem one = listOps.leftPop(REDIS_QUEUE_KEY, EMPTY_QUEUE_BLOCK_SECONDS, TimeUnit.SECONDS);
+                        if (one == null) {
+                            Thread.sleep(Duration.ofSeconds(60).toMillis());
+                            continue;
+                        }
+                        batch = new ArrayList<>(takeBatchFromQueue(BATCH_SIZE - 1));
+                        batch.add(0, one);
                     }
-                    batch = new ArrayList<>(takeBatchFromQueue(BATCH_SIZE - 1));
-                    batch.add(0, one);
-                }
 
-                submitRateLimiter.acquire(batch.size());
-                batch.forEach(item -> submitWorkers.submit(() -> processItem(item, listOps, setOps)));
+                    List<Future<?>> futures = new ArrayList<>();
+                    for (SubmitQueueItem item : batch) {
+                        Future<?> future = Main.EXECUTOR.submit(() -> {
+                            submitConcurrencyLimit.acquireUninterruptibly();
+                            try {
+                                processItem(item, listOps, setOps);
+                            } finally {
+                                submitConcurrencyLimit.release();
+                            }
+                        });
+                        futures.add(future);
+                    }
+
+                    for (Future<?> future : futures) {
+                        try {
+                            future.get();
+                        } catch (ExecutionException e) {
+                            log.warn("Submit task failed", e.getCause());
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
             }
         });
     }
@@ -143,11 +166,7 @@ public class PlayerSubmitService {
             setOps.remove(REDIS_QUEUE_SET_KEY, id.toString());
         } catch (MojangAPIRateLimitException e) {
             listOps.rightPush(REDIS_QUEUE_KEY, item);
-            try {
-                Thread.sleep(150);
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-            }
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(150));
         }
     }
 

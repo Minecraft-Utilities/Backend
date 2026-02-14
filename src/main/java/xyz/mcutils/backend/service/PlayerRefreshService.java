@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.service;
 
-import com.google.common.util.concurrent.RateLimiter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -35,19 +34,17 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 
-@SuppressWarnings("UnstableApiUsage")
 @Service
 @Slf4j
 public class PlayerRefreshService {
-    private static final RateLimiter playerUpdateRateLimiter = RateLimiter.create(1000.0);
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofHours(1);
     private static final int REFRESH_WORKER_THREADS = 500;
 
-    private final ExecutorService refreshWorkers = Executors.newFixedThreadPool(REFRESH_WORKER_THREADS);
+    private final Semaphore refreshConcurrencyLimit = new Semaphore(REFRESH_WORKER_THREADS);
+    
     private final MojangService mojangService;
     private final SkinService skinService;
     private final CapeService capeService;
@@ -91,15 +88,19 @@ public class PlayerRefreshService {
                     List<PlayerDocument> updatedDocs = Collections.synchronizedList(new ArrayList<>());
                     List<Future<?>> futures = new ArrayList<>();
                     for (PlayerDocument playerDocument : players) {
-                        Future<?> future = refreshWorkers.submit(() -> {
-                            playerUpdateRateLimiter.acquire();
-                            MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
-                            if (token == null) {
-                                return;
+                        Future<?> future = Main.EXECUTOR.submit(() -> {
+                            refreshConcurrencyLimit.acquireUninterruptibly();
+                            try {
+                                MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
+                                if (token == null) {
+                                    return;
+                                }
+                                Player player = this.playerService.fromDocument(playerDocument);
+                                this.updatePlayer(player, playerDocument, token);
+                                updatedDocs.add(playerDocument);
+                            } finally {
+                                refreshConcurrencyLimit.release();
                             }
-                            Player player = this.playerService.fromDocument(playerDocument);
-                            this.updatePlayer(player, playerDocument, token);
-                            updatedDocs.add(playerDocument);
                         });
                         futures.add(future);
                     }
