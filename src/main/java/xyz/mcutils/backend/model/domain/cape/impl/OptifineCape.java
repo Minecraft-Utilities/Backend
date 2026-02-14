@@ -3,6 +3,7 @@ package xyz.mcutils.backend.model.domain.cape.impl;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
@@ -85,6 +86,6 @@ public class OptifineCape extends Cape<OptifineCape.Part> {
             boolean hasCape = webRequest.checkExists(CDN_URL.formatted(playerName));
             log.debug("Optifine cape exists for player {}: {} in {}ms", playerName, hasCape, System.currentTimeMillis() - start);
             return hasCape;
-        });
+        }, Main.EXECUTOR);
     }
 }
