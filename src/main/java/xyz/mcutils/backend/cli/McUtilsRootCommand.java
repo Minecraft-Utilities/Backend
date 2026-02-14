@@ -1,5 +1,6 @@
 package xyz.mcutils.backend.cli;
 
+import org.springframework.stereotype.Component;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import xyz.mcutils.backend.cli.impl.ResyncAccountsUsedCommand;
@@ -13,6 +14,7 @@ import xyz.mcutils.backend.cli.impl.ResyncAccountsUsedCommand;
         mixinStandardHelpOptions = true,
         subcommands = { ResyncAccountsUsedCommand.class }
 )
+@Component
 public class McUtilsRootCommand implements Runnable {
 
     @Override
