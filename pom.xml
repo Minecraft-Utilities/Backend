@@ -102,14 +102,6 @@
             <scope>compile</scope>
         </dependency>
 
-        <!-- CLI commands -->
-        <dependency>
-            <groupId>info.picocli</groupId>
-            <artifactId>picocli-spring-boot-starter</artifactId>
-            <version>4.7.5</version>
-            <scope>compile</scope>
-        </dependency>
-
         <!-- Spring Caching -->
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
