@@ -178,8 +178,12 @@ public class PlayerRefreshService {
         update.set("legacyAccount", token.isLegacy());
         update.set("lastUpdated", now);
 
-        Boolean hasOptifineCape = OptifineCape.capeExists(token.getName(), webRequest).get();
-        update.set("hasOptifineCape", hasOptifineCape);
+        OptifineCape.capeExists(token.getName(), webRequest)
+                .thenAccept(has -> mongoTemplate.updateFirst(
+                        Query.query(Criteria.where("_id").is(playerId)),
+                        new Update().set("hasOptifineCape", has),
+                        PlayerDocument.class
+                ));
 
         return update;
     }
