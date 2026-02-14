@@ -35,7 +35,7 @@ public final class CoalescingLoader<K, V> {
     public V get(K key, Supplier<V> loader) {
         CompletableFuture<V> future = inFlight.computeIfAbsent(key, k ->
                 CompletableFuture.supplyAsync(loader, executor)
-                        .whenComplete((v, ex) -> inFlight.remove(key)));
+                        .whenComplete((v, ex) -> executor.execute(() -> inFlight.remove(key))));
         try {
             return future.join();
         } catch (CompletionException e) {
