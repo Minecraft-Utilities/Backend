@@ -162,6 +162,21 @@ public class SkinService {
     }
 
     /**
+     * Gets a skin from the database by its id.
+     *
+     * @param id the skin document id
+     * @return the skin, or null if not found
+     */
+    public Skin getSkinById(UUID id) {
+        if (id == null) {
+            return null;
+        }
+        return this.skinRepository.findById(id)
+                .map(this::fromDocument)
+                .orElse(null);
+    }
+
+    /**
      * Gets or creates the skin using the its {@link SkinTextureToken}.
      * Concurrent lookups for the same textureId share a single load (coalesced).
      *

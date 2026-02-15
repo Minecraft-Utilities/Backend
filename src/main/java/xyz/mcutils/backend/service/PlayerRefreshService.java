@@ -314,12 +314,12 @@ public class PlayerRefreshService {
         UUID currentSkinId = document.getSkin() != null ? document.getSkin().getId() : null;
         SkinDocument newSkinRef = processSkinHistoryAndResolve(playerId, currentSkinId, skinAndCape.left(), now);
         document.setSkin(newSkinRef);
-        player.setSkin(newSkinRef != null ? this.skinService.fromDocument(newSkinRef) : null);
+        player.setSkin(newSkinRef != null ? this.skinService.getSkinById(newSkinRef.getId()) : null);
 
         UUID currentCapeId = document.getCape() != null ? document.getCape().getId() : null;
         CapeDocument newCapeRef = processCapeHistoryAndResolve(playerId, currentCapeId, skinAndCape.right(), now);
         document.setCape(newCapeRef);
-        player.setCape(newCapeRef != null ? this.capeService.fromDocument(newCapeRef) : null);
+        player.setCape(newCapeRef != null ? this.capeService.getCapeById(newCapeRef.getId()) : null);
 
         if (player.isLegacyAccount() != token.isLegacy()) {
             document.setLegacyAccount(token.isLegacy());

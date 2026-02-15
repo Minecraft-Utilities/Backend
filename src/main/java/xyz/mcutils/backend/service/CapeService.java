@@ -272,6 +272,21 @@ public class CapeService {
     }
 
     /**
+     * Gets a cape from the database by its id.
+     *
+     * @param id the cape document id
+     * @return the cape, or null if not found
+     */
+    public VanillaCape getCapeById(UUID id) {
+        if (id == null) {
+            return null;
+        }
+        return this.capeRepository.findById(id)
+                .map(this::fromDocument)
+                .orElse(null);
+    }
+
+    /**
      * Converts a {@link CapeDocument} to a {@link VanillaCape}.
      *
      * @param document the document to convert
