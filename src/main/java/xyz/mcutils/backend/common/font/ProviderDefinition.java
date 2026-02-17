@@ -21,9 +21,6 @@ public class ProviderDefinition {
     private List<String> chars;
     private Map<String, Integer> advances;
 
-    @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class FilterDefinition {
-        private Boolean uniform;
-    }
+    public static record FilterDefinition(Boolean uniform) { }
 }

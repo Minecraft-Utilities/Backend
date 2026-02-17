@@ -94,7 +94,7 @@ public class PlayerService {
                 if (mojangUsernameToUuid == null) {
                     throw new NotFoundException("Player with username '%s' was not found".formatted(query));
                 }
-                playerUuid = UUIDUtils.addDashes(mojangUsernameToUuid.getUuid());
+                playerUuid = UUIDUtils.addDashes(mojangUsernameToUuid.uuid());
             } else {
                 playerUuid = playerDocument.get().getId();
             }

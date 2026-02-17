@@ -80,7 +80,7 @@ public class FontManager {
             int defaultGlyphWidth = widthsFile != null ? widthsFile.getMissingCharWidth() : 8;
             BitmapFont font = new BitmapFont(ascent, height, defaultGlyphWidth);
             if (widthsFile != null && widthsFile.getMissingChar() != null) {
-                font.setDefaultBoldOffset(widthsFile.getMissingChar().getBoldOffset());
+                font.setDefaultBoldOffset(widthsFile.getMissingChar().boldOffset());
             }
             processProviders(providers, font, widthsFile, isUniform, visitedRefs);
             return font;
@@ -117,7 +117,7 @@ public class FontManager {
             return;
         }
         ProviderDefinition.FilterDefinition filter = provider.getFilter();
-        if (filter != null && filter.getUniform() != null && !filter.getUniform().equals(isUniform)) {
+        if (filter != null && filter.uniform() != null && !filter.uniform().equals(isUniform)) {
             return;
         }
         String refPath = FontResourceResolver.resolveReference(id);
@@ -181,8 +181,8 @@ public class FontManager {
                         if (widthsFile != null) {
                             FontWidthsFile.CharWidthEntry entry = widthsFile.getCharWidthEntry(cp);
                             if (entry != null) {
-                                boldOffset = entry.getBoldOffset();
-                                shadowOffset = entry.getShadowOffset();
+                                boldOffset = entry.boldOffset();
+                                shadowOffset = entry.shadowOffset();
                             }
                         }
                         Glyph glyph = new Glyph(texture, sx, sy, cellW, cellH, advance, boldOffset, shadowOffset, pAscent);
@@ -207,7 +207,7 @@ public class FontManager {
             if (widthsFile != null) {
                 FontWidthsFile.CharWidthEntry entry = widthsFile.getCharWidthEntry(cp);
                 if (entry != null) {
-                    font.putBoldOffset(cp, entry.getBoldOffset());
+                    font.putBoldOffset(cp, entry.boldOffset());
                 }
             }
         }

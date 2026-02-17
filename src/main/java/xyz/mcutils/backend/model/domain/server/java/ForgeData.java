@@ -1,8 +1,6 @@
 package xyz.mcutils.backend.model.domain.server.java;
 
 import com.google.gson.annotations.SerializedName;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 import lombok.NonNull;
 
 /**
@@ -12,26 +10,18 @@ import lombok.NonNull;
  * @param fmlNetworkVersion The version of the FML network.
  */
 public record ForgeData(Channel[] channels, Mod[] mods, boolean truncated, int fmlNetworkVersion) {
-    @AllArgsConstructor
-    @Getter
-    public static class Channel {
-        /**
-         * The id of this mod channel.
-         */
-        @NonNull
-        @SerializedName("res")
-        private final String name;
-
-        /**
-         * The version of this mod channel.
-         */
-        private final String version;
-
-        /**
-         * Whether this mod channel is required to join.
-         */
-        private boolean required;
-    }
+    /**
+     * Mod channel on a Forge server.
+     *
+     * @param name     The id of this mod channel.
+     * @param version  The version of this mod channel.
+     * @param required Whether this mod channel is required to join.
+     */
+    public record Channel(
+            @SerializedName("res") @NonNull String name,
+            String version,
+            boolean required
+    ) { }
 
     /**
      * @param name    The id of this mod.

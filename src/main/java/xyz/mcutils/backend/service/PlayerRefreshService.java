@@ -124,9 +124,13 @@ public class PlayerRefreshService {
                 refreshConcurrencyLimit.acquireUninterruptibly();
                 try {
                     MojangProfileToken token = this.mojangService.getProfile(row.getId().toString());
-                    if (token == null) return;
+                    if (token == null) {
+                        return;
+                    }
                     Update update = this.updatePlayerFromToken(row, token, batch);
-                    if (update != null) updates.add(new Tuple<>(row.getId(), update));
+                    if (update != null) {
+                        updates.add(new Tuple<>(row.getId(), update));
+                    }
                 } finally {
                     refreshConcurrencyLimit.release();
                 }
@@ -184,14 +188,22 @@ public class PlayerRefreshService {
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
 
         if (batch != null) {
-            if (row.getUsername() != null) batch.ensureUsername.add(new Tuple<>(playerId, row.getUsername()));
-            if (!Objects.equals(row.getUsername(), newUsername)) batch.newNameEntries.add(new Tuple<>(playerId, newUsername));
+            if (row.getUsername() != null) {
+                batch.ensureUsername.add(new Tuple<>(playerId, row.getUsername()));
+            }
+            if (!Objects.equals(row.getUsername(), newUsername)) {
+                batch.newNameEntries.add(new Tuple<>(playerId, newUsername));
+            }
             Skin skin = skinAndCape.left() != null ? skinService.getOrCreateSkinByTextureId(skinAndCape.left(), playerId) : null;
             UUID skinToSet = skin != null ? skin.getUuid() : row.getSkin();
-            if (skinToSet != null) batch.ensureSkin.add(new Tuple<>(playerId, skinToSet));
+            if (skinToSet != null) {
+                batch.ensureSkin.add(new Tuple<>(playerId, skinToSet));
+            }
             VanillaCape cape = skinAndCape.right() != null ? capeService.getCapeByTextureId(skinAndCape.right().getTextureId()) : null;
             UUID capeToSet = cape != null ? cape.getUuid() : row.getCape();
-            if (capeToSet != null) batch.ensureCape.add(new Tuple<>(playerId, capeToSet));
+            if (capeToSet != null) {
+                batch.ensureCape.add(new Tuple<>(playerId, capeToSet));
+            }
 
             Update update = new Update();
             update.set("username", newUsername);
@@ -276,7 +288,9 @@ public class PlayerRefreshService {
         Skin skin = skinToken != null ? this.skinService.getOrCreateSkinByTextureId(skinToken, playerId) : null;
         UUID newSkinId = skin != null ? skin.getUuid() : null;
         UUID skinToSet = !Objects.equals(currentSkinId, newSkinId) ? newSkinId : currentSkinId;
-        if (skinToSet == null) return null;
+        if (skinToSet == null) {
+            return null;
+        }
 
         boolean inserted = this.skinHistoryRepository.findFirstByPlayerIdAndSkinId(playerId, skinToSet)
                 .map(existing -> {
@@ -295,8 +309,11 @@ public class PlayerRefreshService {
                     return true;
                 });
         if (inserted) {
-            if (skinIdsToIncrement != null) skinIdsToIncrement.add(skinToSet);
-            else this.skinService.incrementAccountsUsed(skinToSet);
+            if (skinIdsToIncrement != null) {
+                skinIdsToIncrement.add(skinToSet);
+            } else {
+                this.skinService.incrementAccountsUsed(skinToSet);
+            }
         }
         return SkinDocument.builder().id(skinToSet).build();
     }
@@ -315,7 +332,9 @@ public class PlayerRefreshService {
         VanillaCape cape = capeToken != null ? this.capeService.getCapeByTextureId(capeToken.getTextureId()) : null;
         UUID newCapeId = cape != null ? cape.getUuid() : null;
         UUID capeToSet = !Objects.equals(currentCapeId, newCapeId) ? newCapeId : currentCapeId;
-        if (capeToSet == null) return null;
+        if (capeToSet == null) {
+            return null;
+        }
 
         boolean inserted = this.capeHistoryRepository.findFirstByPlayerIdAndCapeId(playerId, capeToSet)
                 .map(existing -> {
@@ -334,8 +353,11 @@ public class PlayerRefreshService {
                     return true;
                 });
         if (inserted) {
-            if (capeIdsToIncrement != null) capeIdsToIncrement.add(capeToSet);
-            else this.capeService.incrementAccountsOwned(capeToSet);
+            if (capeIdsToIncrement != null) {
+                capeIdsToIncrement.add(capeToSet);
+            } else {
+                this.capeService.incrementAccountsOwned(capeToSet);
+            }
         }
         return CapeDocument.builder().id(capeToSet).build();
     }
@@ -411,10 +433,16 @@ public class PlayerRefreshService {
         }
         List<UsernameHistoryDocument> usernameInserts = new ArrayList<>();
         for (Tuple<UUID, String> t : ensureUserList) {
-            if (!usernameExists.contains(t)) usernameInserts.add(UsernameHistoryDocument.builder().id(UUID.randomUUID()).playerId(t.left()).username(t.right()).timestamp(now).build());
+            if (!usernameExists.contains(t)) {
+                usernameInserts.add(UsernameHistoryDocument.builder().id(UUID.randomUUID()).playerId(t.left()).username(t.right()).timestamp(now).build());
+            }
         }
-        for (Tuple<UUID, String> t : batch.newNameEntries) usernameInserts.add(UsernameHistoryDocument.builder().id(UUID.randomUUID()).playerId(t.left()).username(t.right()).timestamp(now).build());
-        if (!usernameInserts.isEmpty()) mongoTemplate.insert(usernameInserts, UsernameHistoryDocument.class);
+        for (Tuple<UUID, String> t : batch.newNameEntries) {
+            usernameInserts.add(UsernameHistoryDocument.builder().id(UUID.randomUUID()).playerId(t.left()).username(t.right()).timestamp(now).build());
+        }
+        if (!usernameInserts.isEmpty()) {
+            mongoTemplate.insert(usernameInserts, UsernameHistoryDocument.class);
+        }
         if (!usernameToUpdate.isEmpty()) {
             BulkOperations usernameBulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, UsernameHistoryDocument.class);
             for (UsernameHistoryDocument d : usernameToUpdate) usernameBulk.updateOne(Query.query(Criteria.where("_id").is(d.getId())), new Update().set("timestamp", now));
@@ -441,7 +469,9 @@ public class PlayerRefreshService {
                 skinIdsToIncrement.add(t.right());
             }
         }
-        if (!skinInserts.isEmpty()) mongoTemplate.insert(skinInserts, SkinHistoryDocument.class);
+        if (!skinInserts.isEmpty()) {
+            mongoTemplate.insert(skinInserts, SkinHistoryDocument.class);
+        }
         if (!skinToUpdate.isEmpty()) {
             BulkOperations skinBulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, SkinHistoryDocument.class);
             for (SkinHistoryDocument d : skinToUpdate) skinBulk.updateOne(Query.query(Criteria.where("_id").is(d.getId())), new Update().set("lastUsed", now));
@@ -468,7 +498,9 @@ public class PlayerRefreshService {
                 capeIdsToIncrement.add(t.right());
             }
         }
-        if (!capeInserts.isEmpty()) mongoTemplate.insert(capeInserts, CapeHistoryDocument.class);
+        if (!capeInserts.isEmpty()) {
+            mongoTemplate.insert(capeInserts, CapeHistoryDocument.class);
+        }
         if (!capeToUpdate.isEmpty()) {
             BulkOperations capeBulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, CapeHistoryDocument.class);
             for (CapeHistoryDocument d : capeToUpdate) capeBulk.updateOne(Query.query(Criteria.where("_id").is(d.getId())), new Update().set("lastUsed", now));

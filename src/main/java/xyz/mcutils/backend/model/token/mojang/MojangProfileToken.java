@@ -55,11 +55,11 @@ public class MojangProfileToken {
             return null;
         }
         DecodedTexturesPropertyToken decoded = textureProperty.getDecodedTextures();
-        if (decoded == null || decoded.getTextures() == null) {
+        if (decoded == null || decoded.textures() == null) {
             return null;
         }
-        TexturesToken textures = decoded.getTextures();
-        return new Tuple<>(textures.getSkin(), textures.getCape());
+        TexturesToken textures = decoded.textures();
+        return new Tuple<>(textures.skin(), textures.cape());
     }
     
     /**

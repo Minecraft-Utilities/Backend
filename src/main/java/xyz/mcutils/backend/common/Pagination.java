@@ -61,10 +61,5 @@ public class Pagination<T> {
         private int totalPages;
     }
 
-    @Getter
-    @AllArgsConstructor
-    public static class PageCallback {
-        private int limit;
-        private int skip;
-    }
+    public static record PageCallback(int limit, int skip) { }
 }

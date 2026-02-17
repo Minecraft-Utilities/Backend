@@ -96,7 +96,7 @@ public class SkinService {
                 .setTotalItems(this.getTrackedSkinCount());
         return pagination.getPage(page, (pageCallback) -> {
             Query q = new Query()
-                    .with(PageRequest.of(page - 1, pageCallback.getLimit()))
+                    .with(PageRequest.of(page - 1, pageCallback.limit()))
                     .with(Sort.by(Sort.Order.desc("accountsUsed"), Sort.Order.asc("_id")));
             return MongoUtils.findWithFields(mongoTemplate, q, SkinDocument.class, "_id", "textureId", "accountsUsed").stream()
                     .map(doc -> new SkinsPageDTO(
@@ -227,11 +227,11 @@ public class SkinService {
      */
     public Skin createSkin(SkinTextureToken token, UUID playerUuid) {
         long start = System.currentTimeMillis();
-        SkinTextureToken.Metadata metadata = token.getMetadata();
+        SkinTextureToken.Metadata metadata = token.metadata();
         SkinDocument document = this.skinRepository.insert(new SkinDocument(
                 UUID.randomUUID(),
                 token.getTextureId(),
-                EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.getModel()),
+                EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.model()),
                 Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), webRequest),
                 0,
                 playerUuid,

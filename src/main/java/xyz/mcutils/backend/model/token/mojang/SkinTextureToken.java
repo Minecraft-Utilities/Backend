@@ -1,29 +1,12 @@
 package xyz.mcutils.backend.model.token.mojang;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-
 /**
  * Token for the SKIN entry in Mojang textures payload.
  *
- * @see #url
- * @see #metadata
+ * @param url      Full URL of the skin texture, e.g. http://textures.minecraft.net/texture/&lt;id&gt;
+ * @param metadata Optional metadata (e.g. model: "slim").
  */
-@Getter
-@NoArgsConstructor
-@AllArgsConstructor
-public class SkinTextureToken {
-
-    /**
-     * Full URL of the skin texture, e.g. http://textures.minecraft.net/texture/&lt;id&gt;
-     */
-    private String url;
-
-    /**
-     * Optional metadata (e.g. model: "slim").
-     */
-    private Metadata metadata;
+public record SkinTextureToken(String url, Metadata metadata) {
 
     /**
      * Extracts the texture id from the URL (last path segment).
@@ -36,13 +19,10 @@ public class SkinTextureToken {
         return parts[parts.length - 1];
     }
 
-    @Getter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Metadata {
-        /**
-         * Skin model: "slim" or "default".
-         */
-        private String model;
-    }
+    /**
+     * Skin texture metadata (e.g. model: "slim" or "default").
+     *
+     * @param model Skin model: "slim" or "default".
+     */
+    public record Metadata(String model) { }
 }

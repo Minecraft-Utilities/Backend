@@ -1,5 +1,6 @@
 package xyz.mcutils.backend.common.font;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
@@ -23,19 +24,25 @@ public class FontWidthsFile {
     /**
      * Per-character width entry (Minecraft uses width for advance; bold_offset for bold advance).
      */
-    @Data
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class CharWidthEntry {
-        private int width;
-        @JsonProperty("bold_offset")
-        private double boldOffset = 1;
-        @JsonProperty("shadow_offset")
-        private double shadowOffset = 1;
+    public record CharWidthEntry(
+            int width,
+            @JsonProperty("bold_offset") double boldOffset,
+            @JsonProperty("shadow_offset") double shadowOffset
+    ) {
+        @JsonCreator
+        public CharWidthEntry(
+                @JsonProperty("width") int width,
+                @JsonProperty("bold_offset") Double boldOffset,
+                @JsonProperty("shadow_offset") Double shadowOffset
+        ) {
+            this(width, boldOffset != null ? boldOffset : 1.0, shadowOffset != null ? shadowOffset : 1.0);
+        }
     }
 
     public int getAdvance(int codepoint) {
         CharWidthEntry e = getCharWidthEntry(codepoint);
-        return e != null ? e.getWidth() : -1;
+        return e != null ? e.width() : -1;
     }
 
     public CharWidthEntry getCharWidthEntry(int codepoint) {
@@ -51,6 +58,6 @@ public class FontWidthsFile {
     }
 
     public int getMissingCharWidth() {
-        return missingChar != null ? missingChar.getWidth() : 6;
+        return missingChar != null ? missingChar.width() : 6;
     }
 }
