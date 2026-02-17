@@ -56,7 +56,7 @@ public final class PlayerModelCoordinates {
         BODY_TOP(new Coordinates(20, 16, 8, 4), BODY_OVERLAY_TOP),
         BODY_LEFT(new Coordinates(36, 20, 4, 12), BODY_OVERLAY_LEFT),
         BODY_RIGHT(new Coordinates(28, 20, 4, 12), BODY_OVERLAY_RIGHT),
-        BODY_BACK(new Coordinates(44, 20, 8, 12), BODY_OVERLAY_BACK),
+        BODY_BACK(new Coordinates(32, 20, 8, 12), BODY_OVERLAY_BACK),
 
         // Arms
         LEFT_ARM_TOP(new Coordinates(36, 48, 4, 4), LEFT_ARM_OVERLAY_TOP),
@@ -167,5 +167,4 @@ public final class PlayerModelCoordinates {
                 {48, 52, 44, 64, 52, 20, 56, 32},
         };
     }
-
 }
