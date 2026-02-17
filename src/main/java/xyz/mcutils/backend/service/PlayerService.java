@@ -127,7 +127,8 @@ public class PlayerService {
     }
 
     /**
-     * Creates a new player from their {@link MojangProfileToken}
+     * Creates a new player from their {@link MojangProfileToken}.
+     * Skin is resolved via {@link SkinService#getOrCreateSkinByTextureId} so concurrent creates for the same texture share one load.
      *
      * @param token the token for the player
      * @return the created player
@@ -137,10 +138,7 @@ public class PlayerService {
         UUID playerUuid = UUIDUtils.addDashes(token.getId());
 
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
-        Skin skin = this.skinService.getSkinByTextureId(skinAndCape.left().getTextureId());
-        if (skin == null) {
-            skin = this.skinService.createSkin(skinAndCape.left(), playerUuid);
-        }
+        Skin skin = this.skinService.getOrCreateSkinByTextureId(skinAndCape.left(), playerUuid);
 
         CapeTextureToken capeTextureToken = skinAndCape.right();
         VanillaCape cape = capeTextureToken != null ? this.capeService.getCapeByTextureId(capeTextureToken.getTextureId()) : null;
@@ -242,9 +240,10 @@ public class PlayerService {
 
     /**
      * Search for players whose username starts with the given query, case-insensitive.
+     * Uses two queries: one for player docs (id, username, skin), one batch load for all referenced skins.
      *
      * @param query the prefix to match (e.g. "steve" matches "Steve", "STEVE")
-     * @return list of matching players with skin
+     * @return list of matching players with skin, up to {@value #MAX_PLAYER_SEARCH_RESULTS}
      */
     public List<PlayerSearchEntry> searchPlayers(String query) {
         String prefixEnd = query.isEmpty() ? "\uFFFF"
@@ -254,14 +253,23 @@ public class PlayerService {
                 .collation(Collation.of("en").strength(Collation.ComparisonLevel.secondary()))
                 .withHint("username_case_insensitive")
                 .with(PageRequest.of(0, MAX_PLAYER_SEARCH_RESULTS));
-        return MongoUtils.findWithFields(mongoTemplate, q, PlayerDocument.class, "_id", "username", "skin").stream()
-                .map(doc -> {
-                    UUID id = doc.get("_id", UUID.class);
-                    String username = doc.getString("username");
-                    UUID skinId = doc.get("skin", UUID.class);
-                    Skin skin = skinId != null ? skinService.fromDocument(mongoTemplate.findById(skinId, SkinDocument.class)) : null;
-                    return new PlayerSearchEntry(id, username, skin);
-                })
+        List<org.bson.Document> docs = MongoUtils.findWithFields(mongoTemplate, q, PlayerDocument.class, "_id", "username", "skin");
+        Set<UUID> skinIds = new HashSet<>();
+        for (org.bson.Document d : docs) {
+            UUID sid = d.get("skin", UUID.class);
+            if (sid != null) skinIds.add(sid);
+        }
+        Map<UUID, Skin> skinById = new HashMap<>();
+        if (!skinIds.isEmpty()) {
+            for (SkinDocument sd : mongoTemplate.find(Query.query(Criteria.where("_id").in(skinIds)), SkinDocument.class, "skins")) {
+                skinById.put(sd.getId(), skinService.fromDocument(sd));
+            }
+        }
+        return docs.stream()
+                .map(d -> new PlayerSearchEntry(
+                        d.get("_id", UUID.class),
+                        d.getString("username"),
+                        d.get("skin", UUID.class) != null ? skinById.get(d.get("skin", UUID.class)) : null))
                 .toList();
     }
 

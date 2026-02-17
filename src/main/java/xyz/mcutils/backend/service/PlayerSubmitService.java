@@ -78,8 +78,14 @@ public class PlayerSubmitService {
                         batch.add(0, one);
                     }
 
+                    // One bulk existence check; skip and dequeue items that already exist in DB
+                    Set<UUID> existingIds = playerService.getExistingPlayerIds(batch.stream().map(SubmitQueueItem::id).toList());
                     List<Future<?>> futures = new ArrayList<>();
                     for (SubmitQueueItem item : batch) {
+                        if (existingIds.contains(item.id())) {
+                            setOps.remove(REDIS_QUEUE_SET_KEY, item.id().toString());
+                            continue;
+                        }
                         Future<?> future = Main.EXECUTOR.submit(() -> {
                             submitConcurrencyLimit.acquireUninterruptibly();
                             try {

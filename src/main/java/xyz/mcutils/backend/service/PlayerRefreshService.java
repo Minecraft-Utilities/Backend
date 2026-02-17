@@ -88,7 +88,11 @@ public class PlayerRefreshService {
     }
 
     /**
-     * Loads a chunk of players for refresh using a projection (id, username, skin, cape, lastUpdated, legacyAccount only).
+     * Finds a chunk of players to refresh.
+     *
+     * @param lastUpdatedBefore the date to find players updated before
+     * @param pageable          the pageable to use
+     * @return the chunk of player rows to refresh (projection only)
      */
     private List<PlayerRefreshRow> findRefreshChunk(Date lastUpdatedBefore, Pageable pageable) {
         Query query = Query.query(Criteria.where("lastUpdated").lt(lastUpdatedBefore))
@@ -105,26 +109,24 @@ public class PlayerRefreshService {
     }
     
     /**
-     * Refreshes a chunk of players from the Mojang API using projection and partial updates.
+     * Processes a chunk of players from the Mojang API.
      *
      * @param rows the chunk of player rows to refresh (projection only)
      */
     @SneakyThrows
     private void processRefreshChunk(List<PlayerRefreshRow> rows) {
         List<Tuple<UUID, Update>> updates = Collections.synchronizedList(new ArrayList<>());
+        Set<UUID> skinIdsToIncrement = Collections.synchronizedSet(new HashSet<>());
+        Set<UUID> capeIdsToIncrement = Collections.synchronizedSet(new HashSet<>());
         List<Future<?>> futures = new ArrayList<>();
         for (PlayerRefreshRow row : rows) {
             Future<?> future = Main.EXECUTOR.submit(() -> {
                 refreshConcurrencyLimit.acquireUninterruptibly();
                 try {
                     MojangProfileToken token = this.mojangService.getProfile(row.getId().toString());
-                    if (token == null) {
-                        return;
-                    }
-                    Update update = this.updatePlayerFromToken(row, token);
-                    if (update != null) {
-                        updates.add(new Tuple<>(row.getId(), update));
-                    }
+                    if (token == null) return;
+                    Update update = this.updatePlayerFromToken(row, token, skinIdsToIncrement, capeIdsToIncrement);
+                    if (update != null) updates.add(new Tuple<>(row.getId(), update));
                 } finally {
                     refreshConcurrencyLimit.release();
                 }
@@ -141,40 +143,48 @@ public class PlayerRefreshService {
         if (!updates.isEmpty()) {
             BulkOperations bulkOps = mongoTemplate.bulkOps(BulkMode.UNORDERED, PlayerDocument.class);
             for (Tuple<UUID, Update> pair : updates) {
-                bulkOps.updateOne(
-                        Query.query(Criteria.where("_id").is(pair.left())),
-                        pair.right()
-                );
+                bulkOps.updateOne(Query.query(Criteria.where("_id").is(pair.left())), pair.right());
             }
             bulkOps.execute();
+        }
+        if (!skinIdsToIncrement.isEmpty()) {
+            BulkOperations skinBulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, SkinDocument.class);
+            for (UUID id : skinIdsToIncrement) {
+                skinBulk.updateOne(Query.query(Criteria.where("_id").is(id)), new Update().inc("accountsUsed", 1));
+            }
+            skinBulk.execute();
+        }
+        if (!capeIdsToIncrement.isEmpty()) {
+            BulkOperations capeBulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, CapeDocument.class);
+            for (UUID id : capeIdsToIncrement) {
+                capeBulk.updateOne(Query.query(Criteria.where("_id").is(id)), new Update().inc("accountsOwned", 1));
+            }
+            capeBulk.execute();
         }
     }
 
     /**
-     * Updates player state from the Mojang profile token (document-only path).
-     * Performs history writes and returns an {@link Update} to apply to the players collection.
+     * Updates the player with their new data from the {@link MojangProfileToken}
      *
-     * @param row   current player state from projection
-     * @param token Mojang profile token
-     * @return Update to apply, or null if nothing to update
+     * @param row                   current player state from projection
+     * @param token                 Mojang profile token
+     * @param skinIdsToIncrement    optional set to collect skin IDs for bulk increment; null to increment immediately
+     * @param capeIdsToIncrement    optional set to collect cape IDs for bulk increment; null to increment immediately
+     * @return update to apply to the players collection, or null if nothing to update
      */
     @SneakyThrows
-    public Update updatePlayerFromToken(PlayerRefreshRow row, MojangProfileToken token) {
+    public Update updatePlayerFromToken(PlayerRefreshRow row, MojangProfileToken token,
+            Set<UUID> skinIdsToIncrement, Set<UUID> capeIdsToIncrement) {
         Date now = new Date();
         UUID playerId = row.getId();
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
 
         Update update = new Update();
-
-        String newUsername = processUsernameHistory(playerId, row.getUsername(), token.getName(), now);
-        update.set("username", newUsername);
-
-        SkinDocument newSkinRef = processSkinHistoryAndResolve(playerId, row.getSkin(), skinAndCape.left(), now);
+        update.set("username", processUsernameHistory(playerId, row.getUsername(), token.getName(), now));
+        SkinDocument newSkinRef = processSkinHistoryAndResolve(playerId, row.getSkin(), skinAndCape.left(), now, skinIdsToIncrement);
         update.set("skin", newSkinRef);
-
-        CapeDocument newCapeRef = processCapeHistoryAndResolve(playerId, row.getCape(), skinAndCape.right(), now);
+        CapeDocument newCapeRef = processCapeHistoryAndResolve(playerId, row.getCape(), skinAndCape.right(), now, capeIdsToIncrement);
         update.set("cape", newCapeRef);
-
         update.set("legacyAccount", token.isLegacy());
         update.set("lastUpdated", now);
 
@@ -184,12 +194,17 @@ public class PlayerRefreshService {
                         new Update().set("hasOptifineCape", has),
                         PlayerDocument.class
                 ));
-
         return update;
     }
 
     /**
-     * Applies username history and returns the username to set (new name from profile).
+     * Processes username history, ensuring an entry exists (update or insert) and returns the username to set (new name from profile).
+     *
+     * @param playerId            the player ID
+     * @param currentUsername     the current username
+     * @param newName             the new username from profile
+     * @param now                 the current date
+     * @return the username to set on the player
      */
     private String processUsernameHistory(UUID playerId, String currentUsername, String newName, Date now) {
         if (currentUsername != null) {
@@ -221,79 +236,84 @@ public class PlayerRefreshService {
     }
 
     /**
-     * Applies skin history and resolves new skin from token. Returns the skin ref to set (or null if no skin).
+     * Processes skin history, ensuring an entry exists (update or insert) and returns the skin to set (new skin from profile).
+     *
+     * @param playerId            the player ID
+     * @param currentSkinId       the current skin ID
+     * @param skinToken           the skin token
+     * @param now                 the current date
+     * @param skinIdsToIncrement  optional set to collect skin IDs for bulk increment; null to increment immediately
+     * @return the skin to set on the player
      */
-    private SkinDocument processSkinHistoryAndResolve(UUID playerId, UUID currentSkinId, SkinTextureToken skinToken, Date now) {
-        UUID newSkinId = null;
-        if (skinToken != null) {
-            Skin newSkin = this.skinService.getOrCreateSkinByTextureId(skinToken, playerId);
-            newSkinId = newSkin != null ? newSkin.getUuid() : null;
-        }
-        boolean skinChanged = !Objects.equals(currentSkinId, newSkinId);
-        UUID skinToSet = skinChanged ? newSkinId : currentSkinId;
+    private SkinDocument processSkinHistoryAndResolve(UUID playerId, UUID currentSkinId, SkinTextureToken skinToken, Date now, Set<UUID> skinIdsToIncrement) {
+        Skin skin = skinToken != null ? this.skinService.getOrCreateSkinByTextureId(skinToken, playerId) : null;
+        UUID newSkinId = skin != null ? skin.getUuid() : null;
+        UUID skinToSet = !Objects.equals(currentSkinId, newSkinId) ? newSkinId : currentSkinId;
+        if (skinToSet == null) return null;
 
-        if (skinToSet != null) {
-            boolean currentNotInHistory = this.skinHistoryRepository.findFirstByPlayerIdAndSkinId(playerId, skinToSet)
-                    .map(existing -> {
-                        existing.setLastUsed(now);
-                        this.skinHistoryRepository.save(existing);
-                        return false;
-                    })
-                    .orElseGet(() -> {
-                        this.skinHistoryRepository.save(SkinHistoryDocument.builder()
-                                .id(UUID.randomUUID())
-                                .playerId(playerId)
-                                .skin(SkinDocument.builder().id(skinToSet).build())
-                                .lastUsed(now)
-                                .timestamp(now)
-                                .build());
-                        return true;
-                    });
-            if (currentNotInHistory) {
-                this.skinService.incrementAccountsUsed(skinToSet);
-            }
+        boolean inserted = this.skinHistoryRepository.findFirstByPlayerIdAndSkinId(playerId, skinToSet)
+                .map(existing -> {
+                    existing.setLastUsed(now);
+                    this.skinHistoryRepository.save(existing);
+                    return false;
+                })
+                .orElseGet(() -> {
+                    this.skinHistoryRepository.save(SkinHistoryDocument.builder()
+                            .id(UUID.randomUUID())
+                            .playerId(playerId)
+                            .skin(SkinDocument.builder().id(skinToSet).build())
+                            .lastUsed(now)
+                            .timestamp(now)
+                            .build());
+                    return true;
+                });
+        if (inserted) {
+            if (skinIdsToIncrement != null) skinIdsToIncrement.add(skinToSet);
+            else this.skinService.incrementAccountsUsed(skinToSet);
         }
-
-        return skinToSet != null ? SkinDocument.builder().id(skinToSet).build() : null;
+        return SkinDocument.builder().id(skinToSet).build();
     }
-
+   
     /**
-     * Applies cape history and resolves new cape from token. Returns the cape ref to set (or null if no cape).
+     * Processes cape history, ensuring an entry exists (update or insert) and returns the cape to set (new cape from profile).
+     *
+     * @param playerId            the player ID
+     * @param currentCapeId       the current cape ID
+     * @param capeToken           the cape token
+     * @param now                 the current date
+     * @param capeIdsToIncrement  optional set to collect cape IDs for bulk increment; null to increment immediately
+     * @return the cape to set on the player
      */
-    private CapeDocument processCapeHistoryAndResolve(UUID playerId, UUID currentCapeId, CapeTextureToken capeToken, Date now) {
-        UUID newCapeId = null;
-        if (capeToken != null) {
-            VanillaCape newCape = this.capeService.getCapeByTextureId(capeToken.getTextureId());
-            newCapeId = newCape != null ? newCape.getUuid() : null;
-        }
-        boolean capeChanged = !Objects.equals(currentCapeId, newCapeId);
-        UUID capeToSet = capeChanged ? newCapeId : currentCapeId;
+    private CapeDocument processCapeHistoryAndResolve(UUID playerId, UUID currentCapeId, CapeTextureToken capeToken, Date now, Set<UUID> capeIdsToIncrement) {
+        VanillaCape cape = capeToken != null ? this.capeService.getCapeByTextureId(capeToken.getTextureId()) : null;
+        UUID newCapeId = cape != null ? cape.getUuid() : null;
+        UUID capeToSet = !Objects.equals(currentCapeId, newCapeId) ? newCapeId : currentCapeId;
+        if (capeToSet == null) return null;
 
-        if (capeToSet != null) {
-            boolean currentNotInHistory = this.capeHistoryRepository.findFirstByPlayerIdAndCapeId(playerId, capeToSet)
-                    .map(existing -> {
-                        existing.setLastUsed(now);
-                        this.capeHistoryRepository.save(existing);
-                        return false;
-                    })
-                    .orElseGet(() -> {
-                        this.capeHistoryRepository.save(CapeHistoryDocument.builder()
-                                .id(UUID.randomUUID())
-                                .playerId(playerId)
-                                .cape(CapeDocument.builder().id(capeToSet).build())
-                                .lastUsed(now)
-                                .timestamp(now)
-                                .build());
-                        return true;
-                    });
-            if (currentNotInHistory) {
-                this.capeService.incrementAccountsOwned(capeToSet);
-            }
+        boolean inserted = this.capeHistoryRepository.findFirstByPlayerIdAndCapeId(playerId, capeToSet)
+                .map(existing -> {
+                    existing.setLastUsed(now);
+                    this.capeHistoryRepository.save(existing);
+                    return false;
+                })
+                .orElseGet(() -> {
+                    this.capeHistoryRepository.save(CapeHistoryDocument.builder()
+                            .id(UUID.randomUUID())
+                            .playerId(playerId)
+                            .cape(CapeDocument.builder().id(capeToSet).build())
+                            .lastUsed(now)
+                            .timestamp(now)
+                            .build());
+                    return true;
+                });
+        if (inserted) {
+            if (capeIdsToIncrement != null) capeIdsToIncrement.add(capeToSet);
+            else this.capeService.incrementAccountsOwned(capeToSet);
         }
-
-        return capeToSet != null ? CapeDocument.builder().id(capeToSet).build() : null;
+        return CapeDocument.builder().id(capeToSet).build();
     }
 
+    
     /**
      * Updates the player with their new data from the {@link MojangProfileToken}
      *
@@ -312,12 +332,12 @@ public class PlayerRefreshService {
         player.setUsername(username);
 
         UUID currentSkinId = document.getSkin() != null ? document.getSkin().getId() : null;
-        SkinDocument newSkinRef = processSkinHistoryAndResolve(playerId, currentSkinId, skinAndCape.left(), now);
+        SkinDocument newSkinRef = processSkinHistoryAndResolve(playerId, currentSkinId, skinAndCape.left(), now, null);
         document.setSkin(newSkinRef);
         player.setSkin(newSkinRef != null ? this.skinService.getSkinById(newSkinRef.getId()) : null);
 
         UUID currentCapeId = document.getCape() != null ? document.getCape().getId() : null;
-        CapeDocument newCapeRef = processCapeHistoryAndResolve(playerId, currentCapeId, skinAndCape.right(), now);
+        CapeDocument newCapeRef = processCapeHistoryAndResolve(playerId, currentCapeId, skinAndCape.right(), now, null);
         document.setCape(newCapeRef);
         player.setCape(newCapeRef != null ? this.capeService.getCapeById(newCapeRef.getId()) : null);
 

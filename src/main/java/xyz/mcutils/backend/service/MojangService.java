@@ -6,7 +6,6 @@ import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -15,9 +14,6 @@ import xyz.mcutils.backend.metric.impl.api.ExternalApiRequestsMetric;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -156,24 +152,20 @@ public class MojangService {
     }
 
     /**
-     * Updates the list of banned server hashes from Mojang.
+     * Fetches the current list of banned server hashes from Mojang and updates {@link #blockedServerHashes}.
+     * Runs daily at midnight. Uses the shared HTTP client (connection pooling, proxy if configured).
      */
-    @SneakyThrows @Scheduled(cron = "0 0 0 * * *")
+    @Scheduled(cron = "0 0 0 * * *")
     private void updateBlockedServers() {
         log.info("Fetching blocked servers from Mojang");
-        try (
-                InputStream inputStream = URI.create(FETCH_BLOCKED_SERVERS).toURL().openStream();
-                Scanner scanner = new Scanner(inputStream, StandardCharsets.UTF_8).useDelimiter("\n")
-        ) {
-            List<String> hashes = new ArrayList<>();
-            while (scanner.hasNext()) {
-                hashes.add(scanner.next());
-            }
-            blockedServerHashes.clear();
-            blockedServerHashes.addAll(hashes);
-            log.info("Fetched {} blocked server hashes", blockedServerHashes.size());
-        } catch (IOException e) {
-            log.error("Failed to fetch blocked servers from Mojang", e);
+        byte[] bytes = webRequest.getAsByteArray(FETCH_BLOCKED_SERVERS, true);
+        if (bytes == null) {
+            log.error("Failed to fetch blocked servers from Mojang");
+            return;
         }
+        List<String> hashes = Arrays.asList(new String(bytes, StandardCharsets.UTF_8).split("\n"));
+        blockedServerHashes.clear();
+        blockedServerHashes.addAll(hashes);
+        log.info("Fetched {} blocked server hashes", blockedServerHashes.size());
     }
 }
