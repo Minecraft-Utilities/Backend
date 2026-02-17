@@ -40,9 +40,8 @@ import java.util.concurrent.Semaphore;
 @Slf4j
 public class PlayerRefreshService {
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofHours(1);
-    private static final int REFRESH_WORKER_THREADS = 75;
-    /** Max clauses per $or when batch-finding history; avoids BSON size limits. */
-    private static final int HISTORY_OR_CHUNK = 500;
+    private static final int REFRESH_WORKER_THREADS = 50;
+    private static final int HISTORY_OR_CHUNK = 1000;
 
     private final Semaphore refreshConcurrencyLimit = new Semaphore(REFRESH_WORKER_THREADS);
     
