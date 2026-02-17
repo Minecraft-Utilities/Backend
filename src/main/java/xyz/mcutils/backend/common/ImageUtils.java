@@ -138,6 +138,36 @@ public class ImageUtils {
     }
 
     /**
+     * Fills a rectangular area with transparent pixels only when it has no visible overlay content.
+     * Used for legacy 64×32→64×64 upgrade: some legacy skins draw overlay pixels, others leave
+     * overlay regions empty (transparent or black). Clears only empty regions so black doesn't render.
+     *
+     * @param img   the image to modify in-place
+     * @param x1    first corner x in skin space
+     * @param y1    first corner y in skin space
+     * @param x2    opposite corner x in skin space
+     * @param y2    opposite corner y in skin space
+     * @param scale scale factor applied to coordinates
+     */
+    public static void fillTransparentIfEmpty(BufferedImage img, int x1, int y1, int x2, int y2, double scale) {
+        int xMin = (int) (Math.min(x1, x2) * scale);
+        int yMin = (int) (Math.min(y1, y2) * scale);
+        int xMax = (int) (Math.max(x1, x2) * scale);
+        int yMax = (int) (Math.max(y1, y2) * scale);
+        int w = Math.max(1, xMax - xMin);
+        int h = Math.max(1, yMax - yMin);
+        int[] pixels = img.getRGB(xMin, yMin, w, h, null, 0, w);
+        for (int pixel : pixels) {
+            int alpha = (pixel >> 24) & 0xFF;
+            if (alpha >= 128 && (pixel & 0x00_FFFFFF) != 0) {
+                return; // has visible non-black content; treat as intentional overlay
+            }
+        }
+        java.util.Arrays.fill(pixels, 0);
+        img.setRGB(xMin, yMin, w, h, pixels, 0, w);
+    }
+
+    /**
      * Sets a rectangular area to fully transparent if the entire area is currently opaque.
      * If any pixel in the area has alpha < 128, no changes are made.
      *

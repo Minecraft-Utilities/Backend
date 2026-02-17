@@ -146,9 +146,16 @@ public final class PlayerModelCoordinates {
      * Left arm/leg are created by mirroring the right arm/leg.
      * <p>
      * Each copy rect is {@code {dx1, dy1, dx2, dy2, sx1, sy1, sx2, sy2}}.
+     * Each clear rect is {@code {x1, y1, x2, y2}} (filled with transparent to avoid black overlays).
      * </p>
      */
     public static final class LegacyUpgrade {
+        /** Overlay regions to clear when empty (64×64 space). Cleared only if no visible overlay content, so legacy skins with drawn overlays are preserved. */
+        public static final int[][] CLEAR_RECTS = {
+                {32, 0, 64, 16},   // head overlays (top half, right side)
+                {0, 32, 64, 64},   // entire bottom half (body/arm/leg overlays)
+        };
+
         public static final int[][] LEFT_LEG_COPIES = {
                 {24, 48, 20, 52, 4, 16, 8, 20},
                 {28, 48, 24, 52, 8, 16, 12, 20},

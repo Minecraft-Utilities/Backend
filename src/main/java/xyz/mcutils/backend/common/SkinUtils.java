@@ -34,9 +34,9 @@ public class SkinUtils {
 
     /**
      * Upgrades a legacy 64×32 Minecraft skin to the modern 64×64 format (1.8+).
-     * Legacy skins have no overlays — only base layer. Places the 64×32 in the top
-     * half, mirrors the leg/arm to create the missing left leg and left arm base,
-     * then clears all overlay regions to transparent.
+     * Legacy skins may or may not have overlays. Places the 64×32 in the top half,
+     * mirrors the leg/arm to create the missing left leg and left arm base, then
+     * clears only overlay regions that are empty (transparent/black) so they don't render black.
      *
      * @param image the skin image (legacy 64×32 or already 64×64)
      * @return the image in 64×64 format
@@ -56,6 +56,11 @@ public class SkinUtils {
         Graphics2D g = upgraded.createGraphics();
         g.drawImage(image, 0, 0, null);
         g.dispose();
+
+        // Clear only empty overlay regions (transparent/black) so they don't render black; preserve drawn overlays
+        for (int[] rect : PlayerModelCoordinates.LegacyUpgrade.CLEAR_RECTS) {
+            ImageUtils.fillTransparentIfEmpty(upgraded, rect[0], rect[1], rect[2], rect[3], scale);
+        }
 
         // Create missing left leg and left arm (mirror from legacy right leg/arm)
         for (int[] rect : PlayerModelCoordinates.LegacyUpgrade.LEFT_LEG_COPIES) {
