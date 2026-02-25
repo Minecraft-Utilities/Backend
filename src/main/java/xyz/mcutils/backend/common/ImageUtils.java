@@ -79,6 +79,9 @@ public class ImageUtils {
      * @throws IllegalStateException if decoding fails or the format is not recognized
      */
     public static BufferedImage decodeImage(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            throw new IllegalStateException("Failed to decode image: no data");
+        }
         try {
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
             if (image == null) {

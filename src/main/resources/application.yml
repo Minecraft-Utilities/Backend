@@ -22,6 +22,8 @@ logging:
     console: "%level %logger{36} - %msg%n"
   level:
     xyz.mcutils.backend: info
+    # Suppress Apache HttpClient 5 retry INFO logs (e.g. 429 retry messages)
+    org.apache.hc.client5.http.impl.classic.HttpRequestRetryExec: warn
 
 mc-utils:
   # The URL of the API

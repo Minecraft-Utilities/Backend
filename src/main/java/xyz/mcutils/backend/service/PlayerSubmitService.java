@@ -52,7 +52,6 @@ public class PlayerSubmitService {
     private final PlayerService playerService;
     private final MojangService mojangService;
     private final MongoTemplate mongoTemplate;
-    /** Caps concurrent processItem tasks to avoid overloading the executor, HTTP client, or DB. */
     private final Semaphore submitConcurrencyLimit = new Semaphore(SUBMIT_WORKER_THREADS);
 
     public static PlayerSubmitService INSTANCE;
@@ -89,6 +88,8 @@ public class PlayerSubmitService {
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
+                } catch (Exception e) {
+                    log.error("Submit queue consumer error, continuing", e);
                 }
             }
         });
@@ -115,13 +116,22 @@ public class PlayerSubmitService {
             return List.of();
         }
         Object first = results.getFirst();
-        if (first instanceof List<?> list) {
-            return list.stream()
-                    .filter(String.class::isInstance)
-                    .map(String.class::cast)
-                    .toList();
+        if (!(first instanceof List<?> list)) {
+            return List.of();
         }
-        return List.of();
+        RedisSerializer<String> valueSer = (RedisSerializer<String>) redis.getValueSerializer();
+        List<String> out = new ArrayList<>();
+        for (Object elem : list) {
+            if (elem instanceof String s) {
+                out.add(s);
+            } else if (elem instanceof byte[] bytes && valueSer != null) {
+                String s = valueSer.deserialize(bytes);
+                if (s != null) {
+                    out.add(s);
+                }
+            }
+        }
+        return out;
     }
 
     /**

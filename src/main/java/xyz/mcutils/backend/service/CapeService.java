@@ -97,6 +97,21 @@ public class CapeService {
         }
         return capes;
     }
+    
+    /**
+     * Gets a cape from the database by its id.
+     *
+     * @param id the cape document id
+     * @return the cape, or null if not found
+     */
+    public VanillaCape getCapeById(UUID id) {
+        if (id == null) {
+            return null;
+        }
+        return this.capeRepository.findById(id)
+                .map(this::fromDocument)
+                .orElse(null);
+    }
 
     /**
      * Gets a cape from the database using its texture id (creates if valid and missing).
@@ -112,6 +127,12 @@ public class CapeService {
         return capeByTextureIdLoader.get(textureId, () -> loadCapeByTextureId(textureId));
     }
 
+    /**
+     * Loads a cape from the database by its texture id.
+     *
+     * @param textureId the texture id
+     * @return the cape
+     */
     private VanillaCape loadCapeByTextureId(String textureId) {
         long start = System.currentTimeMillis();
         Optional<CapeDocument> optionalCapeDocument = this.capeRepository.findByTextureId(textureId);
@@ -137,6 +158,7 @@ public class CapeService {
                     0,
                     new Date()
             ));
+            StatisticsService.updateTrackedCapeCount(StatisticsService.INSTANCE.getTrackedCapeCount() + 1);
         }
 
         log.debug("Found vanilla cape by texture id {} in {}ms", document.getId(), System.currentTimeMillis() - start);
@@ -269,21 +291,6 @@ public class CapeService {
 
         BufferedImage image = canonicalImage != null ? canonicalImage : ImageUtils.decodeImage(canonicalBytes);
         return ImageUtils.imageToBytes(ImageUtils.resizeToHeight(image, size), 1);
-    }
-
-    /**
-     * Gets a cape from the database by its id.
-     *
-     * @param id the cape document id
-     * @return the cape, or null if not found
-     */
-    public VanillaCape getCapeById(UUID id) {
-        if (id == null) {
-            return null;
-        }
-        return this.capeRepository.findById(id)
-                .map(this::fromDocument)
-                .orElse(null);
     }
 
     /**

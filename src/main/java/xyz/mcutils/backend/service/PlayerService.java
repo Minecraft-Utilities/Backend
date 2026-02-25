@@ -134,6 +134,8 @@ public class PlayerService {
      * @return the created player
      */
     public Player createPlayer(MojangProfileToken token) {
+        StatisticsService.updateTrackedPlayerCount(StatisticsService.INSTANCE.getTrackedPlayerCount() + 1);
+        
         long start = System.currentTimeMillis();
         UUID playerUuid = UUIDUtils.addDashes(token.getId());
 

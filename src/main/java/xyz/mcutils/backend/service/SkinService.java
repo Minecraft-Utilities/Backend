@@ -226,6 +226,8 @@ public class SkinService {
      * @return the created skin
      */
     public Skin createSkin(SkinTextureToken token, UUID playerUuid) {
+        StatisticsService.updateTrackedSkinCount(StatisticsService.INSTANCE.getTrackedSkinCount() + 1);
+        
         long start = System.currentTimeMillis();
         SkinTextureToken.Metadata metadata = token.metadata();
         SkinDocument document = this.skinRepository.insert(new SkinDocument(
