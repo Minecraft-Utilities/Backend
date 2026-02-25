@@ -40,7 +40,7 @@ import java.util.concurrent.Semaphore;
 @Slf4j
 public class PlayerRefreshService {
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofHours(1);
-    private static final int REFRESH_WORKER_THREADS = 50;
+    private static final int REFRESH_WORKER_THREADS = 100;
     private static final int HISTORY_OR_CHUNK = 1000;
 
     private final Semaphore refreshConcurrencyLimit = new Semaphore(REFRESH_WORKER_THREADS);
@@ -223,8 +223,8 @@ public class PlayerRefreshService {
         Date now = new Date();
         Update update = new Update();
         update.set("username", processUsernameHistory(playerId, row.getUsername(), newUsername, now));
-        update.set("skin", processSkinHistoryAndResolve(playerId, row.getSkin(), skinAndCape.left(), now, null));
-        update.set("cape", processCapeHistoryAndResolve(playerId, row.getCape(), skinAndCape.right(), now, null));
+        update.set("skin", processSkinHistoryAndResolve(playerId, row.getSkin(), skinAndCape.left(), now));
+        update.set("cape", processCapeHistoryAndResolve(playerId, row.getCape(), skinAndCape.right(), now));
         update.set("legacyAccount", token.isLegacy());
         update.set("lastUpdated", now);
         OptifineCape.capeExists(token.getName(), webRequest)
@@ -277,14 +277,13 @@ public class PlayerRefreshService {
     /**
      * Processes skin history, ensuring an entry exists (update or insert) and returns the skin to set (new skin from profile).
      *
-     * @param playerId            the player ID
-     * @param currentSkinId       the current skin ID
-     * @param skinToken           the skin token
-     * @param now                 the current date
-     * @param skinIdsToIncrement  optional set to collect skin IDs for bulk increment; null to increment immediately
+     * @param playerId      the player ID
+     * @param currentSkinId the current skin ID
+     * @param skinToken     the skin token
+     * @param now           the current date
      * @return the skin to set on the player
      */
-    private SkinDocument processSkinHistoryAndResolve(UUID playerId, UUID currentSkinId, SkinTextureToken skinToken, Date now, Set<UUID> skinIdsToIncrement) {
+    private SkinDocument processSkinHistoryAndResolve(UUID playerId, UUID currentSkinId, SkinTextureToken skinToken, Date now) {
         Skin skin = skinToken != null ? this.skinService.getOrCreateSkinByTextureId(skinToken, playerId) : null;
         UUID newSkinId = skin != null ? skin.getUuid() : null;
         UUID skinToSet = !Objects.equals(currentSkinId, newSkinId) ? newSkinId : currentSkinId;
@@ -309,11 +308,7 @@ public class PlayerRefreshService {
                     return true;
                 });
         if (inserted) {
-            if (skinIdsToIncrement != null) {
-                skinIdsToIncrement.add(skinToSet);
-            } else {
-                this.skinService.incrementAccountsUsed(skinToSet);
-            }
+            this.skinService.incrementAccountsUsed(skinToSet);
         }
         return SkinDocument.builder().id(skinToSet).build();
     }
@@ -321,14 +316,13 @@ public class PlayerRefreshService {
     /**
      * Processes cape history, ensuring an entry exists (update or insert) and returns the cape to set (new cape from profile).
      *
-     * @param playerId            the player ID
-     * @param currentCapeId       the current cape ID
-     * @param capeToken           the cape token
-     * @param now                 the current date
-     * @param capeIdsToIncrement  optional set to collect cape IDs for bulk increment; null to increment immediately
+     * @param playerId      the player ID
+     * @param currentCapeId the current cape ID
+     * @param capeToken     the cape token
+     * @param now           the current date
      * @return the cape to set on the player
      */
-    private CapeDocument processCapeHistoryAndResolve(UUID playerId, UUID currentCapeId, CapeTextureToken capeToken, Date now, Set<UUID> capeIdsToIncrement) {
+    private CapeDocument processCapeHistoryAndResolve(UUID playerId, UUID currentCapeId, CapeTextureToken capeToken, Date now) {
         VanillaCape cape = capeToken != null ? this.capeService.getCapeByTextureId(capeToken.getTextureId()) : null;
         UUID newCapeId = cape != null ? cape.getUuid() : null;
         UUID capeToSet = !Objects.equals(currentCapeId, newCapeId) ? newCapeId : currentCapeId;
@@ -353,11 +347,7 @@ public class PlayerRefreshService {
                     return true;
                 });
         if (inserted) {
-            if (capeIdsToIncrement != null) {
-                capeIdsToIncrement.add(capeToSet);
-            } else {
-                this.capeService.incrementAccountsOwned(capeToSet);
-            }
+            this.capeService.incrementAccountsOwned(capeToSet);
         }
         return CapeDocument.builder().id(capeToSet).build();
     }
@@ -381,12 +371,12 @@ public class PlayerRefreshService {
         player.setUsername(username);
 
         UUID currentSkinId = document.getSkin() != null ? document.getSkin().getId() : null;
-        SkinDocument newSkinRef = processSkinHistoryAndResolve(playerId, currentSkinId, skinAndCape.left(), now, null);
+        SkinDocument newSkinRef = processSkinHistoryAndResolve(playerId, currentSkinId, skinAndCape.left(), now);
         document.setSkin(newSkinRef);
         player.setSkin(newSkinRef != null ? this.skinService.getSkinById(newSkinRef.getId()) : null);
 
         UUID currentCapeId = document.getCape() != null ? document.getCape().getId() : null;
-        CapeDocument newCapeRef = processCapeHistoryAndResolve(playerId, currentCapeId, skinAndCape.right(), now, null);
+        CapeDocument newCapeRef = processCapeHistoryAndResolve(playerId, currentCapeId, skinAndCape.right(), now);
         document.setCape(newCapeRef);
         player.setCape(newCapeRef != null ? this.capeService.getCapeById(newCapeRef.getId()) : null);
 

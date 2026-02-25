@@ -75,7 +75,7 @@ public class PlayerSubmitService {
                             continue;
                         }
                         batch = new ArrayList<>(takeBatchFromQueue(BATCH_SIZE - 1));
-                        batch.add(0, one);
+                        batch.addFirst(one);
                     }
 
                     // One bulk existence check; skip and dequeue items that already exist in DB
@@ -123,8 +123,7 @@ public class PlayerSubmitService {
     private List<SubmitQueueItem> takeBatchFromQueue(int batchSize) {
         List<Object> results = submitQueueTemplate.execute(new SessionCallback<>() {
             @Override
-            @SuppressWarnings("rawtypes")
-            public List<Object> execute(RedisOperations operations) {
+            public List<Object> execute(@NonNull RedisOperations operations) {
                 operations.multi();
                 operations.opsForList().range(REDIS_QUEUE_KEY, 0, batchSize - 1);
                 operations.opsForList().trim(REDIS_QUEUE_KEY, batchSize, -1);
@@ -134,7 +133,7 @@ public class PlayerSubmitService {
         if (results == null || results.isEmpty()) {
             return List.of();
         }
-        Object first = results.get(0);
+        Object first = results.getFirst();
         return first instanceof List<?> list ? (List<SubmitQueueItem>) list : List.of();
     }
 
