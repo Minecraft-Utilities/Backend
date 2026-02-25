@@ -108,7 +108,6 @@ public class PlayerService {
                             throw new NotFoundException("Player with uuid '%s' was not found".formatted(finalPlayerUuid));
                         }
                         this.playerRefreshService.updatePlayer(player, document, token);
-                        this.playerRepository.save(document);
                     }
                     return player;
                 })
