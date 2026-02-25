@@ -78,7 +78,7 @@ public class PlayerSubmitService {
                     if (batch.isEmpty()) {
                         String one = listOps.leftPop(REDIS_QUEUE_KEY, EMPTY_QUEUE_BLOCK_SECONDS, TimeUnit.SECONDS);
                         if (one == null) {
-                            Thread.sleep(Duration.ofSeconds(60).toMillis());
+                            Thread.sleep(Duration.ofSeconds(10).toMillis());
                             continue;
                         }
                         batch = new ArrayList<>(takeBatchFromQueue(BATCH_SIZE - 1));

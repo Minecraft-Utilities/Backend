@@ -81,7 +81,7 @@ public class PlayerRefreshService {
                     Date cutoff = Date.from(Instant.now().minus(MIN_TIME_BETWEEN_UPDATES));
                     List<PlayerRefreshRow> rows = findRefreshChunk(cutoff, PageRequest.of(0, 20_000));
                     if (rows.isEmpty()) {
-                        Thread.sleep(Duration.ofSeconds(60).toMillis());
+                        Thread.sleep(Duration.ofSeconds(10).toMillis());
                         continue;
                     }
                     this.processRefreshChunk(rows);
