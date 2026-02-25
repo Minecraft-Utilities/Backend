@@ -1,38 +1,56 @@
 package xyz.mcutils.backend.service;
 
-import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.mongodb.core.BulkOperations;
+import org.springframework.data.mongodb.core.BulkOperations.BulkMode;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Collation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
+
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.Main;
-import xyz.mcutils.backend.common.*;
+import xyz.mcutils.backend.common.CoalescingLoader;
+import xyz.mcutils.backend.common.MongoUtils;
+import xyz.mcutils.backend.common.Tuple;
+import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.exception.impl.RateLimitException;
-import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.domain.player.UsernameHistory;
 import xyz.mcutils.backend.model.domain.skin.Skin;
+import xyz.mcutils.backend.model.dto.PlayerCreateSubmission;
 import xyz.mcutils.backend.model.dto.response.PlayerSearchEntry;
-import xyz.mcutils.backend.model.persistence.mongo.*;
+import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
+import xyz.mcutils.backend.model.persistence.mongo.CapeHistoryDocument;
+import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
+import xyz.mcutils.backend.model.persistence.mongo.SkinDocument;
+import xyz.mcutils.backend.model.persistence.mongo.SkinHistoryDocument;
+import xyz.mcutils.backend.model.persistence.mongo.UsernameHistoryDocument;
 import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
-import xyz.mcutils.backend.repository.mongo.CapeHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
-import xyz.mcutils.backend.repository.mongo.SkinHistoryRepository;
-import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.*;
 
 @Service
 @Slf4j
@@ -50,26 +68,16 @@ public class PlayerService {
     private final CapeService capeService;
     private final PlayerRefreshService playerRefreshService;
     private final PlayerRepository playerRepository;
-    private final SkinHistoryRepository skinHistoryRepository;
-    private final CapeHistoryRepository capeHistoryRepository;
-    private final UsernameHistoryRepository usernameHistoryRepository;
-    private final WebRequest webRequest;
     private final MongoTemplate mongoTemplate;
     private final CoalescingLoader<String, Player> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerRefreshService playerRefreshService,
-                         PlayerRepository playerRepository, SkinHistoryRepository skinHistoryRepository, UsernameHistoryRepository usernameHistoryRepository,
-                         CapeHistoryRepository capeHistoryRepository, WebRequest webRequest,
-                         MongoTemplate mongoTemplate) {
+                         PlayerRepository playerRepository, MongoTemplate mongoTemplate) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
         this.playerRefreshService = playerRefreshService;
         this.playerRepository = playerRepository;
-        this.skinHistoryRepository = skinHistoryRepository;
-        this.capeHistoryRepository = capeHistoryRepository;
-        this.usernameHistoryRepository = usernameHistoryRepository;
-        this.webRequest = webRequest;
         this.mongoTemplate = mongoTemplate;
     }
 
@@ -127,87 +135,144 @@ public class PlayerService {
 
     /**
      * Creates a new player from their {@link MojangProfileToken}.
-     * Skin is resolved via {@link SkinService#getOrCreateSkinByTextureId} so concurrent creates for the same texture share one load.
+     * Delegates to {@link #createPlayers(List)} with a single submission, then loads and returns the created player.
      *
      * @param token the token for the player
      * @return the created player
      */
     public Player createPlayer(MojangProfileToken token) {
-        StatisticsService.updateTrackedPlayerCount(StatisticsService.INSTANCE.getTrackedPlayerCount() + 1);
-        
-        long start = System.currentTimeMillis();
+        createPlayers(List.of(new PlayerCreateSubmission(token)));
         UUID playerUuid = UUIDUtils.addDashes(token.getId());
+        PlayerDocument document = this.playerRepository.findById(playerUuid)
+                .orElseThrow(() -> new IllegalStateException("Player not found after create: " + playerUuid));
+        return fromDocument(document);
+    }
 
-        Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
-        Skin skin = this.skinService.getOrCreateSkinByTextureId(skinAndCape.left(), playerUuid);
-
-        CapeTextureToken capeTextureToken = skinAndCape.right();
-        VanillaCape cape = capeTextureToken != null ? this.capeService.getCapeByTextureId(capeTextureToken.getTextureId()) : null;
-
-        UUID skinUuid = skin.getUuid();
-        UUID capeUuid = cape != null ? cape.getUuid() : null;
-
-        Boolean hasOptifineCape = false;
-        try {
-            hasOptifineCape = OptifineCape.capeExists(token.getName(), webRequest).get();
-        } catch (Exception ex) {
-            log.debug("Optifine cape check failed for {}", token.getName(), ex);
+    /**
+     * Creates multiple players in one batch (bulk inserts and bulk increments).
+     * Use this for submit-queue or any batch flow; use {@link #createPlayer(MojangProfileToken)} for a single player.
+     * In bulk, Optifine cape is not checked (hasOptifineCape = false); can be backfilled later if needed.
+     * If {@link PlayerCreateSubmission#submittedBy()} is non-null, increments that player's submittedUuids once per occurrence.
+     * Empty list is a no-op.
+     *
+     * @param submissions list of profile + optional submitter (empty list is a no-op)
+     */
+    public void createPlayers(List<PlayerCreateSubmission> submissions) {
+        if (submissions == null || submissions.isEmpty()) {
+            return;
         }
-
         Date now = new Date();
-        PlayerDocument document = this.playerRepository.save(PlayerDocument.builder()
-                .id(playerUuid)
-                .username(token.getName())
-                .legacyAccount(token.isLegacy())
-                .skin(skinUuid != null ? SkinDocument.builder().id(skinUuid).build() : null)
-                .cape(capeUuid != null ? CapeDocument.builder().id(capeUuid).build() : null)
-                .hasOptifineCape(hasOptifineCape)
-                .lastUpdated(now)
-                .firstSeen(now)
-                .build());
+        List<PlayerDocument> playerDocuments = new ArrayList<>();
+        List<SkinHistoryDocument> skinHistoryDocuments = new ArrayList<>();
+        List<UsernameHistoryDocument> usernameHistoryDocuments = new ArrayList<>();
+        List<CapeHistoryDocument> capeHistoryDocuments = new ArrayList<>();
+        Map<UUID, Long> skinCounts = new HashMap<>();
+        Map<UUID, Long> capeCounts = new HashMap<>();
+        Map<UUID, Long> submitterCounts = new HashMap<>();
 
-        this.skinHistoryRepository.save(SkinHistoryDocument.builder()
-                .id(UUID.randomUUID())
-                .playerId(playerUuid)
-                .skin(SkinDocument.builder().id(skinUuid).build())
-                .lastUsed(now)
-                .timestamp(now)
-                .build());
-        if (capeUuid != null) {
-            this.capeHistoryRepository.save(CapeHistoryDocument.builder()
+        for (PlayerCreateSubmission submission : submissions) {
+            MojangProfileToken token = submission.profile();
+            UUID playerUuid = UUIDUtils.addDashes(token.getId());
+            Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
+
+            Skin skin = null;
+            if (skinAndCape != null && skinAndCape.left() != null) {
+                skin = this.skinService.getOrCreateSkinByTextureId(skinAndCape.left(), playerUuid);
+            }
+            VanillaCape cape = null;
+            if (skinAndCape != null && skinAndCape.right() != null) {
+                cape = this.capeService.getCapeByTextureId(skinAndCape.right().getTextureId());
+            }
+
+            UUID skinUuid = skin != null ? skin.getUuid() : null;
+            UUID capeUuid = cape != null ? cape.getUuid() : null;
+
+            playerDocuments.add(PlayerDocument.builder()
+                    .id(playerUuid)
+                    .username(token.getName())
+                    .legacyAccount(token.isLegacy())
+                    .skin(skinUuid != null ? SkinDocument.builder().id(skinUuid).build() : null)
+                    .cape(capeUuid != null ? CapeDocument.builder().id(capeUuid).build() : null)
+                    .hasOptifineCape(false)
+                    .lastUpdated(now)
+                    .firstSeen(now)
+                    .build());
+
+            skinHistoryDocuments.add(SkinHistoryDocument.builder()
                     .id(UUID.randomUUID())
                     .playerId(playerUuid)
-                    .cape(CapeDocument.builder().id(capeUuid).build())
+                    .skin(skinUuid != null ? SkinDocument.builder().id(skinUuid).build() : null)
                     .lastUsed(now)
                     .timestamp(now)
                     .build());
-        }
-        this.usernameHistoryRepository.save(UsernameHistoryDocument.builder()
-                .id(UUID.randomUUID())
-                .playerId(playerUuid)
-                .username(token.getName())
-                .timestamp(now)
-                .build());
 
-        if (capeUuid != null) {
-            this.capeService.incrementAccountsOwned(capeUuid);
-        }
-        this.skinService.incrementAccountsUsed(skinUuid);
+            usernameHistoryDocuments.add(UsernameHistoryDocument.builder()
+                    .id(UUID.randomUUID())
+                    .playerId(playerUuid)
+                    .username(token.getName())
+                    .timestamp(now)
+                    .build());
 
-        log.debug("Created player {} in {}ms", document.getUsername(), System.currentTimeMillis() - start);
-        return new Player(
-                document.getId(),
-                document.getUsername(),
-                document.isLegacyAccount(),
-                skin,
-                Set.of(skin),
-                cape,
-                capeUuid != null ? Set.of(cape) : null,
-                document.isHasOptifineCape(),
-                Set.of(new UsernameHistory(token.getName(), now)),
-                new Date(),
-                new Date()
-        );
+            if (capeUuid != null) {
+                capeHistoryDocuments.add(CapeHistoryDocument.builder()
+                        .id(UUID.randomUUID())
+                        .playerId(playerUuid)
+                        .cape(CapeDocument.builder().id(capeUuid).build())
+                        .lastUsed(now)
+                        .timestamp(now)
+                        .build());
+            }
+
+            if (skinUuid != null) {
+                skinCounts.merge(skinUuid, 1L, (a, b) -> (a != null ? a : 0L) + (b != null ? b : 0L));
+            }
+            if (capeUuid != null) {
+                capeCounts.merge(capeUuid, 1L, (a, b) -> (a != null ? a : 0L) + (b != null ? b : 0L));
+            }
+            UUID submittedBy = submission.submittedBy();
+            if (submittedBy != null) {
+                submitterCounts.merge(submittedBy, 1L, (a, b) -> (a != null ? a : 0L) + (b != null ? b : 0L));
+            }
+        }
+
+        StatisticsService.updateTrackedPlayerCount(StatisticsService.INSTANCE.getTrackedPlayerCount() + submissions.size());
+
+        mongoTemplate.insert(playerDocuments, PlayerDocument.class);
+        mongoTemplate.insert(skinHistoryDocuments, SkinHistoryDocument.class);
+        mongoTemplate.insert(usernameHistoryDocuments, UsernameHistoryDocument.class);
+        if (!capeHistoryDocuments.isEmpty()) {
+            mongoTemplate.insert(capeHistoryDocuments, CapeHistoryDocument.class);
+        }
+
+        if (!skinCounts.isEmpty()) {
+            BulkOperations skinBulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, SkinDocument.class);
+            for (Map.Entry<UUID, Long> e : skinCounts.entrySet()) {
+                skinBulk.updateOne(
+                        Query.query(Criteria.where("_id").is(e.getKey())),
+                        new Update().inc("accountsUsed", e.getValue()));
+            }
+            skinBulk.execute();
+        }
+        if (!capeCounts.isEmpty()) {
+            BulkOperations capeBulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, CapeDocument.class);
+            for (Map.Entry<UUID, Long> e : capeCounts.entrySet()) {
+                capeBulk.updateOne(
+                        Query.query(Criteria.where("_id").is(e.getKey())),
+                        new Update().inc("accountsOwned", e.getValue()));
+            }
+            capeBulk.execute();
+        }
+        if (!submitterCounts.isEmpty()) {
+            BulkOperations submitterBulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, PlayerDocument.class);
+            for (Map.Entry<UUID, Long> e : submitterCounts.entrySet()) {
+                submitterBulk.updateOne(
+                        Query.query(Criteria.where("_id").is(e.getKey())),
+                        new Update().inc("submittedUuids", e.getValue()));
+            }
+            submitterBulk.execute();
+        }
+
+        log.debug("Bulk created {} players", submissions.size());
     }
 
     /**
