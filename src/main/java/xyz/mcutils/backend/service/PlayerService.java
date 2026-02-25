@@ -15,13 +15,10 @@ import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.mongodb.core.BulkOperations;
-import org.springframework.data.mongodb.core.BulkOperations.BulkMode;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Collation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
@@ -237,40 +234,14 @@ public class PlayerService {
 
         StatisticsService.updateTrackedPlayerCount(StatisticsService.INSTANCE.getTrackedPlayerCount() + submissions.size());
 
-        mongoTemplate.insert(playerDocuments, PlayerDocument.class);
-        mongoTemplate.insert(skinHistoryDocuments, SkinHistoryDocument.class);
-        mongoTemplate.insert(usernameHistoryDocuments, UsernameHistoryDocument.class);
-        if (!capeHistoryDocuments.isEmpty()) {
-            mongoTemplate.insert(capeHistoryDocuments, CapeHistoryDocument.class);
-        }
+        MongoUtils.bulkInsertUnordered(mongoTemplate, playerDocuments, PlayerDocument.class);
+        MongoUtils.bulkInsertUnordered(mongoTemplate, skinHistoryDocuments, SkinHistoryDocument.class);
+        MongoUtils.bulkInsertUnordered(mongoTemplate, usernameHistoryDocuments, UsernameHistoryDocument.class);
+        MongoUtils.bulkInsertUnordered(mongoTemplate, capeHistoryDocuments, CapeHistoryDocument.class);
 
-        if (!skinCounts.isEmpty()) {
-            BulkOperations skinBulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, SkinDocument.class);
-            for (Map.Entry<UUID, Long> e : skinCounts.entrySet()) {
-                skinBulk.updateOne(
-                        Query.query(Criteria.where("_id").is(e.getKey())),
-                        new Update().inc("accountsUsed", e.getValue()));
-            }
-            skinBulk.execute();
-        }
-        if (!capeCounts.isEmpty()) {
-            BulkOperations capeBulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, CapeDocument.class);
-            for (Map.Entry<UUID, Long> e : capeCounts.entrySet()) {
-                capeBulk.updateOne(
-                        Query.query(Criteria.where("_id").is(e.getKey())),
-                        new Update().inc("accountsOwned", e.getValue()));
-            }
-            capeBulk.execute();
-        }
-        if (!submitterCounts.isEmpty()) {
-            BulkOperations submitterBulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, PlayerDocument.class);
-            for (Map.Entry<UUID, Long> e : submitterCounts.entrySet()) {
-                submitterBulk.updateOne(
-                        Query.query(Criteria.where("_id").is(e.getKey())),
-                        new Update().inc("submittedUuids", e.getValue()));
-            }
-            submitterBulk.execute();
-        }
+        MongoUtils.bulkIncUnordered(mongoTemplate, SkinDocument.class, skinCounts, "accountsUsed");
+        MongoUtils.bulkIncUnordered(mongoTemplate, CapeDocument.class, capeCounts, "accountsOwned");
+        MongoUtils.bulkIncUnordered(mongoTemplate, PlayerDocument.class, submitterCounts, "submittedUuids");
 
         log.debug("Bulk created {} players", submissions.size());
     }

@@ -16,6 +16,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
 import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
@@ -164,18 +165,18 @@ public class PlayerRefreshService {
 
         // 3. Bulk increment skin/cape counters
         if (!skinIdsToIncrement.isEmpty()) {
-            BulkOperations skinBulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, SkinDocument.class);
+            Map<UUID, Long> skinCounts = new HashMap<>();
             for (UUID id : skinIdsToIncrement) {
-                skinBulk.updateOne(Query.query(Criteria.where("_id").is(id)), new Update().inc("accountsUsed", 1));
+                skinCounts.put(id, 1L);
             }
-            skinBulk.execute();
+            MongoUtils.bulkIncUnordered(mongoTemplate, SkinDocument.class, skinCounts, "accountsUsed");
         }
         if (!capeIdsToIncrement.isEmpty()) {
-            BulkOperations capeBulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, CapeDocument.class);
+            Map<UUID, Long> capeCounts = new HashMap<>();
             for (UUID id : capeIdsToIncrement) {
-                capeBulk.updateOne(Query.query(Criteria.where("_id").is(id)), new Update().inc("accountsOwned", 1));
+                capeCounts.put(id, 1L);
             }
-            capeBulk.execute();
+            MongoUtils.bulkIncUnordered(mongoTemplate, CapeDocument.class, capeCounts, "accountsOwned");
         }
     }
 
@@ -429,9 +430,7 @@ public class PlayerRefreshService {
         for (Tuple<UUID, String> t : batch.newNameEntries) {
             usernameInserts.add(UsernameHistoryDocument.builder().id(UUID.randomUUID()).playerId(t.left()).username(t.right()).timestamp(now).build());
         }
-        if (!usernameInserts.isEmpty()) {
-            mongoTemplate.insert(usernameInserts, UsernameHistoryDocument.class);
-        }
+        MongoUtils.bulkInsertUnordered(mongoTemplate, usernameInserts, UsernameHistoryDocument.class);
         if (!usernameToUpdate.isEmpty()) {
             BulkOperations bulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, UsernameHistoryDocument.class);
             for (UsernameHistoryDocument d : usernameToUpdate) {
@@ -464,9 +463,7 @@ public class PlayerRefreshService {
                 skinIdsToIncrement.add(t.right());
             }
         }
-        if (!skinInserts.isEmpty()) {
-            mongoTemplate.insert(skinInserts, SkinHistoryDocument.class);
-        }
+        MongoUtils.bulkInsertUnordered(mongoTemplate, skinInserts, SkinHistoryDocument.class);
         if (!skinToUpdate.isEmpty()) {
             BulkOperations bulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, SkinHistoryDocument.class);
             for (SkinHistoryDocument d : skinToUpdate) {
@@ -499,9 +496,7 @@ public class PlayerRefreshService {
                 capeIdsToIncrement.add(t.right());
             }
         }
-        if (!capeInserts.isEmpty()) {
-            mongoTemplate.insert(capeInserts, CapeHistoryDocument.class);
-        }
+        MongoUtils.bulkInsertUnordered(mongoTemplate, capeInserts, CapeHistoryDocument.class);
         if (!capeToUpdate.isEmpty()) {
             BulkOperations bulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, CapeHistoryDocument.class);
             for (CapeHistoryDocument d : capeToUpdate) {
