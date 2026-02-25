@@ -502,7 +502,7 @@ public class PlayerRefreshService {
      * Mutable state for one refresh chunk: history (playerId, key) pairs to ensure exist, and (playerId, newName) when name changed.
      * Workers add to these; after the chunk we batch-find, then bulk insert/update.
      */
-    private static final class ChunkBatch {
+    public static final class ChunkBatch {
         final Set<Tuple<UUID, String>> ensureUsername = Collections.synchronizedSet(new HashSet<>());
         final List<Tuple<UUID, String>> newNameEntries = Collections.synchronizedList(new ArrayList<>());
         final Set<Tuple<UUID, UUID>> ensureSkin = Collections.synchronizedSet(new HashSet<>());
