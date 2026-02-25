@@ -25,6 +25,7 @@ import xyz.mcutils.backend.model.persistence.mongo.*;
 import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
+import xyz.mcutils.backend.metric.impl.player.AccountsUpdatedMetric;
 import xyz.mcutils.backend.repository.mongo.CapeHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.SkinHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
@@ -151,6 +152,7 @@ public class PlayerRefreshService {
                 bulkOps.updateOne(Query.query(Criteria.where("_id").is(pair.left())), pair.right());
             }
             bulkOps.execute();
+            MetricService.getMetric(AccountsUpdatedMetric.class).inc(updates.size());
         }
         Set<UUID> skinIdsToIncrement = new HashSet<>();
         Set<UUID> capeIdsToIncrement = new HashSet<>();
@@ -394,6 +396,7 @@ public class PlayerRefreshService {
 
         document.setLastUpdated(now);
         player.setLastUpdated(now);
+        MetricService.getMetric(AccountsUpdatedMetric.class).inc(1);
     }
 
     /**

@@ -10,6 +10,7 @@ import xyz.mcutils.backend.metric.impl.cape.skin.TrackedCapesMetric;
 import xyz.mcutils.backend.metric.impl.jvm.MemoryHeapMaxMetric;
 import xyz.mcutils.backend.metric.impl.jvm.MemoryNonHeapMetric;
 import xyz.mcutils.backend.metric.impl.jvm.MemoryUsageMetric;
+import xyz.mcutils.backend.metric.impl.player.AccountsUpdatedMetric;
 import xyz.mcutils.backend.metric.impl.player.SubmissionQueueSizeMetric;
 import xyz.mcutils.backend.metric.impl.player.TrackedPlayersMetric;
 import xyz.mcutils.backend.metric.impl.skin.TrackedSkinsMetric;
@@ -35,6 +36,7 @@ public class MetricService {
 
         // Player
         this.registerMetric(new TrackedPlayersMetric());
+        this.registerMetric(new AccountsUpdatedMetric());
         this.registerMetric(new SubmissionQueueSizeMetric());
 
         // Skin

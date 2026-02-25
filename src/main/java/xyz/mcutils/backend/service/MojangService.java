@@ -96,6 +96,7 @@ public class MojangService {
      * @param hostname the hostname to check
      * @return whether the hostname is blocked
      */
+    @SuppressWarnings("deprecation")
     private boolean isServerHostnameBlocked(@NonNull String hostname) {
         return blockedServerHashes.contains(Hashing.sha1().hashBytes(hostname.toLowerCase().getBytes(StandardCharsets.ISO_8859_1)).toString());
     }
