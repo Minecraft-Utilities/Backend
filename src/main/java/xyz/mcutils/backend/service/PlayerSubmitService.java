@@ -9,7 +9,9 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.*;
+import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.UUIDUtils;
@@ -36,6 +38,7 @@ public class PlayerSubmitService {
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final int BATCH_SIZE = 2500;
+    private static final int ENQUEUE_CHUNK = 1000;
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
     private static final int SUBMIT_WORKER_THREADS = 250;
 
@@ -207,38 +210,50 @@ public class PlayerSubmitService {
             return;
         }
 
-        // Batch check which are already in the queue
-        List<Object> inQueueResults = redisTemplate.executePipelined(new SessionCallback<>() {
-            @Override
-            @SuppressWarnings("unchecked")
-            public <K, V> Object execute(@NonNull RedisOperations<K, V> operations) {
-                SetOperations<K, V> setOps = operations.opsForSet();
-                for (UUID uuid : toEnqueue) {
-                    setOps.isMember((K) REDIS_QUEUE_SET_KEY, (V) uuid.toString());
-                }
-                return null;
-            }
-        });
-
+        // Batch check which are already in the queue (single SMISMEMBER per chunk instead of N×SISMEMBER)
+        @SuppressWarnings("unchecked")
+        byte[] queueSetKeyBytes = ((RedisSerializer<String>) redisTemplate.getKeySerializer()).serialize(REDIS_QUEUE_SET_KEY);
+        if (queueSetKeyBytes == null) {
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        RedisSerializer<Object> valueSer = (RedisSerializer<Object>) redisTemplate.getValueSerializer();
         List<SubmitQueueItem> items = new ArrayList<>();
         List<String> idsToAddToSet = new ArrayList<>();
-        for (int i = 0; i < toEnqueue.size(); i++) {
-            if (Boolean.TRUE.equals(inQueueResults.get(i))) {
-                continue;
+
+        for (int chunkStart = 0; chunkStart < toEnqueue.size(); chunkStart += ENQUEUE_CHUNK) {
+            int chunkEnd = Math.min(chunkStart + ENQUEUE_CHUNK, toEnqueue.size());
+            List<UUID> chunk = toEnqueue.subList(chunkStart, chunkEnd);
+            byte[][] memberBytes = new byte[chunk.size()][];
+            for (int i = 0; i < chunk.size(); i++) {
+                memberBytes[i] = valueSer.serialize(chunk.get(i).toString());
             }
-            UUID uuid = toEnqueue.get(i);
-            items.add(new SubmitQueueItem(uuid, by));
-            idsToAddToSet.add(uuid.toString());
+            List<Boolean> inQueue = redisTemplate.execute((RedisConnection connection) ->
+                    connection.setCommands().sMIsMember(queueSetKeyBytes, memberBytes));
+            if (inQueue == null) {
+                inQueue = List.of();
+            }
+            for (int i = 0; i < chunk.size(); i++) {
+                if (Boolean.TRUE.equals(inQueue.get(i))) {
+                    continue;
+                }
+                UUID uuid = chunk.get(i);
+                items.add(new SubmitQueueItem(uuid, by));
+                idsToAddToSet.add(uuid.toString());
+            }
         }
         if (items.isEmpty()) {
             return;
         }
 
-        // Batch push to list and set (2 Redis calls instead of 2 per player)
+        // Chunked push to list and set to avoid huge single commands
         ListOperations<String, SubmitQueueItem> listOps = submitQueueTemplate.opsForList();
         SetOperations<String, Object> setOps = redisTemplate.opsForSet();
-        listOps.rightPushAll(REDIS_QUEUE_KEY, items);
-        setOps.add(REDIS_QUEUE_SET_KEY, idsToAddToSet.toArray());
+        for (int i = 0; i < items.size(); i += ENQUEUE_CHUNK) {
+            int end = Math.min(i + ENQUEUE_CHUNK, items.size());
+            listOps.rightPushAll(REDIS_QUEUE_KEY, items.subList(i, end));
+            setOps.add(REDIS_QUEUE_SET_KEY, idsToAddToSet.subList(i, end).toArray());
+        }
 
         Long size = listOps.size(REDIS_QUEUE_KEY);
         log.info("Submitted {} players to submit queue (total queued: {}, submittedBy: {})", items.size(), size != null ? size : 0, submittedBy);
