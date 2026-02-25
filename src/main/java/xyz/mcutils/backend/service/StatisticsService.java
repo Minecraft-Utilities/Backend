@@ -1,9 +1,8 @@
 package xyz.mcutils.backend.service;
 
-import org.springframework.stereotype.Service;
-
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
+import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.model.dto.response.StatisticsResponse;
 import xyz.mcutils.backend.websocket.WebSocketManager;
 import xyz.mcutils.backend.websocket.impl.StatisticsWebSocket;
@@ -37,27 +36,30 @@ public class StatisticsService {
 
     public static void updateTrackedPlayerCount(long count) {
         INSTANCE.trackedPlayerCount = count;
-        INSTANCE.updateStatistics();
+        if (count % 100 == 0) {
+            INSTANCE.updateStatistics();
+        }
     }
 
     public static void updateTrackedSkinCount(long count) {
         INSTANCE.trackedSkinCount = count;
-        INSTANCE.updateStatistics();
+        if (count % 100 == 0) {
+            INSTANCE.updateStatistics();
+        }
     }
 
     public static void updateTrackedCapeCount(long count) {
         INSTANCE.trackedCapeCount = count;
-        INSTANCE.updateStatistics();
+        if (count % 100 == 0) {
+            INSTANCE.updateStatistics();
+        }
     }
 
     /**
      * Updates the statistics for the all connected WebSocket clients.
      */
     public void updateStatistics() {
-        StatisticsWebSocket websocket = (StatisticsWebSocket) WebSocketManager.getWebsocket(StatisticsWebSocket.class);
-        if (websocket != null) {
-            websocket.updateStatistics();
-        }
+        ((StatisticsWebSocket) WebSocketManager.getWebsocket(StatisticsWebSocket.class)).updateStatistics();
     }
 
     /**
