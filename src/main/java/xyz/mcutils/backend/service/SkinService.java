@@ -32,6 +32,7 @@ import xyz.mcutils.backend.skin.SkinManager;
 
 import java.awt.image.BufferedImage;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -96,9 +97,10 @@ public class SkinService {
                     .with(PageRequest.of(page - 1, pageCallback.limit()))
                     .with(Sort.by(Sort.Order.desc("accountsUsed"), Sort.Order.asc("_id")));
             List<Document> idDocs = MongoUtils.findWithFields(mongoTemplate, q, SkinDocument.class, "_id");
-            return idDocs.stream()
-                    .map(doc -> doc.get("_id", UUID.class))
-                    .map(id -> skinManager.getById(id).orElse(null))
+            List<UUID> ids = idDocs.stream().map(doc -> doc.get("_id", UUID.class)).toList();
+            Map<UUID, SkinDocument> byId = skinManager.getByIds(ids);
+            return ids.stream()
+                    .map(byId::get)
                     .filter(Objects::nonNull)
                     .map(sd -> new SkinsPageDTO(
                             sd.getId(),

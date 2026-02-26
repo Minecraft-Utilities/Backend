@@ -27,18 +27,17 @@ import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.metric.impl.player.AccountsUpdatedMetric;
 import xyz.mcutils.backend.repository.mongo.CapeHistoryRepository;
-import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.mongo.SkinHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
 
 import java.time.Duration;
-import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
@@ -49,7 +48,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class PlayerRefreshService {
     private static final int REFRESH_CHUNK_SIZE = 10000;
 
-    private final Semaphore refreshConcurrencyLimit = new Semaphore(50);
+    private final Semaphore refreshConcurrencyLimit = new Semaphore(60);
 
     private volatile boolean running = true;
     private final AtomicReference<UUID> refreshCursor = new AtomicReference<>();
@@ -63,7 +62,6 @@ public class PlayerRefreshService {
     private final SkinHistoryRepository skinHistoryRepository;
     private final CapeHistoryRepository capeHistoryRepository;
     private final UsernameHistoryRepository usernameHistoryRepository;
-    private final PlayerRepository playerRepository;
     private final MongoTemplate mongoTemplate;
 
     public PlayerRefreshService(MojangService mojangService, SkinService skinService, CapeService capeService,
@@ -71,7 +69,7 @@ public class PlayerRefreshService {
                                 SkinHistoryRepository skinHistoryRepository,
                                 CapeHistoryRepository capeHistoryRepository,
                                 UsernameHistoryRepository usernameHistoryRepository,
-                                PlayerRepository playerRepository, MongoTemplate mongoTemplate) {
+                                MongoTemplate mongoTemplate) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
@@ -81,7 +79,6 @@ public class PlayerRefreshService {
         this.skinHistoryRepository = skinHistoryRepository;
         this.capeHistoryRepository = capeHistoryRepository;
         this.usernameHistoryRepository = usernameHistoryRepository;
-        this.playerRepository = playerRepository;
         this.mongoTemplate = mongoTemplate;
     }
 
@@ -100,10 +97,11 @@ public class PlayerRefreshService {
                     continue;
                 }
                 refreshCursor.set(ids.get(ids.size() - 1));
+                Map<UUID, PlayerDocument> playerMap = this.playerManager.getByUuids(ids);
                 List<Future<?>> futures = new ArrayList<>();
                 for (UUID playerId : ids) {
                     futures.add(Main.EXECUTOR.submit(() -> {
-                        PlayerDocument playerDocument = this.playerManager.getByUuid(playerId).orElseGet(() -> this.playerRepository.findById(playerId).orElse(null));
+                        PlayerDocument playerDocument = playerMap.get(playerId);
                         if (playerDocument == null) {
                             return;
                         }
@@ -115,7 +113,7 @@ public class PlayerRefreshService {
                             }
                             UUID skinId = playerDocument.getSkin() != null ? playerDocument.getSkin().getId() : null;
                             UUID capeId = playerDocument.getCape() != null ? playerDocument.getCape().getId() : null;
-                            applyProfileToPlayer(playerDocument.getId(), playerDocument.getUsername(), skinId, capeId, token);
+                            applyProfileToPlayer(playerDocument.getId(), playerDocument.getUsername(), skinId, capeId, token, playerDocument);
                         } finally {
                             refreshConcurrencyLimit.release();
                         }
@@ -152,10 +150,11 @@ public class PlayerRefreshService {
     }
 
     /**
-     * Applies Mojang profile to the player: resolves skin/cape via managers, writes history, updates cached document and marks dirty.
+     * Applies Mojang profile to the player: resolves skin/cape via managers, writes history, updates the given cached document in place and marks dirty.
+     * Caller must supply the document (from batch map or from updatePlayer).
      */
     private void applyProfileToPlayer(UUID playerId, String currentUsername, UUID currentSkinId, UUID currentCapeId,
-                                      MojangProfileToken token) {
+                                      MojangProfileToken token, PlayerDocument doc) {
         Date now = new Date();
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
 
@@ -188,12 +187,7 @@ public class PlayerRefreshService {
             capeManager.incrementAccountsOwned(newCapeId, 1);
         }
 
-        // Update cached player document
-        PlayerDocument doc = playerManager.getByUuid(playerId)
-                .orElseGet(() -> playerRepository.findById(playerId).orElse(null));
-        if (doc == null) {
-            return;
-        }
+        // Update cached player document in place
         doc.setUsername(token.getName());
         doc.setSkin(newSkinId != null ? SkinDocument.builder().id(newSkinId).build() : null);
         doc.setCape(newCapeId != null ? CapeDocument.builder().id(newCapeId).build() : null);
@@ -281,7 +275,7 @@ public class PlayerRefreshService {
         UUID currentSkinId = document.getSkin() != null ? document.getSkin().getId() : null;
         UUID currentCapeId = document.getCape() != null ? document.getCape().getId() : null;
 
-        applyProfileToPlayer(playerId, currentUsername, currentSkinId, currentCapeId, token);
+        applyProfileToPlayer(playerId, currentUsername, currentSkinId, currentCapeId, token, document);
 
         // Reload from manager to get updated doc and sync to Player entity
         playerManager.getByUuid(playerId).ifPresent(doc -> {

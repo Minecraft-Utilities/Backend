@@ -10,7 +10,12 @@ import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
 import xyz.mcutils.backend.repository.mongo.CapeRepository;
 import xyz.mcutils.backend.service.StatisticsService;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -56,6 +61,39 @@ public class CapeManager {
                     put(doc);
                     return this.cacheById.get(id).snapshotDocument();
                 });
+    }
+
+    /**
+     * Gets multiple capes by id: cache-first, then a single bulk load from the repository for misses.
+     * Returns a mutable map (UUID -> document); missing IDs are absent from the map.
+     */
+    public Map<UUID, CapeDocument> getByIds(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return new HashMap<>();
+        }
+        Map<UUID, CapeDocument> result = new HashMap<>();
+        List<UUID> missed = new ArrayList<>();
+        for (UUID id : ids) {
+            if (id == null) {
+                continue;
+            }
+            CachedCapeDocument cached = this.cacheById.get(id);
+            if (cached != null) {
+                result.put(id, cached.snapshotDocument());
+            } else {
+                missed.add(id);
+            }
+        }
+        if (!missed.isEmpty()) {
+            for (CapeDocument doc : this.capeRepository.findAllById(missed)) {
+                UUID id = doc.getId();
+                if (id != null) {
+                    put(doc);
+                    result.put(id, this.cacheById.get(id).snapshotDocument());
+                }
+            }
+        }
+        return result;
     }
 
     /**

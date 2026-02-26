@@ -317,8 +317,8 @@ public class PlayerService {
             }
         }
         Map<UUID, Skin> skinById = new HashMap<>();
-        for (UUID sid : skinIds) {
-            skinManager.getById(sid).ifPresent(sd -> skinById.put(sd.getId(), skinService.fromDocument(sd)));
+        for (var e : skinManager.getByIds(skinIds).entrySet()) {
+            skinById.put(e.getKey(), skinService.fromDocument(e.getValue()));
         }
         return docs.stream()
                 .map(d -> new PlayerSearchEntry(
@@ -355,9 +355,35 @@ public class PlayerService {
      * @return the player domain object
      */
     public Player fromDocument(PlayerDocument document) {
+        Set<UUID> skinIds = new HashSet<>();
+        if (document.getSkin() != null && document.getSkin().getId() != null) {
+            skinIds.add(document.getSkin().getId());
+        }
+        if (document.getSkinHistory() != null) {
+            for (SkinHistoryDocument entry : document.getSkinHistory()) {
+                if (entry.getSkin() != null && entry.getSkin().getId() != null) {
+                    skinIds.add(entry.getSkin().getId());
+                }
+            }
+        }
+        Set<UUID> capeIds = new HashSet<>();
+        if (document.getCape() != null && document.getCape().getId() != null) {
+            capeIds.add(document.getCape().getId());
+        }
+        if (document.getCapeHistory() != null) {
+            for (CapeHistoryDocument entry : document.getCapeHistory()) {
+                if (entry.getCape() != null && entry.getCape().getId() != null) {
+                    capeIds.add(entry.getCape().getId());
+                }
+            }
+        }
+        Map<UUID, SkinDocument> skinDocById = skinManager.getByIds(skinIds);
+        Map<UUID, CapeDocument> capeDocById = capeManager.getByIds(capeIds);
+
         Skin skin = null;
         if (document.getSkin() != null && document.getSkin().getId() != null) {
-            skin = skinManager.getById(document.getSkin().getId()).map(skinService::fromDocument).orElse(null);
+            SkinDocument sd = skinDocById.get(document.getSkin().getId());
+            skin = sd != null ? skinService.fromDocument(sd) : null;
         }
 
         Set<Skin> skinHistory = null;
@@ -365,21 +391,28 @@ public class PlayerService {
             skinHistory = new HashSet<>();
             for (SkinHistoryDocument entry : document.getSkinHistory()) {
                 if (entry.getSkin() != null && entry.getSkin().getId() != null) {
-                    skinManager.getById(entry.getSkin().getId()).map(skinService::fromDocument).ifPresent(skinHistory::add);
+                    SkinDocument sd = skinDocById.get(entry.getSkin().getId());
+                    if (sd != null) {
+                        skinHistory.add(skinService.fromDocument(sd));
+                    }
                 }
             }
         }
 
         VanillaCape cape = null;
         if (document.getCape() != null && document.getCape().getId() != null) {
-            cape = capeManager.getById(document.getCape().getId()).map(capeService::fromDocument).orElse(null);
+            CapeDocument cd = capeDocById.get(document.getCape().getId());
+            cape = cd != null ? capeService.fromDocument(cd) : null;
         }
         Set<VanillaCape> capeHistory = null;
         if (document.getCapeHistory() != null && !document.getCapeHistory().isEmpty()) {
             capeHistory = new HashSet<>();
             for (CapeHistoryDocument entry : document.getCapeHistory()) {
                 if (entry.getCape() != null && entry.getCape().getId() != null) {
-                    capeManager.getById(entry.getCape().getId()).map(capeService::fromDocument).ifPresent(capeHistory::add);
+                    CapeDocument cd = capeDocById.get(entry.getCape().getId());
+                    if (cd != null) {
+                        capeHistory.add(capeService.fromDocument(cd));
+                    }
                 }
             }
         }

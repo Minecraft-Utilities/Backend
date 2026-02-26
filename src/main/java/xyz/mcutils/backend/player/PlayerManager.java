@@ -6,7 +6,11 @@ import org.springframework.stereotype.Component;
 import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,6 +53,39 @@ public class PlayerManager {
                     this.cache.put(uuid, new CachedPlayerDocument(doc));
                     return doc;
                 });
+    }
+
+    /**
+     * Gets multiple players by UUID: cache-first, then a single bulk load from the repository for misses.
+     * Returns a mutable map (UUID -> document); missing IDs are absent from the map.
+     */
+    public Map<UUID, PlayerDocument> getByUuids(Collection<UUID> uuids) {
+        if (uuids == null || uuids.isEmpty()) {
+            return new HashMap<>();
+        }
+        Map<UUID, PlayerDocument> result = new HashMap<>();
+        List<UUID> missed = new ArrayList<>();
+        for (UUID uuid : uuids) {
+            if (uuid == null) {
+                continue;
+            }
+            CachedPlayerDocument cached = this.cache.get(uuid);
+            if (cached != null) {
+                result.put(uuid, cached.getDocument());
+            } else {
+                missed.add(uuid);
+            }
+        }
+        if (!missed.isEmpty()) {
+            for (PlayerDocument doc : this.playerRepository.findAllById(missed)) {
+                UUID id = doc.getId();
+                if (id != null) {
+                    this.cache.put(id, new CachedPlayerDocument(doc));
+                    result.put(id, doc);
+                }
+            }
+        }
+        return result;
     }
 
     /**

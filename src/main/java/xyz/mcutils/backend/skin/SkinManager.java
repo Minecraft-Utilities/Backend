@@ -11,7 +11,12 @@ import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.repository.mongo.SkinRepository;
 import xyz.mcutils.backend.service.StatisticsService;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -57,6 +62,39 @@ public class SkinManager {
                     put(doc);
                     return doc;
                 });
+    }
+
+    /**
+     * Gets multiple skins by id: cache-first, then a single bulk load from the repository for misses.
+     * Returns a mutable map (UUID -> document); missing IDs are absent from the map.
+     */
+    public Map<UUID, SkinDocument> getByIds(Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return new HashMap<>();
+        }
+        Map<UUID, SkinDocument> result = new HashMap<>();
+        List<UUID> missed = new ArrayList<>();
+        for (UUID id : ids) {
+            if (id == null) {
+                continue;
+            }
+            CachedSkinDocument cached = this.cacheById.get(id);
+            if (cached != null) {
+                result.put(id, cached.snapshotDocument());
+            } else {
+                missed.add(id);
+            }
+        }
+        if (!missed.isEmpty()) {
+            for (SkinDocument doc : this.skinRepository.findAllById(missed)) {
+                UUID id = doc.getId();
+                if (id != null) {
+                    put(doc);
+                    result.put(id, doc);
+                }
+            }
+        }
+        return result;
     }
 
     /**

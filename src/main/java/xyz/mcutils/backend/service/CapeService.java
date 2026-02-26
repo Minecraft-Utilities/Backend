@@ -84,9 +84,14 @@ public class CapeService {
         Map<String, VanillaCape> capes = new LinkedHashMap<>();
         Query q = new Query().with(Sort.by(Sort.Order.desc("accountsOwned"), Sort.Order.asc("_id")));
         List<Document> idDocs = MongoUtils.findWithFields(mongoTemplate, q, CapeDocument.class, "_id");
-        for (Document doc : idDocs) {
-            UUID id = doc.get("_id", UUID.class);
-            capeManager.getById(id).map(this::fromDocument).ifPresent(c -> capes.put(c.getTextureId(), c));
+        List<UUID> ids = idDocs.stream().map(doc -> doc.get("_id", UUID.class)).toList();
+        Map<UUID, CapeDocument> byId = capeManager.getByIds(ids);
+        for (UUID id : ids) {
+            CapeDocument cd = byId.get(id);
+            if (cd != null) {
+                VanillaCape c = fromDocument(cd);
+                capes.put(c.getTextureId(), c);
+            }
         }
         return capes;
     }

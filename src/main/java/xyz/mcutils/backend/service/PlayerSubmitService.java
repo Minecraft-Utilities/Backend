@@ -37,7 +37,6 @@ import java.util.concurrent.locks.LockSupport;
 @Service
 @Slf4j
 public class PlayerSubmitService {
-
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final int BATCH_SIZE = 2500;
@@ -50,7 +49,7 @@ public class PlayerSubmitService {
     private final RedisTemplate<String, String> redis;
     private final PlayerService playerService;
     private final MojangService mojangService;
-    private final Semaphore submitConcurrencyLimit = new Semaphore(50);
+    private final Semaphore submitConcurrencyLimit = new Semaphore(60);
 
     private volatile boolean running = true;
 
