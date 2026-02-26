@@ -52,6 +52,8 @@ public class PlayerSubmitService {
     private final MojangService mojangService;
     private final Semaphore submitConcurrencyLimit = new Semaphore(50);
 
+    private volatile boolean running = true;
+
     public static PlayerSubmitService INSTANCE;
 
     public PlayerSubmitService(@Qualifier("queueRedisTemplate") RedisTemplate<String, String> redis,
@@ -68,7 +70,7 @@ public class PlayerSubmitService {
         SetOperations<String, String> setOps = redis.opsForSet();
 
         Main.EXECUTOR.submit(() -> {
-            while (true) {
+            while (running) {
                 try {
                     List<String> batch = takeBatchFromQueue(BATCH_SIZE);
                     if (batch.isEmpty()) {
@@ -438,6 +440,13 @@ public class PlayerSubmitService {
                 playerService.createPlayers(toFlush);
             }
         }
+    }
+
+    /** 
+     * Stops the submit consumer loop (e.g. on shutdown before flush).
+     */
+    public void stop() {
+        running = false;
     }
 
     /**

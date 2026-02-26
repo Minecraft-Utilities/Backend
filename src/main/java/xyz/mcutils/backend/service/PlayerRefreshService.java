@@ -1,12 +1,14 @@
 package xyz.mcutils.backend.service;
 
+import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
@@ -40,14 +42,17 @@ import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 @Slf4j
 public class PlayerRefreshService {
-    private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofHours(1);
     private static final int REFRESH_CHUNK_SIZE = 10000;
 
     private final Semaphore refreshConcurrencyLimit = new Semaphore(50);
+
+    private volatile boolean running = true;
+    private final AtomicReference<UUID> refreshCursor = new AtomicReference<>();
 
     private final MojangService mojangService;
     private final SkinService skinService;
@@ -83,37 +88,47 @@ public class PlayerRefreshService {
     @EventListener(ApplicationReadyEvent.class)
     public void startRefreshTask() {
         Main.EXECUTOR.submit(() -> {
-            while (true) {
-                try {
-                    Date cutoff = Date.from(Instant.now().minus(MIN_TIME_BETWEEN_UPDATES));
-                    List<PlayerRefreshRow> rows = findRefreshChunk(cutoff, PageRequest.of(0, REFRESH_CHUNK_SIZE));
-                    if (rows.isEmpty()) {
-                        Thread.sleep(Duration.ofSeconds(10).toMillis());
-                        continue;
+            while (running) {
+            try {
+                UUID cursor = refreshCursor.get();
+                List<UUID> ids = findRefreshChunkIds(cursor, REFRESH_CHUNK_SIZE);
+                if (ids.isEmpty()) {
+                    refreshCursor.set(null);
+                    for (int i = 0; i < 10 && running; i++) {
+                        Thread.sleep(Duration.ofSeconds(1).toMillis());
                     }
-                    List<Future<?>> futures = new ArrayList<>();
-                    for (PlayerRefreshRow row : rows) {
-                        futures.add(Main.EXECUTOR.submit(() -> {
-                            refreshConcurrencyLimit.acquireUninterruptibly();
-                            try {
-                                MojangProfileToken token = this.mojangService.getProfile(row.getId().toString());
-                                if (token == null) {
-                                    return;
-                                }
-                                applyProfileToPlayer(row.getId(), row.getUsername(), row.getSkin(), row.getCape(), token);
-                            } finally {
-                                refreshConcurrencyLimit.release();
-                            }
-                        }));
-                    }
-                    for (Future<?> f : futures) {
-                        try {
-                            f.get();
-                        } catch (ExecutionException e) {
-                            log.warn("Player refresh failed", e.getCause());
+                    continue;
+                }
+                refreshCursor.set(ids.get(ids.size() - 1));
+                List<Future<?>> futures = new ArrayList<>();
+                for (UUID playerId : ids) {
+                    futures.add(Main.EXECUTOR.submit(() -> {
+                        PlayerDocument playerDocument = this.playerManager.getByUuid(playerId).orElseGet(() -> this.playerRepository.findById(playerId).orElse(null));
+                        if (playerDocument == null) {
+                            return;
                         }
+                        refreshConcurrencyLimit.acquireUninterruptibly();
+                        try {
+                            MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
+                            if (token == null) {
+                                return;
+                            }
+                            UUID skinId = playerDocument.getSkin() != null ? playerDocument.getSkin().getId() : null;
+                            UUID capeId = playerDocument.getCape() != null ? playerDocument.getCape().getId() : null;
+                            applyProfileToPlayer(playerDocument.getId(), playerDocument.getUsername(), skinId, capeId, token);
+                        } finally {
+                            refreshConcurrencyLimit.release();
+                        }
+                    }));
+                }
+                for (Future<?> f : futures) {
+                    try {
+                        f.get();
+                    } catch (ExecutionException e) {
+                        log.warn("Player refresh failed", e.getCause());
                     }
-                } catch (InterruptedException e) {
+                }
+            } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
                 }
@@ -121,18 +136,19 @@ public class PlayerRefreshService {
         });
     }
 
-    private List<PlayerRefreshRow> findRefreshChunk(Date lastUpdatedBefore, PageRequest pageable) {
-        Query query = Query.query(Criteria.where("lastUpdated").lt(lastUpdatedBefore))
-                .with(Sort.by(Sort.Direction.ASC, "lastUpdated"))
-                .limit(pageable.getPageSize())
-                .skip(pageable.getOffset());
-        query.fields()
-                .include("username")
-                .include("skin")
-                .include("cape")
-                .include("lastUpdated")
-                .include("legacyAccount");
-        return mongoTemplate.find(query, PlayerRefreshRow.class, "players");
+    /**
+     * Cursor-based page of player ids only. Use manager to load full document (cache-first, no stale data).
+     */
+    private List<UUID> findRefreshChunkIds(UUID lastIdExclusive, int limit) {
+        Query query = new Query()
+                .with(Sort.by(Sort.Direction.ASC, "_id"))
+                .limit(limit);
+        if (lastIdExclusive != null) {
+            query.addCriteria(Criteria.where("_id").gt(lastIdExclusive));
+        }
+        query.fields().include("_id");
+        List<PlayerIdProjection> list = mongoTemplate.find(query, PlayerIdProjection.class, "players");
+        return list.stream().map(PlayerIdProjection::getId).toList();
     }
 
     /**
@@ -283,5 +299,21 @@ public class PlayerRefreshService {
 
     private VanillaCape capeServiceToCape(UUID capeId) {
         return capeManager.getById(capeId).map(capeService::fromDocument).orElse(null);
+    }
+    
+    /**
+     * Stops the refresh loop (e.g. on shutdown before flush).
+     */
+    public void stop() {
+        running = false;
+    }
+
+    /** 
+     * Id-only projection for cursor-based player listing. 
+     */
+    @Document(collection = "players") @Getter
+    private static class PlayerIdProjection {
+        @Id
+        private UUID id;
     }
 }

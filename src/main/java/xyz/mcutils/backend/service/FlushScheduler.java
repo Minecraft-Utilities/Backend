@@ -18,11 +18,16 @@ public class FlushScheduler {
     private final PlayerManager playerManager;
     private final SkinManager skinManager;
     private final CapeManager capeManager;
+    private final PlayerSubmitService playerSubmitService;
+    private final PlayerRefreshService playerRefreshService;
 
-    public FlushScheduler(PlayerManager playerManager, SkinManager skinManager, CapeManager capeManager) {
+    public FlushScheduler(PlayerManager playerManager, SkinManager skinManager, CapeManager capeManager,
+                          PlayerSubmitService playerSubmitService, PlayerRefreshService playerRefreshService) {
         this.playerManager = playerManager;
         this.skinManager = skinManager;
         this.capeManager = capeManager;
+        this.playerSubmitService = playerSubmitService;
+        this.playerRefreshService = playerRefreshService;
     }
 
     @Scheduled(fixedRate = 60_000 * 4)
@@ -33,10 +38,13 @@ public class FlushScheduler {
     }
 
     /**
-     * On shutdown, flush all caches and wait until finished before the context closes.
+     * On shutdown, stop submit/refresh loops, then flush all caches and wait until finished.
      */
     @PreDestroy
     public void onShutdown() {
+        log.info("Shutdown: stopping submit and refresh...");
+        playerSubmitService.stop();
+        playerRefreshService.stop();
         log.info("Shutdown: flushing caches...");
         flushCaches();
         log.info("Shutdown: caches flushed.");
