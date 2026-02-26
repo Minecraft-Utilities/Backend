@@ -11,7 +11,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.bson.Document;
@@ -29,11 +28,11 @@ import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 import xyz.mcutils.backend.model.persistence.mongo.SkinDocument;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
-import xyz.mcutils.backend.repository.mongo.SkinRepository;
+import xyz.mcutils.backend.skin.SkinManager;
 
 import java.awt.image.BufferedImage;
-import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -55,7 +54,7 @@ public class SkinService {
     @Value("${mc-utils.renderer.skin.limits.max_size}")
     private int maxPartSize;
 
-    private final SkinRepository skinRepository;
+    private final SkinManager skinManager;
     private final PlayerService playerService;
     private final StorageService storageService;
     private final MongoTemplate mongoTemplate;
@@ -67,11 +66,10 @@ public class SkinService {
             .build();
 
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
-    private final CoalescingLoader<String, Skin> skinByTextureIdLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
-    public SkinService(SkinRepository skinRepository, @Lazy PlayerService playerService, StorageService storageService,
-                       MongoTemplate mongoTemplate, WebRequest webRequest) {
-        this.skinRepository = skinRepository;
+    public SkinService(SkinManager skinManager, @Lazy PlayerService playerService,
+                       StorageService storageService, MongoTemplate mongoTemplate, WebRequest webRequest) {
+        this.skinManager = skinManager;
         this.playerService = playerService;
         this.storageService = storageService;
         this.mongoTemplate = mongoTemplate;
@@ -97,14 +95,18 @@ public class SkinService {
             Query q = new Query()
                     .with(PageRequest.of(page - 1, pageCallback.limit()))
                     .with(Sort.by(Sort.Order.desc("accountsUsed"), Sort.Order.asc("_id")));
-            return MongoUtils.findWithFields(mongoTemplate, q, SkinDocument.class, "_id", "textureId", "accountsUsed").stream()
-                    .map(doc -> new SkinsPageDTO(
-                            doc.get("_id", UUID.class),
+            List<Document> idDocs = MongoUtils.findWithFields(mongoTemplate, q, SkinDocument.class, "_id");
+            return idDocs.stream()
+                    .map(doc -> doc.get("_id", UUID.class))
+                    .map(id -> skinManager.getById(id).orElse(null))
+                    .filter(Objects::nonNull)
+                    .map(sd -> new SkinsPageDTO(
+                            sd.getId(),
                             "%s/skins/%s/fullbody_iso_front.png".formatted(
                                     AppConfig.INSTANCE.getWebPublicUrl(),
-                                    doc.getString("textureId")
+                                    sd.getTextureId()
                             ),
-                            doc.get("accountsUsed", Number.class) != null ? doc.get("accountsUsed", Number.class).longValue() : 0L
+                            sd.getAccountsUsed()
                     ))
                     .toList();
         });
@@ -117,7 +119,7 @@ public class SkinService {
      * @return the skin DTO
      */
     public SkinDTO getSkinDto(UUID id) {
-        SkinDocument skinDocument = this.skinRepository.findById(id)
+        SkinDocument skinDocument = this.skinManager.getById(id)
                 .orElseThrow(() -> new NotFoundException("Skin with id '%s' not found".formatted(id)));
         String firstSeenUsing = "Unknown";
         if (skinDocument.getFirstPlayerSeenUsing() != null) {
@@ -149,19 +151,19 @@ public class SkinService {
     }
 
     /**
-     * Gets a skin from the database using its texture id.
+     * Gets a skin using its texture id (cache or repository).
      *
      * @param textureId the skin to get
      * @return the skin, or null if not found
      */
     public Skin getSkinByTextureId(String textureId) {
-        return this.skinRepository.findByTextureId(textureId)
+        return this.skinManager.getByTextureId(textureId)
                 .map(this::fromDocument)
                 .orElse(null);
     }
 
     /**
-     * Gets a skin from the database by its id.
+     * Gets a skin by its id (cache or repository).
      *
      * @param id the skin document id
      * @return the skin, or null if not found
@@ -170,27 +172,20 @@ public class SkinService {
         if (id == null) {
             return null;
         }
-        return this.skinRepository.findById(id)
+        return this.skinManager.getById(id)
                 .map(this::fromDocument)
                 .orElse(null);
     }
 
     /**
      * Gets or creates the skin using its {@link SkinTextureToken}.
-     * Concurrent lookups for the same textureId share a single load (coalesced).
      *
      * @param token the texture token for the skin
      * @param playerUuid the player's uuid who was seen wearing this skin
      * @return the skin
      */
     public Skin getOrCreateSkinByTextureId(SkinTextureToken token, UUID playerUuid) {
-        return skinByTextureIdLoader.get(token.getTextureId(), () -> {
-            Skin skin = this.getSkinByTextureId(token.getTextureId());
-            if (skin == null) {
-                return this.createSkin(token, playerUuid);
-            }
-            return skin;
-        });
+        return fromDocument(skinManager.getOrCreateByTextureId(token, playerUuid));
     }
 
     /**
@@ -218,39 +213,23 @@ public class SkinService {
     }
 
     /**
-     * Creates a new skin and inserts it into the database.
+     * Creates a new skin (or returns existing) and inserts into the database if needed.
      *
      * @param token the token for the skin from the {@link MojangProfileToken}
      * @param playerUuid the player's uuid who was seen wearing this skin
-     * @return the created skin
+     * @return the created or existing skin
      */
     public Skin createSkin(SkinTextureToken token, UUID playerUuid) {
-        StatisticsService.updateTrackedSkinCount(StatisticsService.INSTANCE.getTrackedSkinCount() + 1);
-        
-        long start = System.currentTimeMillis();
-        SkinTextureToken.Metadata metadata = token.metadata();
-        SkinDocument document = this.skinRepository.insert(new SkinDocument(
-                UUID.randomUUID(),
-                token.getTextureId(),
-                EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.model()),
-                Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), webRequest),
-                0,
-                playerUuid,
-                new Date()
-        ));
-        log.debug("Created skin {} in {}ms", document.getTextureId(), System.currentTimeMillis() - start);
-        return fromDocument(document);
+        return fromDocument(skinManager.getOrCreateByTextureId(token, playerUuid));
     }
 
     /**
-     * Increments {@link SkinDocument#getAccountsUsed()} by 1 for the given skin.
+     * Increments accountsUsed in memory for the given skin.
      *
      * @param skinId the skin document id
      */
     public void incrementAccountsUsed(UUID skinId) {
-        Query query = Query.query(Criteria.where("_id").is(skinId));
-        Update update = new Update().inc("accountsUsed", 1);
-        mongoTemplate.updateFirst(query, update, SkinDocument.class);
+        skinManager.incrementAccountsUsed(skinId, 1);
     }
 
     /**

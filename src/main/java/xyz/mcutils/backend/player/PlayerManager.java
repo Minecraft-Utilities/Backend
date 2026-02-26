@@ -1,0 +1,127 @@
+package xyz.mcutils.backend.player;
+
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
+import xyz.mcutils.backend.repository.mongo.PlayerRepository;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
+/**
+ * In-memory cache for player documents. Cache-first lookups; periodic flush of dirty entries to MongoDB.
+ */
+@Component
+@Slf4j
+public class PlayerManager {
+
+    public static PlayerManager INSTANCE;
+
+    private final PlayerRepository playerRepository;
+    private final ConcurrentMap<UUID, CachedPlayerDocument> cache = new ConcurrentHashMap<>();
+
+    public PlayerManager(PlayerRepository playerRepository) {
+        this.playerRepository = playerRepository;
+    }
+
+    @PostConstruct
+    void init() {
+        INSTANCE = this;
+    }
+
+    /**
+     * Gets a player by UUID from cache or loads from the repository.
+     */
+    public Optional<PlayerDocument> getByUuid(UUID uuid) {
+        if (uuid == null) {
+            return Optional.empty();
+        }
+        CachedPlayerDocument cached = this.cache.get(uuid);
+        if (cached != null) {
+            return Optional.of(cached.getDocument());
+        }
+        return this.playerRepository.findById(uuid)
+                .map(doc -> {
+                    this.cache.put(uuid, new CachedPlayerDocument(doc));
+                    return doc;
+                });
+    }
+
+    /**
+     * Gets a player by username. Uses repository for username lookup then cache/load by UUID.
+     */
+    public Optional<PlayerDocument> getByUsername(String username) {
+        if (username == null || username.isBlank()) {
+            return Optional.empty();
+        }
+        List<PlayerDocument> list = this.playerRepository.usernameToUuid(username);
+        if (list.isEmpty()) {
+            return Optional.empty();
+        }
+        return this.getByUuid(list.getFirst().getId());
+    }
+
+    /**
+     * Puts a document into the cache (e.g. after bulk insert). Does not mark dirty.
+     */
+    public void put(PlayerDocument document) {
+        if (document == null || document.getId() == null) {
+            return;
+        }
+        this.cache.put(document.getId(), new CachedPlayerDocument(document));
+    }
+
+    /**
+     * Increments submittedUuids in memory and marks the entry dirty.
+     */
+    public void incrementSubmittedUuids(UUID playerId, long delta) {
+        if (playerId == null || delta <= 0) {
+            return;
+        }
+        CachedPlayerDocument cached = this.cache.get(playerId);
+        if (cached == null) {
+            cached = this.playerRepository.findById(playerId)
+                    .map(doc -> {
+                        CachedPlayerDocument c = new CachedPlayerDocument(doc);
+                        this.cache.put(playerId, c);
+                        return c;
+                    })
+                    .orElse(null);
+        }
+        if (cached != null) {
+            cached.addSubmittedUuids(delta);
+        }
+    }
+
+    /**
+     * Returns the number of cached player documents pending save (dirty).
+     */
+    public long getDirtyCount() {
+        return this.cache.values().stream().filter(CachedPlayerDocument::isDirty).count();
+    }
+
+    /**
+     * Flushes all dirty player documents to MongoDB.
+     */
+    public void flush() {
+        int saved = 0;
+        for (CachedPlayerDocument cached : this.cache.values()) {
+            if (cached.isDirty()) {
+                try {
+                    this.playerRepository.save(cached.getDocument());
+                    cached.setDirty(false);
+                    saved++;
+                } catch (Exception e) {
+                    log.warn("Failed to flush player {}", cached.getDocument().getId(), e);
+                }
+            }
+        }
+        if (saved > 0) {
+            log.debug("Flushed {} dirty players", saved);
+        }
+    }
+}

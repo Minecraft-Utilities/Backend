@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 @Service @Slf4j
@@ -116,7 +117,7 @@ public class ServerRegistryService {
     private List<ServerRegistryEntry> extractManifestsFromZip(byte[] zipBytes) {
         List<ServerRegistryEntry> result = new ArrayList<>();
         try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
-            java.util.zip.ZipEntry entry;
+            ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
                 if (entry.isDirectory()) {
                     continue;

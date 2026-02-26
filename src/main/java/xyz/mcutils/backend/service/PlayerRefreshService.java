@@ -18,6 +18,9 @@ import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.Tuple;
+import xyz.mcutils.backend.cape.CapeManager;
+import xyz.mcutils.backend.player.PlayerManager;
+import xyz.mcutils.backend.skin.SkinManager;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.domain.skin.Skin;
@@ -52,19 +55,25 @@ public class PlayerRefreshService {
     private final MojangService mojangService;
     private final SkinService skinService;
     private final CapeService capeService;
+    private final PlayerManager playerManager;
+    private final SkinManager skinManager;
+    private final CapeManager capeManager;
     private final SkinHistoryRepository skinHistoryRepository;
     private final CapeHistoryRepository capeHistoryRepository;
     private final UsernameHistoryRepository usernameHistoryRepository;
     private final PlayerRepository playerRepository;
     private final MongoTemplate mongoTemplate;
 
-
     public PlayerRefreshService(MojangService mojangService, SkinService skinService, CapeService capeService,
+                            PlayerManager playerManager, SkinManager skinManager, CapeManager capeManager,
                             SkinHistoryRepository skinHistoryRepository, CapeHistoryRepository capeHistoryRepository,
                             UsernameHistoryRepository usernameHistoryRepository, PlayerRepository playerRepository, MongoTemplate mongoTemplate) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
+        this.playerManager = playerManager;
+        this.skinManager = skinManager;
+        this.capeManager = capeManager;
         this.skinHistoryRepository = skinHistoryRepository;
         this.capeHistoryRepository = capeHistoryRepository;
         this.usernameHistoryRepository = usernameHistoryRepository;
@@ -166,20 +175,12 @@ public class PlayerRefreshService {
         Set<UUID> capeIdsToIncrement = new HashSet<>();
         flushHistory(batch, now, skinIdsToIncrement, capeIdsToIncrement);
 
-        // 3. Bulk increment skin/cape counters
-        if (!skinIdsToIncrement.isEmpty()) {
-            Map<UUID, Long> skinCounts = new HashMap<>();
-            for (UUID id : skinIdsToIncrement) {
-                skinCounts.put(id, 1L);
-            }
-            MongoUtils.bulkIncUnordered(mongoTemplate, SkinDocument.class, skinCounts, "accountsUsed");
+        // 3. Increment skin/cape counters in memory (managers flush periodically)
+        for (UUID id : skinIdsToIncrement) {
+            skinManager.incrementAccountsUsed(id, 1);
         }
-        if (!capeIdsToIncrement.isEmpty()) {
-            Map<UUID, Long> capeCounts = new HashMap<>();
-            for (UUID id : capeIdsToIncrement) {
-                capeCounts.put(id, 1L);
-            }
-            MongoUtils.bulkIncUnordered(mongoTemplate, CapeDocument.class, capeCounts, "accountsOwned");
+        for (UUID id : capeIdsToIncrement) {
+            capeManager.incrementAccountsOwned(id, 1);
         }
     }
 
@@ -387,7 +388,8 @@ public class PlayerRefreshService {
         player.setLastUpdated(now);
 
         playerRepository.save(document);
-        
+        playerManager.put(document);
+
         MetricService.getMetric(AccountsUpdatedMetric.class).inc(1);
     }
 

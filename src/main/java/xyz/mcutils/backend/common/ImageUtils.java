@@ -9,6 +9,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.stream.IntStream;
 
@@ -172,7 +173,7 @@ public class ImageUtils {
                 return; // has visible non-black content; treat as intentional overlay
             }
         }
-        java.util.Arrays.fill(pixels, 0);
+        Arrays.fill(pixels, 0);
         img.setRGB(xMin, yMin, w, h, pixels, 0, w);
     }
 

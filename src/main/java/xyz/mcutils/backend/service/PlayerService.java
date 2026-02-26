@@ -48,6 +48,9 @@ import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
+import xyz.mcutils.backend.cape.CapeManager;
+import xyz.mcutils.backend.player.PlayerManager;
+import xyz.mcutils.backend.skin.SkinManager;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 
 @Service
@@ -65,16 +68,23 @@ public class PlayerService {
     private final SkinService skinService;
     private final CapeService capeService;
     private final PlayerRefreshService playerRefreshService;
+    private final PlayerManager playerManager;
+    private final SkinManager skinManager;
+    private final CapeManager capeManager;
     private final PlayerRepository playerRepository;
     private final MongoTemplate mongoTemplate;
     private final CoalescingLoader<String, Player> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerRefreshService playerRefreshService,
+                         PlayerManager playerManager, SkinManager skinManager, CapeManager capeManager,
                          PlayerRepository playerRepository, MongoTemplate mongoTemplate) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
         this.playerRefreshService = playerRefreshService;
+        this.playerManager = playerManager;
+        this.skinManager = skinManager;
+        this.capeManager = capeManager;
         this.playerRepository = playerRepository;
         this.mongoTemplate = mongoTemplate;
     }
@@ -93,7 +103,7 @@ public class PlayerService {
     public Player getPlayer(String query) {
         return playerLoader.get(query, () -> {
             boolean isUsername = query.length() <= 16;
-            Optional<PlayerDocument> playerDocument = isUsername ? this.getPlayerByUsername(query) : this.playerRepository.findById(UUIDUtils.parseUuid(query));
+            Optional<PlayerDocument> playerDocument = isUsername ? this.playerManager.getByUsername(query) : this.playerManager.getByUuid(UUIDUtils.parseUuid(query));
             UUID playerUuid;
             if (playerDocument.isEmpty()) {
                 MojangUsernameToUuidToken mojangUsernameToUuid = this.mojangService.getUuidFromUsername(query);
@@ -141,7 +151,7 @@ public class PlayerService {
     public Player createPlayer(MojangProfileToken token) {
         createPlayers(List.of(new PlayerCreateSubmission(token)));
         UUID playerUuid = UUIDUtils.addDashes(token.getId());
-        PlayerDocument document = this.playerRepository.findById(playerUuid)
+        PlayerDocument document = this.playerManager.getByUuid(playerUuid)
                 .orElseThrow(() -> new IllegalStateException("Player not found after create: " + playerUuid));
         return fromDocument(document);
     }
@@ -238,9 +248,18 @@ public class PlayerService {
         MongoUtils.bulkInsertUnordered(mongoTemplate, usernameHistoryDocuments, UsernameHistoryDocument.class);
         MongoUtils.bulkInsertUnordered(mongoTemplate, capeHistoryDocuments, CapeHistoryDocument.class);
 
-        MongoUtils.bulkIncUnordered(mongoTemplate, SkinDocument.class, skinCounts, "accountsUsed");
-        MongoUtils.bulkIncUnordered(mongoTemplate, CapeDocument.class, capeCounts, "accountsOwned");
-        MongoUtils.bulkIncUnordered(mongoTemplate, PlayerDocument.class, submitterCounts, "submittedUuids");
+        for (PlayerDocument doc : playerDocuments) {
+            playerManager.put(doc);
+        }
+        for (Map.Entry<UUID, Long> e : skinCounts.entrySet()) {
+            skinManager.incrementAccountsUsed(e.getKey(), e.getValue());
+        }
+        for (Map.Entry<UUID, Long> e : capeCounts.entrySet()) {
+            capeManager.incrementAccountsOwned(e.getKey(), e.getValue());
+        }
+        for (Map.Entry<UUID, Long> e : submitterCounts.entrySet()) {
+            playerManager.incrementSubmittedUuids(e.getKey(), e.getValue());
+        }
 
         log.debug("Bulk created {} players", submissions.size());
     }
@@ -298,10 +317,8 @@ public class PlayerService {
             }
         }
         Map<UUID, Skin> skinById = new HashMap<>();
-        if (!skinIds.isEmpty()) {
-            for (SkinDocument sd : mongoTemplate.find(Query.query(Criteria.where("_id").in(skinIds)), SkinDocument.class, "skins")) {
-                skinById.put(sd.getId(), skinService.fromDocument(sd));
-            }
+        for (UUID sid : skinIds) {
+            skinManager.getById(sid).ifPresent(sd -> skinById.put(sd.getId(), skinService.fromDocument(sd)));
         }
         return docs.stream()
                 .map(d -> new PlayerSearchEntry(
@@ -318,11 +335,7 @@ public class PlayerService {
      * @return the player document
      */
     public Optional<PlayerDocument> getPlayerByUsername(String username) {
-        List<PlayerDocument> playerDocuments = this.playerRepository.usernameToUuid(username);
-        if (playerDocuments.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(playerDocuments.getFirst());
+        return playerManager.getByUsername(username);
     }
 
     /**
@@ -342,25 +355,31 @@ public class PlayerService {
      * @return the player domain object
      */
     public Player fromDocument(PlayerDocument document) {
-        Skin skin = document.getSkin() != null ? skinService.fromDocument(document.getSkin()) : null;
+        Skin skin = null;
+        if (document.getSkin() != null && document.getSkin().getId() != null) {
+            skin = skinManager.getById(document.getSkin().getId()).map(skinService::fromDocument).orElse(null);
+        }
 
         Set<Skin> skinHistory = null;
         if (document.getSkinHistory() != null && !document.getSkinHistory().isEmpty()) {
             skinHistory = new HashSet<>();
             for (SkinHistoryDocument entry : document.getSkinHistory()) {
-                if (entry.getSkin() != null) {
-                    skinHistory.add(skinService.fromDocument(entry.getSkin()));
+                if (entry.getSkin() != null && entry.getSkin().getId() != null) {
+                    skinManager.getById(entry.getSkin().getId()).map(skinService::fromDocument).ifPresent(skinHistory::add);
                 }
             }
         }
 
-        VanillaCape cape = document.getCape() != null ? capeService.fromDocument(document.getCape()) : null;
+        VanillaCape cape = null;
+        if (document.getCape() != null && document.getCape().getId() != null) {
+            cape = capeManager.getById(document.getCape().getId()).map(capeService::fromDocument).orElse(null);
+        }
         Set<VanillaCape> capeHistory = null;
         if (document.getCapeHistory() != null && !document.getCapeHistory().isEmpty()) {
             capeHistory = new HashSet<>();
             for (CapeHistoryDocument entry : document.getCapeHistory()) {
-                if (entry.getCape() != null) {
-                    capeHistory.add(capeService.fromDocument(entry.getCape()));
+                if (entry.getCape() != null && entry.getCape().getId() != null) {
+                    capeManager.getById(entry.getCape().getId()).map(capeService::fromDocument).ifPresent(capeHistory::add);
                 }
             }
         }

@@ -6,13 +6,16 @@ import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.metric.Metric;
 import xyz.mcutils.backend.metric.impl.api.ExternalApiRequestsMetric;
 import xyz.mcutils.backend.metric.impl.api.RequestsMetric;
+import xyz.mcutils.backend.metric.impl.cape.skin.DirtyCapesBacklogMetric;
 import xyz.mcutils.backend.metric.impl.cape.skin.TrackedCapesMetric;
 import xyz.mcutils.backend.metric.impl.jvm.MemoryHeapMaxMetric;
 import xyz.mcutils.backend.metric.impl.jvm.MemoryNonHeapMetric;
 import xyz.mcutils.backend.metric.impl.jvm.MemoryUsageMetric;
 import xyz.mcutils.backend.metric.impl.player.AccountsUpdatedMetric;
+import xyz.mcutils.backend.metric.impl.player.DirtyPlayersBacklogMetric;
 import xyz.mcutils.backend.metric.impl.player.SubmissionQueueSizeMetric;
 import xyz.mcutils.backend.metric.impl.player.TrackedPlayersMetric;
+import xyz.mcutils.backend.metric.impl.skin.DirtySkinsBacklogMetric;
 import xyz.mcutils.backend.metric.impl.skin.TrackedSkinsMetric;
 
 import java.util.Map;
@@ -38,12 +41,15 @@ public class MetricService {
         this.registerMetric(new TrackedPlayersMetric());
         this.registerMetric(new AccountsUpdatedMetric());
         this.registerMetric(new SubmissionQueueSizeMetric());
+        this.registerMetric(new DirtyPlayersBacklogMetric());
 
         // Skin
         this.registerMetric(new TrackedSkinsMetric());
+        this.registerMetric(new DirtySkinsBacklogMetric());
 
         // Cape
         this.registerMetric(new TrackedCapesMetric());
+        this.registerMetric(new DirtyCapesBacklogMetric());
     }
 
     /**

@@ -8,14 +8,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.bson.Document;
 import xyz.mcutils.backend.Main;
-import xyz.mcutils.backend.common.CoalescingLoader;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.WebRequest;
@@ -27,8 +24,8 @@ import xyz.mcutils.backend.model.domain.cape.CapeType;
 import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
+import xyz.mcutils.backend.cape.CapeManager;
 import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
-import xyz.mcutils.backend.repository.mongo.CapeRepository;
 
 import java.awt.image.BufferedImage;
 import java.util.*;
@@ -54,7 +51,7 @@ public class CapeService {
 
     private final StorageService storageService;
     private final PlayerService playerService;
-    private final CapeRepository capeRepository;
+    private final CapeManager capeManager;
     private final MongoTemplate mongoTemplate;
     private final WebRequest webRequest;
 
@@ -63,12 +60,11 @@ public class CapeService {
             .maximumSize(1000)
             .build();
 
-    private final CoalescingLoader<String, VanillaCape> capeByTextureIdLoader = new CoalescingLoader<>(Main.EXECUTOR);
-
-    public CapeService(StorageService storageService, @Lazy PlayerService playerService, CapeRepository capeRepository, MongoTemplate mongoTemplate, WebRequest webRequest) {
+    public CapeService(StorageService storageService, @Lazy PlayerService playerService, CapeManager capeManager,
+                       MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.storageService = storageService;
         this.playerService = playerService;
-        this.capeRepository = capeRepository;
+        this.capeManager = capeManager;
         this.mongoTemplate = mongoTemplate;
         this.webRequest = webRequest;
     }
@@ -80,27 +76,23 @@ public class CapeService {
 
     /**
      * Gets all the known capes sorted by accounts owned.
+     * Queries DB for cape IDs only, then resolves each via cache/manager.
      *
      * @return the known capes
      */
     public Map<String, VanillaCape> getCapes() {
         Map<String, VanillaCape> capes = new LinkedHashMap<>();
         Query q = new Query().with(Sort.by(Sort.Order.desc("accountsOwned"), Sort.Order.asc("_id")));
-        List<Document> docs = MongoUtils.findWithFields(mongoTemplate, q, CapeDocument.class, "_id", "name", "accountsOwned", "textureId");
-        for (Document doc : docs) {
-            Number accountsOwned = doc.get("accountsOwned", Number.class);
-            capes.put(doc.getString("textureId"), new VanillaCape(
-                    doc.get("_id", UUID.class),
-                    doc.getString("name"),
-                    accountsOwned != null ? accountsOwned.longValue() : 0L,
-                    doc.getString("textureId")
-            ));
+        List<Document> idDocs = MongoUtils.findWithFields(mongoTemplate, q, CapeDocument.class, "_id");
+        for (Document doc : idDocs) {
+            UUID id = doc.get("_id", UUID.class);
+            capeManager.getById(id).map(this::fromDocument).ifPresent(c -> capes.put(c.getTextureId(), c));
         }
         return capes;
     }
-    
+
     /**
-     * Gets a cape from the database by its id.
+     * Gets a cape by its id (cache or repository).
      *
      * @param id the cape document id
      * @return the cape, or null if not found
@@ -109,66 +101,25 @@ public class CapeService {
         if (id == null) {
             return null;
         }
-        return this.capeRepository.findById(id)
+        return this.capeManager.getById(id)
                 .map(this::fromDocument)
                 .orElse(null);
     }
 
     /**
-     * Gets a cape from the database using its texture id (creates if valid and missing).
-     * Concurrent lookups for the same textureId share a single load (coalesced).
+     * Gets a cape by texture id (creates if valid and missing).
      *
      * @param textureId the cape to get
-     * @return the cape, or null if not found
+     * @return the cape
+     * @throws NotFoundException if the cape does not exist and could not be created
      */
     public VanillaCape getCapeByTextureId(String textureId) {
         if (textureId == null || textureId.isBlank()) {
             return null;
         }
-        return capeByTextureIdLoader.get(textureId, () -> loadCapeByTextureId(textureId));
-    }
-
-    /**
-     * Loads a cape from the database by its texture id.
-     *
-     * @param textureId the texture id
-     * @return the cape
-     */
-    private VanillaCape loadCapeByTextureId(String textureId) {
-        long start = System.currentTimeMillis();
-        Optional<CapeDocument> optionalCapeDocument = this.capeRepository.findByTextureId(textureId);
-        CapeDocument document;
-
-        if (optionalCapeDocument.isPresent()) {
-            document = optionalCapeDocument.get();
-        } else {
-            boolean exists = false;
-            try {
-                exists = VanillaCape.capeExists(textureId, webRequest).get();
-            } catch (Exception ex) {
-                log.debug("Cape existence check failed for textureId {}", textureId, ex);
-            }
-            if (!exists) {
-                throw new NotFoundException("Cape with texture id " + textureId + " was not found");
-            }
-
-            document = this.capeRepository.insert(new CapeDocument(
-                    UUID.randomUUID(),
-                    null,
-                    textureId,
-                    0,
-                    new Date()
-            ));
-            StatisticsService.updateTrackedCapeCount(StatisticsService.INSTANCE.getTrackedCapeCount() + 1);
-        }
-
-        log.debug("Found vanilla cape by texture id {} in {}ms", document.getId(), System.currentTimeMillis() - start);
-        return new VanillaCape(
-                document.getId(),
-                document.getName(),
-                document.getAccountsOwned(),
-                document.getTextureId()
-        );
+        return capeManager.getByTextureId(textureId)
+                .map(this::fromDocument)
+                .orElseGet(() -> fromDocument(capeManager.getOrCreateByTextureId(textureId)));
     }
 
     /**
@@ -198,14 +149,12 @@ public class CapeService {
     }
 
     /**
-     * Increments {@link CapeDocument#getAccountsOwned()} by 1 for the given cape.
+     * Increments accountsOwned in memory for the given cape.
      *
      * @param capeId the cape document id
      */
     public void incrementAccountsOwned(UUID capeId) {
-        Query query = Query.query(Criteria.where("_id").is(capeId));
-        Update update = new Update().inc("accountsOwned", 1);
-        mongoTemplate.updateFirst(query, update, CapeDocument.class);
+        capeManager.incrementAccountsOwned(capeId, 1);
     }
 
     /**
