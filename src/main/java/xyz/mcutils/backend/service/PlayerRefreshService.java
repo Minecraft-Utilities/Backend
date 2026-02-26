@@ -177,13 +177,13 @@ public class PlayerRefreshService {
         // Username history
         ensureUsernameHistory(playerId, currentUsername, token.getName(), now);
 
-        // Skin history + increment when new
-        if (newSkinId != null && ensureSkinHistory(playerId, newSkinId, now)) {
+        // Skin history + increment when new (only when skin changed to avoid find+save every refresh)
+        if (newSkinId != null && !Objects.equals(newSkinId, currentSkinId) && ensureSkinHistory(playerId, newSkinId, now)) {
             skinManager.incrementAccountsUsed(newSkinId, 1);
         }
 
-        // Cape history + increment when new
-        if (newCapeId != null && ensureCapeHistory(playerId, newCapeId, now)) {
+        // Cape history + increment when new (only when cape changed to avoid find+save every refresh)
+        if (newCapeId != null && !Objects.equals(newCapeId, currentCapeId) && ensureCapeHistory(playerId, newCapeId, now)) {
             capeManager.incrementAccountsOwned(newCapeId, 1);
         }
 
@@ -199,20 +199,6 @@ public class PlayerRefreshService {
     }
 
     private void ensureUsernameHistory(UUID playerId, String currentUsername, String newName, Date now) {
-        if (currentUsername != null) {
-            usernameHistoryRepository.findFirstByPlayerIdAndUsername(playerId, currentUsername)
-                    .ifPresentOrElse(
-                            existing -> {
-                                existing.setTimestamp(now);
-                                usernameHistoryRepository.save(existing);
-                            },
-                            () -> usernameHistoryRepository.save(UsernameHistoryDocument.builder()
-                                    .id(UUID.randomUUID())
-                                    .playerId(playerId)
-                                    .username(currentUsername)
-                                    .timestamp(now)
-                                    .build()));
-        }
         if (!Objects.equals(currentUsername, newName)) {
             usernameHistoryRepository.save(UsernameHistoryDocument.builder()
                     .id(UUID.randomUUID())
@@ -224,7 +210,8 @@ public class PlayerRefreshService {
     }
 
     /**
-     * Ensures a skin history entry exists. Returns true if a new entry was inserted (caller should increment).
+     * Ensures a skin history entry exists for this player+skin. Call only when the skin has changed (newSkinId != currentSkinId).
+     * Returns true if a new entry was inserted (caller should increment).
      */
     private boolean ensureSkinHistory(UUID playerId, UUID skinId, Date now) {
         Optional<SkinHistoryDocument> existing = skinHistoryRepository.findFirstByPlayerIdAndSkinId(playerId, skinId);
@@ -245,7 +232,8 @@ public class PlayerRefreshService {
     }
 
     /**
-     * Ensures a cape history entry exists. Returns true if a new entry was inserted (caller should increment).
+     * Ensures a cape history entry exists for this player+cape. Call only when the cape has changed (newCapeId != currentCapeId).
+     * Returns true if a new entry was inserted (caller should increment).
      */
     private boolean ensureCapeHistory(UUID playerId, UUID capeId, Date now) {
         Optional<CapeHistoryDocument> existing = capeHistoryRepository.findFirstByPlayerIdAndCapeId(playerId, capeId);
