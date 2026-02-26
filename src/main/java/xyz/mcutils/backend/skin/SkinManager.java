@@ -6,8 +6,10 @@ import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalNotification;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
 import xyz.mcutils.backend.common.EnumUtils;
+import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.persistence.mongo.SkinDocument;
@@ -37,6 +39,7 @@ public class SkinManager {
     public static SkinManager INSTANCE;
 
     private final SkinRepository skinRepository;
+    private final MongoTemplate mongoTemplate;
     private final WebRequest webRequest;
     private final ConcurrentMap<String, UUID> textureIdToId = new ConcurrentHashMap<>();
     private final Cache<UUID, CachedSkinDocument> cacheById = CacheBuilder.newBuilder()
@@ -65,8 +68,9 @@ public class SkinManager {
         }
     }
 
-    public SkinManager(SkinRepository skinRepository, WebRequest webRequest) {
+    public SkinManager(SkinRepository skinRepository, MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.skinRepository = skinRepository;
+        this.mongoTemplate = mongoTemplate;
         this.webRequest = webRequest;
     }
 
@@ -216,25 +220,31 @@ public class SkinManager {
     }
 
     /**
-     * Flushes all dirty skin documents to MongoDB.
+     * Flushes all dirty skin documents to MongoDB in one bulk replace.
      */
     public void flush() {
-        int saved = 0;
+        List<SkinDocument> dirty = new ArrayList<>();
         for (CachedSkinDocument cached : this.cacheById.asMap().values()) {
             if (cached.isDirty()) {
-                try {
-                    SkinDocument doc = cached.getDocument();
-                    doc.setAccountsUsed(cached.getAccountsUsed());
-                    this.skinRepository.save(doc);
-                    cached.setDirty(false);
-                    saved++;
-                } catch (Exception e) {
-                    log.warn("Failed to flush skin {}", cached.getDocument().getId(), e);
-                }
+                SkinDocument doc = cached.getDocument();
+                doc.setAccountsUsed(cached.getAccountsUsed());
+                dirty.add(doc);
+                cached.setDirty(false);
             }
         }
-        if (saved > 0) {
-            log.debug("Flushed {} dirty skins", saved);
+        if (!dirty.isEmpty()) {
+            try {
+                MongoUtils.bulkReplaceUnordered(mongoTemplate, dirty, SkinDocument.class, SkinDocument::getId);
+                log.debug("Flushed {} dirty skins", dirty.size());
+            } catch (Exception e) {
+                for (SkinDocument doc : dirty) {
+                    CachedSkinDocument c = this.cacheById.getIfPresent(doc.getId());
+                    if (c != null) {
+                        c.setDirty(true);
+                    }
+                }
+                log.warn("Bulk flush failed, re-marked {} skins dirty", dirty.size(), e);
+            }
         }
     }
 

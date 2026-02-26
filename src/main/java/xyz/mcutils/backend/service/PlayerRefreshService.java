@@ -84,50 +84,52 @@ public class PlayerRefreshService {
     public void startRefreshTask() {
         Main.EXECUTOR.submit(() -> {
             while (running) {
-            try {
-                List<UUID> ids = findRefreshChunkIds(REFRESH_CHUNK_SIZE);
-                if (ids.isEmpty()) {
-                    for (int i = 0; i < 10 && running; i++) {
-                        Thread.sleep(Duration.ofSeconds(1).toMillis());
-                    }
-                    continue;
-                }
-                Date batchTime = new Date();
-                List<UUID> refreshedIds = Collections.synchronizedList(new ArrayList<>());
-                Map<UUID, PlayerDocument> playerMap = this.playerManager.getByUuids(ids);
-                List<Future<?>> futures = new ArrayList<>();
-                for (UUID playerId : ids) {
-                    futures.add(Main.EXECUTOR.submit(() -> {
-                        PlayerDocument playerDocument = playerMap.get(playerId);
-                        if (playerDocument == null) {
-                            return;
+                try {
+                    List<UUID> ids = findRefreshChunkIds(REFRESH_CHUNK_SIZE);
+                    if (ids.isEmpty()) {
+                        for (int i = 0; i < 10 && running; i++) {
+                            Thread.sleep(Duration.ofSeconds(1).toMillis());
                         }
-                        refreshConcurrencyLimit.acquireUninterruptibly();
-                        try {
-                            MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
-                            if (token == null) {
+                        continue;
+                    }
+                    Date batchTime = new Date();
+                    List<UUID> refreshedIds = Collections.synchronizedList(new ArrayList<>());
+                    BatchHistoryWriter historyWriter = new BatchHistoryWriter();
+                    Map<UUID, PlayerDocument> playerMap = this.playerManager.getByUuids(ids);
+                    List<Future<?>> futures = new ArrayList<>();
+                    for (UUID playerId : ids) {
+                        futures.add(Main.EXECUTOR.submit(() -> {
+                            PlayerDocument playerDocument = playerMap.get(playerId);
+                            if (playerDocument == null) {
                                 return;
                             }
-                            UUID skinId = playerDocument.getSkin() != null ? playerDocument.getSkin().getId() : null;
-                            UUID capeId = playerDocument.getCape() != null ? playerDocument.getCape().getId() : null;
-                            applyProfileToPlayer(playerDocument.getId(), playerDocument.getUsername(), skinId, capeId, token, playerDocument, batchTime);
-                            refreshedIds.add(playerDocument.getId());
-                        } finally {
-                            refreshConcurrencyLimit.release();
-                        }
-                    }));
-                }
-                for (Future<?> f : futures) {
-                    try {
-                        f.get();
-                    } catch (ExecutionException e) {
-                        log.warn("Player refresh failed", e.getCause());
+                            refreshConcurrencyLimit.acquireUninterruptibly();
+                            try {
+                                MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
+                                if (token == null) {
+                                    return;
+                                }
+                                UUID skinId = playerDocument.getSkin() != null ? playerDocument.getSkin().getId() : null;
+                                UUID capeId = playerDocument.getCape() != null ? playerDocument.getCape().getId() : null;
+                                applyProfileToPlayer(playerDocument.getId(), playerDocument.getUsername(), skinId, capeId, token, playerDocument, batchTime, historyWriter);
+                                refreshedIds.add(playerDocument.getId());
+                            } finally {
+                                refreshConcurrencyLimit.release();
+                            }
+                        }));
                     }
-                }
-                if (!refreshedIds.isEmpty()) {
-                    MongoUtils.bulkSetUnordered(mongoTemplate, PlayerDocument.class, refreshedIds, "lastUpdated", batchTime);
-                }
-            } catch (InterruptedException e) {
+                    for (Future<?> f : futures) {
+                        try {
+                            f.get();
+                        } catch (ExecutionException e) {
+                            log.warn("Player refresh failed", e.getCause());
+                        }
+                    }
+                    historyWriter.flush(mongoTemplate, skinManager, capeManager);
+                    if (!refreshedIds.isEmpty()) {
+                        MongoUtils.bulkSetUnordered(mongoTemplate, PlayerDocument.class, refreshedIds, "lastUpdated", batchTime);
+                    }
+                } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
                 }
@@ -149,11 +151,11 @@ public class PlayerRefreshService {
 
     /**
      * Applies Mojang profile to the player: resolves skin/cape via managers, writes history, updates the given cached document in place and marks dirty.
-     * Caller must supply the document (from batch map or from updatePlayer).
-     * When updatedAt is non-null (e.g. batch refresh), that timestamp is used for cache and history; otherwise uses current time.
+     * When writer is null (e.g. updatePlayer), history is written immediately. When non-null (batch refresh), changes are collected for bulk flush.
      */
     private void applyProfileToPlayer(UUID playerId, String currentUsername, UUID currentSkinId, UUID currentCapeId,
-                                      MojangProfileToken token, PlayerDocument doc, Date updatedAt) {
+                                      MojangProfileToken token, PlayerDocument doc, Date updatedAt,
+                                      BatchHistoryWriter writer) {
         Date now = updatedAt != null ? updatedAt : new Date();
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
 
@@ -173,17 +175,24 @@ public class PlayerRefreshService {
         }
         UUID newCapeId = capeDoc != null ? capeDoc.getId() : currentCapeId;
 
-        // Username history
-        ensureUsernameHistory(playerId, currentUsername, token.getName(), now);
-
-        // Skin history + increment when new (only when skin changed to avoid find+save every refresh)
-        if (newSkinId != null && !Objects.equals(newSkinId, currentSkinId) && ensureSkinHistory(playerId, newSkinId, now)) {
-            skinManager.incrementAccountsUsed(newSkinId, 1);
-        }
-
-        // Cape history + increment when new (only when cape changed to avoid find+save every refresh)
-        if (newCapeId != null && !Objects.equals(newCapeId, currentCapeId) && ensureCapeHistory(playerId, newCapeId, now)) {
-            capeManager.incrementAccountsOwned(newCapeId, 1);
+        if (writer != null) {
+            if (!Objects.equals(currentUsername, token.getName())) {
+                writer.addUsernameChange(playerId, token.getName(), now);
+            }
+            if (newSkinId != null && !Objects.equals(newSkinId, currentSkinId)) {
+                writer.addSkinChange(playerId, newSkinId, now);
+            }
+            if (newCapeId != null && !Objects.equals(newCapeId, currentCapeId)) {
+                writer.addCapeChange(playerId, newCapeId, now);
+            }
+        } else {
+            ensureUsernameHistory(playerId, currentUsername, token.getName(), now);
+            if (newSkinId != null && !Objects.equals(newSkinId, currentSkinId) && ensureSkinHistory(playerId, newSkinId, now)) {
+                skinManager.incrementAccountsUsed(newSkinId, 1);
+            }
+            if (newCapeId != null && !Objects.equals(newCapeId, currentCapeId) && ensureCapeHistory(playerId, newCapeId, now)) {
+                capeManager.incrementAccountsOwned(newCapeId, 1);
+            }
         }
 
         // Update cached player document in place
@@ -262,7 +271,7 @@ public class PlayerRefreshService {
         UUID currentSkinId = document.getSkin() != null ? document.getSkin().getId() : null;
         UUID currentCapeId = document.getCape() != null ? document.getCape().getId() : null;
 
-        applyProfileToPlayer(playerId, currentUsername, currentSkinId, currentCapeId, token, document, null);
+        applyProfileToPlayer(playerId, currentUsername, currentSkinId, currentCapeId, token, document, null, null);
 
         // Reload from manager to get updated doc and sync to Player entity
         playerManager.getByUuid(playerId).ifPresent(doc -> {

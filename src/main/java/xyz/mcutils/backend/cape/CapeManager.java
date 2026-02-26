@@ -2,11 +2,11 @@ package xyz.mcutils.backend.cape;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.RemovalCause;
-import com.google.common.cache.RemovalNotification;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
+import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
@@ -36,13 +36,15 @@ public class CapeManager {
     public static CapeManager INSTANCE;
 
     private final CapeRepository capeRepository;
+    private final MongoTemplate mongoTemplate;
     private final WebRequest webRequest;
     private final ConcurrentMap<String, UUID> textureIdToId = new ConcurrentHashMap<>();
     private final Cache<UUID, CachedCapeDocument> cacheById = CacheBuilder.newBuilder()
             .build();
 
-    public CapeManager(CapeRepository capeRepository, WebRequest webRequest) {
+    public CapeManager(CapeRepository capeRepository, MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.capeRepository = capeRepository;
+        this.mongoTemplate = mongoTemplate;
         this.webRequest = webRequest;
     }
 
@@ -199,25 +201,31 @@ public class CapeManager {
     }
 
     /**
-     * Flushes all dirty cape documents to MongoDB.
+     * Flushes all dirty cape documents to MongoDB in one bulk replace.
      */
     public void flush() {
-        int saved = 0;
+        List<CapeDocument> dirty = new ArrayList<>();
         for (CachedCapeDocument cached : this.cacheById.asMap().values()) {
             if (cached.isDirty()) {
-                try {
-                    CapeDocument doc = cached.getDocument();
-                    doc.setAccountsOwned(cached.getAccountsOwned());
-                    this.capeRepository.save(doc);
-                    cached.setDirty(false);
-                    saved++;
-                } catch (Exception e) {
-                    log.warn("Failed to flush cape {}", cached.getDocument().getId(), e);
-                }
+                CapeDocument doc = cached.getDocument();
+                doc.setAccountsOwned(cached.getAccountsOwned());
+                dirty.add(doc);
+                cached.setDirty(false);
             }
         }
-        if (saved > 0) {
-            log.debug("Flushed {} dirty capes", saved);
+        if (!dirty.isEmpty()) {
+            try {
+                MongoUtils.bulkReplaceUnordered(mongoTemplate, dirty, CapeDocument.class, CapeDocument::getId);
+                log.debug("Flushed {} dirty capes", dirty.size());
+            } catch (Exception e) {
+                for (CapeDocument doc : dirty) {
+                    CachedCapeDocument c = this.cacheById.getIfPresent(doc.getId());
+                    if (c != null) {
+                        c.setDirty(true);
+                    }
+                }
+                log.warn("Bulk flush failed, re-marked {} capes dirty", dirty.size(), e);
+            }
         }
     }
 

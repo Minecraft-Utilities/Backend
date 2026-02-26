@@ -3,6 +3,7 @@ package xyz.mcutils.backend.model.persistence.mongo;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.ReadOnlyProperty;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.DocumentReference;
@@ -18,6 +19,7 @@ import java.util.UUID;
  * @author Fascinated
  */
 @Document(collection = "players")
+@CompoundIndex(name = "lastUpdated_asc_id_asc", def = "{ 'lastUpdated' : 1, '_id' : 1 }")
 @Getter
 @Setter
 @NoArgsConstructor

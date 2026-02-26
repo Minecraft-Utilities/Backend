@@ -7,6 +7,8 @@ import com.google.common.cache.RemovalNotification;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 
@@ -29,6 +31,7 @@ public class PlayerManager {
     public static PlayerManager INSTANCE;
 
     private final PlayerRepository playerRepository;
+    private final MongoTemplate mongoTemplate;
     private final Cache<UUID, CachedPlayerDocument> cache = CacheBuilder.newBuilder()
             .maximumSize(100_000)
             .removalListener(this::onRemove)
@@ -48,8 +51,9 @@ public class PlayerManager {
         }
     }
 
-    public PlayerManager(PlayerRepository playerRepository) {
+    public PlayerManager(PlayerRepository playerRepository, MongoTemplate mongoTemplate) {
         this.playerRepository = playerRepository;
+        this.mongoTemplate = mongoTemplate;
     }
 
     @PostConstruct
@@ -183,23 +187,29 @@ public class PlayerManager {
     }
 
     /**
-     * Flushes all dirty player documents to MongoDB.
+     * Flushes all dirty player documents to MongoDB in one bulk replace.
      */
     public void flush() {
-        int saved = 0;
+        List<PlayerDocument> dirty = new ArrayList<>();
         for (CachedPlayerDocument cached : this.cache.asMap().values()) {
             if (cached.isDirty()) {
-                try {
-                    this.playerRepository.save(cached.getDocument());
-                    cached.setDirty(false);
-                    saved++;
-                } catch (Exception e) {
-                    log.warn("Failed to flush player {}", cached.getDocument().getId(), e);
-                }
+                dirty.add(cached.getDocument());
+                cached.setDirty(false);
             }
         }
-        if (saved > 0) {
-            log.debug("Flushed {} dirty players", saved);
+        if (!dirty.isEmpty()) {
+            try {
+                MongoUtils.bulkReplaceUnordered(mongoTemplate, dirty, PlayerDocument.class, PlayerDocument::getId);
+                log.debug("Flushed {} dirty players", dirty.size());
+            } catch (Exception e) {
+                for (PlayerDocument doc : dirty) {
+                    CachedPlayerDocument c = this.cache.getIfPresent(doc.getId());
+                    if (c != null) {
+                        c.setDirty(true);
+                    }
+                }
+                log.warn("Bulk flush failed, re-marked {} players dirty", dirty.size(), e);
+            }
         }
     }
 }
