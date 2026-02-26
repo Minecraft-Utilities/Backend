@@ -265,17 +265,24 @@ public class PlayerService {
     }
 
     /**
-     * Checks if a player exists in the database.
+     * Checks if a player exists in the database. Uses cache first to avoid a DB read when the player is already loaded.
      *
      * @param id the uuid of the player
      * @return true if the player exists, false otherwise
      */
     public boolean exists(UUID id) {
+        if (id == null) {
+            return false;
+        }
+        if (this.playerManager.isCached(id)) {
+            return true;
+        }
         return this.playerRepository.existsById(id);
     }
 
     /**
-     * Returns which of the given IDs exist in the database (single query).
+     * Returns which of the given IDs exist in the database. Checks cache first so IDs already in PlayerManager
+     * avoid a DB read; only queries Mongo for the rest.
      *
      * @param ids the uuids to check
      * @return set of ids that exist
@@ -284,13 +291,29 @@ public class PlayerService {
         if (ids == null || ids.isEmpty()) {
             return Set.of();
         }
-        Query query = Query.query(Criteria.where("_id").in(ids));
+        Set<UUID> existing = new HashSet<>();
+        List<UUID> toQuery = new ArrayList<>();
+        for (UUID id : ids) {
+            if (id == null) {
+                continue;
+            }
+            if (this.playerManager.isCached(id)) {
+                existing.add(id);
+            } else {
+                toQuery.add(id);
+            }
+        }
+        if (toQuery.isEmpty()) {
+            return Set.copyOf(existing);
+        }
+        Query query = Query.query(Criteria.where("_id").in(toQuery));
         List<UUID> found = this.mongoTemplate.query(PlayerDocument.class)
                 .distinct("_id")
                 .as(UUID.class)
                 .matching(query)
                 .all();
-        return Set.copyOf(found);
+        existing.addAll(found);
+        return Set.copyOf(existing);
     }
 
     /**

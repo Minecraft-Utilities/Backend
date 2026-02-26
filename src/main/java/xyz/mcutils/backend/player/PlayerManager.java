@@ -133,6 +133,13 @@ public class PlayerManager {
     }
 
     /**
+     * Returns true if the player is in the cache (no DB read). Use to avoid loading when you only need existence.
+     */
+    public boolean isCached(UUID uuid) {
+        return uuid != null && this.cache.getIfPresent(uuid) != null;
+    }
+
+    /**
      * Marks the cached player document as dirty so it will be persisted on next flush.
      * Use after updating a document obtained from {@link #getByUuid(UUID)} in place.
      */
