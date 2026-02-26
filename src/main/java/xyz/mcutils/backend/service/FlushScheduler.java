@@ -2,6 +2,7 @@ package xyz.mcutils.backend.service;
 
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.cape.CapeManager;
@@ -14,9 +15,6 @@ import xyz.mcutils.backend.skin.SkinManager;
 @Service
 @Slf4j
 public class FlushScheduler {
-
-    private static final long FLUSH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-
     private final PlayerManager playerManager;
     private final SkinManager skinManager;
     private final CapeManager capeManager;
@@ -27,7 +25,7 @@ public class FlushScheduler {
         this.capeManager = capeManager;
     }
 
-    @Scheduled(fixedRate = FLUSH_INTERVAL_MS)
+    @Scheduled(fixedRate = 60_000 * 4)
     public void flushCaches() {
         this.playerManager.flush();
         this.skinManager.flush();
