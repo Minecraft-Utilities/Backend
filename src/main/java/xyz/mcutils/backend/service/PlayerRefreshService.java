@@ -44,11 +44,10 @@ import java.util.concurrent.Semaphore;
 @Slf4j
 public class PlayerRefreshService {
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofHours(1);
-    private static final int HISTORY_OR_CHUNK = 200;
-    private static final int REFRESH_WORKER_THREADS = 64;
-    private static final int REFRESH_CHUNK_SIZE = 5000;
+    private static final int HISTORY_OR_CHUNK = 1000;
+    private static final int REFRESH_CHUNK_SIZE = 10000;
 
-    private final Semaphore refreshConcurrencyLimit = new Semaphore(REFRESH_WORKER_THREADS);
+    private final Semaphore refreshConcurrencyLimit = new Semaphore(200);
 
     private final MojangService mojangService;
     private final SkinService skinService;
