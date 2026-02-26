@@ -40,7 +40,7 @@ public class SkinManager {
     private final WebRequest webRequest;
     private final ConcurrentMap<String, UUID> textureIdToId = new ConcurrentHashMap<>();
     private final Cache<UUID, CachedSkinDocument> cacheById = CacheBuilder.newBuilder()
-            .maximumSize(100_000)
+            .maximumSize(1_000_000)
             .removalListener(this::onEvictSkin)
             .build();
 
