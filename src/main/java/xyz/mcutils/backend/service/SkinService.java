@@ -12,6 +12,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.*;
@@ -33,7 +34,6 @@ import java.awt.image.BufferedImage;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -56,25 +56,23 @@ public class SkinService {
 
     private final SkinRepository skinRepository;
     private final PlayerService playerService;
+    private final StorageService storageService;
     private final MongoTemplate mongoTemplate;
     private final WebRequest webRequest;
 
-    private final Cache<String, byte[]> skinTextureCache = CacheBuilder.newBuilder()
-            .expireAfterAccess(6, TimeUnit.HOURS)
-            .maximumSize(1000)
-            .build();
     private final Cache<String, byte[]> renderedSkinCache = CacheBuilder.newBuilder()
             .expireAfterAccess(6, TimeUnit.HOURS)
-            .maximumSize(5000)
+            .maximumSize(2000)
             .build();
 
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
     private final CoalescingLoader<String, Skin> skinByTextureIdLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
-    public SkinService(SkinRepository skinRepository, @Lazy PlayerService playerService,
+    public SkinService(SkinRepository skinRepository, @Lazy PlayerService playerService, StorageService storageService,
                        MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.skinRepository = skinRepository;
         this.playerService = playerService;
+        this.storageService = storageService;
         this.mongoTemplate = mongoTemplate;
         this.webRequest = webRequest;
     }
@@ -177,7 +175,7 @@ public class SkinService {
     }
 
     /**
-     * Gets or creates the skin using the its {@link SkinTextureToken}.
+     * Gets or creates the skin using its {@link SkinTextureToken}.
      * Concurrent lookups for the same textureId share a single load (coalesced).
      *
      * @param token the texture token for the skin
@@ -265,19 +263,18 @@ public class SkinService {
     public byte[] getSkinTexture(String textureId, String textureUrl, boolean upgrade) {
         return textureLoader.get(textureId + "-" + upgrade, () -> {
             byte[] skinBytes;
-            try {
-                long start = System.currentTimeMillis();
-                skinBytes = this.skinTextureCache.get(textureId + ".png", () -> {
-                    log.debug("Downloading skin image for skin {}", textureId);
-                    byte[] bytes = webRequest.getAsByteArray(textureUrl);
-                    if (bytes == null) {
-                        throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(textureId));
-                    }
-                    log.debug("Downloaded skin image for skin {} in {}ms", textureId,  System.currentTimeMillis() - start);
-                    return bytes;
-                });
-            } catch (ExecutionException e) {
-                throw new RuntimeException(e);
+            long start = System.currentTimeMillis();
+
+            skinBytes = this.storageService.get(StorageService.Bucket.SKINS, textureId + ".png");
+            if (skinBytes == null) {
+                log.debug("Downloading skin image for skin {}", textureId);
+                byte[] bytes = webRequest.getAsByteArray(textureUrl);
+                if (bytes == null) {
+                    throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(textureId));
+                }
+                log.debug("Downloaded skin image for skin {} in {}ms", textureId,  System.currentTimeMillis() - start);
+                this.storageService.upload(StorageService.Bucket.SKINS, textureId + ".png", MediaType.IMAGE_PNG_VALUE, bytes);
+                return bytes;
             }
             return upgrade ? SkinUtils.upgradeLegacySkin(textureId, skinBytes) : skinBytes;
         });

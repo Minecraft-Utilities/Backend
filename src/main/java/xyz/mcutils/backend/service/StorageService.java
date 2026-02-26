@@ -148,6 +148,7 @@ public class StorageService {
     @AllArgsConstructor
     @Getter
     public enum Bucket {
+        SKINS("mcutils-skins"),
         RENDERED_VANILLA_CAPES("mcutils-rendered-vanilla-capes"),
         OPTIFINE_CAPES("mcutils-optifine-capes"),
         RENDERED_OPTIFINE_CAPES("mcutils-rendered-optifine-capes");
