@@ -40,7 +40,9 @@ public final class FuzzySearch {
         }
         int[] prev = new int[m + 1];
         int[] curr = new int[m + 1];
-        for (int j = 0; j <= m; j++) prev[j] = j;
+        for (int j = 0; j <= m; j++) {
+            prev[j] = j;
+        }
         for (int i = 1; i <= n; i++) {
             curr[0] = i;
             for (int j = 1; j <= m; j++) {

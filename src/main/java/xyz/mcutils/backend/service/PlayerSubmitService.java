@@ -28,7 +28,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
 
 /**
  * Dedicated submit queue for tracking new players.
@@ -42,14 +41,13 @@ public class PlayerSubmitService {
     private static final int BATCH_SIZE = 2_000;
     private static final int ENQUEUE_CHUNK = 1000;
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
-    private static final int BULK_DRAIN_MAX = 500;
     private static final int BULK_CREATE_SIZE = 100;
     private static final int REDIS_SREM_CHUNK = 500;
 
     private final RedisTemplate<String, String> redis;
     private final PlayerService playerService;
     private final MojangService mojangService;
-    private final Semaphore submitConcurrencyLimit = new Semaphore(10);
+    private final Semaphore submitConcurrencyLimit = new Semaphore(50);
 
     private volatile boolean running = true;
 
@@ -65,9 +63,8 @@ public class PlayerSubmitService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void startSubmitConsumer() {
-        ListOperations<String, String> listOps = redis.opsForList();
-        SetOperations<String, String> setOps = redis.opsForSet();
-
+        var listOps = redis.opsForList();
+        var setOps = redis.opsForSet();
         Main.EXECUTOR.submit(() -> {
             while (running) {
                 try {
@@ -92,12 +89,6 @@ public class PlayerSubmitService {
         });
     }
 
-    /**
-     * Atomically reads and removes up to batchSize items from the head of the queue.
-     * 
-     * @param batchSize the size of the batch to take
-     * @return the list of raw entry strings
-     */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private List<String> takeBatchFromQueue(int batchSize) {
         List<Object> results = redis.execute(new SessionCallback<>() {
@@ -116,16 +107,10 @@ public class PlayerSubmitService {
         if (!(first instanceof List<?> list)) {
             return List.of();
         }
-        RedisSerializer<String> valueSer = (RedisSerializer<String>) redis.getValueSerializer();
         List<String> out = new ArrayList<>();
         for (Object elem : list) {
             if (elem instanceof String s) {
                 out.add(s);
-            } else if (elem instanceof byte[] bytes && valueSer != null) {
-                String s = valueSer.deserialize(bytes);
-                if (s != null) {
-                    out.add(s);
-                }
             }
         }
         return out;
@@ -140,40 +125,43 @@ public class PlayerSubmitService {
      */
     @SneakyThrows
     private void processBatch(List<String> batch, ListOperations<String, String> listOps, SetOperations<String, String> setOps) {
-        List<QueueEntry> entries = new ArrayList<>();
-        for (String raw : batch) {
-            Optional<QueueEntry> entry = parseEntry(raw);
-            if (entry.isEmpty()) {
-                log.debug("Skipping invalid queue entry (e.g. legacy format): {}", raw.length() > 80 ? raw.substring(0, 80) + "..." : raw);
-                continue;
-            }
-            entries.add(entry.get());
-        }
+        List<QueueEntry> entries = batch.stream().map(this::parseEntry).filter(Optional::isPresent).map(Optional::get).toList();
         if (entries.isEmpty()) {
             return;
         }
 
         Set<UUID> existingIds = playerService.getExistingPlayerIds(entries.stream().map(QueueEntry::playerId).toList());
-        List<QueueEntry> toProcess = new ArrayList<>();
-        List<String> duplicateIdsToRemove = new ArrayList<>();
-        for (QueueEntry entry : entries) {
-            if (existingIds.contains(entry.playerId())) {
-                duplicateIdsToRemove.add(entry.playerId().toString());
-            } else {
-                toProcess.add(entry);
-            }
+        List<String> duplicateIdsToRemove = entries.stream().filter(e -> existingIds.contains(e.playerId())).map(e -> e.playerId().toString()).toList();
+        List<QueueEntry> toProcess = entries.stream().filter(e -> !existingIds.contains(e.playerId())).toList();
+        for (int i = 0; i < duplicateIdsToRemove.size(); i += REDIS_SREM_CHUNK) {
+            setOps.remove(REDIS_QUEUE_SET_KEY, duplicateIdsToRemove.subList(i, Math.min(i + REDIS_SREM_CHUNK, duplicateIdsToRemove.size())).toArray());
         }
-        batchRemoveFromSet(setOps, duplicateIdsToRemove);
 
         Set<String> idsToRemoveFromQueue = ConcurrentHashMap.newKeySet();
-        BulkCreateBuffer bulkBuffer = new BulkCreateBuffer(BULK_CREATE_SIZE, playerService);
+        List<PlayerCreateSubmission> created = Collections.synchronizedList(new ArrayList<>());
         List<Future<?>> futures = new ArrayList<>();
         for (QueueEntry entry : toProcess) {
-            String raw = formatEntry(entry.playerId(), entry.submittedBy());
+            String raw = entry.playerId() + "," + (entry.submittedBy() != null ? entry.submittedBy() : "");
             Future<?> future = Main.EXECUTOR.submit(() -> {
                 submitConcurrencyLimit.acquireUninterruptibly();
                 try {
-                    processItem(entry, raw, listOps, idsToRemoveFromQueue, bulkBuffer);
+                    boolean requeued = false;
+                    try {
+                        MojangProfileToken token = mojangService.getProfile(entry.playerId().toString());
+                        if (token == null) {
+                            log.warn("Player with uuid '{}' was not found", entry.playerId());
+                            return;
+                        }
+                        created.add(new PlayerCreateSubmission(token, entry.submittedBy()));
+                    } catch (NotFoundException ignored) {
+                    } catch (MojangAPIRateLimitException e) {
+                        listOps.rightPush(REDIS_QUEUE_KEY, raw);
+                        requeued = true;
+                    } finally {
+                        if (!requeued) {
+                            idsToRemoveFromQueue.add(entry.playerId().toString());
+                        }
+                    }
                 } finally {
                     submitConcurrencyLimit.release();
                 }
@@ -188,162 +176,64 @@ public class PlayerSubmitService {
                 log.warn("Submit task failed", e.getCause());
             }
         }
-        batchRemoveFromSet(setOps, new ArrayList<>(idsToRemoveFromQueue));
-        bulkBuffer.flush();
-    }
-
-    private void batchRemoveFromSet(SetOperations<String, String> setOps, List<String> ids) {
-        if (ids.isEmpty()) {
-            return;
+        List<String> toRemove = new ArrayList<>(idsToRemoveFromQueue);
+        for (int i = 0; i < toRemove.size(); i += REDIS_SREM_CHUNK) {
+            setOps.remove(REDIS_QUEUE_SET_KEY, toRemove.subList(i, Math.min(i + REDIS_SREM_CHUNK, toRemove.size())).toArray());
         }
-        for (int i = 0; i < ids.size(); i += REDIS_SREM_CHUNK) {
-            int end = Math.min(i + REDIS_SREM_CHUNK, ids.size());
-            List<String> chunk = ids.subList(i, end);
-            setOps.remove(REDIS_QUEUE_SET_KEY, chunk.toArray());
+        for (int i = 0; i < created.size(); i += BULK_CREATE_SIZE) {
+            int end = Math.min(i + BULK_CREATE_SIZE, created.size());
+            playerService.createPlayers(created.subList(i, end));
         }
     }
 
-    /**
-     * Processes an item from the submit queue. Batch was already filtered by getExistingPlayerIds so no need to call exists() again.
-     *
-     * @param entry the queue entry
-     * @param rawEntry the raw entry string
-     * @param listOps the list operations
-     * @param idsToRemoveFromQueue IDs to remove from the queue set when not requeued (caller batches SREM after all tasks complete)
-     * @param bulkBuffer the buffer for bulk create (add submission on success)
-     */
-    private void processItem(QueueEntry entry, String rawEntry, ListOperations<String, String> listOps,
-                             Set<String> idsToRemoveFromQueue, BulkCreateBuffer bulkBuffer) {
-        UUID playerId = entry.playerId();
-        UUID submittedBy = entry.submittedBy();
-        boolean requeued = false;
-        try {
-            MojangProfileToken token = mojangService.getProfile(playerId.toString());
-            if (token == null) {
-                log.warn("Player with uuid '{}' was not found", playerId);
-                return;
-            }
-            bulkBuffer.add(new PlayerCreateSubmission(token, submittedBy));
-        } catch (NotFoundException ignored) {
-            // fall through to finally
-        } catch (MojangAPIRateLimitException e) {
-            listOps.rightPush(REDIS_QUEUE_KEY, rawEntry);
-            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(150));
-            requeued = true;
-        } finally {
-            if (!requeued) {
-                idsToRemoveFromQueue.add(playerId.toString());
-            }
-        }
-    }
-
-    /**
-     * Submits a list of players to the submit queue.
-     * 
-     * @param players the list of player identifiers to submit
-     * @param submittedBy the submitted by player id string
-     */
     public void submitPlayers(List<String> players, String submittedBy) {
         UUID by = (submittedBy != null && !submittedBy.isBlank()) ? UUIDUtils.parseUuid(submittedBy.trim()) : null;
-
-        List<UUID> toEnqueue = parseAndFilterInputUuids(players);
-        if (toEnqueue.isEmpty()) {
-            return;
-        }
-
-        toEnqueue = filterExistingInDb(toEnqueue);
-        if (toEnqueue.isEmpty()) {
-            return;
-        }
-
-        List<String> entryStrings = new ArrayList<>();
-        List<String> playerIdStrings = new ArrayList<>();
-        filterAlreadyInQueue(toEnqueue, by, entryStrings, playerIdStrings);
-        if (entryStrings.isEmpty()) {
-            return;
-        }
-
-        enqueueChunked(entryStrings, playerIdStrings, submittedBy);
-    }
-
-    /**
-     * Parses and filters the input uuids.
-     * 
-     * @param players the list of player identifiers to parse
-     * @return the list of uuids that are not in the database
-     */
-    private List<UUID> parseAndFilterInputUuids(List<String> players) {
-        return players.stream()
+        List<UUID> toEnqueue = players.stream()
                 .filter(id -> id != null && !id.isBlank())
                 .map(id -> UUIDUtils.parseUuid(id.trim()))
                 .filter(Objects::nonNull)
                 .distinct()
                 .toList();
-    }
-
-
-    /**
-     * Filters out players that are already in the database.
-     * 
-     * @param uuids the list of uuids to filter
-     * @return the list of uuids that are not in the database
-     */
-    private List<UUID> filterExistingInDb(List<UUID> uuids) {
-        Set<UUID> existingIds = playerService.getExistingPlayerIds(uuids);
-        return uuids.stream()
-                .filter(uuid -> !existingIds.contains(uuid))
-                .toList();
-    }
-
-    /**
-     * Filters out players that are already in the queue.
-     * 
-     * @param toEnqueue the list of uuids to filter
-     * @param submittedBy the submitted by player id
-     * @param entryStringsOut the list of entry strings to enqueue
-     * @param playerIdStringsOut the list of player id strings to enqueue
-     */
-    @SuppressWarnings("unchecked")
-    private void filterAlreadyInQueue(List<UUID> toEnqueue, UUID submittedBy,
-                                      List<String> entryStringsOut, List<String> playerIdStringsOut) {
-        RedisSerializer<String> keySer = (RedisSerializer<String>) redis.getKeySerializer();
-        RedisSerializer<String> valueSer = (RedisSerializer<String>) redis.getValueSerializer();
-        byte[] keyBytes = keySer.serialize(REDIS_QUEUE_SET_KEY);
-        if (keyBytes == null) {
+        if (toEnqueue.isEmpty()) {
+            return;
+        }
+        Set<UUID> existingInDb = playerService.getExistingPlayerIds(toEnqueue);
+        toEnqueue = toEnqueue.stream().filter(uuid -> !existingInDb.contains(uuid)).toList();
+        if (toEnqueue.isEmpty()) {
             return;
         }
 
-        for (int chunkStart = 0; chunkStart < toEnqueue.size(); chunkStart += ENQUEUE_CHUNK) {
-            int chunkEnd = Math.min(chunkStart + ENQUEUE_CHUNK, toEnqueue.size());
-            List<UUID> chunk = toEnqueue.subList(chunkStart, chunkEnd);
-            byte[][] memberBytes = new byte[chunk.size()][];
-            for (int i = 0; i < chunk.size(); i++) {
-                memberBytes[i] = valueSer.serialize(chunk.get(i).toString());
-            }
-            List<Boolean> inQueue = redis.execute((RedisConnection connection) ->
-                    connection.setCommands().sMIsMember(keyBytes, memberBytes));
-            if (inQueue == null) {
-                inQueue = List.of();
-            }
-            for (int i = 0; i < chunk.size(); i++) {
-                if (Boolean.TRUE.equals(inQueue.get(i))) {
-                    continue;
+        @SuppressWarnings("unchecked")
+        RedisSerializer<String> keySer = (RedisSerializer<String>) redis.getKeySerializer();
+        @SuppressWarnings("unchecked")
+        RedisSerializer<String> valueSer = (RedisSerializer<String>) redis.getValueSerializer();
+        byte[] keyBytes = keySer.serialize(REDIS_QUEUE_SET_KEY);
+        List<String> entryStrings = new ArrayList<>();
+        List<String> playerIdStrings = new ArrayList<>();
+        if (keyBytes != null) {
+            for (int chunkStart = 0; chunkStart < toEnqueue.size(); chunkStart += ENQUEUE_CHUNK) {
+                List<UUID> chunk = toEnqueue.subList(chunkStart, Math.min(chunkStart + ENQUEUE_CHUNK, toEnqueue.size()));
+                byte[][] memberBytes = new byte[chunk.size()][];
+                for (int i = 0; i < chunk.size(); i++) {
+                    memberBytes[i] = valueSer.serialize(chunk.get(i).toString());
                 }
-                UUID uuid = chunk.get(i);
-                entryStringsOut.add(formatEntry(uuid, submittedBy));
-                playerIdStringsOut.add(uuid.toString());
+                List<Boolean> inQueue = redis.execute((RedisConnection connection) -> connection.setCommands().sMIsMember(keyBytes, memberBytes));
+                if (inQueue == null) {
+                    inQueue = List.of();
+                }
+                for (int i = 0; i < chunk.size(); i++) {
+                    if (!Boolean.TRUE.equals(inQueue.get(i))) {
+                        UUID uuid = chunk.get(i);
+                        entryStrings.add(uuid + "," + (by != null ? by : ""));
+                        playerIdStrings.add(uuid.toString());
+                    }
+                }
             }
         }
-    }
+        if (entryStrings.isEmpty()) {
+            return;
+        }
 
-    /**
-     * Enqueues a list of players to the submit queue in chunks to avoid huge single commands.
-     * 
-     * @param entryStrings the list of entry strings to enqueue
-     * @param playerIdStrings the list of player id strings to enqueue
-     * @param submittedBy the submitted by player id string
-     */
-    private void enqueueChunked(List<String> entryStrings, List<String> playerIdStrings, String submittedBy) {
         ListOperations<String, String> listOps = redis.opsForList();
         SetOperations<String, String> setOps = redis.opsForSet();
         for (int i = 0; i < entryStrings.size(); i += ENQUEUE_CHUNK) {
@@ -352,37 +242,14 @@ public class PlayerSubmitService {
             setOps.add(REDIS_QUEUE_SET_KEY, playerIdStrings.subList(i, end).toArray(new String[0]));
         }
         Long size = listOps.size(REDIS_QUEUE_KEY);
-        log.info("Submitted {} players to submit queue (total queued: {}, submittedBy: {})",
-                entryStrings.size(), size != null ? size : 0, submittedBy);
+        log.info("Submitted {} players to submit queue (total queued: {}, submittedBy: {})", entryStrings.size(), size != null ? size : 0, submittedBy);
     }
 
-    /**
-     * Returns the current size of the submission queue (for metrics).
-     * 
-     * @return the current size of the submission queue
-     */
     public long getSubmissionQueueSize() {
         Long size = redis.opsForList().size(REDIS_QUEUE_KEY);
         return size != null ? size : 0L;
     }
 
-    /**
-     * Formats a queue entry string.
-     * 
-     * @param playerId the player id
-     * @param submittedBy the submitted by player id
-     * @return the queue entry string
-     */
-    private String formatEntry(UUID playerId, UUID submittedBy) {
-        return playerId + "," + (submittedBy != null ? submittedBy : "");
-    }
-
-    /**
-     * Parses a queue entry string. Returns empty if format is invalid (e.g. legacy JSON).
-     * 
-     * @param s the queue entry string
-     * @return the queue entry
-     */
     private Optional<QueueEntry> parseEntry(String s) {
         if (s == null || !s.contains(",")) {
             return Optional.empty();
@@ -399,60 +266,9 @@ public class PlayerSubmitService {
         return Optional.of(new QueueEntry(playerId, submittedBy));
     }
 
-    /**
-     * Thread-safe buffer that batches {@link PlayerCreateSubmission}s and flushes via
-     * {@link PlayerService#createPlayers(List)} when size reaches threshold or on {@link #flush()}.
-     */
-    private static final class BulkCreateBuffer {
-        private final Object lock = new Object();
-        private final List<PlayerCreateSubmission> buffer = new ArrayList<>();
-        private final int batchSize;
-        private final PlayerService playerService;
-
-        BulkCreateBuffer(int batchSize, PlayerService playerService) {
-            this.batchSize = batchSize;
-            this.playerService = playerService;
-        }
-
-        void add(PlayerCreateSubmission item) {
-            List<PlayerCreateSubmission> toFlush = null;
-            synchronized (lock) {
-                buffer.add(item);
-                if (buffer.size() >= batchSize) {
-                    int drain = Math.min(buffer.size(), BULK_DRAIN_MAX);
-                    toFlush = new ArrayList<>(buffer.subList(0, drain));
-                    buffer.subList(0, drain).clear();
-                }
-            }
-            if (toFlush != null) {
-                playerService.createPlayers(toFlush);
-            }
-        }
-
-        void flush() {
-            List<PlayerCreateSubmission> toFlush;
-            synchronized (lock) {
-                toFlush = buffer.isEmpty() ? null : new ArrayList<>(buffer);
-                buffer.clear();
-            }
-            if (toFlush != null) {
-                playerService.createPlayers(toFlush);
-            }
-        }
-    }
-
-    /** 
-     * Stops the submit consumer loop (e.g. on shutdown before flush).
-     */
     public void stop() {
         running = false;
     }
 
-    /**
-     * A queue entry.
-     *
-     * @param playerId the player id
-     * @param submittedBy the submitted by player id
-     */
     private record QueueEntry(UUID playerId, UUID submittedBy) { }
 }
