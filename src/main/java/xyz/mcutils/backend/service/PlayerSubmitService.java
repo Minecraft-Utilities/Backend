@@ -39,7 +39,7 @@ import java.util.concurrent.locks.LockSupport;
 public class PlayerSubmitService {
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
-    private static final int BATCH_SIZE = 2500;
+    private static final int BATCH_SIZE = 2_000;
     private static final int ENQUEUE_CHUNK = 1000;
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
     private static final int BULK_DRAIN_MAX = 500;
@@ -49,7 +49,7 @@ public class PlayerSubmitService {
     private final RedisTemplate<String, String> redis;
     private final PlayerService playerService;
     private final MojangService mojangService;
-    private final Semaphore submitConcurrencyLimit = new Semaphore(60);
+    private final Semaphore submitConcurrencyLimit = new Semaphore(10);
 
     private volatile boolean running = true;
 
