@@ -66,13 +66,27 @@ public class PlayerManager {
     }
 
     /**
-     * Puts a document into the cache (e.g. after bulk insert). Does not mark dirty.
+     * Puts a document into the cache (e.g. after insert). Does not mark dirty.
      */
     public void put(PlayerDocument document) {
         if (document == null || document.getId() == null) {
             return;
         }
         this.cache.put(document.getId(), new CachedPlayerDocument(document));
+    }
+
+    /**
+     * Marks the cached player document as dirty so it will be persisted on next flush.
+     * Use after updating a document obtained from {@link #getByUuid(UUID)} in place.
+     */
+    public void markDirty(UUID playerId) {
+        if (playerId == null) {
+            return;
+        }
+        CachedPlayerDocument cached = this.cache.get(playerId);
+        if (cached != null) {
+            cached.setDirty(true);
+        }
     }
 
     /**

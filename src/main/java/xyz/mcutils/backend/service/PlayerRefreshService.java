@@ -5,18 +5,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.core.BulkOperations;
-import org.springframework.data.mongodb.core.BulkOperations.BulkMode;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
 import xyz.mcutils.backend.Main;
-import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.cape.CapeManager;
 import xyz.mcutils.backend.player.PlayerManager;
@@ -36,9 +31,12 @@ import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
@@ -47,7 +45,6 @@ import java.util.concurrent.Semaphore;
 @Slf4j
 public class PlayerRefreshService {
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofHours(1);
-    private static final int HISTORY_OR_CHUNK = 1000;
     private static final int REFRESH_CHUNK_SIZE = 10000;
 
     private final Semaphore refreshConcurrencyLimit = new Semaphore(200);
@@ -65,9 +62,11 @@ public class PlayerRefreshService {
     private final MongoTemplate mongoTemplate;
 
     public PlayerRefreshService(MojangService mojangService, SkinService skinService, CapeService capeService,
-                            PlayerManager playerManager, SkinManager skinManager, CapeManager capeManager,
-                            SkinHistoryRepository skinHistoryRepository, CapeHistoryRepository capeHistoryRepository,
-                            UsernameHistoryRepository usernameHistoryRepository, PlayerRepository playerRepository, MongoTemplate mongoTemplate) {
+                                PlayerManager playerManager, SkinManager skinManager, CapeManager capeManager,
+                                SkinHistoryRepository skinHistoryRepository,
+                                CapeHistoryRepository capeHistoryRepository,
+                                UsernameHistoryRepository usernameHistoryRepository,
+                                PlayerRepository playerRepository, MongoTemplate mongoTemplate) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
@@ -92,7 +91,28 @@ public class PlayerRefreshService {
                         Thread.sleep(Duration.ofSeconds(10).toMillis());
                         continue;
                     }
-                    this.processRefreshChunk(rows);
+                    List<Future<?>> futures = new ArrayList<>();
+                    for (PlayerRefreshRow row : rows) {
+                        futures.add(Main.EXECUTOR.submit(() -> {
+                            refreshConcurrencyLimit.acquireUninterruptibly();
+                            try {
+                                MojangProfileToken token = this.mojangService.getProfile(row.getId().toString());
+                                if (token == null) {
+                                    return;
+                                }
+                                applyProfileToPlayer(row.getId(), row.getUsername(), row.getSkin(), row.getCape(), token);
+                            } finally {
+                                refreshConcurrencyLimit.release();
+                            }
+                        }));
+                    }
+                    for (Future<?> f : futures) {
+                        try {
+                            f.get();
+                        } catch (ExecutionException e) {
+                            log.warn("Player refresh failed", e.getCause());
+                        }
+                    }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
@@ -101,14 +121,7 @@ public class PlayerRefreshService {
         });
     }
 
-    /**
-     * Finds a chunk of players to refresh.
-     *
-     * @param lastUpdatedBefore the date to find players updated before
-     * @param pageable          the pageable to use
-     * @return the chunk of player rows to refresh (projection only)
-     */
-    private List<PlayerRefreshRow> findRefreshChunk(Date lastUpdatedBefore, Pageable pageable) {
+    private List<PlayerRefreshRow> findRefreshChunk(Date lastUpdatedBefore, PageRequest pageable) {
         Query query = Query.query(Criteria.where("lastUpdated").lt(lastUpdatedBefore))
                 .with(Sort.by(Sort.Direction.ASC, "lastUpdated"))
                 .limit(pageable.getPageSize())
@@ -121,396 +134,154 @@ public class PlayerRefreshService {
                 .include("legacyAccount");
         return mongoTemplate.find(query, PlayerRefreshRow.class, "players");
     }
-    
-    /**
-     * Processes a chunk of players: workers collect updates and history intents, then all DB writes are applied in bulk at the end.
-     *
-     * @param rows the chunk of player rows to refresh (projection only)
-     */
-    @SneakyThrows
-    private void processRefreshChunk(List<PlayerRefreshRow> rows) {
-        List<Tuple<UUID, Update>> updates = Collections.synchronizedList(new ArrayList<>());
-        ChunkBatch batch = new ChunkBatch();
-        List<Future<?>> futures = new ArrayList<>();
-        for (PlayerRefreshRow row : rows) {
-            Future<?> future = Main.EXECUTOR.submit(() -> {
-                refreshConcurrencyLimit.acquireUninterruptibly();
-                try {
-                    MojangProfileToken token = this.mojangService.getProfile(row.getId().toString());
-                    if (token == null) {
-                        return;
-                    }
-                    Update update = this.updatePlayerFromToken(row, token, batch);
-                    if (update != null) {
-                        updates.add(new Tuple<>(row.getId(), update));
-                    }
-                } finally {
-                    refreshConcurrencyLimit.release();
-                }
-            });
-            futures.add(future);
-        }
-        for (Future<?> future : futures) {
-            try {
-                future.get();
-            } catch (ExecutionException e) {
-                log.warn("Player refresh task failed", e.getCause());
-            }
-        }
 
+    /**
+     * Applies Mojang profile to the player: resolves skin/cape via managers, writes history, updates cached document and marks dirty.
+     */
+    private void applyProfileToPlayer(UUID playerId, String currentUsername, UUID currentSkinId, UUID currentCapeId,
+                                      MojangProfileToken token) {
         Date now = new Date();
-
-        // 1. Bulk update players (username, skin, cape, legacyAccount, lastUpdated)
-        if (!updates.isEmpty()) {
-            BulkOperations bulkOps = mongoTemplate.bulkOps(BulkMode.UNORDERED, PlayerDocument.class);
-            for (Tuple<UUID, Update> pair : updates) {
-                bulkOps.updateOne(Query.query(Criteria.where("_id").is(pair.left())), pair.right());
-            }
-            bulkOps.execute();
-            MetricService.getMetric(AccountsUpdatedMetric.class).inc(updates.size());
-        }
-
-        // 2. Flush history (username, skin, cape): chunked find, bulk insert new, bulk update existing
-        Set<UUID> skinIdsToIncrement = new HashSet<>();
-        Set<UUID> capeIdsToIncrement = new HashSet<>();
-        flushHistory(batch, now, skinIdsToIncrement, capeIdsToIncrement);
-
-        // 3. Increment skin/cape counters in memory (managers flush periodically)
-        for (UUID id : skinIdsToIncrement) {
-            skinManager.incrementAccountsUsed(id, 1);
-        }
-        for (UUID id : capeIdsToIncrement) {
-            capeManager.incrementAccountsOwned(id, 1);
-        }
-    }
-
-    /**
-     * Builds an Update for the player from the Mojang profile token.
-     * When {@code batch} is non-null (chunk refresh), only resolves skin/cape and records history intents in batch; no history DB calls.
-     * When {@code batch} is null (single-player refresh), runs history find/save inline.
-     *
-     * @param row   current player state from projection
-     * @param token Mojang profile token
-     * @param batch optional; when set, history is flushed later via {@link #flushHistory}
-     * @return Update to apply to the players collection
-     */
-    @SneakyThrows
-    public Update updatePlayerFromToken(PlayerRefreshRow row, MojangProfileToken token, ChunkBatch batch) {
-        UUID playerId = row.getId();
-        String newUsername = token.getName();
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
 
-        if (batch == null) {
-            Date now = new Date();
-            Update update = new Update();
-            update.set("username", processUsernameHistory(playerId, row.getUsername(), newUsername, now));
-            update.set("skin", processSkinHistoryAndResolve(playerId, row.getSkin(), skinAndCape.left(), now));
-            update.set("cape", processCapeHistoryAndResolve(playerId, row.getCape(), skinAndCape.right(), now));
-            update.set("legacyAccount", token.isLegacy());
-            update.set("lastUpdated", now);
-            return update;
+        // Resolve skin/cape via managers (get-or-create in cache)
+        SkinDocument skinDoc = skinAndCape.left() != null
+                ? skinManager.getOrCreateByTextureId(skinAndCape.left(), playerId)
+                : null;
+        UUID newSkinId = skinDoc != null ? skinDoc.getId() : currentSkinId;
+
+        CapeDocument capeDoc = null;
+        if (skinAndCape.right() != null) {
+            try {
+                capeDoc = capeManager.getOrCreateByTextureId(skinAndCape.right().getTextureId());
+            } catch (Exception e) {
+                log.debug("Cape resolve failed for player {}", playerId, e);
+            }
+        }
+        UUID newCapeId = capeDoc != null ? capeDoc.getId() : currentCapeId;
+
+        // Username history
+        ensureUsernameHistory(playerId, currentUsername, token.getName(), now);
+
+        // Skin history + increment when new
+        if (newSkinId != null && ensureSkinHistory(playerId, newSkinId, now)) {
+            skinManager.incrementAccountsUsed(newSkinId, 1);
         }
 
-        if (row.getUsername() != null) {
-            batch.ensureUsername.add(new Tuple<>(playerId, row.getUsername()));
-        }
-        if (!Objects.equals(row.getUsername(), newUsername)) {
-            batch.newNameEntries.add(new Tuple<>(playerId, newUsername));
-        }
-        Skin skin = skinAndCape.left() != null ? skinService.getOrCreateSkinByTextureId(skinAndCape.left(), playerId) : null;
-        UUID skinToSet = skin != null ? skin.getUuid() : row.getSkin();
-        if (skinToSet != null) {
-            batch.ensureSkin.add(new Tuple<>(playerId, skinToSet));
-        }
-        VanillaCape cape = skinAndCape.right() != null ? capeService.getCapeByTextureId(skinAndCape.right().getTextureId()) : null;
-        UUID capeToSet = cape != null ? cape.getUuid() : row.getCape();
-        if (capeToSet != null) {
-            batch.ensureCape.add(new Tuple<>(playerId, capeToSet));
+        // Cape history + increment when new
+        if (newCapeId != null && ensureCapeHistory(playerId, newCapeId, now)) {
+            capeManager.incrementAccountsOwned(newCapeId, 1);
         }
 
-        Update update = new Update();
-        update.set("username", newUsername);
-        update.set("skin", skinToSet != null ? SkinDocument.builder().id(skinToSet).build() : null);
-        update.set("cape", capeToSet != null ? CapeDocument.builder().id(capeToSet).build() : null);
-        update.set("legacyAccount", token.isLegacy());
-        update.set("lastUpdated", new Date());
-        return update;
+        // Update cached player document
+        PlayerDocument doc = playerManager.getByUuid(playerId)
+                .orElseGet(() -> playerRepository.findById(playerId).orElse(null));
+        if (doc == null) {
+            return;
+        }
+        doc.setUsername(token.getName());
+        doc.setSkin(newSkinId != null ? SkinDocument.builder().id(newSkinId).build() : null);
+        doc.setCape(newCapeId != null ? CapeDocument.builder().id(newCapeId).build() : null);
+        doc.setLegacyAccount(token.isLegacy());
+        doc.setLastUpdated(now);
+        playerManager.markDirty(playerId);
+
+        MetricService.getMetric(AccountsUpdatedMetric.class).inc(1);
     }
 
-    /**
-     * Processes username history, ensuring an entry exists (update or insert) and returns the username to set (new name from profile).
-     *
-     * @param playerId            the player ID
-     * @param currentUsername     the current username
-     * @param newName             the new username from profile
-     * @param now                 the current date
-     * @return the username to set on the player
-     */
-    private String processUsernameHistory(UUID playerId, String currentUsername, String newName, Date now) {
+    private void ensureUsernameHistory(UUID playerId, String currentUsername, String newName, Date now) {
         if (currentUsername != null) {
-            this.usernameHistoryRepository.findFirstByPlayerIdAndUsername(playerId, currentUsername)
-                    .map(existing -> {
-                        existing.setTimestamp(now);
-                        this.usernameHistoryRepository.save(existing);
-                        return false;
-                    })
-                    .orElseGet(() -> {
-                        this.usernameHistoryRepository.save(UsernameHistoryDocument.builder()
-                                .id(UUID.randomUUID())
-                                .playerId(playerId)
-                                .username(currentUsername)
-                                .timestamp(now)
-                                .build());
-                        return true;
-                    });
+            usernameHistoryRepository.findFirstByPlayerIdAndUsername(playerId, currentUsername)
+                    .ifPresentOrElse(
+                            existing -> {
+                                existing.setTimestamp(now);
+                                usernameHistoryRepository.save(existing);
+                            },
+                            () -> usernameHistoryRepository.save(UsernameHistoryDocument.builder()
+                                    .id(UUID.randomUUID())
+                                    .playerId(playerId)
+                                    .username(currentUsername)
+                                    .timestamp(now)
+                                    .build()));
         }
         if (!Objects.equals(currentUsername, newName)) {
-            this.usernameHistoryRepository.save(UsernameHistoryDocument.builder()
+            usernameHistoryRepository.save(UsernameHistoryDocument.builder()
                     .id(UUID.randomUUID())
                     .playerId(playerId)
                     .username(newName)
                     .timestamp(now)
                     .build());
         }
-        return newName;
     }
 
     /**
-     * Processes skin history, ensuring an entry exists (update or insert) and returns the skin to set (new skin from profile).
-     *
-     * @param playerId      the player ID
-     * @param currentSkinId the current skin ID
-     * @param skinToken     the skin token
-     * @param now           the current date
-     * @return the skin to set on the player
+     * Ensures a skin history entry exists. Returns true if a new entry was inserted (caller should increment).
      */
-    private SkinDocument processSkinHistoryAndResolve(UUID playerId, UUID currentSkinId, SkinTextureToken skinToken, Date now) {
-        Skin skin = skinToken != null ? this.skinService.getOrCreateSkinByTextureId(skinToken, playerId) : null;
-        UUID newSkinId = skin != null ? skin.getUuid() : null;
-        UUID skinToSet = !Objects.equals(currentSkinId, newSkinId) ? newSkinId : currentSkinId;
-        if (skinToSet == null) {
-            return null;
+    private boolean ensureSkinHistory(UUID playerId, UUID skinId, Date now) {
+        Optional<SkinHistoryDocument> existing = skinHistoryRepository.findFirstByPlayerIdAndSkinId(playerId, skinId);
+        if (existing.isPresent()) {
+            SkinHistoryDocument d = existing.get();
+            d.setLastUsed(now);
+            skinHistoryRepository.save(d);
+            return false;
         }
-
-        boolean inserted = this.skinHistoryRepository.findFirstByPlayerIdAndSkinId(playerId, skinToSet)
-                .map(existing -> {
-                    existing.setLastUsed(now);
-                    this.skinHistoryRepository.save(existing);
-                    return false;
-                })
-                .orElseGet(() -> {
-                    this.skinHistoryRepository.save(SkinHistoryDocument.builder()
-                            .id(UUID.randomUUID())
-                            .playerId(playerId)
-                            .skin(SkinDocument.builder().id(skinToSet).build())
-                            .lastUsed(now)
-                            .timestamp(now)
-                            .build());
-                    return true;
-                });
-        if (inserted) {
-            this.skinService.incrementAccountsUsed(skinToSet);
-        }
-        return SkinDocument.builder().id(skinToSet).build();
+        skinHistoryRepository.save(SkinHistoryDocument.builder()
+                .id(UUID.randomUUID())
+                .playerId(playerId)
+                .skin(SkinDocument.builder().id(skinId).build())
+                .lastUsed(now)
+                .timestamp(now)
+                .build());
+        return true;
     }
-   
+
     /**
-     * Processes cape history, ensuring an entry exists (update or insert) and returns the cape to set (new cape from profile).
-     *
-     * @param playerId      the player ID
-     * @param currentCapeId the current cape ID
-     * @param capeToken     the cape token
-     * @param now           the current date
-     * @return the cape to set on the player
+     * Ensures a cape history entry exists. Returns true if a new entry was inserted (caller should increment).
      */
-    private CapeDocument processCapeHistoryAndResolve(UUID playerId, UUID currentCapeId, CapeTextureToken capeToken, Date now) {
-        VanillaCape cape = capeToken != null ? this.capeService.getCapeByTextureId(capeToken.getTextureId()) : null;
-        UUID newCapeId = cape != null ? cape.getUuid() : null;
-        UUID capeToSet = !Objects.equals(currentCapeId, newCapeId) ? newCapeId : currentCapeId;
-        if (capeToSet == null) {
-            return null;
+    private boolean ensureCapeHistory(UUID playerId, UUID capeId, Date now) {
+        Optional<CapeHistoryDocument> existing = capeHistoryRepository.findFirstByPlayerIdAndCapeId(playerId, capeId);
+        if (existing.isPresent()) {
+            CapeHistoryDocument d = existing.get();
+            d.setLastUsed(now);
+            capeHistoryRepository.save(d);
+            return false;
         }
-
-        boolean inserted = this.capeHistoryRepository.findFirstByPlayerIdAndCapeId(playerId, capeToSet)
-                .map(existing -> {
-                    existing.setLastUsed(now);
-                    this.capeHistoryRepository.save(existing);
-                    return false;
-                })
-                .orElseGet(() -> {
-                    this.capeHistoryRepository.save(CapeHistoryDocument.builder()
-                            .id(UUID.randomUUID())
-                            .playerId(playerId)
-                            .cape(CapeDocument.builder().id(capeToSet).build())
-                            .lastUsed(now)
-                            .timestamp(now)
-                            .build());
-                    return true;
-                });
-        if (inserted) {
-            this.capeService.incrementAccountsOwned(capeToSet);
-        }
-        return CapeDocument.builder().id(capeToSet).build();
+        capeHistoryRepository.save(CapeHistoryDocument.builder()
+                .id(UUID.randomUUID())
+                .playerId(playerId)
+                .cape(CapeDocument.builder().id(capeId).build())
+                .lastUsed(now)
+                .timestamp(now)
+                .build());
+        return true;
     }
 
     /**
-     * Updates the in-memory player and document from the token and persists via a single $set update.
-     * Callers must not call save(document) after this; all refreshed fields are written here.
-     *
-     * @param player   the player to update
-     * @param document the player's document
-     * @param token    the player's {@link MojangProfileToken}
+     * Updates the in-memory player and document from the token; player document is updated in cache and marked dirty.
      */
     @SneakyThrows
     public void updatePlayer(Player player, PlayerDocument document, MojangProfileToken token) {
-        Date now = new Date();
-        Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
         UUID playerId = document.getId();
-
-        String username = processUsernameHistory(playerId, document.getUsername(), token.getName(), now);
-        document.setUsername(username);
-        player.setUsername(username);
-
+        String currentUsername = document.getUsername();
         UUID currentSkinId = document.getSkin() != null ? document.getSkin().getId() : null;
-        SkinDocument newSkinRef = processSkinHistoryAndResolve(playerId, currentSkinId, skinAndCape.left(), now);
-        document.setSkin(newSkinRef);
-        player.setSkin(newSkinRef != null ? this.skinService.getSkinById(newSkinRef.getId()) : null);
-
         UUID currentCapeId = document.getCape() != null ? document.getCape().getId() : null;
-        CapeDocument newCapeRef = processCapeHistoryAndResolve(playerId, currentCapeId, skinAndCape.right(), now);
-        document.setCape(newCapeRef);
-        player.setCape(newCapeRef != null ? this.capeService.getCapeById(newCapeRef.getId()) : null);
 
-        document.setLegacyAccount(token.isLegacy());
-        player.setLegacyAccount(token.isLegacy());
+        applyProfileToPlayer(playerId, currentUsername, currentSkinId, currentCapeId, token);
 
-        document.setLastUpdated(now);
-        player.setLastUpdated(now);
-
-        playerRepository.save(document);
-        playerManager.put(document);
-
-        MetricService.getMetric(AccountsUpdatedMetric.class).inc(1);
+        // Reload from manager to get updated doc and sync to Player entity
+        playerManager.getByUuid(playerId).ifPresent(doc -> {
+            player.setUsername(doc.getUsername());
+            player.setSkin(doc.getSkin() != null ? skinServiceToSkin(doc.getSkin().getId()) : null);
+            player.setCape(doc.getCape() != null ? capeServiceToCape(doc.getCape().getId()) : null);
+            player.setLegacyAccount(doc.isLegacyAccount());
+            player.setLastUpdated(doc.getLastUpdated());
+        });
     }
 
-    /**
-     * Flushes history for a chunk: batched find, then bulk insert new and bulk update existing.
-     * Calls username, skin, and cape flush in sequence.
-     */
-    private void flushHistory(ChunkBatch batch, Date now, Set<UUID> skinIdsToIncrement, Set<UUID> capeIdsToIncrement) {
-        flushUsernameHistory(batch, now);
-        flushSkinHistory(batch, now, skinIdsToIncrement);
-        flushCapeHistory(batch, now, capeIdsToIncrement);
+    private Skin skinServiceToSkin(UUID skinId) {
+        return skinManager.getById(skinId).map(skinService::fromDocument).orElse(null);
     }
 
-    /** Chunked find, bulk insert new entries, bulk update existing. Batched and applied at end of refresh chunk. */
-    private void flushUsernameHistory(ChunkBatch batch, Date now) {
-        String coll = mongoTemplate.getCollectionName(UsernameHistoryDocument.class);
-        List<Tuple<UUID, String>> ensureUserList = new ArrayList<>(batch.ensureUsername);
-        Set<Tuple<UUID, String>> usernameExists = new HashSet<>();
-        List<UsernameHistoryDocument> usernameToUpdate = new ArrayList<>();
-        for (int i = 0; i < ensureUserList.size(); i += HISTORY_OR_CHUNK) {
-            List<Tuple<UUID, String>> chunk = ensureUserList.subList(i, Math.min(i + HISTORY_OR_CHUNK, ensureUserList.size()));
-            Criteria[] or = chunk.stream().map(t -> Criteria.where("playerId").is(t.left()).and("username").is(t.right())).toArray(Criteria[]::new);
-            List<UsernameHistoryDocument> found = mongoTemplate.find(Query.query(new Criteria().orOperator(or)), UsernameHistoryDocument.class, coll);
-            for (UsernameHistoryDocument d : found) {
-                usernameExists.add(new Tuple<>(d.getPlayerId(), d.getUsername()));
-                usernameToUpdate.add(d);
-            }
-        }
-        List<UsernameHistoryDocument> usernameInserts = new ArrayList<>();
-        for (Tuple<UUID, String> t : ensureUserList) {
-            if (!usernameExists.contains(t)) {
-                usernameInserts.add(UsernameHistoryDocument.builder().id(UUID.randomUUID()).playerId(t.left()).username(t.right()).timestamp(now).build());
-            }
-        }
-        for (Tuple<UUID, String> t : batch.newNameEntries) {
-            usernameInserts.add(UsernameHistoryDocument.builder().id(UUID.randomUUID()).playerId(t.left()).username(t.right()).timestamp(now).build());
-        }
-        MongoUtils.bulkInsertUnordered(mongoTemplate, usernameInserts, UsernameHistoryDocument.class);
-        if (!usernameToUpdate.isEmpty()) {
-            BulkOperations bulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, UsernameHistoryDocument.class);
-            for (UsernameHistoryDocument d : usernameToUpdate) {
-                bulk.updateOne(Query.query(Criteria.where("_id").is(d.getId())), new Update().set("timestamp", now));
-            }
-            bulk.execute();
-        }
-    }
-
-    /** Chunked find, bulk insert new entries, bulk update existing. Fills skinIdsToIncrement for new skin history. Batched at end of refresh chunk. */
-    private void flushSkinHistory(ChunkBatch batch, Date now, Set<UUID> skinIdsToIncrement) {
-        String coll = mongoTemplate.getCollectionName(SkinHistoryDocument.class);
-        List<Tuple<UUID, UUID>> ensureSkinList = new ArrayList<>(batch.ensureSkin);
-        Set<Tuple<UUID, UUID>> skinExists = new HashSet<>();
-        List<SkinHistoryDocument> skinToUpdate = new ArrayList<>();
-        for (int i = 0; i < ensureSkinList.size(); i += HISTORY_OR_CHUNK) {
-            List<Tuple<UUID, UUID>> chunk = ensureSkinList.subList(i, Math.min(i + HISTORY_OR_CHUNK, ensureSkinList.size()));
-            Criteria[] or = chunk.stream().map(t -> Criteria.where("playerId").is(t.left()).and("skin").is(t.right())).toArray(Criteria[]::new);
-            List<SkinHistoryDocument> found = mongoTemplate.find(Query.query(new Criteria().orOperator(or)), SkinHistoryDocument.class, coll);
-            for (SkinHistoryDocument d : found) {
-                UUID sid = d.getSkin() != null ? d.getSkin().getId() : null;
-                skinExists.add(new Tuple<>(d.getPlayerId(), sid));
-                skinToUpdate.add(d);
-            }
-        }
-        List<SkinHistoryDocument> skinInserts = new ArrayList<>();
-        for (Tuple<UUID, UUID> t : ensureSkinList) {
-            if (!skinExists.contains(t)) {
-                skinInserts.add(SkinHistoryDocument.builder().id(UUID.randomUUID()).playerId(t.left()).skin(SkinDocument.builder().id(t.right()).build()).lastUsed(now).timestamp(now).build());
-                skinIdsToIncrement.add(t.right());
-            }
-        }
-        MongoUtils.bulkInsertUnordered(mongoTemplate, skinInserts, SkinHistoryDocument.class);
-        if (!skinToUpdate.isEmpty()) {
-            BulkOperations bulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, SkinHistoryDocument.class);
-            for (SkinHistoryDocument d : skinToUpdate) {
-                bulk.updateOne(Query.query(Criteria.where("_id").is(d.getId())), new Update().set("lastUsed", now));
-            }
-            bulk.execute();
-        }
-    }
-
-    /** Chunked find, bulk insert new entries, bulk update existing. Fills capeIdsToIncrement for new cape history. Batched at end of refresh chunk. */
-    private void flushCapeHistory(ChunkBatch batch, Date now, Set<UUID> capeIdsToIncrement) {
-        String coll = mongoTemplate.getCollectionName(CapeHistoryDocument.class);
-        List<Tuple<UUID, UUID>> ensureCapeList = new ArrayList<>(batch.ensureCape);
-        Set<Tuple<UUID, UUID>> capeExists = new HashSet<>();
-        List<CapeHistoryDocument> capeToUpdate = new ArrayList<>();
-        for (int i = 0; i < ensureCapeList.size(); i += HISTORY_OR_CHUNK) {
-            List<Tuple<UUID, UUID>> chunk = ensureCapeList.subList(i, Math.min(i + HISTORY_OR_CHUNK, ensureCapeList.size()));
-            Criteria[] or = chunk.stream().map(t -> Criteria.where("playerId").is(t.left()).and("cape").is(t.right())).toArray(Criteria[]::new);
-            List<CapeHistoryDocument> found = mongoTemplate.find(Query.query(new Criteria().orOperator(or)), CapeHistoryDocument.class, coll);
-            for (CapeHistoryDocument d : found) {
-                UUID cid = d.getCape() != null ? d.getCape().getId() : null;
-                capeExists.add(new Tuple<>(d.getPlayerId(), cid));
-                capeToUpdate.add(d);
-            }
-        }
-        List<CapeHistoryDocument> capeInserts = new ArrayList<>();
-        for (Tuple<UUID, UUID> t : ensureCapeList) {
-            if (!capeExists.contains(t)) {
-                capeInserts.add(CapeHistoryDocument.builder().id(UUID.randomUUID()).playerId(t.left()).cape(CapeDocument.builder().id(t.right()).build()).lastUsed(now).timestamp(now).build());
-                capeIdsToIncrement.add(t.right());
-            }
-        }
-        MongoUtils.bulkInsertUnordered(mongoTemplate, capeInserts, CapeHistoryDocument.class);
-        if (!capeToUpdate.isEmpty()) {
-            BulkOperations bulk = mongoTemplate.bulkOps(BulkMode.UNORDERED, CapeHistoryDocument.class);
-            for (CapeHistoryDocument d : capeToUpdate) {
-                bulk.updateOne(Query.query(Criteria.where("_id").is(d.getId())), new Update().set("lastUsed", now));
-            }
-            bulk.execute();
-        }
-    }
-
-    /**
-     * Mutable state for one refresh chunk: history (playerId, key) pairs to ensure exist, and (playerId, newName) when name changed.
-     * Populated by concurrent workers; consumed once by {@link #flushHistory} after all workers complete.
-     */
-    public static final class ChunkBatch {
-        final Set<Tuple<UUID, String>> ensureUsername = ConcurrentHashMap.newKeySet();
-        final Queue<Tuple<UUID, String>> newNameEntries = new ConcurrentLinkedQueue<>();
-        final Set<Tuple<UUID, UUID>> ensureSkin = ConcurrentHashMap.newKeySet();
-        final Set<Tuple<UUID, UUID>> ensureCape = ConcurrentHashMap.newKeySet();
+    private VanillaCape capeServiceToCape(UUID capeId) {
+        return capeManager.getById(capeId).map(capeService::fromDocument).orElse(null);
     }
 }
