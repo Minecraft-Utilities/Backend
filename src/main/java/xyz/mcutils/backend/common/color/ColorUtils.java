@@ -55,7 +55,9 @@ public final class ColorUtils {
                     boolean valid = true;
                     for (int j = 0; j < 6 && valid; j++) {
                         int idx = i + 2 + (j * 2);
-                        if (chars[idx] == '§') hex.append(chars[idx + 1]);
+                        if (chars[idx] == '§') {
+                            hex.append(chars[idx + 1]);
+                        }
                         else valid = false;
                     }
                     if (valid) { color = hex.toString(); i += 13; continue; }
@@ -74,8 +76,11 @@ public final class ColorUtils {
             boolean sameStyle = Objects.equals(color, activeColor) && fmt == activeFmt;
             if (!sameStyle) {
                 if (!pending.isEmpty()) {
-                    if (hasSpan) result.append(buildSpan(activeColor, activeFmt, pending.toString()));
-                    else result.append(pending);
+                    if (hasSpan) {
+                        result.append(buildSpan(activeColor, activeFmt, pending.toString()));
+                    } else {
+                        result.append(pending);
+                    }
                     pending.setLength(0);
                 }
                 activeColor = color;
@@ -96,17 +101,26 @@ public final class ColorUtils {
 
         // Flush remaining
         if (!pending.isEmpty()) {
-            if (hasSpan) result.append(buildSpan(activeColor, activeFmt, pending.toString()));
-            else result.append(pending);
+            if (hasSpan) {
+                result.append(buildSpan(activeColor, activeFmt, pending.toString()));
+            } else {
+                result.append(pending);
+            }
         }
         return result.toString();
     }
 
     private static String buildSpan(String color, int fmt, String content) {
         StringBuilder style = new StringBuilder();
-        if (color != null) style.append("color:").append(color);
-        if ((fmt & 1) != 0) style.append(style.isEmpty() ? "" : ";").append("font-weight:bold");
-        if ((fmt & 2) != 0) style.append(style.isEmpty() ? "" : ";").append("font-style:italic");
+        if (color != null) {
+            style.append("color:").append(color);
+        }
+        if ((fmt & 1) != 0) {
+            style.append(style.isEmpty() ? "" : ";").append("font-weight:bold");
+        }
+        if ((fmt & 2) != 0) {
+            style.append(style.isEmpty() ? "" : ";").append("font-style:italic");
+        }
         if ((fmt & 12) != 0) {
             style.append(style.isEmpty() ? "" : ";").append("text-decoration:");
             style.append((fmt & 4) != 0 && (fmt & 8) != 0 ? "underline line-through" : (fmt & 4) != 0 ? "underline" : "line-through");

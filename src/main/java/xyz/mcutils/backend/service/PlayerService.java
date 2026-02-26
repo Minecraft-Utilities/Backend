@@ -21,6 +21,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
+import org.bson.Document;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.Main;
@@ -148,7 +149,6 @@ public class PlayerService {
     /**
      * Creates multiple players in one batch (bulk inserts and bulk increments).
      * Use this for submit-queue or any batch flow; use {@link #createPlayer(MojangProfileToken)} for a single player.
-     * In bulk, Optifine cape is not checked (hasOptifineCape = false); can be backfilled later if needed.
      * If {@link PlayerCreateSubmission#submittedBy()} is non-null, increments that player's submittedUuids once per occurrence.
      * Empty list is a no-op.
      *
@@ -190,7 +190,6 @@ public class PlayerService {
                     .legacyAccount(token.isLegacy())
                     .skin(skinUuid != null ? SkinDocument.builder().id(skinUuid).build() : null)
                     .cape(capeUuid != null ? CapeDocument.builder().id(capeUuid).build() : null)
-                    .hasOptifineCape(false)
                     .lastUpdated(now)
                     .firstSeen(now)
                     .build());
@@ -232,7 +231,7 @@ public class PlayerService {
             }
         }
 
-        StatisticsService.updateTrackedPlayerCount(StatisticsService.INSTANCE.getTrackedPlayerCount() + submissions.size());
+        StatisticsService.addTrackedPlayerCount(submissions.size());
 
         MongoUtils.bulkInsertUnordered(mongoTemplate, playerDocuments, PlayerDocument.class);
         MongoUtils.bulkInsertUnordered(mongoTemplate, skinHistoryDocuments, SkinHistoryDocument.class);
@@ -290,11 +289,13 @@ public class PlayerService {
                 .collation(Collation.of("en").strength(Collation.ComparisonLevel.secondary()))
                 .withHint("username_case_insensitive")
                 .with(PageRequest.of(0, MAX_PLAYER_SEARCH_RESULTS));
-        List<org.bson.Document> docs = MongoUtils.findWithFields(mongoTemplate, q, PlayerDocument.class, "_id", "username", "skin");
+        List<Document> docs = MongoUtils.findWithFields(mongoTemplate, q, PlayerDocument.class, "_id", "username", "skin");
         Set<UUID> skinIds = new HashSet<>();
-        for (org.bson.Document d : docs) {
+        for (Document d : docs) {
             UUID sid = d.get("skin", UUID.class);
-            if (sid != null) skinIds.add(sid);
+            if (sid != null) {
+                skinIds.add(sid);
+            }
         }
         Map<UUID, Skin> skinById = new HashMap<>();
         if (!skinIds.isEmpty()) {
@@ -380,7 +381,6 @@ public class PlayerService {
                 skinHistory,
                 cape,
                 capeHistory,
-                document.isHasOptifineCape(),
                 usernameHistory,
                 document.getLastUpdated(),
                 document.getFirstSeen()

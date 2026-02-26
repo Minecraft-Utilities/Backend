@@ -3,7 +3,6 @@ package xyz.mcutils.backend.service;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
@@ -24,6 +23,7 @@ import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
@@ -43,9 +43,10 @@ public class PlayerSubmitService {
     private static final int BATCH_SIZE = 2500;
     private static final int ENQUEUE_CHUNK = 1000;
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
-    private static final int SUBMIT_WORKER_THREADS = 250;
+    private static final int SUBMIT_WORKER_THREADS = 64;
     private static final int BULK_DRAIN_MAX = 500;
     private static final int BULK_CREATE_SIZE = 100;
+    private static final int REDIS_SREM_CHUNK = 500;
 
     private final RedisTemplate<String, String> redis;
     private final PlayerService playerService;
@@ -153,18 +154,26 @@ public class PlayerSubmitService {
         }
 
         Set<UUID> existingIds = playerService.getExistingPlayerIds(entries.stream().map(QueueEntry::playerId).toList());
-        BulkCreateBuffer bulkBuffer = new BulkCreateBuffer(BULK_CREATE_SIZE, playerService);
-        List<Future<?>> futures = new ArrayList<>();
+        List<QueueEntry> toProcess = new ArrayList<>();
+        List<String> duplicateIdsToRemove = new ArrayList<>();
         for (QueueEntry entry : entries) {
             if (existingIds.contains(entry.playerId())) {
-                setOps.remove(REDIS_QUEUE_SET_KEY, entry.playerId().toString());
-                continue;
+                duplicateIdsToRemove.add(entry.playerId().toString());
+            } else {
+                toProcess.add(entry);
             }
+        }
+        batchRemoveFromSet(setOps, duplicateIdsToRemove);
+
+        Set<String> idsToRemoveFromQueue = ConcurrentHashMap.newKeySet();
+        BulkCreateBuffer bulkBuffer = new BulkCreateBuffer(BULK_CREATE_SIZE, playerService);
+        List<Future<?>> futures = new ArrayList<>();
+        for (QueueEntry entry : toProcess) {
             String raw = formatEntry(entry.playerId(), entry.submittedBy());
             Future<?> future = Main.EXECUTOR.submit(() -> {
                 submitConcurrencyLimit.acquireUninterruptibly();
                 try {
-                    processItem(entry, raw, listOps, setOps, bulkBuffer);
+                    processItem(entry, raw, listOps, idsToRemoveFromQueue, bulkBuffer);
                 } finally {
                     submitConcurrencyLimit.release();
                 }
@@ -179,26 +188,36 @@ public class PlayerSubmitService {
                 log.warn("Submit task failed", e.getCause());
             }
         }
+        batchRemoveFromSet(setOps, new ArrayList<>(idsToRemoveFromQueue));
         bulkBuffer.flush();
     }
 
+    private void batchRemoveFromSet(SetOperations<String, String> setOps, List<String> ids) {
+        if (ids.isEmpty()) {
+            return;
+        }
+        for (int i = 0; i < ids.size(); i += REDIS_SREM_CHUNK) {
+            int end = Math.min(i + REDIS_SREM_CHUNK, ids.size());
+            List<String> chunk = ids.subList(i, end);
+            setOps.remove(REDIS_QUEUE_SET_KEY, chunk.toArray());
+        }
+    }
+
     /**
-     * Processes an item from the submit queue.
+     * Processes an item from the submit queue. Batch was already filtered by getExistingPlayerIds so no need to call exists() again.
      *
      * @param entry the queue entry
      * @param rawEntry the raw entry string
      * @param listOps the list operations
-     * @param setOps the set operations
+     * @param idsToRemoveFromQueue IDs to remove from the queue set when not requeued (caller batches SREM after all tasks complete)
      * @param bulkBuffer the buffer for bulk create (add submission on success)
      */
-    private void processItem(QueueEntry entry, String rawEntry, ListOperations<String, String> listOps, SetOperations<String, String> setOps, BulkCreateBuffer bulkBuffer) {
+    private void processItem(QueueEntry entry, String rawEntry, ListOperations<String, String> listOps,
+                             Set<String> idsToRemoveFromQueue, BulkCreateBuffer bulkBuffer) {
         UUID playerId = entry.playerId();
         UUID submittedBy = entry.submittedBy();
         boolean requeued = false;
         try {
-            if (playerService.exists(playerId)) {
-                return;
-            }
             MojangProfileToken token = mojangService.getProfile(playerId.toString());
             if (token == null) {
                 log.warn("Player with uuid '{}' was not found", playerId);
@@ -213,7 +232,7 @@ public class PlayerSubmitService {
             requeued = true;
         } finally {
             if (!requeued) {
-                setOps.remove(REDIS_QUEUE_SET_KEY, playerId.toString());
+                idsToRemoveFromQueue.add(playerId.toString());
             }
         }
     }
@@ -382,7 +401,7 @@ public class PlayerSubmitService {
 
     /**
      * Thread-safe buffer that batches {@link PlayerCreateSubmission}s and flushes via
-     * {@link PlayerService#createPlayers(java.util.List)} when size reaches threshold or on {@link #flush()}.
+     * {@link PlayerService#createPlayers(List)} when size reaches threshold or on {@link #flush()}.
      */
     private static final class BulkCreateBuffer {
         private final Object lock = new Object();

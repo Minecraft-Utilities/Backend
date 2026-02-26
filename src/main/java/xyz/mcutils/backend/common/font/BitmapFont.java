@@ -86,7 +86,9 @@ public class BitmapFont {
         }
         Integer override = advanceOverrides.get(codepoint);
         int base = override != null ? override : defaultGlyphWidth;
-        if (!bold) return base;
+        if (!bold) {
+            return base;
+        }
         double offset = advanceOnlyBoldOffsets.getOrDefault(codepoint, defaultBoldOffset);
         return base + (int) Math.ceil(offset);
     }

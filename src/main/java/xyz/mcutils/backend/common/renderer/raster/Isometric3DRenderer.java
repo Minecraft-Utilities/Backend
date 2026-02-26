@@ -90,8 +90,12 @@ public class Isometric3DRenderer {
                 .thenComparingInt(p -> p.faceIndex));
         double modelW = maxX - minX;
         double modelH = maxY - minY;
-        if (modelW < 1) modelW = 1;
-        if (modelH < 1) modelH = 1;
+        if (modelW < 1) {
+            modelW = 1;
+        }
+        if (modelH < 1) {
+            modelH = 1;
+        }
         double scale = Math.min(width / modelW, size / modelH);
         double offsetX = (width - modelW * scale) / 2 - minX * scale;
         double offsetY = maxY * scale;
@@ -128,7 +132,9 @@ public class Isometric3DRenderer {
             sy2 = Math.max(sy1 + 1, Math.min(sy2, texH));
             int tw = sx2 - sx1;
             int th = sy2 - sy1;
-            if (tw <= 0 || th <= 0) continue;
+            if (tw <= 0 || th <= 0) {
+                continue;
+            }
 
             QuadRasterizer.rasterizeQuad(
                     outPixels, width, size,

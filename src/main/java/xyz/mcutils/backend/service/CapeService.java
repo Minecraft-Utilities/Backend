@@ -13,6 +13,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.bson.Document;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.CoalescingLoader;
 import xyz.mcutils.backend.common.ImageUtils;
@@ -85,8 +86,8 @@ public class CapeService {
     public Map<String, VanillaCape> getCapes() {
         Map<String, VanillaCape> capes = new LinkedHashMap<>();
         Query q = new Query().with(Sort.by(Sort.Order.desc("accountsOwned"), Sort.Order.asc("_id")));
-        List<org.bson.Document> docs = MongoUtils.findWithFields(mongoTemplate, q, CapeDocument.class, "_id", "name", "accountsOwned", "textureId");
-        for (org.bson.Document doc : docs) {
+        List<Document> docs = MongoUtils.findWithFields(mongoTemplate, q, CapeDocument.class, "_id", "name", "accountsOwned", "textureId");
+        for (Document doc : docs) {
             Number accountsOwned = doc.get("accountsOwned", Number.class);
             capes.put(doc.getString("textureId"), new VanillaCape(
                     doc.get("_id", UUID.class),
@@ -300,7 +301,9 @@ public class CapeService {
      * @return the converted cape
      */
     public VanillaCape fromDocument(CapeDocument document) {
-        if (document == null) return null;
+        if (document == null) {
+            return null;
+        }
         return new VanillaCape(document.getId(), document.getName(),
                 document.getAccountsOwned(), document.getTextureId());
     }

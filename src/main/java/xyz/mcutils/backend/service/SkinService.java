@@ -14,6 +14,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.bson.Document;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.*;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
@@ -121,7 +122,7 @@ public class SkinService {
         String firstSeenUsing = "Unknown";
         if (skinDocument.getFirstPlayerSeenUsing() != null) {
             Query firstQuery = Query.query(Criteria.where("_id").is(skinDocument.getFirstPlayerSeenUsing())).limit(1);
-            List<org.bson.Document> firstDoc = MongoUtils.findWithFields(mongoTemplate, firstQuery, PlayerDocument.class, "_id", "username");
+            List<Document> firstDoc = MongoUtils.findWithFields(mongoTemplate, firstQuery, PlayerDocument.class, "_id", "username");
             if (!firstDoc.isEmpty()) {
                 firstSeenUsing = firstDoc.getFirst().getString("username");
             }

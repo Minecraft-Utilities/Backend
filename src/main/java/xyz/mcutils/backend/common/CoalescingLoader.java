@@ -33,9 +33,8 @@ public final class CoalescingLoader<K, V> {
      * @throws RuntimeException if the loader throws (or any failure), unwrapped from {@link CompletionException}
      */
     public V get(K key, Supplier<V> loader) {
-        CompletableFuture<V> future = inFlight.computeIfAbsent(key, k ->
-                CompletableFuture.supplyAsync(loader, executor)
-                        .whenComplete((v, ex) -> executor.execute(() -> inFlight.remove(key))));
+        CompletableFuture<V> future = inFlight.computeIfAbsent(key, _ ->
+                CompletableFuture.supplyAsync(loader, executor));
         try {
             return future.join();
         } catch (CompletionException e) {
@@ -44,6 +43,8 @@ public final class CoalescingLoader<K, V> {
                 throw re;
             }
             throw new IllegalStateException(cause != null ? cause : e);
+        } finally {
+            inFlight.remove(key);
         }
     }
 }

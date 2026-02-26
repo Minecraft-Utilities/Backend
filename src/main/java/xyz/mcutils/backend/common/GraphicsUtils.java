@@ -18,7 +18,9 @@ public class GraphicsUtils {
      * so the font renders at native 1x and is scaled up. Returns the x position after the last character.
      */
     public static int drawString(Graphics2D g, BitmapFont font, String str, int x, int y, int scale) {
-        if (str == null || str.isEmpty()) return x;
+        if (str == null || str.isEmpty()) {
+            return x;
+        }
         if (scale == 1) {
             font.drawString(g, str, x, y);
             return x + font.stringWidth(str);
@@ -46,7 +48,9 @@ public class GraphicsUtils {
      */
     public static int drawStringWithStyle(Graphics2D g, BitmapFont font, String str, int x, int y,
                                          boolean shadow, boolean bold, boolean italic, boolean underline, boolean strikethrough, int scale) {
-        if (str == null || str.isEmpty()) return x;
+        if (str == null || str.isEmpty()) {
+            return x;
+        }
         AffineTransform savedTransform = g.getTransform();
         int drawX = x;
         int drawY = y;

@@ -16,7 +16,9 @@ public final class DomainUtils {
      * @return true if the hostname matches the pattern
      */
     public static boolean matchesWildcard(String pattern, String normalizedHostname) {
-        if (pattern == null) return false;
+        if (pattern == null) {
+            return false;
+        }
         if (pattern.startsWith("*.")) {
             String suffix = pattern.substring(1).toLowerCase();
             String domainOnly = pattern.substring(2).toLowerCase();

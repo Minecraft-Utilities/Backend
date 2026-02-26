@@ -94,7 +94,9 @@ public class FontManager {
                                   FontWidthsFile widthsFile, boolean isUniform, Set<String> visitedRefs) {
         for (ProviderDefinition provider : providers) {
             String type = provider.getType();
-            if (type == null) continue;
+            if (type == null) {
+                continue;
+            }
 
             switch (type.toLowerCase()) {
                 case "reference" -> processReference(provider, font, widthsFile, isUniform, visitedRefs);
@@ -198,10 +200,14 @@ public class FontManager {
 
     private void processSpace(ProviderDefinition provider, BitmapFont font, FontWidthsFile widthsFile) {
         Map<String, Integer> advances = provider.getAdvances();
-        if (advances == null) return;
+        if (advances == null) {
+            return;
+        }
         for (Map.Entry<String, Integer> e : advances.entrySet()) {
             String key = e.getKey();
-            if (key == null || key.isEmpty()) continue;
+            if (key == null || key.isEmpty()) {
+                continue;
+            }
             int cp = key.codePointAt(0);
             font.putAdvance(cp, e.getValue());
             if (widthsFile != null) {
@@ -228,7 +234,9 @@ public class FontManager {
                                   int srcX, int srcY, int cellW, int cellH, int codepoint) {
         if (widths != null) {
             int w = widths.getAdvance(codepoint);
-            if (w >= 0) return w;
+            if (w >= 0) {
+                return w;
+            }
         }
         return Glyph.measureAdvance(texture, srcX, srcY, cellW, cellH);
     }

@@ -344,13 +344,17 @@ public class MaxMindService {
             archiver.extract();
 
             File[] files = databasesDir.listFiles();
-            if (files == null) return false;
+            if (files == null) {
+                return false;
+            }
             for (File directory : files) {
                 if (!directory.isDirectory() || !directory.getName().startsWith(database.getEdition())) {
                     continue;
                 }
                 File[] downloadedFiles = directory.listFiles();
-                if (downloadedFiles == null) continue;
+                if (downloadedFiles == null) {
+                    continue;
+                }
 
                 for (File file : downloadedFiles) {
                     if (file.isFile() && file.getName().equals(databaseFile.getName())) {

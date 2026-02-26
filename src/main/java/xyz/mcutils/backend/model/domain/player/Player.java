@@ -4,7 +4,6 @@ import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.data.annotation.Id;
-import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 
@@ -64,12 +63,6 @@ public class Player {
     private Set<VanillaCape> capeHistory;
 
     /**
-     * The player's optifine Cape.
-     */
-    @Nullable
-    private OptifineCape optifineCape;
-
-    /**
      * The username history of the player.
      */
     @Nullable
@@ -86,7 +79,7 @@ public class Player {
     private Date firstSeen;
 
     public Player(UUID uniqueId, String username, boolean legacyAccount, Skin skin, Set<Skin> skinHistory, @Nullable VanillaCape cape, @Nullable Set<VanillaCape> capeHistory,
-                  boolean hasOptifineCape, Set<UsernameHistory> usernameHistory, Date lastUpdated, Date firstSeen) {
+                  Set<UsernameHistory> usernameHistory, Date lastUpdated, Date firstSeen) {
         this.uniqueId = uniqueId;
         this.username = username;
         this.legacyAccount = legacyAccount;
@@ -97,6 +90,5 @@ public class Player {
         this.usernameHistory = usernameHistory;
         this.lastUpdated = lastUpdated;
         this.firstSeen = firstSeen;
-        this.optifineCape = hasOptifineCape ? new OptifineCape(this.username) : null;
     }
 }

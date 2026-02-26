@@ -31,7 +31,9 @@ public abstract class SkinRenderer extends Renderer<Skin> {
                                          PlayerModelCoordinates.Skin part, boolean slim, boolean renderOverlays) {
         Coordinates c = part.getCoordinates();
         int sw = c.width();
-        if (slim && part.isArm()) sw--;
+        if (slim && part.isArm()) {
+            sw--;
+        }
         int sh = c.height();
         int sx = c.x();
         int sy = c.y();
@@ -40,7 +42,9 @@ public abstract class SkinRenderer extends Renderer<Skin> {
             for (PlayerModelCoordinates.Skin overlay : part.getOverlays()) {
                 Coordinates oc = overlay.getCoordinates();
                 int ow = oc.width();
-                if (slim && overlay.isArm()) ow--;
+                if (slim && overlay.isArm()) {
+                    ow--;
+                }
                 g.drawImage(skinImage, dx, dy, dx + dw, dy + dh, oc.x(), oc.y(), oc.x() + ow, oc.y() + oc.height(), null);
             }
         }

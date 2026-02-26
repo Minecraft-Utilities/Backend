@@ -32,8 +32,12 @@ public final class FuzzySearch {
     public static int levenshteinDistance(CharSequence a, CharSequence b) {
         int n = a.length();
         int m = b.length();
-        if (n == 0) return m;
-        if (m == 0) return n;
+        if (n == 0) {
+            return m;
+        }
+        if (m == 0) {
+            return n;
+        }
         int[] prev = new int[m + 1];
         int[] curr = new int[m + 1];
         for (int j = 0; j <= m; j++) prev[j] = j;
@@ -89,7 +93,9 @@ public final class FuzzySearch {
             return best;
         }
         for (String token : tokenPattern.split(lower)) {
-            if (token.length() < 2) continue;
+            if (token.length() < 2) {
+                continue;
+            }
             best = Math.min(best, levenshteinDistance(normalizedQuery, token));
             if (best <= maxFuzzyDistance) {
                 return best;
@@ -112,10 +118,14 @@ public final class FuzzySearch {
         }
         int best = -1;
         for (String text : texts) {
-            if (text == null) continue;
+            if (text == null) {
+                continue;
+            }
             int score = matchScore(query, text, maxFuzzyDistance);
             best = bestScore(best, score);
-            if (best == 0) break;
+            if (best == 0) {
+                break;
+            }
         }
         return best;
     }
@@ -154,8 +164,12 @@ public final class FuzzySearch {
      * Prefer lower (better) score; -1 means no match.
      */
     static int bestScore(int a, int b) {
-        if (a < 0) return b;
-        if (b < 0) return a;
+        if (a < 0) {
+            return b;
+        }
+        if (b < 0) {
+            return a;
+        }
         return Math.min(a, b);
     }
 

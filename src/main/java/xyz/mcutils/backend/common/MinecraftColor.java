@@ -45,7 +45,9 @@ public enum MinecraftColor {
     public static MinecraftColor getByCode(char code) {
         char c = Character.toLowerCase(code);
         for (MinecraftColor color : values()) {
-            if (color.code == c) return color;
+            if (color.code == c) {
+                return color;
+            }
         }
         return null;
     }

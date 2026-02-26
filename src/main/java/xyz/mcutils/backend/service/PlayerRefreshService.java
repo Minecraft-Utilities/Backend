@@ -18,8 +18,6 @@ import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.Tuple;
-import xyz.mcutils.backend.common.WebRequest;
-import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.domain.skin.Skin;
@@ -36,6 +34,8 @@ import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
@@ -44,10 +44,12 @@ import java.util.concurrent.Semaphore;
 @Slf4j
 public class PlayerRefreshService {
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofHours(1);
-    private static final int HISTORY_OR_CHUNK = 1000;
+    private static final int HISTORY_OR_CHUNK = 200;
+    private static final int REFRESH_WORKER_THREADS = 64;
+    private static final int REFRESH_CHUNK_SIZE = 5000;
 
-    private final Semaphore refreshConcurrencyLimit = new Semaphore(200);
-    
+    private final Semaphore refreshConcurrencyLimit = new Semaphore(REFRESH_WORKER_THREADS);
+
     private final MojangService mojangService;
     private final SkinService skinService;
     private final CapeService capeService;
@@ -55,13 +57,12 @@ public class PlayerRefreshService {
     private final CapeHistoryRepository capeHistoryRepository;
     private final UsernameHistoryRepository usernameHistoryRepository;
     private final PlayerRepository playerRepository;
-    private final WebRequest webRequest;
     private final MongoTemplate mongoTemplate;
 
 
     public PlayerRefreshService(MojangService mojangService, SkinService skinService, CapeService capeService,
                             SkinHistoryRepository skinHistoryRepository, CapeHistoryRepository capeHistoryRepository,
-                            UsernameHistoryRepository usernameHistoryRepository, PlayerRepository playerRepository, WebRequest webRequest, MongoTemplate mongoTemplate) {
+                            UsernameHistoryRepository usernameHistoryRepository, PlayerRepository playerRepository, MongoTemplate mongoTemplate) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
@@ -69,7 +70,6 @@ public class PlayerRefreshService {
         this.capeHistoryRepository = capeHistoryRepository;
         this.usernameHistoryRepository = usernameHistoryRepository;
         this.playerRepository = playerRepository;
-        this.webRequest = webRequest;
         this.mongoTemplate = mongoTemplate;
     }
 
@@ -79,7 +79,7 @@ public class PlayerRefreshService {
             while (true) {
                 try {
                     Date cutoff = Date.from(Instant.now().minus(MIN_TIME_BETWEEN_UPDATES));
-                    List<PlayerRefreshRow> rows = findRefreshChunk(cutoff, PageRequest.of(0, 20_000));
+                    List<PlayerRefreshRow> rows = findRefreshChunk(cutoff, PageRequest.of(0, REFRESH_CHUNK_SIZE));
                     if (rows.isEmpty()) {
                         Thread.sleep(Duration.ofSeconds(10).toMillis());
                         continue;
@@ -129,9 +129,13 @@ public class PlayerRefreshService {
                 refreshConcurrencyLimit.acquireUninterruptibly();
                 try {
                     MojangProfileToken token = this.mojangService.getProfile(row.getId().toString());
-                    if (token == null) return;
+                    if (token == null) {
+                        return;
+                    }
                     Update update = this.updatePlayerFromToken(row, token, batch);
-                    if (update != null) updates.add(new Tuple<>(row.getId(), update));
+                    if (update != null) {
+                        updates.add(new Tuple<>(row.getId(), update));
+                    }
                 } finally {
                     refreshConcurrencyLimit.release();
                 }
@@ -148,7 +152,7 @@ public class PlayerRefreshService {
 
         Date now = new Date();
 
-        // 1. Bulk update players (username, skin, cape, legacyAccount, lastUpdated, hasOptifineCape)
+        // 1. Bulk update players (username, skin, cape, legacyAccount, lastUpdated)
         if (!updates.isEmpty()) {
             BulkOperations bulkOps = mongoTemplate.bulkOps(BulkMode.UNORDERED, PlayerDocument.class);
             for (Tuple<UUID, Update> pair : updates) {
@@ -198,14 +202,12 @@ public class PlayerRefreshService {
 
         if (batch == null) {
             Date now = new Date();
-            boolean hasOptifineCape = OptifineCape.capeExists(token.getName(), webRequest).get();
             Update update = new Update();
             update.set("username", processUsernameHistory(playerId, row.getUsername(), newUsername, now));
             update.set("skin", processSkinHistoryAndResolve(playerId, row.getSkin(), skinAndCape.left(), now));
             update.set("cape", processCapeHistoryAndResolve(playerId, row.getCape(), skinAndCape.right(), now));
             update.set("legacyAccount", token.isLegacy());
             update.set("lastUpdated", now);
-            update.set("hasOptifineCape", hasOptifineCape);
             return update;
         }
 
@@ -226,14 +228,12 @@ public class PlayerRefreshService {
             batch.ensureCape.add(new Tuple<>(playerId, capeToSet));
         }
 
-        boolean hasOptifineCape = OptifineCape.capeExists(token.getName(), webRequest).get();
         Update update = new Update();
         update.set("username", newUsername);
         update.set("skin", skinToSet != null ? SkinDocument.builder().id(skinToSet).build() : null);
         update.set("cape", capeToSet != null ? CapeDocument.builder().id(capeToSet).build() : null);
         update.set("legacyAccount", token.isLegacy());
         update.set("lastUpdated", new Date());
-        update.set("hasOptifineCape", hasOptifineCape);
         return update;
     }
 
@@ -384,10 +384,6 @@ public class PlayerRefreshService {
         document.setLegacyAccount(token.isLegacy());
         player.setLegacyAccount(token.isLegacy());
 
-        boolean hasOptifineCape = OptifineCape.capeExists(token.getName(), webRequest).get();
-        document.setHasOptifineCape(hasOptifineCape);
-        player.setOptifineCape(hasOptifineCape ? new OptifineCape(player.getUsername()) : null);
-
         document.setLastUpdated(now);
         player.setLastUpdated(now);
 
@@ -511,9 +507,9 @@ public class PlayerRefreshService {
      * Populated by concurrent workers; consumed once by {@link #flushHistory} after all workers complete.
      */
     public static final class ChunkBatch {
-        final Set<Tuple<UUID, String>> ensureUsername = Collections.synchronizedSet(new HashSet<>());
-        final List<Tuple<UUID, String>> newNameEntries = Collections.synchronizedList(new ArrayList<>());
-        final Set<Tuple<UUID, UUID>> ensureSkin = Collections.synchronizedSet(new HashSet<>());
-        final Set<Tuple<UUID, UUID>> ensureCape = Collections.synchronizedSet(new HashSet<>());
+        final Set<Tuple<UUID, String>> ensureUsername = ConcurrentHashMap.newKeySet();
+        final Queue<Tuple<UUID, String>> newNameEntries = new ConcurrentLinkedQueue<>();
+        final Set<Tuple<UUID, UUID>> ensureSkin = ConcurrentHashMap.newKeySet();
+        final Set<Tuple<UUID, UUID>> ensureCape = ConcurrentHashMap.newKeySet();
     }
 }

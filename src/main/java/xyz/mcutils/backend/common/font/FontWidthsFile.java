@@ -46,10 +46,14 @@ public class FontWidthsFile {
     }
 
     public CharWidthEntry getCharWidthEntry(int codepoint) {
-        if (chars == null) return null;
+        if (chars == null) {
+            return null;
+        }
         String key = Character.toString(codepoint);
         CharWidthEntry e = chars.get(key);
-        if (e != null) return e;
+        if (e != null) {
+            return e;
+        }
         if (Character.isSupplementaryCodePoint(codepoint)) {
             key = new String(Character.toChars(codepoint));
             return chars.get(key);

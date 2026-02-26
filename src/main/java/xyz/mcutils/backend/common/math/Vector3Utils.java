@@ -68,7 +68,9 @@ public final class Vector3Utils {
     /** Normalizes a vector to unit length. */
     public static Vector3 normalize(Vector3 v) {
         double len = Math.sqrt(v.x() * v.x() + v.y() * v.y() + v.z() * v.z());
-        if (len < 1e-10) return v;
+        if (len < 1e-10) {
+            return v;
+        }
         return new Vector3(v.x() / len, v.y() / len, v.z() / len);
     }
 

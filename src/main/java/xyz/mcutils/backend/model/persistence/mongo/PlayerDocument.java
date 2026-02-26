@@ -76,11 +76,6 @@ public class PlayerDocument {
     private List<CapeHistoryDocument> capeHistory;
 
     /**
-     * Does this player have an Optifine cape equipped?
-     */
-    private boolean hasOptifineCape;
-
-    /**
      * The amount of new uuids this player has submitted.
      */
     private long submittedUuids;

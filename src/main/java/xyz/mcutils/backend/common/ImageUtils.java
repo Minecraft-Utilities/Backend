@@ -39,13 +39,17 @@ public class ImageUtils {
         final int sw = w, sh = h;
         IntStream.range(0, newHeight).parallel().forEach(y -> {
             int srcY = (int) ((y * yStep) >> 32);
-            if (srcY >= sh) srcY = sh - 1;
+            if (srcY >= sh) {
+                srcY = sh - 1;
+            }
             int srcRow = srcY * sw;
             int destRow = y * newWidth;
             long srcX = 0;
             for (int x = 0; x < newWidth; x++) {
                 int sx = (int) (srcX >> 32);
-                if (sx >= sw) sx = sw - 1;
+                if (sx >= sw) {
+                    sx = sw - 1;
+                }
                 destPixels[destRow + x] = srcPixels[srcRow + sx];
                 srcX += xStep;
             }
@@ -117,7 +121,9 @@ public class ImageUtils {
         int syMin = Math.min(sy1, sy2), syMax = Math.max(sy1, sy2);
         int sw = sxMax - sxMin, sh = syMax - syMin;
         int dw = dxMax - dxMin, dh = dyMax - dyMin;
-        if (sw != dw || sh != dh) return;
+        if (sw != dw || sh != dh) {
+            return;
+        }
 
         int sox = (int) (sxMin * scale), soy = (int) (syMin * scale);
         int dox = (int) (dxMin * scale), doy = (int) (dyMin * scale);

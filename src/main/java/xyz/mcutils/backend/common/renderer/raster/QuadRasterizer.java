@@ -21,7 +21,9 @@ public final class QuadRasterizer {
             int[] texPixels, int texW, int texH,
             float brightness) {
 
-        if (tw <= 0 || th <= 0) return;
+        if (tw <= 0 || th <= 0) {
+            return;
+        }
 
         double dx3 = dx1 + dx2 - dx0;
         double dy3 = dy1 + dy2 - dy0;
@@ -35,7 +37,9 @@ public final class QuadRasterizer {
         int yMax = (int) Math.floor(Math.max(Math.max(ey[0], ey[1]), Math.max(ey[2], ey[3])) - 0.5);
         yMin = Math.max(0, yMin);
         yMax = Math.min(outH - 1, yMax);
-        if (yMin > yMax) return;
+        if (yMin > yMax) {
+            return;
+        }
 
         final double eps = 1e-6;
         for (int y = yMin; y <= yMax; y++) {
@@ -47,8 +51,12 @@ public final class QuadRasterizer {
             for (int e = 0; e < 4; e++) {
                 int e1 = (e + 1) % 4;
                 double yA = ey[e], yB = ey[e1];
-                if (Math.abs(yB - yA) < 1e-9) continue;
-                if (py < Math.min(yA, yB) - eps || py > Math.max(yA, yB) + eps) continue;
+                if (Math.abs(yB - yA) < 1e-9) {
+                    continue;
+                }
+                if (py < Math.min(yA, yB) - eps || py > Math.max(yA, yB) + eps) {
+                    continue;
+                }
 
                 double t = (py - yA) / (yB - yA);
                 double x = ex[e] + t * (ex[e1] - ex[e]);
@@ -67,7 +75,9 @@ public final class QuadRasterizer {
                 }
             }
 
-            if (xMin > xMax) continue;
+            if (xMin > xMax) {
+                continue;
+            }
 
             int xStart = Math.max(0, (int) Math.ceil(xMin - 0.5));
             int xEnd = Math.min(outW - 1, (int) Math.floor(xMax - 0.5));

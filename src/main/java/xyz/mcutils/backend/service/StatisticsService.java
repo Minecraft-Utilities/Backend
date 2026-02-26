@@ -41,6 +41,19 @@ public class StatisticsService {
         }
     }
 
+    /**
+     * Incremental update to avoid Mongo estimatedCount on every bulk create.
+     */
+    public static void addTrackedPlayerCount(long delta) {
+        if (delta == 0) {
+            return;
+        }
+        INSTANCE.trackedPlayerCount += delta;
+        if (INSTANCE.trackedPlayerCount % 100 == 0) {
+            INSTANCE.updateStatistics();
+        }
+    }
+
     public static void updateTrackedSkinCount(long count) {
         INSTANCE.trackedSkinCount = count;
         if (count % 100 == 0) {
