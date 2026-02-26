@@ -47,7 +47,7 @@ public class PlayerRefreshService {
     private static final Duration MIN_TIME_BETWEEN_UPDATES = Duration.ofHours(1);
     private static final int REFRESH_CHUNK_SIZE = 10000;
 
-    private final Semaphore refreshConcurrencyLimit = new Semaphore(200);
+    private final Semaphore refreshConcurrencyLimit = new Semaphore(50);
 
     private final MojangService mojangService;
     private final SkinService skinService;
