@@ -1,5 +1,9 @@
 package xyz.mcutils.backend.player;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalCause;
+import com.google.common.cache.RemovalNotification;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -13,11 +17,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 /**
  * In-memory cache for player documents. Cache-first lookups; periodic flush of dirty entries to MongoDB.
+ * Uses a Guava cache with max 50k entries; oldest (least recently used) entries are evicted when full.
  */
 @Component
 @Slf4j
@@ -26,7 +29,24 @@ public class PlayerManager {
     public static PlayerManager INSTANCE;
 
     private final PlayerRepository playerRepository;
-    private final ConcurrentMap<UUID, CachedPlayerDocument> cache = new ConcurrentHashMap<>();
+    private final Cache<UUID, CachedPlayerDocument> cache = CacheBuilder.newBuilder()
+            .maximumSize(100_000)
+            .removalListener(this::onRemove)
+            .build();
+
+    private void onRemove(RemovalNotification<UUID, CachedPlayerDocument> notification) {
+        if (notification.getCause() == RemovalCause.SIZE || notification.getCause() == RemovalCause.EXPLICIT
+                || notification.getCause() == RemovalCause.REPLACED) {
+            CachedPlayerDocument cached = notification.getValue();
+            if (cached != null && cached.isDirty()) {
+                try {
+                    this.playerRepository.save(cached.getDocument());
+                } catch (Exception e) {
+                    log.warn("Failed to save player on eviction {}", cached.getDocument().getId(), e);
+                }
+            }
+        }
+    }
 
     public PlayerManager(PlayerRepository playerRepository) {
         this.playerRepository = playerRepository;
@@ -44,7 +64,7 @@ public class PlayerManager {
         if (uuid == null) {
             return Optional.empty();
         }
-        CachedPlayerDocument cached = this.cache.get(uuid);
+        CachedPlayerDocument cached = this.cache.getIfPresent(uuid);
         if (cached != null) {
             return Optional.of(cached.getDocument());
         }
@@ -69,7 +89,7 @@ public class PlayerManager {
             if (uuid == null) {
                 continue;
             }
-            CachedPlayerDocument cached = this.cache.get(uuid);
+            CachedPlayerDocument cached = this.cache.getIfPresent(uuid);
             if (cached != null) {
                 result.put(uuid, cached.getDocument());
             } else {
@@ -120,7 +140,7 @@ public class PlayerManager {
         if (playerId == null) {
             return;
         }
-        CachedPlayerDocument cached = this.cache.get(playerId);
+        CachedPlayerDocument cached = this.cache.getIfPresent(playerId);
         if (cached != null) {
             cached.setDirty(true);
         }
@@ -133,7 +153,7 @@ public class PlayerManager {
         if (playerId == null || delta <= 0) {
             return;
         }
-        CachedPlayerDocument cached = this.cache.get(playerId);
+        CachedPlayerDocument cached = this.cache.getIfPresent(playerId);
         if (cached == null) {
             cached = this.playerRepository.findById(playerId)
                     .map(doc -> {
@@ -152,7 +172,7 @@ public class PlayerManager {
      * Returns the number of cached player documents pending save (dirty).
      */
     public long getDirtyCount() {
-        return this.cache.values().stream().filter(CachedPlayerDocument::isDirty).count();
+        return this.cache.asMap().values().stream().filter(CachedPlayerDocument::isDirty).count();
     }
 
     /**
@@ -160,7 +180,7 @@ public class PlayerManager {
      */
     public void flush() {
         int saved = 0;
-        for (CachedPlayerDocument cached : this.cache.values()) {
+        for (CachedPlayerDocument cached : this.cache.asMap().values()) {
             if (cached.isDirty()) {
                 try {
                     this.playerRepository.save(cached.getDocument());

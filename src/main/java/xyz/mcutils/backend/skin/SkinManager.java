@@ -1,5 +1,9 @@
 package xyz.mcutils.backend.skin;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalCause;
+import com.google.common.cache.RemovalNotification;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -24,6 +28,7 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * In-memory cache for skin documents. Cache-first lookups; periodic flush of dirty entries to MongoDB.
+ * Uses a Guava cache with max 50k entries; oldest (least recently used) entries are evicted when full.
  */
 @Component
 @Slf4j
@@ -33,8 +38,32 @@ public class SkinManager {
 
     private final SkinRepository skinRepository;
     private final WebRequest webRequest;
-    private final ConcurrentMap<UUID, CachedSkinDocument> cacheById = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, UUID> textureIdToId = new ConcurrentHashMap<>();
+    private final Cache<UUID, CachedSkinDocument> cacheById = CacheBuilder.newBuilder()
+            .maximumSize(100_000)
+            .removalListener(this::onEvictSkin)
+            .build();
+
+    private void onEvictSkin(RemovalNotification<UUID, CachedSkinDocument> notification) {
+        if (notification.getCause() == RemovalCause.SIZE || notification.getCause() == RemovalCause.EXPLICIT
+                || notification.getCause() == RemovalCause.REPLACED) {
+            CachedSkinDocument c = notification.getValue();
+            if (c != null) {
+                if (c.isDirty()) {
+                    try {
+                        SkinDocument doc = c.getDocument();
+                        doc.setAccountsUsed(c.getAccountsUsed());
+                        this.skinRepository.save(doc);
+                    } catch (Exception e) {
+                        log.warn("Failed to save skin on eviction {}", c.getDocument().getId(), e);
+                    }
+                }
+                if (c.getDocument() != null && c.getDocument().getTextureId() != null) {
+                    textureIdToId.remove(c.getDocument().getTextureId(), notification.getKey());
+                }
+            }
+        }
+    }
 
     public SkinManager(SkinRepository skinRepository, WebRequest webRequest) {
         this.skinRepository = skinRepository;
@@ -53,7 +82,7 @@ public class SkinManager {
         if (id == null) {
             return Optional.empty();
         }
-        CachedSkinDocument cached = this.cacheById.get(id);
+        CachedSkinDocument cached = this.cacheById.getIfPresent(id);
         if (cached != null) {
             return Optional.of(cached.snapshotDocument());
         }
@@ -78,7 +107,7 @@ public class SkinManager {
             if (id == null) {
                 continue;
             }
-            CachedSkinDocument cached = this.cacheById.get(id);
+            CachedSkinDocument cached = this.cacheById.getIfPresent(id);
             if (cached != null) {
                 result.put(id, cached.snapshotDocument());
             } else {
@@ -106,6 +135,10 @@ public class SkinManager {
         }
         UUID id = this.textureIdToId.get(textureId);
         if (id != null) {
+            CachedSkinDocument cached = this.cacheById.getIfPresent(id);
+            if (cached != null) {
+                return Optional.of(cached.snapshotDocument());
+            }
             return this.getById(id);
         }
         return this.skinRepository.findByTextureId(textureId)
@@ -160,12 +193,12 @@ public class SkinManager {
         if (skinId == null || delta <= 0) {
             return;
         }
-        CachedSkinDocument cached = this.cacheById.get(skinId);
+        CachedSkinDocument cached = this.cacheById.getIfPresent(skinId);
         if (cached == null) {
             cached = this.skinRepository.findById(skinId)
                     .map(doc -> {
                         put(doc);
-                        return this.cacheById.get(skinId);
+                        return this.cacheById.getIfPresent(skinId);
                     })
                     .orElse(null);
         }
@@ -179,7 +212,7 @@ public class SkinManager {
      * Returns the number of cached skin documents pending save (dirty).
      */
     public long getDirtyCount() {
-        return this.cacheById.values().stream().filter(CachedSkinDocument::isDirty).count();
+        return this.cacheById.asMap().values().stream().filter(CachedSkinDocument::isDirty).count();
     }
 
     /**
@@ -187,7 +220,7 @@ public class SkinManager {
      */
     public void flush() {
         int saved = 0;
-        for (CachedSkinDocument cached : this.cacheById.values()) {
+        for (CachedSkinDocument cached : this.cacheById.asMap().values()) {
             if (cached.isDirty()) {
                 try {
                     SkinDocument doc = cached.getDocument();

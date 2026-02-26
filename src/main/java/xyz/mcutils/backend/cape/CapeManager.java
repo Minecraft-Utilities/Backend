@@ -1,5 +1,9 @@
 package xyz.mcutils.backend.cape;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.RemovalCause;
+import com.google.common.cache.RemovalNotification;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -23,6 +27,7 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * In-memory cache for cape documents. Cache-first lookups; periodic flush of dirty entries to MongoDB.
+ * Uses a Guava cache with max 50k entries; oldest (least recently used) entries are evicted when full.
  */
 @Component
 @Slf4j
@@ -32,8 +37,9 @@ public class CapeManager {
 
     private final CapeRepository capeRepository;
     private final WebRequest webRequest;
-    private final ConcurrentMap<UUID, CachedCapeDocument> cacheById = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, UUID> textureIdToId = new ConcurrentHashMap<>();
+    private final Cache<UUID, CachedCapeDocument> cacheById = CacheBuilder.newBuilder()
+            .build();
 
     public CapeManager(CapeRepository capeRepository, WebRequest webRequest) {
         this.capeRepository = capeRepository;
@@ -52,14 +58,14 @@ public class CapeManager {
         if (id == null) {
             return Optional.empty();
         }
-        CachedCapeDocument cached = this.cacheById.get(id);
+        CachedCapeDocument cached = this.cacheById.getIfPresent(id);
         if (cached != null) {
             return Optional.of(cached.snapshotDocument());
         }
         return this.capeRepository.findById(id)
                 .map(doc -> {
                     put(doc);
-                    return this.cacheById.get(id).snapshotDocument();
+                    return this.cacheById.getIfPresent(id).snapshotDocument();
                 });
     }
 
@@ -77,7 +83,7 @@ public class CapeManager {
             if (id == null) {
                 continue;
             }
-            CachedCapeDocument cached = this.cacheById.get(id);
+            CachedCapeDocument cached = this.cacheById.getIfPresent(id);
             if (cached != null) {
                 result.put(id, cached.snapshotDocument());
             } else {
@@ -89,7 +95,7 @@ public class CapeManager {
                 UUID id = doc.getId();
                 if (id != null) {
                     put(doc);
-                    result.put(id, this.cacheById.get(id).snapshotDocument());
+                    result.put(id, this.cacheById.getIfPresent(id).snapshotDocument());
                 }
             }
         }
@@ -105,12 +111,16 @@ public class CapeManager {
         }
         UUID id = this.textureIdToId.get(textureId);
         if (id != null) {
+            CachedCapeDocument cached = this.cacheById.getIfPresent(id);
+            if (cached != null) {
+                return Optional.of(cached.snapshotDocument());
+            }
             return this.getById(id);
         }
         return this.capeRepository.findByTextureId(textureId)
                 .map(doc -> {
                     put(doc);
-                    return this.cacheById.get(doc.getId()).snapshotDocument();
+                    return this.cacheById.getIfPresent(doc.getId()).snapshotDocument();
                 });
     }
 
@@ -167,12 +177,12 @@ public class CapeManager {
         if (capeId == null || delta <= 0) {
             return;
         }
-        CachedCapeDocument cached = this.cacheById.get(capeId);
+        CachedCapeDocument cached = this.cacheById.getIfPresent(capeId);
         if (cached == null) {
             cached = this.capeRepository.findById(capeId)
                     .map(doc -> {
                         put(doc);
-                        return this.cacheById.get(capeId);
+                        return this.cacheById.getIfPresent(capeId);
                     })
                     .orElse(null);
         }
@@ -185,7 +195,7 @@ public class CapeManager {
      * Returns the number of cached cape documents pending save (dirty).
      */
     public long getDirtyCount() {
-        return this.cacheById.values().stream().filter(CachedCapeDocument::isDirty).count();
+        return this.cacheById.asMap().values().stream().filter(CachedCapeDocument::isDirty).count();
     }
 
     /**
@@ -193,7 +203,7 @@ public class CapeManager {
      */
     public void flush() {
         int saved = 0;
-        for (CachedCapeDocument cached : this.cacheById.values()) {
+        for (CachedCapeDocument cached : this.cacheById.asMap().values()) {
             if (cached.isDirty()) {
                 try {
                     CapeDocument doc = cached.getDocument();
