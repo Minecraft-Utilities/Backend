@@ -47,7 +47,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Slf4j
 public class PlayerRefreshService {
     private static final int REFRESH_CHUNK_SIZE = 2_000;
-    private final Semaphore refreshConcurrencyLimit = new Semaphore(25);
+    private final Semaphore refreshConcurrencyLimit = new Semaphore(17);
 
     private volatile boolean running = true;
     private final AtomicReference<UUID> refreshCursor = new AtomicReference<>();
