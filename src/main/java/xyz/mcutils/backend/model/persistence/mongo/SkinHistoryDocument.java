@@ -3,7 +3,6 @@ package xyz.mcutils.backend.model.persistence.mongo;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.DocumentReference;
 
@@ -38,7 +37,6 @@ public class SkinHistoryDocument {
     /**
      * The time this skin was last used by the player.
      */
-    @Indexed
     private Date lastUsed;
 
     /**

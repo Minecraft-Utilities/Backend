@@ -3,7 +3,6 @@ package xyz.mcutils.backend.model.persistence.mongo;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
-import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.Date;
@@ -37,6 +36,5 @@ public class UsernameHistoryDocument {
     /**
      * The time this username was seen on the player.
      */
-    @Indexed
     private Date timestamp;
 }
