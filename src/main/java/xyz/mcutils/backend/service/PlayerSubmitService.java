@@ -38,10 +38,9 @@ import java.util.concurrent.TimeUnit;
 public class PlayerSubmitService {
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
-    private static final int BATCH_SIZE = 5_000;
+    private static final int BATCH_SIZE = 1_000;
     private static final int ENQUEUE_CHUNK = 1000;
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
-
     private final RedisTemplate<String, String> redis;
     private final PlayerService playerService;
     private final MojangService mojangService;
@@ -131,7 +130,9 @@ public class PlayerSubmitService {
         Set<UUID> existingIds = playerService.getExistingPlayerIds(entries.stream().map(QueueEntry::playerId).toList());
         List<String> duplicateIdsToRemove = entries.stream().filter(e -> existingIds.contains(e.playerId())).map(e -> e.playerId().toString()).toList();
         List<QueueEntry> toProcess = entries.stream().filter(e -> !existingIds.contains(e.playerId())).toList();
-        setOps.remove(REDIS_QUEUE_SET_KEY, duplicateIdsToRemove.toArray());
+        if (!duplicateIdsToRemove.isEmpty()) {
+            setOps.remove(REDIS_QUEUE_SET_KEY, duplicateIdsToRemove.toArray());
+        }
 
         Set<String> idsToRemoveFromQueue = ConcurrentHashMap.newKeySet();
         List<PlayerCreateSubmission> created = Collections.synchronizedList(new ArrayList<>());
@@ -172,7 +173,9 @@ public class PlayerSubmitService {
                 log.warn("Submit task failed", e.getCause());
             }
         }
-        setOps.remove(REDIS_QUEUE_SET_KEY, idsToRemoveFromQueue);
+        if (!idsToRemoveFromQueue.isEmpty()) {
+            setOps.remove(REDIS_QUEUE_SET_KEY, idsToRemoveFromQueue.toArray());
+        }
         playerService.createPlayers(created);
     }
 
