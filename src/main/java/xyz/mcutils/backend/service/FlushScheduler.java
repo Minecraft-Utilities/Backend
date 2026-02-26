@@ -1,5 +1,6 @@
 package xyz.mcutils.backend.service;
 
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -31,5 +32,15 @@ public class FlushScheduler {
         this.playerManager.flush();
         this.skinManager.flush();
         this.capeManager.flush();
+    }
+
+    /**
+     * On shutdown, flush all caches and wait until finished before the context closes.
+     */
+    @PreDestroy
+    public void onShutdown() {
+        log.info("Shutdown: flushing caches...");
+        flushCaches();
+        log.info("Shutdown: caches flushed.");
     }
 }
