@@ -179,7 +179,7 @@ public class PlayerSubmitService {
         playerService.createPlayers(created);
     }
 
-    public void submitPlayers(List<String> players, String submittedBy) {
+    public int submitPlayers(List<String> players, String submittedBy) {
         UUID by = (submittedBy != null && !submittedBy.isBlank()) ? UUIDUtils.parseUuid(submittedBy.trim()) : null;
         List<UUID> toEnqueue = players.stream()
                 .filter(id -> id != null && !id.isBlank())
@@ -188,12 +188,12 @@ public class PlayerSubmitService {
                 .distinct()
                 .toList();
         if (toEnqueue.isEmpty()) {
-            return;
+            return 0;
         }
         Set<UUID> existingInDb = playerService.getExistingPlayerIds(toEnqueue);
         toEnqueue = toEnqueue.stream().filter(uuid -> !existingInDb.contains(uuid)).toList();
         if (toEnqueue.isEmpty()) {
-            return;
+            return 0;
         }
 
         @SuppressWarnings("unchecked")
@@ -224,7 +224,7 @@ public class PlayerSubmitService {
             }
         }
         if (entryStrings.isEmpty()) {
-            return;
+            return 0;
         }
 
         ListOperations<String, String> listOps = redis.opsForList();
@@ -236,6 +236,7 @@ public class PlayerSubmitService {
         }
         Long size = listOps.size(REDIS_QUEUE_KEY);
         log.info("Submitted {} players to submit queue (total queued: {}, submittedBy: {})", entryStrings.size(), size != null ? size : 0, submittedBy);
+        return entryStrings.size();
     }
 
     public long getSubmissionQueueSize() {

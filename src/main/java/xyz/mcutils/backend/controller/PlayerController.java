@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.dto.request.SubmitPlayersRequest;
 import xyz.mcutils.backend.model.dto.response.PlayerSearchEntry;
+import xyz.mcutils.backend.model.dto.response.SubmitPlayersResponse;
 import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.PlayerSubmitService;
 
@@ -56,10 +57,10 @@ public class PlayerController {
     }
 
     @PostMapping(value = "/submit", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Void> submitPlayers(
+    public ResponseEntity<SubmitPlayersResponse> submitPlayers(
             @Parameter(description = "List of player UUIDs")
             @Valid @RequestBody SubmitPlayersRequest request) {
-        playerSubmitService.submitPlayers(request.uuids(), request.submittedBy());
-        return ResponseEntity.accepted().build();
+        int enqueued = playerSubmitService.submitPlayers(request.uuids(), request.submittedBy());
+        return ResponseEntity.accepted().body(new SubmitPlayersResponse(enqueued));
     }
 }
