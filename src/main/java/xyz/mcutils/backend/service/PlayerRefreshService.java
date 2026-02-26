@@ -9,11 +9,11 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.cape.CapeManager;
 import xyz.mcutils.backend.player.PlayerManager;
@@ -32,6 +32,7 @@ import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +42,6 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 @Slf4j
@@ -50,7 +50,6 @@ public class PlayerRefreshService {
     private final Semaphore refreshConcurrencyLimit = new Semaphore(17);
 
     private volatile boolean running = true;
-    private final AtomicReference<UUID> refreshCursor = new AtomicReference<>();
 
     private final MojangService mojangService;
     private final SkinService skinService;
@@ -86,16 +85,15 @@ public class PlayerRefreshService {
         Main.EXECUTOR.submit(() -> {
             while (running) {
             try {
-                UUID cursor = refreshCursor.get();
-                List<UUID> ids = findRefreshChunkIds(cursor, REFRESH_CHUNK_SIZE);
+                List<UUID> ids = findRefreshChunkIds(REFRESH_CHUNK_SIZE);
                 if (ids.isEmpty()) {
-                    refreshCursor.set(null);
                     for (int i = 0; i < 10 && running; i++) {
                         Thread.sleep(Duration.ofSeconds(1).toMillis());
                     }
                     continue;
                 }
-                refreshCursor.set(ids.get(ids.size() - 1));
+                Date batchTime = new Date();
+                List<UUID> refreshedIds = Collections.synchronizedList(new ArrayList<>());
                 Map<UUID, PlayerDocument> playerMap = this.playerManager.getByUuids(ids);
                 List<Future<?>> futures = new ArrayList<>();
                 for (UUID playerId : ids) {
@@ -112,7 +110,8 @@ public class PlayerRefreshService {
                             }
                             UUID skinId = playerDocument.getSkin() != null ? playerDocument.getSkin().getId() : null;
                             UUID capeId = playerDocument.getCape() != null ? playerDocument.getCape().getId() : null;
-                            applyProfileToPlayer(playerDocument.getId(), playerDocument.getUsername(), skinId, capeId, token, playerDocument);
+                            applyProfileToPlayer(playerDocument.getId(), playerDocument.getUsername(), skinId, capeId, token, playerDocument, batchTime);
+                            refreshedIds.add(playerDocument.getId());
                         } finally {
                             refreshConcurrencyLimit.release();
                         }
@@ -125,6 +124,9 @@ public class PlayerRefreshService {
                         log.warn("Player refresh failed", e.getCause());
                     }
                 }
+                if (!refreshedIds.isEmpty()) {
+                    MongoUtils.bulkSetUnordered(mongoTemplate, PlayerDocument.class, refreshedIds, "lastUpdated", batchTime);
+                }
             } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
@@ -134,15 +136,12 @@ public class PlayerRefreshService {
     }
 
     /**
-     * Cursor-based page of player ids only. Use manager to load full document (cache-first, no stale data).
+     * Returns player ids with oldest lastUpdated first (projection _id only). Use manager to load full document.
      */
-    private List<UUID> findRefreshChunkIds(UUID lastIdExclusive, int limit) {
+    private List<UUID> findRefreshChunkIds(int limit) {
         Query query = new Query()
-                .with(Sort.by(Sort.Direction.ASC, "_id"))
+                .with(Sort.by(Sort.Direction.ASC, "lastUpdated"))
                 .limit(limit);
-        if (lastIdExclusive != null) {
-            query.addCriteria(Criteria.where("_id").gt(lastIdExclusive));
-        }
         query.fields().include("_id");
         List<PlayerIdProjection> list = mongoTemplate.find(query, PlayerIdProjection.class, "players");
         return list.stream().map(PlayerIdProjection::getId).toList();
@@ -151,10 +150,11 @@ public class PlayerRefreshService {
     /**
      * Applies Mojang profile to the player: resolves skin/cape via managers, writes history, updates the given cached document in place and marks dirty.
      * Caller must supply the document (from batch map or from updatePlayer).
+     * When updatedAt is non-null (e.g. batch refresh), that timestamp is used for cache and history; otherwise uses current time.
      */
     private void applyProfileToPlayer(UUID playerId, String currentUsername, UUID currentSkinId, UUID currentCapeId,
-                                      MojangProfileToken token, PlayerDocument doc) {
-        Date now = new Date();
+                                      MojangProfileToken token, PlayerDocument doc, Date updatedAt) {
+        Date now = updatedAt != null ? updatedAt : new Date();
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
 
         // Resolve skin/cape via managers (get-or-create in cache)
@@ -262,7 +262,7 @@ public class PlayerRefreshService {
         UUID currentSkinId = document.getSkin() != null ? document.getSkin().getId() : null;
         UUID currentCapeId = document.getCape() != null ? document.getCape().getId() : null;
 
-        applyProfileToPlayer(playerId, currentUsername, currentSkinId, currentCapeId, token, document);
+        applyProfileToPlayer(playerId, currentUsername, currentSkinId, currentCapeId, token, document, null);
 
         // Reload from manager to get updated doc and sync to Player entity
         playerManager.getByUuid(playerId).ifPresent(doc -> {
@@ -289,8 +289,8 @@ public class PlayerRefreshService {
         running = false;
     }
 
-    /** 
-     * Id-only projection for cursor-based player listing. 
+    /**
+     * Id-only projection for player listing by lastUpdated.
      */
     @Document(collection = "players") @Getter
     private static class PlayerIdProjection {

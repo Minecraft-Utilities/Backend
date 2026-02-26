@@ -77,4 +77,28 @@ public class MongoUtils {
         }
         bulk.execute();
     }
+
+    /**
+     * Runs unordered bulk updateOne for each id: set the given field to the same value.
+     * No-op if the list is null or empty.
+     *
+     * @param template    MongoTemplate
+     * @param entityClass entity class used to resolve collection name
+     * @param ids         document _ids to update
+     * @param fieldName   field to set (e.g. "lastUpdated")
+     * @param value       value to set for all
+     */
+    public static void bulkSetUnordered(MongoTemplate template, Class<?> entityClass,
+                                       List<UUID> ids, String fieldName, Object value) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        BulkOperations bulk = template.bulkOps(BulkMode.UNORDERED, entityClass);
+        for (UUID id : ids) {
+            bulk.updateOne(
+                    Query.query(Criteria.where("_id").is(id)),
+                    new Update().set(fieldName, value));
+        }
+        bulk.execute();
+    }
 }
