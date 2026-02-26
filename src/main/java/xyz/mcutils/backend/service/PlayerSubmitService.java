@@ -38,11 +38,9 @@ import java.util.concurrent.TimeUnit;
 public class PlayerSubmitService {
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
-    private static final int BATCH_SIZE = 2_000;
+    private static final int BATCH_SIZE = 5_000;
     private static final int ENQUEUE_CHUNK = 1000;
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
-    private static final int BULK_CREATE_SIZE = 100;
-    private static final int REDIS_SREM_CHUNK = 500;
 
     private final RedisTemplate<String, String> redis;
     private final PlayerService playerService;
@@ -133,9 +131,7 @@ public class PlayerSubmitService {
         Set<UUID> existingIds = playerService.getExistingPlayerIds(entries.stream().map(QueueEntry::playerId).toList());
         List<String> duplicateIdsToRemove = entries.stream().filter(e -> existingIds.contains(e.playerId())).map(e -> e.playerId().toString()).toList();
         List<QueueEntry> toProcess = entries.stream().filter(e -> !existingIds.contains(e.playerId())).toList();
-        for (int i = 0; i < duplicateIdsToRemove.size(); i += REDIS_SREM_CHUNK) {
-            setOps.remove(REDIS_QUEUE_SET_KEY, duplicateIdsToRemove.subList(i, Math.min(i + REDIS_SREM_CHUNK, duplicateIdsToRemove.size())).toArray());
-        }
+        setOps.remove(REDIS_QUEUE_SET_KEY, duplicateIdsToRemove.toArray());
 
         Set<String> idsToRemoveFromQueue = ConcurrentHashMap.newKeySet();
         List<PlayerCreateSubmission> created = Collections.synchronizedList(new ArrayList<>());
@@ -176,14 +172,8 @@ public class PlayerSubmitService {
                 log.warn("Submit task failed", e.getCause());
             }
         }
-        List<String> toRemove = new ArrayList<>(idsToRemoveFromQueue);
-        for (int i = 0; i < toRemove.size(); i += REDIS_SREM_CHUNK) {
-            setOps.remove(REDIS_QUEUE_SET_KEY, toRemove.subList(i, Math.min(i + REDIS_SREM_CHUNK, toRemove.size())).toArray());
-        }
-        for (int i = 0; i < created.size(); i += BULK_CREATE_SIZE) {
-            int end = Math.min(i + BULK_CREATE_SIZE, created.size());
-            playerService.createPlayers(created.subList(i, end));
-        }
+        setOps.remove(REDIS_QUEUE_SET_KEY, idsToRemoveFromQueue);
+        playerService.createPlayers(created);
     }
 
     public void submitPlayers(List<String> players, String submittedBy) {
