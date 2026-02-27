@@ -306,13 +306,15 @@ public class PlayerService {
         if (toQuery.isEmpty()) {
             return Set.copyOf(existing);
         }
-        Query query = Query.query(Criteria.where("_id").in(toQuery));
-        List<UUID> found = this.mongoTemplate.query(PlayerDocument.class)
-                .distinct("_id")
-                .as(UUID.class)
-                .matching(query)
-                .all();
-        existing.addAll(found);
+        Set<UUID> toQueryUnique = new HashSet<>(toQuery);
+        Query query = Query.query(Criteria.where("_id").in(toQueryUnique));
+        query.fields().include("_id");
+        List<PlayerDocument> foundDocs = this.mongoTemplate.find(query, PlayerDocument.class);
+        for (PlayerDocument doc : foundDocs) {
+            if (doc.getId() != null) {
+                existing.add(doc.getId());
+            }
+        }
         return Set.copyOf(existing);
     }
 

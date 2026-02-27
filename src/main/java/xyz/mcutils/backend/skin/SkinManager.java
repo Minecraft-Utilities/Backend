@@ -28,10 +28,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-/**
- * In-memory cache for skin documents. Cache-first lookups; periodic flush of dirty entries to MongoDB.
- * Uses a Guava cache with max 50k entries; oldest (least recently used) entries are evicted when full.
- */
 @Component
 @Slf4j
 public class SkinManager {
