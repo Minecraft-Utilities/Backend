@@ -2,6 +2,7 @@ package xyz.mcutils.backend.service;
 
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
@@ -39,7 +40,6 @@ public class PlayerSubmitService {
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final int BATCH_SIZE = 1_000;
-    private static final int ENQUEUE_CHUNK = 1000;
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
     private final RedisTemplate<String, String> redis;
     private final PlayerService playerService;
@@ -86,11 +86,11 @@ public class PlayerSubmitService {
         });
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({"unchecked"})
     private List<String> takeBatchFromQueue(int batchSize) {
         List<Object> results = redis.execute(new SessionCallback<>() {
             @Override
-            public List<Object> execute(RedisOperations operations) {
+            public List<Object> execute(@NonNull RedisOperations operations) {
                 operations.multi();
                 operations.opsForList().range(REDIS_QUEUE_KEY, 0, batchSize - 1);
                 operations.opsForList().trim(REDIS_QUEUE_KEY, batchSize, -1);
@@ -204,22 +204,19 @@ public class PlayerSubmitService {
         List<String> entryStrings = new ArrayList<>();
         List<String> playerIdStrings = new ArrayList<>();
         if (keyBytes != null) {
-            for (int chunkStart = 0; chunkStart < toEnqueue.size(); chunkStart += ENQUEUE_CHUNK) {
-                List<UUID> chunk = toEnqueue.subList(chunkStart, Math.min(chunkStart + ENQUEUE_CHUNK, toEnqueue.size()));
-                byte[][] memberBytes = new byte[chunk.size()][];
-                for (int i = 0; i < chunk.size(); i++) {
-                    memberBytes[i] = valueSer.serialize(chunk.get(i).toString());
-                }
-                List<Boolean> inQueue = redis.execute((RedisConnection connection) -> connection.setCommands().sMIsMember(keyBytes, memberBytes));
-                if (inQueue == null) {
-                    inQueue = List.of();
-                }
-                for (int i = 0; i < chunk.size(); i++) {
-                    if (!Boolean.TRUE.equals(inQueue.get(i))) {
-                        UUID uuid = chunk.get(i);
-                        entryStrings.add(uuid + "," + (by != null ? by : ""));
-                        playerIdStrings.add(uuid.toString());
-                    }
+            byte[][] memberBytes = new byte[toEnqueue.size()][];
+            for (int i = 0; i < toEnqueue.size(); i++) {
+                memberBytes[i] = valueSer.serialize(toEnqueue.get(i).toString());
+            }
+            List<Boolean> inQueue = redis.execute((RedisConnection connection) -> connection.setCommands().sMIsMember(keyBytes, memberBytes));
+            if (inQueue == null) {
+                inQueue = List.of();
+            }
+            for (int i = 0; i < toEnqueue.size(); i++) {
+                if (!Boolean.TRUE.equals(inQueue.get(i))) {
+                    UUID uuid = toEnqueue.get(i);
+                    entryStrings.add(uuid + "," + (by != null ? by : ""));
+                    playerIdStrings.add(uuid.toString());
                 }
             }
         }
@@ -229,11 +226,8 @@ public class PlayerSubmitService {
 
         ListOperations<String, String> listOps = redis.opsForList();
         SetOperations<String, String> setOps = redis.opsForSet();
-        for (int i = 0; i < entryStrings.size(); i += ENQUEUE_CHUNK) {
-            int end = Math.min(i + ENQUEUE_CHUNK, entryStrings.size());
-            listOps.rightPushAll(REDIS_QUEUE_KEY, entryStrings.subList(i, end));
-            setOps.add(REDIS_QUEUE_SET_KEY, playerIdStrings.subList(i, end).toArray(new String[0]));
-        }
+        listOps.rightPushAll(REDIS_QUEUE_KEY, entryStrings);
+        setOps.add(REDIS_QUEUE_SET_KEY, playerIdStrings.toArray(new String[0]));
         Long size = listOps.size(REDIS_QUEUE_KEY);
         log.info("Submitted {} players to submit queue (total queued: {}, submittedBy: {})", entryStrings.size(), size != null ? size : 0, submittedBy);
         return entryStrings.size();

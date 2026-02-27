@@ -15,7 +15,7 @@ import java.util.List;
  * @param submittedBy optional uuid of the player who submitted them (may be null or omitted)
  */
 public record SubmitPlayersRequest(
-        @NotEmpty @Size(min = 1, max = 25_000)
+        @NotEmpty @Size(min = 1, max = 2_000)
         List<@NotBlank String> uuids,
         @Nullable String submittedBy
 ) {}
