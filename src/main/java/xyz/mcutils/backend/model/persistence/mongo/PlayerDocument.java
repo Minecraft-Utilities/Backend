@@ -53,14 +53,14 @@ public class PlayerDocument {
      * The skins this player has previously equipped (including current).
      */
     @ReadOnlyProperty
-    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'lastUsed' : 1 }")
+    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'lastUsed' : 1 }", lazy = true)
     private List<SkinHistoryDocument> skinHistory;
 
     /**
      * The usernames this player has previously used (including current).
      */
     @ReadOnlyProperty
-    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'timestamp' : 1 }")
+    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'timestamp' : 1 }", lazy = true)
     private List<UsernameHistoryDocument> usernameHistory;
 
     /**
@@ -74,7 +74,7 @@ public class PlayerDocument {
      * The capes this player has previously equipped (including current).
      */
     @ReadOnlyProperty
-    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'lastUsed' : 1 }")
+    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'lastUsed' : 1 }", lazy = true)
     private List<CapeHistoryDocument> capeHistory;
 
     /**
