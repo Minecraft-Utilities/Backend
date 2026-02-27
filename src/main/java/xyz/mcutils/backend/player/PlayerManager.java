@@ -6,8 +6,12 @@ import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalNotification;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
+import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Collation;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.stereotype.Component;
 import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
@@ -113,17 +117,25 @@ public class PlayerManager {
     }
 
     /**
-     * Gets a player by username. Uses repository for username lookup then cache/load by UUID.
+     * Gets a player by username. Uses _id-only lookup then cache/load by UUID (avoids loading document refs).
      */
     public Optional<PlayerDocument> getByUsername(String username) {
         if (username == null || username.isBlank()) {
             return Optional.empty();
         }
-        List<PlayerDocument> list = this.playerRepository.usernameToUuid(username);
-        if (list.isEmpty()) {
+        Query query = new Query(Criteria.where("username").is(username))
+                .collation(Collation.of("en").strength(Collation.ComparisonLevel.secondary()))
+                .withHint("username_case_insensitive")
+                .limit(1);
+        List<Document> found = MongoUtils.findWithFields(this.mongoTemplate, query, PlayerDocument.class, "_id");
+        if (found.isEmpty()) {
             return Optional.empty();
         }
-        return this.getByUuid(list.getFirst().getId());
+        Object idObj = found.getFirst().get("_id");
+        if (!(idObj instanceof UUID uuid)) {
+            return Optional.empty();
+        }
+        return this.getByUuid(uuid);
     }
 
     /**
