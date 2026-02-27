@@ -30,7 +30,7 @@ public class FlushScheduler {
         this.playerRefreshService = playerRefreshService;
     }
 
-    @Scheduled(fixedRate = 60_000 * 4)
+    @Scheduled(fixedRate = 60_000 * 10)
     public void flushCaches() {
         this.playerManager.flush();
         this.skinManager.flush();
