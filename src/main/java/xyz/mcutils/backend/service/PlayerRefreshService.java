@@ -1,14 +1,12 @@
 package xyz.mcutils.backend.service;
 
-import lombok.Getter;
+import org.bson.Document;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
@@ -144,9 +142,12 @@ public class PlayerRefreshService {
         Query query = new Query()
                 .with(Sort.by(Sort.Direction.ASC, "lastUpdated"))
                 .limit(limit);
-        query.fields().include("_id");
-        List<PlayerIdProjection> list = mongoTemplate.find(query, PlayerIdProjection.class, "players");
-        return list.stream().map(PlayerIdProjection::getId).toList();
+        List<Document> found = MongoUtils.findWithFields(mongoTemplate, query, PlayerDocument.class, "_id");
+        return found.stream()
+                .map(doc -> doc.get("_id"))
+                .filter(id -> id instanceof UUID)
+                .map(UUID.class::cast)
+                .toList();
     }
 
     /**
@@ -298,12 +299,4 @@ public class PlayerRefreshService {
         running = false;
     }
 
-    /**
-     * Id-only projection for player listing by lastUpdated.
-     */
-    @Document(collection = "players") @Getter
-    private static class PlayerIdProjection {
-        @Id
-        private UUID id;
-    }
 }
