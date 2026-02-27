@@ -308,11 +308,11 @@ public class PlayerService {
         }
         Set<UUID> toQueryUnique = new HashSet<>(toQuery);
         Query query = Query.query(Criteria.where("_id").in(toQueryUnique));
-        query.fields().include("_id");
-        List<PlayerDocument> foundDocs = this.mongoTemplate.find(query, PlayerDocument.class);
-        for (PlayerDocument doc : foundDocs) {
-            if (doc.getId() != null) {
-                existing.add(doc.getId());
+        List<Document> foundDocs = MongoUtils.findWithFields(this.mongoTemplate, query, PlayerDocument.class, "_id");
+        for (Document doc : foundDocs) {
+            UUID id = doc.get("_id", UUID.class);
+            if (id != null) {
+                existing.add(id);
             }
         }
         return Set.copyOf(existing);
