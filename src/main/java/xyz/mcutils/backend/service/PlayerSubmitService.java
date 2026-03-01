@@ -8,11 +8,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.connection.RedisConnection;
-import org.springframework.data.redis.core.ListOperations;
-import org.springframework.data.redis.core.RedisOperations;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.SetOperations;
-import org.springframework.data.redis.core.SessionCallback;
+import org.springframework.data.redis.core.*;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
@@ -24,11 +20,7 @@ import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
  * Dedicated submit queue for tracking new players.
@@ -196,28 +188,24 @@ public class PlayerSubmitService {
             return 0;
         }
 
-        @SuppressWarnings("unchecked")
-        RedisSerializer<String> keySer = (RedisSerializer<String>) redis.getKeySerializer();
-        @SuppressWarnings("unchecked")
-        RedisSerializer<String> valueSer = (RedisSerializer<String>) redis.getValueSerializer();
+        @SuppressWarnings("unchecked") RedisSerializer<String> keySer = (RedisSerializer<String>) redis.getKeySerializer();
+        @SuppressWarnings("unchecked") RedisSerializer<String> valueSer = (RedisSerializer<String>) redis.getValueSerializer();
         byte[] keyBytes = keySer.serialize(REDIS_QUEUE_SET_KEY);
         List<String> entryStrings = new ArrayList<>();
         List<String> playerIdStrings = new ArrayList<>();
-        if (keyBytes != null) {
-            byte[][] memberBytes = new byte[toEnqueue.size()][];
-            for (int i = 0; i < toEnqueue.size(); i++) {
-                memberBytes[i] = valueSer.serialize(toEnqueue.get(i).toString());
-            }
-            List<Boolean> inQueue = redis.execute((RedisConnection connection) -> connection.setCommands().sMIsMember(keyBytes, memberBytes));
-            if (inQueue == null) {
-                inQueue = List.of();
-            }
-            for (int i = 0; i < toEnqueue.size(); i++) {
-                if (!Boolean.TRUE.equals(inQueue.get(i))) {
-                    UUID uuid = toEnqueue.get(i);
-                    entryStrings.add(uuid + "," + (by != null ? by : ""));
-                    playerIdStrings.add(uuid.toString());
-                }
+        byte[][] memberBytes = new byte[toEnqueue.size()][];
+        for (int i = 0; i < toEnqueue.size(); i++) {
+            memberBytes[i] = valueSer.serialize(toEnqueue.get(i).toString());
+        }
+        List<Boolean> inQueue = redis.execute((RedisConnection connection) -> connection.setCommands().sMIsMember(keyBytes, memberBytes));
+        if (inQueue == null) {
+            inQueue = List.of();
+        }
+        for (int i = 0; i < toEnqueue.size(); i++) {
+            if (!Boolean.TRUE.equals(inQueue.get(i))) {
+                UUID uuid = toEnqueue.get(i);
+                entryStrings.add(uuid + "," + (by != null ? by : ""));
+                playerIdStrings.add(uuid.toString());
             }
         }
         if (entryStrings.isEmpty()) {

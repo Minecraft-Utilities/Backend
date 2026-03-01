@@ -1,21 +1,19 @@
 package xyz.mcutils.backend.service;
 
-import org.bson.Document;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.Document;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
-
 import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.cape.CapeManager;
 import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.Tuple;
-import xyz.mcutils.backend.cape.CapeManager;
-import xyz.mcutils.backend.player.PlayerManager;
-import xyz.mcutils.backend.skin.SkinManager;
+import xyz.mcutils.backend.metric.impl.player.AccountsUpdatedMetric;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.domain.skin.Skin;
@@ -23,20 +21,14 @@ import xyz.mcutils.backend.model.persistence.mongo.*;
 import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
-import xyz.mcutils.backend.metric.impl.player.AccountsUpdatedMetric;
+import xyz.mcutils.backend.player.PlayerManager;
 import xyz.mcutils.backend.repository.mongo.CapeHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.SkinHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
+import xyz.mcutils.backend.skin.SkinManager;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
@@ -62,10 +54,8 @@ public class PlayerRefreshService {
 
     public PlayerRefreshService(MojangService mojangService, SkinService skinService, CapeService capeService,
                                 PlayerManager playerManager, SkinManager skinManager, CapeManager capeManager,
-                                SkinHistoryRepository skinHistoryRepository,
-                                CapeHistoryRepository capeHistoryRepository,
-                                UsernameHistoryRepository usernameHistoryRepository,
-                                MongoTemplate mongoTemplate) {
+                                SkinHistoryRepository skinHistoryRepository, CapeHistoryRepository capeHistoryRepository,
+                                UsernameHistoryRepository usernameHistoryRepository, MongoTemplate mongoTemplate) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
@@ -83,7 +73,7 @@ public class PlayerRefreshService {
         Main.EXECUTOR.submit(() -> {
             while (running) {
                 try {
-                    List<UUID> ids = findRefreshChunkIds(REFRESH_CHUNK_SIZE);
+                    List<UUID> ids = findRefreshChunkIds();
                     if (ids.isEmpty()) {
                         for (int i = 0; i < 10 && running; i++) {
                             Thread.sleep(Duration.ofSeconds(1).toMillis());
@@ -138,10 +128,10 @@ public class PlayerRefreshService {
     /**
      * Returns player ids with oldest lastUpdated first (projection _id only). Use manager to load full document.
      */
-    private List<UUID> findRefreshChunkIds(int limit) {
+    private List<UUID> findRefreshChunkIds() {
         Query query = new Query()
                 .with(Sort.by(Sort.Direction.ASC, "lastUpdated"))
-                .limit(limit);
+                .limit(PlayerRefreshService.REFRESH_CHUNK_SIZE);
         List<Document> found = MongoUtils.findWithFields(mongoTemplate, query, PlayerDocument.class, "_id");
         return found.stream()
                 .map(doc -> doc.get("_id"))

@@ -43,44 +43,44 @@ public class PlayerDocument {
     private boolean legacyAccount;
 
     /**
+     * The amount of new uuids this player has submitted.
+     */
+    private long submittedUuids;
+
+    /**
      * The player's current skin.
      */
     @Indexed(name = "skin")
-    @DocumentReference(lookup = "{ '_id' : ?#{#target} }")
+    @DocumentReference
     private SkinDocument skin;
+
+    /**
+     * The player's current cape.
+     */
+    @Indexed(name = "cape")
+    @DocumentReference
+    private CapeDocument cape;
 
     /**
      * The skins this player has previously equipped (including current).
      */
     @ReadOnlyProperty
-    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'lastUsed' : 1 }", lazy = true)
+    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'lastUsed' : -1 }", lazy = true)
     private List<SkinHistoryDocument> skinHistory;
 
     /**
      * The usernames this player has previously used (including current).
      */
     @ReadOnlyProperty
-    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'timestamp' : 1 }", lazy = true)
+    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'timestamp' : -1 }", lazy = true)
     private List<UsernameHistoryDocument> usernameHistory;
-
-    /**
-     * The player's current cape.
-     */
-    @Indexed(name = "cape")
-    @DocumentReference(lookup = "{ '_id' : ?#{#target} }")
-    private CapeDocument cape;
 
     /**
      * The capes this player has previously equipped (including current).
      */
     @ReadOnlyProperty
-    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'lastUsed' : 1 }", lazy = true)
+    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'lastUsed' : -1 }", lazy = true)
     private List<CapeHistoryDocument> capeHistory;
-
-    /**
-     * The amount of new uuids this player has submitted.
-     */
-    private long submittedUuids;
 
     /**
      * The time this account was last updated.
