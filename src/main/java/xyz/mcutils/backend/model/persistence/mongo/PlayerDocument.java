@@ -2,15 +2,13 @@ package xyz.mcutils.backend.model.persistence.mongo;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.annotation.ReadOnlyProperty;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.DocumentReference;
+import org.springframework.data.mongodb.core.mapping.Field;
 import xyz.mcutils.backend.model.domain.player.Player;
 
 import java.util.Date;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -48,39 +46,18 @@ public class PlayerDocument {
     private long submittedUuids;
 
     /**
-     * The player's current skin.
+     * The player's current skin id.
      */
     @Indexed(name = "skin")
-    @DocumentReference
-    private SkinDocument skin;
+    @Field("skin")
+    private UUID skinId;
 
     /**
-     * The player's current cape.
+     * The player's current cape id.
      */
     @Indexed(name = "cape")
-    @DocumentReference
-    private CapeDocument cape;
-
-    /**
-     * The skins this player has previously equipped (including current).
-     */
-    @ReadOnlyProperty
-    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'lastUsed' : -1 }", lazy = true)
-    private List<SkinHistoryDocument> skinHistory;
-
-    /**
-     * The usernames this player has previously used (including current).
-     */
-    @ReadOnlyProperty
-    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'timestamp' : -1 }", lazy = true)
-    private List<UsernameHistoryDocument> usernameHistory;
-
-    /**
-     * The capes this player has previously equipped (including current).
-     */
-    @ReadOnlyProperty
-    @DocumentReference(lookup = "{ 'playerId' : ?#{#self._id} }", sort = "{ 'lastUsed' : -1 }", lazy = true)
-    private List<CapeHistoryDocument> capeHistory;
+    @Field("cape")
+    private UUID capeId;
 
     /**
      * The time this account was last updated.

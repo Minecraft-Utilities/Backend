@@ -72,12 +72,13 @@ public class PlayerService {
     private final SkinManager skinManager;
     private final CapeManager capeManager;
     private final PlayerRepository playerRepository;
+    private final PlayerHistoryService playerHistoryService;
     private final MongoTemplate mongoTemplate;
     private final CoalescingLoader<String, Player> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerRefreshService playerRefreshService,
                          PlayerManager playerManager, SkinManager skinManager, CapeManager capeManager,
-                         PlayerRepository playerRepository, MongoTemplate mongoTemplate) {
+                         PlayerRepository playerRepository, PlayerHistoryService playerHistoryService, MongoTemplate mongoTemplate) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
@@ -86,6 +87,7 @@ public class PlayerService {
         this.skinManager = skinManager;
         this.capeManager = capeManager;
         this.playerRepository = playerRepository;
+        this.playerHistoryService = playerHistoryService;
         this.mongoTemplate = mongoTemplate;
     }
 
@@ -198,8 +200,8 @@ public class PlayerService {
                     .id(playerUuid)
                     .username(token.getName())
                     .legacyAccount(token.isLegacy())
-                    .skin(skinUuid != null ? SkinDocument.builder().id(skinUuid).build() : null)
-                    .cape(capeUuid != null ? CapeDocument.builder().id(capeUuid).build() : null)
+                    .skinId(skinUuid)
+                    .capeId(capeUuid)
                     .lastUpdated(now)
                     .firstSeen(now)
                     .build());
@@ -259,6 +261,17 @@ public class PlayerService {
         }
         for (Map.Entry<UUID, Long> e : submitterCounts.entrySet()) {
             playerManager.incrementSubmittedUuids(e.getKey(), e.getValue());
+        }
+
+        // Shared ensure-history path: guarantee current state is in history (fixes any partial insert or legacy gaps)
+        for (PlayerDocument doc : playerDocuments) {
+            playerHistoryService.ensureUsernameInHistory(doc.getId(), doc.getUsername(), now);
+            if (doc.getSkinId() != null) {
+                playerHistoryService.ensureSkinInHistory(doc.getId(), doc.getSkinId(), now);
+            }
+            if (doc.getCapeId() != null) {
+                playerHistoryService.ensureCapeInHistory(doc.getId(), doc.getCapeId(), now);
+            }
         }
 
         log.debug("Bulk created {} players", submissions.size());
@@ -374,47 +387,48 @@ public class PlayerService {
 
     /**
      * Builds a {@link Player} domain object from an already-loaded {@link PlayerDocument}.
-     * Safe to call when the document has lazy refs (they are resolved on first access).
+     * History is loaded from the history repositories by player id.
      *
      * @param document the player document (e.g. from a batch query or findById)
      * @return the player domain object
      */
     public Player fromDocument(PlayerDocument document) {
+        UUID playerId = document.getId();
+        List<SkinHistoryDocument> skinHistoryDocs = playerManager.getPlayerSkinHistory(playerId);
+        List<CapeHistoryDocument> capeHistoryDocs = playerManager.getPlayerCapeHistory(playerId);
+        List<UsernameHistoryDocument> usernameHistoryDocs = playerManager.getPlayerUsernameHistory(playerId);
+
         Set<UUID> skinIds = new HashSet<>();
-        if (document.getSkin() != null && document.getSkin().getId() != null) {
-            skinIds.add(document.getSkin().getId());
+        if (document.getSkinId() != null) {
+            skinIds.add(document.getSkinId());
         }
-        if (document.getSkinHistory() != null) {
-            for (SkinHistoryDocument entry : document.getSkinHistory()) {
-                if (entry.getSkin() != null && entry.getSkin().getId() != null) {
-                    skinIds.add(entry.getSkin().getId());
-                }
+        for (SkinHistoryDocument entry : skinHistoryDocs) {
+            if (entry.getSkin() != null && entry.getSkin().getId() != null) {
+                skinIds.add(entry.getSkin().getId());
             }
         }
         Set<UUID> capeIds = new HashSet<>();
-        if (document.getCape() != null && document.getCape().getId() != null) {
-            capeIds.add(document.getCape().getId());
+        if (document.getCapeId() != null) {
+            capeIds.add(document.getCapeId());
         }
-        if (document.getCapeHistory() != null) {
-            for (CapeHistoryDocument entry : document.getCapeHistory()) {
-                if (entry.getCape() != null && entry.getCape().getId() != null) {
-                    capeIds.add(entry.getCape().getId());
-                }
+        for (CapeHistoryDocument entry : capeHistoryDocs) {
+            if (entry.getCape() != null && entry.getCape().getId() != null) {
+                capeIds.add(entry.getCape().getId());
             }
         }
         Map<UUID, SkinDocument> skinDocById = skinManager.getByIds(skinIds);
         Map<UUID, CapeDocument> capeDocById = capeManager.getByIds(capeIds);
 
         Skin skin = null;
-        if (document.getSkin() != null && document.getSkin().getId() != null) {
-            SkinDocument sd = skinDocById.get(document.getSkin().getId());
+        if (document.getSkinId() != null) {
+            SkinDocument sd = skinDocById.get(document.getSkinId());
             skin = sd != null ? skinService.fromDocument(sd) : null;
         }
 
         Set<Skin> skinHistory = null;
-        if (document.getSkinHistory() != null && !document.getSkinHistory().isEmpty()) {
+        if (!skinHistoryDocs.isEmpty()) {
             skinHistory = new HashSet<>();
-            for (SkinHistoryDocument entry : document.getSkinHistory()) {
+            for (SkinHistoryDocument entry : skinHistoryDocs) {
                 if (entry.getSkin() != null && entry.getSkin().getId() != null) {
                     SkinDocument sd = skinDocById.get(entry.getSkin().getId());
                     if (sd != null) {
@@ -425,14 +439,14 @@ public class PlayerService {
         }
 
         VanillaCape cape = null;
-        if (document.getCape() != null && document.getCape().getId() != null) {
-            CapeDocument cd = capeDocById.get(document.getCape().getId());
+        if (document.getCapeId() != null) {
+            CapeDocument cd = capeDocById.get(document.getCapeId());
             cape = cd != null ? capeService.fromDocument(cd) : null;
         }
         Set<VanillaCape> capeHistory = null;
-        if (document.getCapeHistory() != null && !document.getCapeHistory().isEmpty()) {
+        if (!capeHistoryDocs.isEmpty()) {
             capeHistory = new HashSet<>();
-            for (CapeHistoryDocument entry : document.getCapeHistory()) {
+            for (CapeHistoryDocument entry : capeHistoryDocs) {
                 if (entry.getCape() != null && entry.getCape().getId() != null) {
                     CapeDocument cd = capeDocById.get(entry.getCape().getId());
                     if (cd != null) {
@@ -443,9 +457,9 @@ public class PlayerService {
         }
 
         Set<UsernameHistory> usernameHistory = null;
-        if (document.getUsernameHistory() != null && !document.getUsernameHistory().isEmpty()) {
+        if (!usernameHistoryDocs.isEmpty()) {
             usernameHistory = new HashSet<>();
-            for (UsernameHistoryDocument entry : document.getUsernameHistory()) {
+            for (UsernameHistoryDocument entry : usernameHistoryDocs) {
                 usernameHistory.add(new UsernameHistory(entry.getUsername(), entry.getTimestamp()));
             }
         }

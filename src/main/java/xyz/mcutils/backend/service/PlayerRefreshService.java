@@ -6,8 +6,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -30,18 +28,12 @@ import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.metric.impl.player.AccountsUpdatedMetric;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
-import xyz.mcutils.backend.model.persistence.mongo.CapeHistoryDocument;
 import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 import xyz.mcutils.backend.model.persistence.mongo.SkinDocument;
-import xyz.mcutils.backend.model.persistence.mongo.SkinHistoryDocument;
-import xyz.mcutils.backend.model.persistence.mongo.UsernameHistoryDocument;
 import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.player.PlayerManager;
-import xyz.mcutils.backend.repository.mongo.CapeHistoryRepository;
-import xyz.mcutils.backend.repository.mongo.SkinHistoryRepository;
-import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
 import xyz.mcutils.backend.skin.SkinManager;
 
 @Service
@@ -58,24 +50,19 @@ public class PlayerRefreshService {
     private final PlayerManager playerManager;
     private final SkinManager skinManager;
     private final CapeManager capeManager;
-    private final SkinHistoryRepository skinHistoryRepository;
-    private final CapeHistoryRepository capeHistoryRepository;
-    private final UsernameHistoryRepository usernameHistoryRepository;
+    private final PlayerHistoryService playerHistoryService;
     private final MongoTemplate mongoTemplate;
 
     public PlayerRefreshService(MojangService mojangService, SkinService skinService, CapeService capeService,
                                 PlayerManager playerManager, SkinManager skinManager, CapeManager capeManager,
-                                SkinHistoryRepository skinHistoryRepository, CapeHistoryRepository capeHistoryRepository,
-                                UsernameHistoryRepository usernameHistoryRepository, MongoTemplate mongoTemplate) {
+                                PlayerHistoryService playerHistoryService, MongoTemplate mongoTemplate) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
         this.playerManager = playerManager;
         this.skinManager = skinManager;
         this.capeManager = capeManager;
-        this.skinHistoryRepository = skinHistoryRepository;
-        this.capeHistoryRepository = capeHistoryRepository;
-        this.usernameHistoryRepository = usernameHistoryRepository;
+        this.playerHistoryService = playerHistoryService;
         this.mongoTemplate = mongoTemplate;
     }
 
@@ -107,8 +94,8 @@ public class PlayerRefreshService {
                                 if (token == null) {
                                     return;
                                 }
-                                UUID skinId = playerDocument.getSkin() != null ? playerDocument.getSkin().getId() : null;
-                                UUID capeId = playerDocument.getCape() != null ? playerDocument.getCape().getId() : null;
+                                UUID skinId = playerDocument.getSkinId();
+                                UUID capeId = playerDocument.getCapeId();
                                 applyProfileToPlayer(playerDocument.getId(), playerDocument.getUsername(), skinId, capeId, token, playerDocument, batchTime);
                                 refreshedIds.add(playerDocument.getId());
                             } finally {
@@ -178,105 +165,24 @@ public class PlayerRefreshService {
             log.debug("Mojang profile had no cape for player {}; keeping current cape {}", playerId, currentCapeId);
         }
 
-        boolean skinChanged = !Objects.equals(newSkinId, currentSkinId);
-        boolean capeChanged = !Objects.equals(newCapeId, currentCapeId);
-
-        if (!Objects.equals(currentUsername, token.getName())) {
-            insertUsernameHistory(playerId, currentUsername, token.getName(), now);
-        }
-        if (newSkinId != null && insertSkinHistory(playerId, newSkinId, now, skinChanged)) {
+        // Shared ensure-history path: never ignore missing history
+        playerHistoryService.ensureUsernameInHistory(playerId, token.getName(), now);
+        if (newSkinId != null && playerHistoryService.ensureSkinInHistory(playerId, newSkinId, now)) {
             skinManager.incrementAccountsUsed(newSkinId, 1);
         }
-        if (newCapeId != null && insertCapeHistory(playerId, newCapeId, now, capeChanged)) {
+        if (newCapeId != null && playerHistoryService.ensureCapeInHistory(playerId, newCapeId, now)) {
             capeManager.incrementAccountsOwned(newCapeId, 1);
         }
 
         // Update cached player document in place
         doc.setUsername(token.getName());
-        doc.setSkin(newSkinId != null ? SkinDocument.builder().id(newSkinId).build() : null);
-        doc.setCape(newCapeId != null ? CapeDocument.builder().id(newCapeId).build() : null);
+        doc.setSkinId(newSkinId);
+        doc.setCapeId(newCapeId);
         doc.setLegacyAccount(token.isLegacy());
         doc.setLastUpdated(now);
         playerManager.markDirty(playerId);
 
         MetricService.getMetric(AccountsUpdatedMetric.class).inc(1);
-    }
-
-    /**
-     * Inserts username history for this player.
-     * 
-     * @param playerId the player id
-     * @param currentUsername the current username
-     * @param newName the new username
-     * @param now the timestamp
-     */
-    private void insertUsernameHistory(UUID playerId, String currentUsername, String newName, Date now) {
-        usernameHistoryRepository.save(UsernameHistoryDocument.builder()
-                    .id(UUID.randomUUID())
-                    .playerId(playerId)
-                    .username(newName)
-                    .timestamp(now)
-                    .build());
-    }
-
-    /**
-     * Inserts skin history for this player.
-     * 
-     * @param playerId the player id
-     * @param skinId the skin id
-     * @param now the timestamp
-     * @param updateLastUsed whether to update the last used timestamp
-     * @return true if a new entry was inserted, false if an existing entry was updated
-     */
-    private boolean insertSkinHistory(UUID playerId, UUID skinId, Date now, boolean updateLastUsed) {
-        Optional<SkinHistoryDocument> existing = skinHistoryRepository.findFirstByPlayerIdAndSkinId(playerId, skinId);
-        if (existing.isPresent() && updateLastUsed) {
-            SkinHistoryDocument d = existing.get();
-            d.setLastUsed(now);
-            skinHistoryRepository.save(d);
-            return false;
-        }
-        if (existing.isPresent()) {
-            return false;
-        }
-        skinHistoryRepository.save(SkinHistoryDocument.builder()
-                .id(UUID.randomUUID())
-                .playerId(playerId)
-                .skin(SkinDocument.builder().id(skinId).build())
-                .lastUsed(now)
-                .timestamp(now)
-                .build());
-        return true;
-    }
-
-    /**
-     * Inserts cape history for this player.
-     * 
-     * @param playerId the player id
-     * @param capeId the cape id
-     * @param now the timestamp
-     * @param updateLastUsed whether to update the last used timestamp
-     * @return true if a new entry was inserted, false if an existing entry was updated
-     */
-    private boolean insertCapeHistory(UUID playerId, UUID capeId, Date now, boolean updateLastUsed) {
-        Optional<CapeHistoryDocument> existing = capeHistoryRepository.findFirstByPlayerIdAndCapeId(playerId, capeId);
-        if (existing.isPresent() && updateLastUsed) {
-            CapeHistoryDocument d = existing.get();
-            d.setLastUsed(now);
-            capeHistoryRepository.save(d);
-            return false;
-        }
-        if (existing.isPresent()) {
-            return false;
-        }
-        capeHistoryRepository.save(CapeHistoryDocument.builder()
-                .id(UUID.randomUUID())
-                .playerId(playerId)
-                .cape(CapeDocument.builder().id(capeId).build())
-                .lastUsed(now)
-                .timestamp(now)
-                .build());
-        return true;
     }
 
     /**
@@ -290,16 +196,16 @@ public class PlayerRefreshService {
     public void updatePlayer(Player player, PlayerDocument document, MojangProfileToken token) {
         UUID playerId = document.getId();
         String currentUsername = document.getUsername();
-        UUID currentSkinId = document.getSkin() != null ? document.getSkin().getId() : null;
-        UUID currentCapeId = document.getCape() != null ? document.getCape().getId() : null;
+        UUID currentSkinId = document.getSkinId();
+        UUID currentCapeId = document.getCapeId();
 
         applyProfileToPlayer(playerId, currentUsername, currentSkinId, currentCapeId, token, document, null);
 
         // Reload from manager to get updated doc and sync to Player entity
         playerManager.getByUuid(playerId).ifPresent(doc -> {
             player.setUsername(doc.getUsername());
-            player.setSkin(doc.getSkin() != null ? skinManager.getById(doc.getSkin().getId()).map(skinService::fromDocument).orElse(null) : null);
-            player.setCape(doc.getCape() != null ? capeManager.getById(doc.getCape().getId()).map(capeService::fromDocument).orElse(null) : null);
+            player.setSkin(doc.getSkinId() != null ? skinManager.getById(doc.getSkinId()).map(skinService::fromDocument).orElse(null) : null);
+            player.setCape(doc.getCapeId() != null ? capeManager.getById(doc.getCapeId()).map(capeService::fromDocument).orElse(null) : null);
             player.setLegacyAccount(doc.isLegacyAccount());
             player.setLastUpdated(doc.getLastUpdated());
         });

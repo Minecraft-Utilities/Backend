@@ -13,8 +13,14 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Component;
 import xyz.mcutils.backend.common.MongoUtils;
+import xyz.mcutils.backend.model.persistence.mongo.CapeHistoryDocument;
 import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
+import xyz.mcutils.backend.model.persistence.mongo.SkinHistoryDocument;
+import xyz.mcutils.backend.model.persistence.mongo.UsernameHistoryDocument;
+import xyz.mcutils.backend.repository.mongo.CapeHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
+import xyz.mcutils.backend.repository.mongo.SkinHistoryRepository;
+import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,6 +41,9 @@ public class PlayerManager {
     public static PlayerManager INSTANCE;
 
     private final PlayerRepository playerRepository;
+    private final SkinHistoryRepository skinHistoryRepository;
+    private final CapeHistoryRepository capeHistoryRepository;
+    private final UsernameHistoryRepository usernameHistoryRepository;
     private final MongoTemplate mongoTemplate;
     private final Cache<UUID, CachedPlayerDocument> cache = CacheBuilder.newBuilder()
             .maximumSize(100_000)
@@ -55,8 +64,15 @@ public class PlayerManager {
         }
     }
 
-    public PlayerManager(PlayerRepository playerRepository, MongoTemplate mongoTemplate) {
+    public PlayerManager(PlayerRepository playerRepository,
+                         SkinHistoryRepository skinHistoryRepository,
+                         CapeHistoryRepository capeHistoryRepository,
+                         UsernameHistoryRepository usernameHistoryRepository,
+                         MongoTemplate mongoTemplate) {
         this.playerRepository = playerRepository;
+        this.skinHistoryRepository = skinHistoryRepository;
+        this.capeHistoryRepository = capeHistoryRepository;
+        this.usernameHistoryRepository = usernameHistoryRepository;
         this.mongoTemplate = mongoTemplate;
     }
 
@@ -136,6 +152,36 @@ public class PlayerManager {
             return Optional.empty();
         }
         return this.getByUuid(uuid);
+    }
+
+    /**
+     * Gets skin history for the player (ordered by last used descending).
+     */
+    public List<SkinHistoryDocument> getPlayerSkinHistory(UUID playerId) {
+        if (playerId == null) {
+            return List.of();
+        }
+        return skinHistoryRepository.findByPlayerIdOrderByLastUsedDesc(playerId);
+    }
+
+    /**
+     * Gets cape history for the player (ordered by last used descending).
+     */
+    public List<CapeHistoryDocument> getPlayerCapeHistory(UUID playerId) {
+        if (playerId == null) {
+            return List.of();
+        }
+        return capeHistoryRepository.findByPlayerIdOrderByLastUsedDesc(playerId);
+    }
+
+    /**
+     * Gets username history for the player (ordered by timestamp descending).
+     */
+    public List<UsernameHistoryDocument> getPlayerUsernameHistory(UUID playerId) {
+        if (playerId == null) {
+            return List.of();
+        }
+        return usernameHistoryRepository.findByPlayerIdOrderByTimestampDesc(playerId);
     }
 
     /**

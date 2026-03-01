@@ -4,6 +4,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import xyz.mcutils.backend.model.persistence.mongo.CapeHistoryDocument;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -11,6 +12,8 @@ import java.util.UUID;
  * Repository for cape history documents (collection "cape-history").
  */
 public interface CapeHistoryRepository extends MongoRepository<CapeHistoryDocument, UUID> {
+
+    List<CapeHistoryDocument> findByPlayerIdOrderByLastUsedDesc(UUID playerId);
 
     @Query("{ 'playerId' : ?0, 'cape' : ?1 }")
     Optional<CapeHistoryDocument> findFirstByPlayerIdAndCapeId(UUID playerId, UUID capeId);
