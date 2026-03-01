@@ -236,6 +236,9 @@ public class PlayerRefreshService {
             skinHistoryRepository.save(d);
             return false;
         }
+        if (existing.isPresent()) {
+            return false;
+        }
         skinHistoryRepository.save(SkinHistoryDocument.builder()
                 .id(UUID.randomUUID())
                 .playerId(playerId)
@@ -261,6 +264,9 @@ public class PlayerRefreshService {
             CapeHistoryDocument d = existing.get();
             d.setLastUsed(now);
             capeHistoryRepository.save(d);
+            return false;
+        }
+        if (existing.isPresent()) {
             return false;
         }
         capeHistoryRepository.save(CapeHistoryDocument.builder()
