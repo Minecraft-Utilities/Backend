@@ -66,7 +66,7 @@ public class PlayerRefreshService {
         this.mongoTemplate = mongoTemplate;
     }
 
-    @EventListener(ApplicationReadyEvent.class)
+    //@EventListener(ApplicationReadyEvent.class)
     public void startRefreshTask() {
         Main.EXECUTOR.submit(() -> {
             while (running) {
