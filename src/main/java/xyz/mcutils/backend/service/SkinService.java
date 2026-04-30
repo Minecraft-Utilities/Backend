@@ -200,7 +200,7 @@ public class SkinService {
         Skin skin;
         // I really have no idea how long their sha-1 string length is
         // a player name can't be more than 16 chars, so just assume it's a texture id
-        if (query.length() > 16) {
+        if (query.length() > 16 && query.length() != 32 && query.length() != 36) {
             skin = this.getSkinByTextureId(query);
         } else {
             Player player = this.playerService.getPlayer(query);
