@@ -40,7 +40,7 @@ import xyz.mcutils.backend.skin.SkinManager;
 @Slf4j
 public class PlayerRefreshService {
     private static final int REFRESH_CHUNK_SIZE = 2_000;
-    private final Semaphore refreshConcurrencyLimit = new Semaphore(10);
+    private final Semaphore refreshConcurrencyLimit = new Semaphore(3);
 
     private volatile boolean running = true;
 
