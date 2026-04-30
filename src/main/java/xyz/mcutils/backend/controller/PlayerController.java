@@ -59,7 +59,8 @@ public class PlayerController {
     @PostMapping(value = "/submit", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<SubmitPlayersResponse> submitPlayers(
             @Parameter(description = "List of player UUIDs")
-            @Valid @RequestBody SubmitPlayersRequest request) {
+            @Valid @RequestBody SubmitPlayersRequest request
+    ) {
         int enqueued = playerSubmitService.submitPlayers(request.uuids(), request.submittedBy());
         return ResponseEntity.accepted().body(new SubmitPlayersResponse(enqueued));
     }

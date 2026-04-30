@@ -13,6 +13,7 @@ import java.util.UUID;
  */
 public interface CapeHistoryRepository extends MongoRepository<CapeHistoryDocument, UUID> {
 
+    @Query(value = "{ 'playerId' : ?0 }", sort = "{ 'lastUsed' : -1 }")
     List<CapeHistoryDocument> findByPlayerIdOrderByLastUsedDesc(UUID playerId);
 
     @Query("{ 'playerId' : ?0, 'cape' : ?1 }")

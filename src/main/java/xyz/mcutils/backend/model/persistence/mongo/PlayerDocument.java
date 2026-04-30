@@ -55,7 +55,6 @@ public class PlayerDocument {
     /**
      * The player's current cape id.
      */
-    @Indexed(name = "cape")
     @Field("cape")
     private UUID capeId;
 

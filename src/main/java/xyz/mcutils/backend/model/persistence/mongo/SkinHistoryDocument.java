@@ -10,7 +10,7 @@ import java.util.Date;
 import java.util.UUID;
 
 @Document(collection = "skin-history")
-@CompoundIndex(name = "playerId_skin_unique", def = "{ 'playerId' : 1, 'skin' : 1 }", unique = true)
+@CompoundIndex(name = "playerId_asc_lastUsed_desc", def = "{ 'playerId' : 1, 'lastUsed' : -1 }")
 @Getter
 @Setter
 @NoArgsConstructor

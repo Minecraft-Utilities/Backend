@@ -10,7 +10,7 @@ import java.util.Date;
 import java.util.UUID;
 
 @Document(collection = "cape-history")
-@CompoundIndex(name = "playerId_cape_unique", def = "{ 'playerId' : 1, 'cape' : 1 }", unique = true)
+@CompoundIndex(name = "playerId_asc_lastUsed_desc", def = "{ 'playerId' : 1, 'lastUsed' : -1 }")
 @Getter
 @Setter
 @NoArgsConstructor

@@ -13,6 +13,7 @@ import java.util.UUID;
  */
 public interface SkinHistoryRepository extends MongoRepository<SkinHistoryDocument, UUID> {
 
+    @Query(value = "{ 'playerId' : ?0 }", sort = "{ 'lastUsed' : -1 }")
     List<SkinHistoryDocument> findByPlayerIdOrderByLastUsedDesc(UUID playerId);
 
     @Query("{ 'playerId' : ?0, 'skin' : ?1 }")
