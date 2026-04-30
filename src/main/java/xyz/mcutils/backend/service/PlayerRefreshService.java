@@ -40,7 +40,7 @@ import xyz.mcutils.backend.skin.SkinManager;
 @Slf4j
 public class PlayerRefreshService {
     private static final int REFRESH_CHUNK_SIZE = 2_000;
-    private final Semaphore refreshConcurrencyLimit = new Semaphore(20);
+    private final Semaphore refreshConcurrencyLimit = new Semaphore(10);
 
     private volatile boolean running = true;
 
@@ -66,7 +66,7 @@ public class PlayerRefreshService {
         this.mongoTemplate = mongoTemplate;
     }
 
-    //@EventListener(ApplicationReadyEvent.class)
+    @EventListener(ApplicationReadyEvent.class)
     public void startRefreshTask() {
         Main.EXECUTOR.submit(() -> {
             while (running) {
