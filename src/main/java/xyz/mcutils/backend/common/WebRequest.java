@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.common;
 
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
@@ -23,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@Slf4j
 public class WebRequest {
     @Value("${mc-utils.http-client.max-total-connections}")
     private int maxTotalConnections;
@@ -105,11 +107,11 @@ public class WebRequest {
         ResponseEntity<T> responseEntity = client.get().uri(requestUrl).retrieve().onStatus(HttpStatusCode::isError, (_, _) -> {}) // Don't throw exceptions on error
                 .toEntity(clazz);
 
-        if (responseEntity.getStatusCode().isError()) {
-            return null;
-        }
         if (responseEntity.getStatusCode().isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
             throw new RateLimitException("Rate limit was reached");
+        }
+        if (responseEntity.getStatusCode().isError()) {
+            return null;
         }
         return responseEntity.getBody();
     }
@@ -182,11 +184,18 @@ public class WebRequest {
     public byte[] getAsByteArray(String url, boolean useProxy) {
         try {
             ResponseEntity<byte[]> response = client.get().uri(toRequestUrl(url, useProxy)).retrieve().onStatus(HttpStatusCode::isError, (_, _) -> {}).toEntity(byte[].class);
+            if (response.getStatusCode().isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
+                throw new RateLimitException("Rate limit reached fetching: " + url);
+            }
             if (!response.getStatusCode().is2xxSuccessful()) {
+                log.warn("Unexpected status {} fetching {}", response.getStatusCode(), url);
                 return null;
             }
             return response.getBody();
+        } catch (RateLimitException e) {
+            throw e;
         } catch (Exception e) {
+            log.warn("Error fetching {}: {}", url, e.getMessage());
             return null;
         }
     }

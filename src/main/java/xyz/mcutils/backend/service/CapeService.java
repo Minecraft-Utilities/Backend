@@ -2,6 +2,7 @@ package xyz.mcutils.backend.service;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
@@ -172,8 +173,12 @@ public class CapeService {
                 log.debug("Downloaded cape image for skin {} in {}ms", cape.getTextureId(), System.currentTimeMillis() - start);
                 return bytes;
             });
-        } catch (ExecutionException e) {
-            throw new RuntimeException(e);
+        } catch (UncheckedExecutionException | ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException re) {
+                throw re;
+            }
+            throw new RuntimeException(cause != null ? cause : e);
         }
         return capeBytes;
     }
