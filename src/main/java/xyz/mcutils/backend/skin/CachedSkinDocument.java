@@ -12,11 +12,9 @@ import java.util.concurrent.atomic.AtomicLong;
 @Getter
 public class CachedSkinDocument {
     private final SkinDocument document;
-
+    private final AtomicLong accountsUsed;
     @Setter
     private volatile boolean dirty;
-
-    private final AtomicLong accountsUsed;
 
     public CachedSkinDocument(SkinDocument document) {
         this.document = document;
@@ -38,14 +36,6 @@ public class CachedSkinDocument {
      */
     public SkinDocument snapshotDocument() {
         SkinDocument doc = this.document;
-        return SkinDocument.builder()
-                .id(doc.getId())
-                .textureId(doc.getTextureId())
-                .model(doc.getModel())
-                .legacy(doc.isLegacy())
-                .accountsUsed(this.accountsUsed.get())
-                .firstPlayerSeenUsing(doc.getFirstPlayerSeenUsing())
-                .firstSeen(doc.getFirstSeen())
-                .build();
+        return SkinDocument.builder().id(doc.getId()).textureId(doc.getTextureId()).model(doc.getModel()).legacy(doc.isLegacy()).accountsUsed(this.accountsUsed.get()).firstPlayerSeenUsing(doc.getFirstPlayerSeenUsing()).firstSeen(doc.getFirstSeen()).build();
     }
 }

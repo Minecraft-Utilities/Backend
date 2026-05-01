@@ -58,18 +58,52 @@ public final class ColorUtils {
                         if (chars[idx] == '§') {
                             hex.append(chars[idx + 1]);
                         }
-                        else valid = false;
+                        else {
+                            valid = false;
+                        }
                     }
-                    if (valid) { color = hex.toString(); i += 13; continue; }
+                    if (valid) {
+                        color = hex.toString();
+                        i += 13;
+                        continue;
+                    }
                 }
-                if (code == 'r') { color = null; fmt = 0; i++; continue; }
+                if (code == 'r') {
+                    color = null;
+                    fmt = 0;
+                    i++;
+                    continue;
+                }
                 MinecraftColor mcColor = MinecraftColor.getByCode(code);
-                if (mcColor != null) { color = mcColor.toHex(); i++; continue; }
-                if (code == 'l') { fmt |= 1; i++; continue; }
-                if (code == 'o') { fmt |= 2; i++; continue; }
-                if (code == 'n') { fmt |= 4; i++; continue; }
-                if (code == 'm') { fmt |= 8; i++; continue; }
-                if (code == 'k') { i++; continue; }
+                if (mcColor != null) {
+                    color = mcColor.toHex();
+                    i++;
+                    continue;
+                }
+                if (code == 'l') {
+                    fmt |= 1;
+                    i++;
+                    continue;
+                }
+                if (code == 'o') {
+                    fmt |= 2;
+                    i++;
+                    continue;
+                }
+                if (code == 'n') {
+                    fmt |= 4;
+                    i++;
+                    continue;
+                }
+                if (code == 'm') {
+                    fmt |= 8;
+                    i++;
+                    continue;
+                }
+                if (code == 'k') {
+                    i++;
+                    continue;
+                }
             }
 
             // Check if style changed
@@ -78,7 +112,8 @@ public final class ColorUtils {
                 if (!pending.isEmpty()) {
                     if (hasSpan) {
                         result.append(buildSpan(activeColor, activeFmt, pending.toString()));
-                    } else {
+                    }
+                    else {
                         result.append(pending);
                     }
                     pending.setLength(0);
@@ -103,7 +138,8 @@ public final class ColorUtils {
         if (!pending.isEmpty()) {
             if (hasSpan) {
                 result.append(buildSpan(activeColor, activeFmt, pending.toString()));
-            } else {
+            }
+            else {
                 result.append(pending);
             }
         }
@@ -164,7 +200,8 @@ public final class ColorUtils {
             char hexDigit = line.charAt(idx + 1);
             if ((hexDigit >= '0' && hexDigit <= '9') || (hexDigit >= 'A' && hexDigit <= 'F') || (hexDigit >= 'a' && hexDigit <= 'f')) {
                 hex.append(hexDigit);
-            } else {
+            }
+            else {
                 return null;
             }
         }

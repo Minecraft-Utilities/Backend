@@ -21,7 +21,9 @@ public class HeadIsoRenderer extends SkinRenderer {
     private static final double PITCH_DEG = 35.0;
     private static final double YAW_DEG = 45.0;
     private static final double ASPECT_RATIO = 1.0;
-    /** Head center in model space; eye is along -Z so head fills frame. */
+    /**
+     * Head center in model space; eye is along -Z so head fills frame.
+     */
     private static final Vector3 HEAD_TARGET = new Vector3(0, 28, 0);
     private static final Vector3 HEAD_EYE = new Vector3(0, 28, -20);
 

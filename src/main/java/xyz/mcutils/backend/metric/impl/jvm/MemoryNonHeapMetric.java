@@ -9,12 +9,9 @@ import java.lang.management.MemoryUsage;
 
 public class MemoryNonHeapMetric extends GaugeWithCallbackMetric {
     public MemoryNonHeapMetric() {
-        super(GaugeWithCallback.builder()
-                .name("process_memory_non_heap_bytes")
-                .callback(callback -> {
-                    MemoryUsage nonHeap = Constants.MEMORY_BEAN.getNonHeapMemoryUsage();
-                    callback.call(nonHeap.getUsed());
-                })
-                .register(MetricService.REGISTRY));
+        super(GaugeWithCallback.builder().name("process_memory_non_heap_bytes").callback(callback -> {
+            MemoryUsage nonHeap = Constants.MEMORY_BEAN.getNonHeapMemoryUsage();
+            callback.call(nonHeap.getUsed());
+        }).register(MetricService.REGISTRY));
     }
 }

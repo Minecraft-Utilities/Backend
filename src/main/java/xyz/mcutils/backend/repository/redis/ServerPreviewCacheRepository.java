@@ -6,4 +6,4 @@ import xyz.mcutils.backend.model.persistence.redis.CachedServerPreview;
 /**
  * A cache repository for server previews.
  */
-public interface ServerPreviewCacheRepository extends CrudRepository<CachedServerPreview, String> { }
+public interface ServerPreviewCacheRepository extends CrudRepository<CachedServerPreview, String> {}

@@ -24,5 +24,5 @@ public record SkinTextureToken(String url, Metadata metadata) {
      *
      * @param model Skin model: "slim" or "default".
      */
-    public record Metadata(String model) { }
+    public record Metadata(String model) {}
 }

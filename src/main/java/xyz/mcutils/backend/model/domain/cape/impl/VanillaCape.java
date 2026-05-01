@@ -17,7 +17,8 @@ import java.awt.image.BufferedImage;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
-@Getter @Slf4j
+@Getter
+@Slf4j
 @NoArgsConstructor
 public class VanillaCape extends Cape<VanillaCape.Part> {
     private static final String CDN_URL = "https://textures.minecraft.net/texture/%s";
@@ -40,30 +41,10 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
     private long accountsOwned;
 
     public VanillaCape(UUID uuid, String name, long accountsOwned, String textureId) {
-        super(
-                textureId,
-                CDN_URL.formatted(textureId),
-                AppConfig.INSTANCE.getWebPublicUrl() + "/capes/%s/texture.png".formatted(textureId),
-                buildParts(textureId)
-        );
+        super(textureId, CDN_URL.formatted(textureId), AppConfig.INSTANCE.getWebPublicUrl() + "/capes/%s/texture.png".formatted(textureId), buildParts(textureId));
         this.uuid = uuid;
         this.name = name;
         this.accountsOwned = accountsOwned;
-    }
-
-    @Override
-    public Set<Part> getSupportedParts() {
-        return EnumSet.of(Part.FRONT);
-    }
-
-    @Override
-    public Part fromPartName(String name) {
-        return EnumUtils.getEnumConstant(Part.class, name);
-    }
-
-    @Override
-    public BufferedImage render(Part part, int size, RenderOptions options) {
-        return part.getRenderer().render(this, size, options);
     }
 
     /**
@@ -81,7 +62,7 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
     /**
      * Checks if a Vanilla cape exists for the given player
      *
-     * @param textureId the player's name to check for
+     * @param textureId  the player's name to check for
      * @param webRequest the HTTP client
      * @return a future that returns true or false
      */
@@ -91,6 +72,21 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
             String cdnUrl = CDN_URL.formatted(textureId);
             return webRequest.checkExists(cdnUrl);
         });
+    }
+
+    @Override
+    public Set<Part> getSupportedParts() {
+        return EnumSet.of(Part.FRONT);
+    }
+
+    @Override
+    public Part fromPartName(String name) {
+        return EnumUtils.getEnumConstant(Part.class, name);
+    }
+
+    @Override
+    public BufferedImage render(Part part, int size, RenderOptions options) {
+        return part.getRenderer().render(this, size, options);
     }
 
     @Getter

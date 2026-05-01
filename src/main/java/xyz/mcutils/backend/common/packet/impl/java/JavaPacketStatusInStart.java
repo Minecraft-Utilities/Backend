@@ -43,14 +43,16 @@ public final class JavaPacketStatusInStart extends MinecraftJavaPacket {
         int id = readVarInt(inputStream);
         if (id == -1) { // The stream was prematurely ended
             throw new IOException("Server stream was prematurely ended");
-        } else if (id != ID) { // Invalid packet ID
+        }
+        else if (id != ID) { // Invalid packet ID
             throw new IOException("Server returned invalid packet ID.");
         }
 
         int length = readVarInt(inputStream); // Length of the response
         if (length == -1) { // The stream was prematurely ended
             throw new IOException("Server stream was prematurely ended");
-        } else if (length == 0) {
+        }
+        else if (length == 0) {
             throw new IOException("Server returned unexpected value.");
         }
 

@@ -1,16 +1,7 @@
 package xyz.mcutils.backend.service;
 
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.Semaphore;
-
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -18,9 +9,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
-
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.cape.CapeManager;
 import xyz.mcutils.backend.common.MongoUtils;
@@ -36,14 +24,17 @@ import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.player.PlayerManager;
 import xyz.mcutils.backend.skin.SkinManager;
 
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
+
 @Service
 @Slf4j
 public class PlayerRefreshService {
     private static final int REFRESH_CHUNK_SIZE = 2_000;
-    private final Semaphore refreshConcurrencyLimit = new Semaphore(3);
-
-    private volatile boolean running = true;
-
+    private final Semaphore refreshConcurrencyLimit = new Semaphore(4);
     private final MojangService mojangService;
     private final SkinService skinService;
     private final CapeService capeService;
@@ -52,10 +43,9 @@ public class PlayerRefreshService {
     private final CapeManager capeManager;
     private final PlayerHistoryService playerHistoryService;
     private final MongoTemplate mongoTemplate;
+    private volatile boolean running = true;
 
-    public PlayerRefreshService(MojangService mojangService, SkinService skinService, CapeService capeService,
-                                PlayerManager playerManager, SkinManager skinManager, CapeManager capeManager,
-                                PlayerHistoryService playerHistoryService, MongoTemplate mongoTemplate) {
+    public PlayerRefreshService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerManager playerManager, SkinManager skinManager, CapeManager capeManager, PlayerHistoryService playerHistoryService, MongoTemplate mongoTemplate) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
@@ -125,15 +115,9 @@ public class PlayerRefreshService {
      * Returns player ids with oldest lastUpdated first (projection _id only). Use manager to load full document.
      */
     private List<UUID> findRefreshChunkIds() {
-        Query query = new Query()
-                .with(Sort.by(Sort.Direction.ASC, "lastUpdated"))
-                .limit(PlayerRefreshService.REFRESH_CHUNK_SIZE);
+        Query query = new Query().with(Sort.by(Sort.Direction.ASC, "lastUpdated")).limit(PlayerRefreshService.REFRESH_CHUNK_SIZE);
         List<Document> found = MongoUtils.findWithFields(mongoTemplate, query, PlayerDocument.class, "_id");
-        return found.stream()
-                .map(doc -> doc.get("_id"))
-                .filter(id -> id instanceof UUID)
-                .map(UUID.class::cast)
-                .toList();
+        return found.stream().map(doc -> doc.get("_id")).filter(id -> id instanceof UUID).map(UUID.class::cast).toList();
     }
 
     /**
@@ -144,9 +128,7 @@ public class PlayerRefreshService {
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
 
         // Resolve skin/cape via managers (get-or-create in cache)
-        SkinDocument skinDoc = skinAndCape.left() != null
-                ? skinManager.getOrCreateByTextureId(skinAndCape.left(), playerId)
-                : null;
+        SkinDocument skinDoc = skinAndCape.left() != null ? skinManager.getOrCreateByTextureId(skinAndCape.left(), playerId) : null;
         UUID newSkinId = skinDoc != null ? skinDoc.getId() : currentSkinId;
         if (skinAndCape.left() == null && currentSkinId != null) {
             log.debug("Mojang profile had no skin for player {}; keeping current skin {}", playerId, currentSkinId);
@@ -187,10 +169,10 @@ public class PlayerRefreshService {
 
     /**
      * Updates the in-memory player and document from the token; player document is updated in cache and marked dirty.
-     * 
-     * @param player the player
+     *
+     * @param player   the player
      * @param document the player document
-     * @param token the mojang profile token
+     * @param token    the mojang profile token
      */
     @SneakyThrows
     public void updatePlayer(Player player, PlayerDocument document, MojangProfileToken token) {
@@ -210,7 +192,7 @@ public class PlayerRefreshService {
             player.setLastUpdated(doc.getLastUpdated());
         });
     }
-    
+
     /**
      * Stops the refresh loop (e.g. on shutdown before flush).
      */

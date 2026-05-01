@@ -20,45 +20,15 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 @SuppressWarnings("HttpUrlsUsage")
-@Getter @Slf4j
+@Getter
+@Slf4j
 @NoArgsConstructor
 public class OptifineCape extends Cape<OptifineCape.Part> {
     private static final String CDN_URL = "http://s.optifine.net/capes/%s.png";
 
-    @Getter
-    public enum Part {
-        FRONT(OptifineCapeRenderer.INSTANCE);
-
-        private final Renderer<OptifineCape> renderer;
-
-        Part(Renderer<OptifineCape> renderer) {
-            this.renderer = renderer;
-        }
-    }
-
     public OptifineCape(String playerName) {
         String cdnUrl = CDN_URL.formatted(playerName);
-        super(
-                playerName,
-                cdnUrl,
-                cdnUrl,
-                buildParts(playerName)
-        );
-    }
-
-    @Override
-    public Set<Part> getSupportedParts() {
-        return EnumSet.of(Part.FRONT);
-    }
-
-    @Override
-    public Part fromPartName(String name) {
-        return EnumUtils.getEnumConstant(Part.class, name);
-    }
-
-    @Override
-    public BufferedImage render(Part part, int size, RenderOptions options) {
-        return part.getRenderer().render(this, size, options);
+        super(playerName, cdnUrl, cdnUrl, buildParts(playerName));
     }
 
     /**
@@ -87,5 +57,31 @@ public class OptifineCape extends Cape<OptifineCape.Part> {
             log.debug("Optifine cape exists for player {}: {} in {}ms", playerName, hasCape, System.currentTimeMillis() - start);
             return hasCape;
         }, Main.EXECUTOR);
+    }
+
+    @Override
+    public Set<Part> getSupportedParts() {
+        return EnumSet.of(Part.FRONT);
+    }
+
+    @Override
+    public Part fromPartName(String name) {
+        return EnumUtils.getEnumConstant(Part.class, name);
+    }
+
+    @Override
+    public BufferedImage render(Part part, int size, RenderOptions options) {
+        return part.getRenderer().render(this, size, options);
+    }
+
+    @Getter
+    public enum Part {
+        FRONT(OptifineCapeRenderer.INSTANCE);
+
+        private final Renderer<OptifineCape> renderer;
+
+        Part(Renderer<OptifineCape> renderer) {
+            this.renderer = renderer;
+        }
     }
 }

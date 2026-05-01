@@ -27,9 +27,7 @@ public class FontResourceResolver {
         if (id == null || id.isEmpty()) {
             return null;
         }
-        String path = id.startsWith(MINECRAFT_PREFIX)
-                ? id.substring(MINECRAFT_PREFIX.length())
-                : id;
+        String path = id.startsWith(MINECRAFT_PREFIX) ? id.substring(MINECRAFT_PREFIX.length()) : id;
         if (!path.startsWith(INCLUDE_PREFIX)) {
             return null;
         }
@@ -48,9 +46,7 @@ public class FontResourceResolver {
         if (file == null || file.isEmpty()) {
             return null;
         }
-        String path = file.startsWith(MINECRAFT_PREFIX)
-                ? file.substring(MINECRAFT_PREFIX.length())
-                : file;
+        String path = file.startsWith(MINECRAFT_PREFIX) ? file.substring(MINECRAFT_PREFIX.length()) : file;
         if (!path.startsWith(FONT_PATH_PREFIX)) {
             return null;
         }

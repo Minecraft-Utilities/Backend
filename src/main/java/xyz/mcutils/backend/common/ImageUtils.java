@@ -31,9 +31,7 @@ public class ImageUtils {
         int newWidth = Math.max(1, (int) (w * scale));
         int newHeight = Math.max(1, (int) (h * scale));
         BufferedImage scaled = new BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_ARGB);
-        int[] srcPixels = image.getRaster().getDataBuffer() instanceof DataBufferInt db
-                ? db.getData()
-                : image.getRGB(0, 0, w, h, null, 0, w);
+        int[] srcPixels = image.getRaster().getDataBuffer() instanceof DataBufferInt db ? db.getData() : image.getRGB(0, 0, w, h, null, 0, w);
         int[] destPixels = ((DataBufferInt) scaled.getRaster().getDataBuffer()).getData();
         final long xStep = (newWidth > 1) ? ((long) w << 32) / newWidth : 0;
         final long yStep = (newHeight > 1) ? ((long) h << 32) / newHeight : 0;
@@ -114,8 +112,7 @@ public class ImageUtils {
      * @param sy2   source opposite corner y
      * @param scale scale factor (e.g. 1 for 64×32→64×64)
      */
-    public static void copyRect(BufferedImage img, int dx1, int dy1, int dx2, int dy2,
-                                int sx1, int sy1, int sx2, int sy2, double scale) {
+    public static void copyRect(BufferedImage img, int dx1, int dy1, int dx2, int dy2, int sx1, int sy1, int sx2, int sy2, double scale) {
         int dxMin = Math.min(dx1, dx2), dxMax = Math.max(dx1, dx2);
         int dyMin = Math.min(dy1, dy2), dyMax = Math.max(dy1, dy2);
         int sxMin = Math.min(sx1, sx2), sxMax = Math.max(sx1, sx2);
@@ -235,10 +232,7 @@ public class ImageUtils {
      */
     @SneakyThrows
     public static byte[] imageToBytes(BufferedImage image, int compressionLevel) {
-        return new PngEncoder()
-                .withBufferedImage(image)
-                .withCompressionLevel(compressionLevel)
-                .toBytes();
+        return new PngEncoder().withBufferedImage(image).withCompressionLevel(compressionLevel).toBytes();
     }
 
     /**

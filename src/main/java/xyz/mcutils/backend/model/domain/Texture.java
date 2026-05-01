@@ -6,22 +6,22 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-@AllArgsConstructor @NoArgsConstructor
-@Getter @Setter
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Setter
 public abstract class Texture {
+    /**
+     * Gets the public facing texture url.
+     */
+    public String textureUrl;
     /**
      * The ID of the texture
      */
     private String textureId;
-
     /**
      * The raw texture url. E.g. the mojang texture url.
      */
     @JsonIgnore
     private String rawTextureUrl;
-
-    /**
-     * Gets the public facing texture url.
-     */
-    public String textureUrl;
 }

@@ -30,8 +30,7 @@ public class MongoUtils {
      * @param fields      field names to include (e.g. "_id", "username")
      * @return list of documents with only those fields
      */
-    public static List<Document> findWithFields(MongoTemplate template, Query query,
-                                                Class<?> entityClass, String... fields) {
+    public static List<Document> findWithFields(MongoTemplate template, Query query, Class<?> entityClass, String... fields) {
         var fieldSpec = query.fields();
         for (String field : fields) {
             fieldSpec.include(field);
@@ -44,9 +43,9 @@ public class MongoUtils {
      * Inserts the given documents in one unordered bulk operation (MongoDB can parallelize, avoids long-held write locks).
      * No-op if the list is null or empty.
      *
-     * @param template     MongoTemplate
-     * @param documents    documents to insert
-     * @param entityClass  entity class used to resolve collection name
+     * @param template    MongoTemplate
+     * @param documents   documents to insert
+     * @param entityClass entity class used to resolve collection name
      */
     public static <T> void bulkInsertUnordered(MongoTemplate template, List<T> documents, Class<T> entityClass) {
         if (documents == null || documents.isEmpty()) {
@@ -61,21 +60,18 @@ public class MongoUtils {
      * Runs unordered bulk updateOne for each (id, count): inc the given field by count for document _id.
      * No-op if the map is null or empty.
      *
-     * @param template   MongoTemplate
+     * @param template    MongoTemplate
      * @param entityClass entity class used to resolve collection name
-     * @param idToCount  map of document _id to increment value
-     * @param fieldName  field to inc (e.g. "accountsUsed", "submittedUuids")
+     * @param idToCount   map of document _id to increment value
+     * @param fieldName   field to inc (e.g. "accountsUsed", "submittedUuids")
      */
-    public static <T> void bulkIncUnordered(MongoTemplate template, Class<T> entityClass,
-                                           Map<UUID, Long> idToCount, String fieldName) {
+    public static <T> void bulkIncUnordered(MongoTemplate template, Class<T> entityClass, Map<UUID, Long> idToCount, String fieldName) {
         if (idToCount == null || idToCount.isEmpty()) {
             return;
         }
         BulkOperations bulk = template.bulkOps(BulkMode.UNORDERED, entityClass);
         for (Map.Entry<UUID, Long> e : idToCount.entrySet()) {
-            bulk.updateOne(
-                    Query.query(Criteria.where("_id").is(e.getKey())),
-                    new Update().inc(fieldName, e.getValue()));
+            bulk.updateOne(Query.query(Criteria.where("_id").is(e.getKey())), new Update().inc(fieldName, e.getValue()));
         }
         bulk.execute();
     }
@@ -90,16 +86,13 @@ public class MongoUtils {
      * @param fieldName   field to set (e.g. "lastUpdated")
      * @param value       value to set for all
      */
-    public static void bulkSetUnordered(MongoTemplate template, Class<?> entityClass,
-                                       List<UUID> ids, String fieldName, Object value) {
+    public static void bulkSetUnordered(MongoTemplate template, Class<?> entityClass, List<UUID> ids, String fieldName, Object value) {
         if (ids == null || ids.isEmpty()) {
             return;
         }
         BulkOperations bulk = template.bulkOps(BulkMode.UNORDERED, entityClass);
         for (UUID id : ids) {
-            bulk.updateOne(
-                    Query.query(Criteria.where("_id").is(id)),
-                    new Update().set(fieldName, value));
+            bulk.updateOne(Query.query(Criteria.where("_id").is(id)), new Update().set(fieldName, value));
         }
         bulk.execute();
     }
@@ -108,13 +101,12 @@ public class MongoUtils {
      * Runs unordered bulk replaceOne with upsert for each document (full-document overwrite by _id).
      * No-op if the list is null or empty.
      *
-     * @param template     MongoTemplate
-     * @param documents    documents to replace (each must have a non-null id via idExtractor)
-     * @param entityClass  entity class used to resolve collection name
-     * @param idExtractor  function to get the document _id (e.g. PlayerDocument::getId)
+     * @param template    MongoTemplate
+     * @param documents   documents to replace (each must have a non-null id via idExtractor)
+     * @param entityClass entity class used to resolve collection name
+     * @param idExtractor function to get the document _id (e.g. PlayerDocument::getId)
      */
-    public static <T> void bulkReplaceUnordered(MongoTemplate template, List<T> documents, Class<T> entityClass,
-                                               Function<T, UUID> idExtractor) {
+    public static <T> void bulkReplaceUnordered(MongoTemplate template, List<T> documents, Class<T> entityClass, Function<T, UUID> idExtractor) {
         if (documents == null || documents.isEmpty()) {
             return;
         }
@@ -123,10 +115,7 @@ public class MongoUtils {
         for (T doc : documents) {
             UUID id = idExtractor.apply(doc);
             if (id != null) {
-                bulk.replaceOne(
-                        Query.query(Criteria.where("_id").is(id)),
-                        doc,
-                        options);
+                bulk.replaceOne(Query.query(Criteria.where("_id").is(id)), doc, options);
             }
         }
         bulk.execute();

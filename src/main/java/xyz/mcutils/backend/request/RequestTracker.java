@@ -19,9 +19,7 @@ import xyz.mcutils.backend.service.MetricService;
 public class RequestTracker implements ResponseBodyAdvice<Object> {
 
     @Override
-    public Object beforeBodyWrite(Object body, @NonNull MethodParameter returnType, @NonNull MediaType selectedContentType,
-                                  @NonNull Class<? extends HttpMessageConverter<?>> selectedConverterType, @NonNull ServerHttpRequest rawRequest,
-                                  @NonNull ServerHttpResponse rawResponse) {
+    public Object beforeBodyWrite(Object body, @NonNull MethodParameter returnType, @NonNull MediaType selectedContentType, @NonNull Class<? extends HttpMessageConverter<?>> selectedConverterType, @NonNull ServerHttpRequest rawRequest, @NonNull ServerHttpResponse rawResponse) {
         HttpServletRequest request = ((ServletServerHttpRequest) rawRequest).getServletRequest();
 
         // Ignore metrics and health check requests

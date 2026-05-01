@@ -6,5 +6,4 @@ package xyz.mcutils.backend.model.token.mojang;
  *
  * @param textures The textures object (SKIN and CAPE).
  */
-public record DecodedTexturesPropertyToken(TexturesToken textures) {
-}
+public record DecodedTexturesPropertyToken(TexturesToken textures) {}

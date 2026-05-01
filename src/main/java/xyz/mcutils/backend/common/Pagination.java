@@ -35,12 +35,7 @@ public class Pagination<T> {
             throw new BadRequestException("Invalid or unknown page '%s'".formatted(page));
         }
 
-        return new Page<>(
-                fetcher.apply(new PageCallback(this.itemsPerPage, skip)),
-                this.totalItems,
-                this.itemsPerPage,
-                (int) ((this.totalItems + this.itemsPerPage - 1) / this.itemsPerPage)
-        );
+        return new Page<>(fetcher.apply(new PageCallback(this.itemsPerPage, skip)), this.totalItems, this.itemsPerPage, (int) ((this.totalItems + this.itemsPerPage - 1) / this.itemsPerPage));
     }
 
     /**
@@ -61,5 +56,5 @@ public class Pagination<T> {
         private int totalPages;
     }
 
-    public static record PageCallback(int limit, int skip) { }
+    public record PageCallback(int limit, int skip) {}
 }

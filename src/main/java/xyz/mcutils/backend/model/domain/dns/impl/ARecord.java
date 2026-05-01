@@ -8,7 +8,8 @@ import xyz.mcutils.backend.model.domain.dns.DNSRecord;
 
 import java.net.InetAddress;
 
-@Setter @Getter
+@Setter
+@Getter
 @NoArgsConstructor
 public final class ARecord extends DNSRecord {
     /**

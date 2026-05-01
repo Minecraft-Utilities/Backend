@@ -13,8 +13,8 @@ public final class IsometricLighting {
     /**
      * Computes brightness for a face based on its normal and sun direction.
      *
-     * @param normal       world-space face normal (will be normalized)
-     * @param sunDirection sun direction in world space (should be normalized)
+     * @param normal        world-space face normal (will be normalized)
+     * @param sunDirection  sun direction in world space (should be normalized)
      * @param minBrightness minimum brightness floor [0, 1]
      * @return brightness in [0, 1]
      */

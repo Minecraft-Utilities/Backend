@@ -23,13 +23,7 @@ public class IpController {
     }
 
     @GetMapping(value = "/{query}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<IpLookup> getIpLookup(
-            @Parameter(
-                    description = "The IP address to lookup",
-                    example = "127.0.0.1"
-            ) @PathVariable String query
-    ) {
-        return ResponseEntity.ok()
-                .body(maxMindService.lookupIp(query));
+    public ResponseEntity<IpLookup> getIpLookup(@Parameter(description = "The IP address to lookup", example = "127.0.0.1") @PathVariable String query) {
+        return ResponseEntity.ok().body(maxMindService.lookupIp(query));
     }
 }

@@ -22,5 +22,5 @@ public class ProviderDefinition {
     private Map<String, Integer> advances;
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static record FilterDefinition(Boolean uniform) { }
+    public record FilterDefinition(Boolean uniform) {}
 }

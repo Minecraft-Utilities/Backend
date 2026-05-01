@@ -1,11 +1,7 @@
 package xyz.mcutils.backend.service;
 
 import org.springframework.stereotype.Service;
-import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
-import xyz.mcutils.backend.model.persistence.mongo.CapeHistoryDocument;
-import xyz.mcutils.backend.model.persistence.mongo.SkinDocument;
-import xyz.mcutils.backend.model.persistence.mongo.SkinHistoryDocument;
-import xyz.mcutils.backend.model.persistence.mongo.UsernameHistoryDocument;
+import xyz.mcutils.backend.model.persistence.mongo.*;
 import xyz.mcutils.backend.repository.mongo.CapeHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.SkinHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
@@ -26,9 +22,7 @@ public class PlayerHistoryService {
     private final SkinHistoryRepository skinHistoryRepository;
     private final CapeHistoryRepository capeHistoryRepository;
 
-    public PlayerHistoryService(UsernameHistoryRepository usernameHistoryRepository,
-                                SkinHistoryRepository skinHistoryRepository,
-                                CapeHistoryRepository capeHistoryRepository) {
+    public PlayerHistoryService(UsernameHistoryRepository usernameHistoryRepository, SkinHistoryRepository skinHistoryRepository, CapeHistoryRepository capeHistoryRepository) {
         this.usernameHistoryRepository = usernameHistoryRepository;
         this.skinHistoryRepository = skinHistoryRepository;
         this.capeHistoryRepository = capeHistoryRepository;
@@ -48,12 +42,7 @@ public class PlayerHistoryService {
         if (usernameHistoryRepository.findFirstByPlayerIdAndUsername(playerId, username).isPresent()) {
             return;
         }
-        usernameHistoryRepository.save(UsernameHistoryDocument.builder()
-                .id(UUID.randomUUID())
-                .playerId(playerId)
-                .username(username)
-                .timestamp(now)
-                .build());
+        usernameHistoryRepository.save(UsernameHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerId).username(username).timestamp(now).build());
     }
 
     /**
@@ -75,13 +64,7 @@ public class PlayerHistoryService {
             skinHistoryRepository.save(d);
             return false;
         }
-        skinHistoryRepository.save(SkinHistoryDocument.builder()
-                .id(UUID.randomUUID())
-                .playerId(playerId)
-                .skin(SkinDocument.builder().id(skinId).build())
-                .lastUsed(now)
-                .timestamp(now)
-                .build());
+        skinHistoryRepository.save(SkinHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerId).skin(SkinDocument.builder().id(skinId).build()).lastUsed(now).timestamp(now).build());
         return true;
     }
 
@@ -104,13 +87,7 @@ public class PlayerHistoryService {
             capeHistoryRepository.save(d);
             return false;
         }
-        capeHistoryRepository.save(CapeHistoryDocument.builder()
-                .id(UUID.randomUUID())
-                .playerId(playerId)
-                .cape(CapeDocument.builder().id(capeId).build())
-                .lastUsed(now)
-                .timestamp(now)
-                .build());
+        capeHistoryRepository.save(CapeHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerId).cape(CapeDocument.builder().id(capeId).build()).lastUsed(now).timestamp(now).build());
         return true;
     }
 }

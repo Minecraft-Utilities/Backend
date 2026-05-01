@@ -21,7 +21,7 @@ public class Favicon {
     /**
      * Create a new favicon for a server.
      *
-     * @param base64 the base64 of the favicon
+     * @param base64  the base64 of the favicon
      * @param address the address of the server
      * @return the new favicon
      */
@@ -29,8 +29,6 @@ public class Favicon {
         if (base64 == null) { // The server doesn't have a favicon
             return null;
         }
-        return new Favicon(base64, AppConfig.INSTANCE.getWebPublicUrl() + "/servers/%s/icon.png".formatted(
-                address
-        ));
+        return new Favicon(base64, AppConfig.INSTANCE.getWebPublicUrl() + "/servers/%s/icon.png".formatted(address));
     }
 }

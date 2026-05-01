@@ -8,15 +8,8 @@ import java.awt.image.BufferedImage;
  * boldOffset and shadowOffset default to 1 when not specified.
  * ascent is the vertical baseline offset for this glyph (different providers have different ascents).
  */
-public record Glyph(BufferedImage texture, int srcX, int srcY, int width, int height, int advance,
-                    double boldOffset, double shadowOffset, int ascent) {
-    /**
-     * Advance when bold: base advance + boldOffset (Minecraft getAdvance(bold)).
-     */
-    public int getAdvance(boolean bold) {
-        return bold ? advance + (int) Math.ceil(boldOffset) : advance;
-    }
-
+public record Glyph(BufferedImage texture, int srcX, int srcY, int width, int height, int advance, double boldOffset,
+                    double shadowOffset, int ascent) {
     /**
      * Measures the horizontal advance like Minecraft's bitmap provider: rightmost column with any
      * non-transparent pixel plus one (no extra spacing; use default_widths.json for exact Minecraft values).
@@ -33,5 +26,12 @@ public record Glyph(BufferedImage texture, int srcX, int srcY, int width, int he
             }
         }
         return rightmost >= 0 ? rightmost + 1 : width;
+    }
+
+    /**
+     * Advance when bold: base advance + boldOffset (Minecraft getAdvance(bold)).
+     */
+    public int getAdvance(boolean bold) {
+        return bold ? advance + (int) Math.ceil(boldOffset) : advance;
     }
 }

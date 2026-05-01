@@ -13,66 +13,28 @@ public final class PlayerModelCoordinates {
     @Getter
     public enum Skin {
         // Head overlays
-        HEAD_OVERLAY_TOP(new Coordinates(40, 0, 8, 8)),
-        HEAD_OVERLAY_FACE(new Coordinates(40, 8, 8, 8)),
-        HEAD_OVERLAY_LEFT(new Coordinates(32, 8, 8, 8)),
-        HEAD_OVERLAY_RIGHT(new Coordinates(48, 8, 8, 8)),
-        HEAD_OVERLAY_BACK(new Coordinates(56, 8, 8, 8)),
-        HEAD_OVERLAY_BOTTOM(new Coordinates(48, 0, 8, 8)),
+        HEAD_OVERLAY_TOP(new Coordinates(40, 0, 8, 8)), HEAD_OVERLAY_FACE(new Coordinates(40, 8, 8, 8)), HEAD_OVERLAY_LEFT(new Coordinates(32, 8, 8, 8)), HEAD_OVERLAY_RIGHT(new Coordinates(48, 8, 8, 8)), HEAD_OVERLAY_BACK(new Coordinates(56, 8, 8, 8)), HEAD_OVERLAY_BOTTOM(new Coordinates(48, 0, 8, 8)),
 
         // Body overlays
-        BODY_OVERLAY_FRONT(new Coordinates(20, 36, 8, 12)),
-        BODY_OVERLAY_TOP(new Coordinates(20, 32, 8, 4)),
-        BODY_OVERLAY_LEFT(new Coordinates(36, 36, 4, 12)),
-        BODY_OVERLAY_RIGHT(new Coordinates(28, 36, 4, 12)),
-        BODY_OVERLAY_BACK(new Coordinates(44, 36, 8, 12)),
+        BODY_OVERLAY_FRONT(new Coordinates(20, 36, 8, 12)), BODY_OVERLAY_TOP(new Coordinates(20, 32, 8, 4)), BODY_OVERLAY_LEFT(new Coordinates(36, 36, 4, 12)), BODY_OVERLAY_RIGHT(new Coordinates(28, 36, 4, 12)), BODY_OVERLAY_BACK(new Coordinates(44, 36, 8, 12)),
 
         // Arm overlays
-        LEFT_ARM_OVERLAY_FRONT(new Coordinates(52, 52, 4, 12)),
-        LEFT_ARM_OVERLAY_BACK(new Coordinates(60, 52, 4, 12)),
-        LEFT_ARM_OVERLAY_TOP(new Coordinates(52, 48, 4, 4)),
-        RIGHT_ARM_OVERLAY_FRONT(new Coordinates(44, 36, 4, 12)),
-        RIGHT_ARM_OVERLAY_BACK(new Coordinates(52, 36, 4, 12)),
-        RIGHT_ARM_OVERLAY_TOP(new Coordinates(44, 48, 4, 4)),
+        LEFT_ARM_OVERLAY_FRONT(new Coordinates(52, 52, 4, 12)), LEFT_ARM_OVERLAY_BACK(new Coordinates(60, 52, 4, 12)), LEFT_ARM_OVERLAY_TOP(new Coordinates(52, 48, 4, 4)), RIGHT_ARM_OVERLAY_FRONT(new Coordinates(44, 36, 4, 12)), RIGHT_ARM_OVERLAY_BACK(new Coordinates(52, 36, 4, 12)), RIGHT_ARM_OVERLAY_TOP(new Coordinates(44, 48, 4, 4)),
 
         // Leg overlays
-        LEFT_LEG_OVERLAY_FRONT(new Coordinates(4, 52, 4, 12)),
-        LEFT_LEG_OVERLAY_BACK(new Coordinates(12, 52, 4, 12)),
-        LEFT_LEG_OVERLAY_TOP(new Coordinates(4, 48, 4, 4)),
-        RIGHT_LEG_OVERLAY_FRONT(new Coordinates(4, 36, 4, 12)),
-        RIGHT_LEG_OVERLAY_BACK(new Coordinates(12, 36, 4, 12)),
-        RIGHT_LEG_OVERLAY_TOP(new Coordinates(4, 32, 4, 4)),
+        LEFT_LEG_OVERLAY_FRONT(new Coordinates(4, 52, 4, 12)), LEFT_LEG_OVERLAY_BACK(new Coordinates(12, 52, 4, 12)), LEFT_LEG_OVERLAY_TOP(new Coordinates(4, 48, 4, 4)), RIGHT_LEG_OVERLAY_FRONT(new Coordinates(4, 36, 4, 12)), RIGHT_LEG_OVERLAY_BACK(new Coordinates(12, 36, 4, 12)), RIGHT_LEG_OVERLAY_TOP(new Coordinates(4, 32, 4, 4)),
 
         // Head
-        HEAD_TOP(new Coordinates(8, 0, 8, 8), HEAD_OVERLAY_TOP),
-        FACE(new Coordinates(8, 8, 8, 8), HEAD_OVERLAY_FACE),
-        HEAD_LEFT(new Coordinates(0, 8, 8, 8), HEAD_OVERLAY_LEFT),
-        HEAD_RIGHT(new Coordinates(16, 8, 8, 8), HEAD_OVERLAY_RIGHT),
-        HEAD_BOTTOM(new Coordinates(16, 0, 8, 8), HEAD_OVERLAY_BOTTOM),
-        HEAD_BACK(new Coordinates(24, 8, 8, 8), HEAD_OVERLAY_BACK),
+        HEAD_TOP(new Coordinates(8, 0, 8, 8), HEAD_OVERLAY_TOP), FACE(new Coordinates(8, 8, 8, 8), HEAD_OVERLAY_FACE), HEAD_LEFT(new Coordinates(0, 8, 8, 8), HEAD_OVERLAY_LEFT), HEAD_RIGHT(new Coordinates(16, 8, 8, 8), HEAD_OVERLAY_RIGHT), HEAD_BOTTOM(new Coordinates(16, 0, 8, 8), HEAD_OVERLAY_BOTTOM), HEAD_BACK(new Coordinates(24, 8, 8, 8), HEAD_OVERLAY_BACK),
 
         // Body
-        BODY_FRONT(new Coordinates(20, 20, 8, 12), BODY_OVERLAY_FRONT),
-        BODY_TOP(new Coordinates(20, 16, 8, 4), BODY_OVERLAY_TOP),
-        BODY_LEFT(new Coordinates(36, 20, 4, 12), BODY_OVERLAY_LEFT),
-        BODY_RIGHT(new Coordinates(28, 20, 4, 12), BODY_OVERLAY_RIGHT),
-        BODY_BACK(new Coordinates(32, 20, 8, 12), BODY_OVERLAY_BACK),
+        BODY_FRONT(new Coordinates(20, 20, 8, 12), BODY_OVERLAY_FRONT), BODY_TOP(new Coordinates(20, 16, 8, 4), BODY_OVERLAY_TOP), BODY_LEFT(new Coordinates(36, 20, 4, 12), BODY_OVERLAY_LEFT), BODY_RIGHT(new Coordinates(28, 20, 4, 12), BODY_OVERLAY_RIGHT), BODY_BACK(new Coordinates(32, 20, 8, 12), BODY_OVERLAY_BACK),
 
         // Arms
-        LEFT_ARM_TOP(new Coordinates(36, 48, 4, 4), LEFT_ARM_OVERLAY_TOP),
-        RIGHT_ARM_TOP(new Coordinates(44, 16, 4, 4), RIGHT_ARM_OVERLAY_TOP),
-        LEFT_ARM_FRONT(new Coordinates(36, 52, 4, 12), LEFT_ARM_OVERLAY_FRONT),
-        LEFT_ARM_BACK(new Coordinates(44, 52, 4, 12), LEFT_ARM_OVERLAY_BACK),
-        RIGHT_ARM_FRONT(new Coordinates(44, 20, 4, 12), RIGHT_ARM_OVERLAY_FRONT),
-        RIGHT_ARM_BACK(new Coordinates(52, 20, 4, 12), RIGHT_ARM_OVERLAY_BACK),
+        LEFT_ARM_TOP(new Coordinates(36, 48, 4, 4), LEFT_ARM_OVERLAY_TOP), RIGHT_ARM_TOP(new Coordinates(44, 16, 4, 4), RIGHT_ARM_OVERLAY_TOP), LEFT_ARM_FRONT(new Coordinates(36, 52, 4, 12), LEFT_ARM_OVERLAY_FRONT), LEFT_ARM_BACK(new Coordinates(44, 52, 4, 12), LEFT_ARM_OVERLAY_BACK), RIGHT_ARM_FRONT(new Coordinates(44, 20, 4, 12), RIGHT_ARM_OVERLAY_FRONT), RIGHT_ARM_BACK(new Coordinates(52, 20, 4, 12), RIGHT_ARM_OVERLAY_BACK),
 
         // Legs
-        LEFT_LEG_TOP(new Coordinates(20, 48, 4, 4), LEFT_LEG_OVERLAY_TOP),
-        RIGHT_LEG_TOP(new Coordinates(4, 16, 4, 4), RIGHT_LEG_OVERLAY_TOP),
-        LEFT_LEG_FRONT(new Coordinates(20, 52, 4, 12), LEFT_LEG_OVERLAY_FRONT),
-        LEFT_LEG_BACK(new Coordinates(28, 52, 4, 12), LEFT_LEG_OVERLAY_BACK),
-        RIGHT_LEG_FRONT(new Coordinates(4, 20, 4, 12), RIGHT_LEG_OVERLAY_FRONT),
-        RIGHT_LEG_BACK(new Coordinates(12, 20, 4, 12), RIGHT_LEG_OVERLAY_BACK);
+        LEFT_LEG_TOP(new Coordinates(20, 48, 4, 4), LEFT_LEG_OVERLAY_TOP), RIGHT_LEG_TOP(new Coordinates(4, 16, 4, 4), RIGHT_LEG_OVERLAY_TOP), LEFT_LEG_FRONT(new Coordinates(20, 52, 4, 12), LEFT_LEG_OVERLAY_FRONT), LEFT_LEG_BACK(new Coordinates(28, 52, 4, 12), LEFT_LEG_OVERLAY_BACK), RIGHT_LEG_FRONT(new Coordinates(4, 20, 4, 12), RIGHT_LEG_OVERLAY_FRONT), RIGHT_LEG_BACK(new Coordinates(12, 20, 4, 12), RIGHT_LEG_OVERLAY_BACK);
 
         private final Coordinates coordinates;
         private final Skin[] overlays;
@@ -83,15 +45,14 @@ public final class PlayerModelCoordinates {
         }
 
         public boolean isFrontArm() {
-            return this == LEFT_ARM_FRONT || this == RIGHT_ARM_FRONT
-                    || this == LEFT_ARM_OVERLAY_FRONT || this == RIGHT_ARM_OVERLAY_FRONT;
+            return this == LEFT_ARM_FRONT || this == RIGHT_ARM_FRONT || this == LEFT_ARM_OVERLAY_FRONT || this == RIGHT_ARM_OVERLAY_FRONT;
         }
 
-        /** Arm parts (front or back) that use 3px width when slim. */
+        /**
+         * Arm parts (front or back) that use 3px width when slim.
+         */
         public boolean isArm() {
-            return this == LEFT_ARM_FRONT || this == LEFT_ARM_BACK || this == RIGHT_ARM_FRONT || this == RIGHT_ARM_BACK
-                    || this == LEFT_ARM_OVERLAY_FRONT || this == LEFT_ARM_OVERLAY_BACK
-                    || this == RIGHT_ARM_OVERLAY_FRONT || this == RIGHT_ARM_OVERLAY_BACK;
+            return this == LEFT_ARM_FRONT || this == LEFT_ARM_BACK || this == RIGHT_ARM_FRONT || this == RIGHT_ARM_BACK || this == LEFT_ARM_OVERLAY_FRONT || this == LEFT_ARM_OVERLAY_BACK || this == RIGHT_ARM_OVERLAY_FRONT || this == RIGHT_ARM_OVERLAY_BACK;
         }
     }
 
@@ -100,12 +61,7 @@ public final class PlayerModelCoordinates {
      * base and overlay texture regions and box dimensions.
      */
     public enum ModelBox {
-        HEAD(Skin.FACE, Skin.HEAD_OVERLAY_FACE, 8),
-        BODY(Skin.BODY_FRONT, Skin.BODY_OVERLAY_FRONT, 4),
-        LEFT_ARM(Skin.LEFT_ARM_FRONT, Skin.LEFT_ARM_OVERLAY_FRONT, 4),
-        RIGHT_ARM(Skin.RIGHT_ARM_FRONT, Skin.RIGHT_ARM_OVERLAY_FRONT, 4),
-        LEFT_LEG(Skin.LEFT_LEG_FRONT, Skin.LEFT_LEG_OVERLAY_FRONT, 4),
-        RIGHT_LEG(Skin.RIGHT_LEG_FRONT, Skin.RIGHT_LEG_OVERLAY_FRONT, 4);
+        HEAD(Skin.FACE, Skin.HEAD_OVERLAY_FACE, 8), BODY(Skin.BODY_FRONT, Skin.BODY_OVERLAY_FRONT, 4), LEFT_ARM(Skin.LEFT_ARM_FRONT, Skin.LEFT_ARM_OVERLAY_FRONT, 4), RIGHT_ARM(Skin.RIGHT_ARM_FRONT, Skin.RIGHT_ARM_OVERLAY_FRONT, 4), LEFT_LEG(Skin.LEFT_LEG_FRONT, Skin.LEFT_LEG_OVERLAY_FRONT, 4), RIGHT_LEG(Skin.RIGHT_LEG_FRONT, Skin.RIGHT_LEG_OVERLAY_FRONT, 4);
 
         private final Skin basePart;
         private final Skin overlayPart;
@@ -117,26 +73,20 @@ public final class PlayerModelCoordinates {
             this.depth = depth;
         }
 
+        private static int[] getUv(Skin part, boolean slim, int sizeZ) {
+            int w = part.coordinates.width();
+            if (slim && part.isFrontArm()) {
+                w--;
+            }
+            return new int[]{part.getCoordinates().x(), part.getCoordinates().y(), w, part.coordinates.height(), sizeZ};
+        }
+
         public int[] getBaseUv(boolean slim) {
             return getUv(basePart, slim, depth);
         }
 
         public int[] getOverlayUv(boolean slim) {
             return getUv(overlayPart, slim, depth);
-        }
-
-        private static int[] getUv(Skin part, boolean slim, int sizeZ) {
-            int w = part.coordinates.width();
-            if (slim && part.isFrontArm()) {
-                w--;
-            }
-            return new int[]{
-                    part.getCoordinates().x(),
-                    part.getCoordinates().y(),
-                    w,
-                    part.coordinates.height(),
-                    sizeZ
-            };
         }
     }
 
@@ -150,28 +100,15 @@ public final class PlayerModelCoordinates {
      * </p>
      */
     public static final class LegacyUpgrade {
-        /** Overlay regions to clear when empty (64×64 space). Cleared only if no visible overlay content, so legacy skins with drawn overlays are preserved. */
-        public static final int[][] CLEAR_RECTS = {
-                {32, 0, 64, 16},   // head overlays (top half, right side)
+        /**
+         * Overlay regions to clear when empty (64×64 space). Cleared only if no visible overlay content, so legacy skins with drawn overlays are preserved.
+         */
+        public static final int[][] CLEAR_RECTS = {{32, 0, 64, 16},   // head overlays (top half, right side)
                 {0, 32, 64, 64},   // entire bottom half (body/arm/leg overlays)
         };
 
-        public static final int[][] LEFT_LEG_COPIES = {
-                {24, 48, 20, 52, 4, 16, 8, 20},
-                {28, 48, 24, 52, 8, 16, 12, 20},
-                {20, 52, 16, 64, 8, 20, 12, 32},
-                {24, 52, 20, 64, 4, 20, 8, 32},
-                {28, 52, 24, 64, 0, 20, 4, 32},
-                {32, 52, 28, 64, 12, 20, 16, 32},
-        };
+        public static final int[][] LEFT_LEG_COPIES = {{24, 48, 20, 52, 4, 16, 8, 20}, {28, 48, 24, 52, 8, 16, 12, 20}, {20, 52, 16, 64, 8, 20, 12, 32}, {24, 52, 20, 64, 4, 20, 8, 32}, {28, 52, 24, 64, 0, 20, 4, 32}, {32, 52, 28, 64, 12, 20, 16, 32},};
 
-        public static final int[][] LEFT_ARM_COPIES = {
-                {40, 48, 36, 52, 44, 16, 48, 20},
-                {44, 48, 40, 52, 48, 16, 52, 20},
-                {36, 52, 32, 64, 48, 20, 52, 32},
-                {40, 52, 36, 64, 44, 20, 48, 32},
-                {44, 52, 40, 64, 40, 20, 44, 32},
-                {48, 52, 44, 64, 52, 20, 56, 32},
-        };
+        public static final int[][] LEFT_ARM_COPIES = {{40, 48, 36, 52, 44, 16, 48, 20}, {44, 48, 40, 52, 48, 16, 52, 20}, {36, 52, 32, 64, 48, 20, 52, 32}, {40, 52, 36, 64, 44, 20, 48, 32}, {44, 52, 40, 64, 40, 20, 44, 32}, {48, 52, 44, 64, 52, 20, 56, 32},};
     }
 }

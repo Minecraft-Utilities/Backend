@@ -14,15 +14,17 @@ import java.util.UUID;
 /**
  * @author Braydon
  */
-@AllArgsConstructor @Getter @ToString
-public final class JavaServerStatusToken {  
+@AllArgsConstructor
+@Getter
+@ToString
+public final class JavaServerStatusToken {
     private final JavaVersion version;
     private final Players players;
+    private final Object description;
+    private final String favicon;
     @SerializedName("modinfo")
     private ForgeModInfo modInfo;
     private ForgeData forgeData;
-    private final Object description;
-    private final String favicon;
     private boolean preventsChatReports;
     private boolean enforcesSecureChat;
     private boolean previewsChat;
@@ -42,6 +44,6 @@ public final class JavaServerStatusToken {
          * @param id   The unique id of this player.
          * @param name The name of this player.
          */
-        public record Sample(@NonNull UUID id, @NonNull String name) { }
+        public record Sample(@NonNull UUID id, @NonNull String name) {}
     }
 }

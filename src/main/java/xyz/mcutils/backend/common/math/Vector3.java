@@ -21,10 +21,6 @@ public record Vector3(double x, double y, double z) {
         if (Math.abs(w) < 1e-10) {
             w = 1.0;
         }
-        return new Vector3(
-                (m.m00 * x + m.m10 * y + m.m20 * z + m.m30) / w,
-                (m.m01 * x + m.m11 * y + m.m21 * z + m.m31) / w,
-                (m.m02 * x + m.m12 * y + m.m22 * z + m.m32) / w
-        );
+        return new Vector3((m.m00 * x + m.m10 * y + m.m20 * z + m.m30) / w, (m.m01 * x + m.m11 * y + m.m21 * z + m.m31) / w, (m.m02 * x + m.m12 * y + m.m22 * z + m.m32) / w);
     }
 }

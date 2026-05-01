@@ -10,7 +10,7 @@ import java.util.UUID;
  * One player to create from a Mojang profile; optional submitter for submit-queue flow.
  * Used when calling {@link PlayerService#createPlayers(List)}.
  *
- * @param profile    the Mojang profile token for the player to create
+ * @param profile     the Mojang profile token for the player to create
  * @param submittedBy the UUID of the player who submitted this one, or null if not from submit queue
  */
 public record PlayerCreateSubmission(MojangProfileToken profile, UUID submittedBy) {

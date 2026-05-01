@@ -13,7 +13,9 @@ import lombok.ToString;
  * @see <a href="https://www.spigotmc.org/wiki/spigot-nms-and-minecraft-versions-1-10-1-15">Spigot NMS (1.10 - 1.15)</a>
  * @see <a href="https://www.spigotmc.org/wiki/spigot-nms-and-minecraft-versions-legacy">Spigot NMS (1.8 - 1.9)</a>
  */
-@RequiredArgsConstructor @Getter @ToString
+@RequiredArgsConstructor
+@Getter
+@ToString
 public enum JavaMinecraftVersion {
     V1_21_11(774, "1_21_R5"), // 1.21.11
     V1_21_9(773, "1_21_R5"), // 1.21.9 & 1.21.10
@@ -98,26 +100,6 @@ public enum JavaMinecraftVersion {
     private String name;
 
     /**
-     * Get the name of this protocol version.
-     *
-     * @return the name
-     */
-    public String getName() {
-        // We have a name
-        if (this.name != null) {
-            return this.name;
-        }
-        // Use the server version as the name if unknown
-        if (this == UNKNOWN) {
-            this.name = this.getNmsVersion();
-        } else { // Parse the name
-            this.name = name().substring(1);
-            this.name = this.name.replace("_", ".");
-        }
-        return this.name;
-    }
-
-    /**
      * Get the latest version of Minecraft.
      *
      * @return te latest version
@@ -150,5 +132,26 @@ public enum JavaMinecraftVersion {
             }
         }
         return null;
+    }
+
+    /**
+     * Get the name of this protocol version.
+     *
+     * @return the name
+     */
+    public String getName() {
+        // We have a name
+        if (this.name != null) {
+            return this.name;
+        }
+        // Use the server version as the name if unknown
+        if (this == UNKNOWN) {
+            this.name = this.getNmsVersion();
+        }
+        else { // Parse the name
+            this.name = name().substring(1);
+            this.name = this.name.replace("_", ".");
+        }
+        return this.name;
     }
 }

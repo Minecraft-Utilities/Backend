@@ -7,11 +7,8 @@ import xyz.mcutils.backend.service.MetricService;
 
 public class TrackedCapesMetric extends GaugeWithCallbackMetric {
     public TrackedCapesMetric() {
-        super(GaugeWithCallback.builder()
-                .name("tracked_capes")
-                .callback(callback -> {
-                    callback.call(CapeService.INSTANCE.getTrackedCapeCount());
-                })
-                .register(MetricService.REGISTRY));
+        super(GaugeWithCallback.builder().name("tracked_capes").callback(callback -> {
+            callback.call(CapeService.INSTANCE.getTrackedCapeCount());
+        }).register(MetricService.REGISTRY));
     }
 }

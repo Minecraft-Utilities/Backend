@@ -14,7 +14,11 @@ import xyz.mcutils.backend.model.domain.serverregistry.ServerRegistryEntry;
 /**
  * @author Braydon
  */
-@Getter @Setter @ToString @SuperBuilder @NoArgsConstructor(access = lombok.AccessLevel.PROTECTED)
+@Getter
+@Setter
+@ToString
+@SuperBuilder
+@NoArgsConstructor(access = lombok.AccessLevel.PROTECTED)
 public class MinecraftServer {
 
     /**

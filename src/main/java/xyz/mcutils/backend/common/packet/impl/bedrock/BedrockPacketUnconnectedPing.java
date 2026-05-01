@@ -19,7 +19,7 @@ import java.nio.ByteOrder;
  */
 public final class BedrockPacketUnconnectedPing implements MinecraftBedrockPacket {
     private static final byte ID = 0x01; // The ID of the packet
-    private static final byte[] MAGIC = { 0, -1, -1, 0, -2, -2, -2, -2, -3, -3, -3, -3, 18, 52, 86, 120 };
+    private static final byte[] MAGIC = {0, -1, -1, 0, -2, -2, -2, -2, -3, -3, -3, -3, 18, 52, 86, 120};
 
     /**
      * Process this packet.

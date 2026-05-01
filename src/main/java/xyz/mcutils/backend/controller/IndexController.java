@@ -37,11 +37,7 @@ public class IndexController {
 
     @GetMapping(value = "/")
     public IndexResponse index() {
-        return new IndexResponse(
-                "Minecraft Utilities API",
-                buildProperties == null ? "dev" : buildProperties.getVersion(),
-                appConfig.getWebPublicUrl() + "/swagger-ui.html"
-        );
+        return new IndexResponse("Minecraft Utilities API", buildProperties == null ? "dev" : buildProperties.getVersion(), appConfig.getWebPublicUrl() + "/swagger-ui.html");
     }
 
     @GetMapping(value = "/health")
@@ -49,12 +45,14 @@ public class IndexController {
         return ResponseEntity.ok(new HealthResponse("OK"));
     }
 
-    @GetMapping(value = "/statistics") @SneakyThrows
+    @GetMapping(value = "/statistics")
+    @SneakyThrows
     public StatisticsResponse getStatistics() {
         return statisticsService.getStatistics();
     }
 
-    @GetMapping(value = "/metrics", produces = MediaType.TEXT_PLAIN_VALUE) @SneakyThrows
+    @GetMapping(value = "/metrics", produces = MediaType.TEXT_PLAIN_VALUE)
+    @SneakyThrows
     public String getMetrics() {
         var snapshots = MetricService.REGISTRY.scrape();
         var output = new ByteArrayOutputStream();

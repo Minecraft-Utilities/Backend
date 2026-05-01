@@ -16,19 +16,24 @@ import java.io.Serializable;
 /**
  * @author Braydon
  */
-@Setter @Getter @EqualsAndHashCode(callSuper = false)
+@Setter
+@Getter
+@EqualsAndHashCode(callSuper = false)
 @RedisHash(value = "server", timeToLive = 30L) // 30 seconds
 public class CachedMinecraftServer extends CachedResponse implements Serializable {
     /**
      * The id of this cached server.
      */
-    @Id @NonNull @JsonIgnore
+    @Id
+    @NonNull
+    @JsonIgnore
     private String id;
 
     /**
      * The cached server.
      */
-    @NonNull @JsonUnwrapped
+    @NonNull
+    @JsonUnwrapped
     private MinecraftServer server;
 
     public CachedMinecraftServer(@NonNull String id, @NonNull MinecraftServer server) {

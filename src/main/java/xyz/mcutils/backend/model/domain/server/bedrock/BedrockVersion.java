@@ -8,4 +8,4 @@ import lombok.NonNull;
  * @param protocol The protocol version of the server.
  * @param name     The version name of the server.
  */
-public record BedrockVersion(int protocol, @NonNull String name) { }
+public record BedrockVersion(int protocol, @NonNull String name) {}

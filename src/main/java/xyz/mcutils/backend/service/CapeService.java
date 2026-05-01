@@ -4,6 +4,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.Document;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Sort;
@@ -11,8 +12,8 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.bson.Document;
 import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.cape.CapeManager;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.WebRequest;
@@ -24,44 +25,37 @@ import xyz.mcutils.backend.model.domain.cape.CapeType;
 import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
-import xyz.mcutils.backend.cape.CapeManager;
 import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
 
 import java.awt.image.BufferedImage;
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-@Service @Slf4j
+@Service
+@Slf4j
 public class CapeService {
     public static CapeService INSTANCE;
-
-    @Value("${mc-utils.renderer.cape.cache}")
-    private boolean cacheEnabled;
-
-    @Value("${mc-utils.renderer.cape.enabled}")
-    private boolean renderingEnabled;
-
-    @Value("${mc-utils.renderer.cape.limits.min_size}")
-    private int minPartSize;
-
-    @Value("${mc-utils.renderer.cape.limits.max_size}")
-    private int maxPartSize;
-
     private final StorageService storageService;
     private final PlayerService playerService;
     private final CapeManager capeManager;
     private final MongoTemplate mongoTemplate;
     private final WebRequest webRequest;
+    private final Cache<String, byte[]> capeTextureCache = CacheBuilder.newBuilder().expireAfterAccess(6, TimeUnit.HOURS).maximumSize(1000).build();
+    @Value("${mc-utils.renderer.cape.cache}")
+    private boolean cacheEnabled;
+    @Value("${mc-utils.renderer.cape.enabled}")
+    private boolean renderingEnabled;
+    @Value("${mc-utils.renderer.cape.limits.min_size}")
+    private int minPartSize;
+    @Value("${mc-utils.renderer.cape.limits.max_size}")
+    private int maxPartSize;
 
-    private final Cache<String, byte[]> capeTextureCache = CacheBuilder.newBuilder()
-            .expireAfterAccess(6, TimeUnit.HOURS)
-            .maximumSize(1000)
-            .build();
-
-    public CapeService(StorageService storageService, @Lazy PlayerService playerService, CapeManager capeManager,
-                       MongoTemplate mongoTemplate, WebRequest webRequest) {
+    public CapeService(StorageService storageService, @Lazy PlayerService playerService, CapeManager capeManager, MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.storageService = storageService;
         this.playerService = playerService;
         this.capeManager = capeManager;
@@ -106,9 +100,7 @@ public class CapeService {
         if (id == null) {
             return null;
         }
-        return this.capeManager.getById(id)
-                .map(this::fromDocument)
-                .orElse(null);
+        return this.capeManager.getById(id).map(this::fromDocument).orElse(null);
     }
 
     /**
@@ -122,9 +114,7 @@ public class CapeService {
         if (textureId == null || textureId.isBlank()) {
             return null;
         }
-        return capeManager.getByTextureId(textureId)
-                .map(this::fromDocument)
-                .orElseGet(() -> fromDocument(capeManager.getOrCreateByTextureId(textureId)));
+        return capeManager.getByTextureId(textureId).map(this::fromDocument).orElseGet(() -> fromDocument(capeManager.getOrCreateByTextureId(textureId)));
     }
 
     /**
@@ -143,7 +133,8 @@ public class CapeService {
         // a player name can't be more than 16 chars, so just assume it's a texture id
         if (query.length() > 16) {
             cape = this.getCapeByTextureId(query);
-        } else {
+        }
+        else {
             Player player = this.playerService.getPlayer(query);
             cape = player.getCape();
             if (cape == null) {
@@ -178,7 +169,7 @@ public class CapeService {
                 if (bytes == null) {
                     throw new IllegalStateException("Cape image for skin '%s' was not found".formatted(cape.getTextureId()));
                 }
-                log.debug("Downloaded cape image for skin {} in {}ms", cape.getTextureId(),  System.currentTimeMillis() - start);
+                log.debug("Downloaded cape image for skin {} in {}ms", cape.getTextureId(), System.currentTimeMillis() - start);
                 return bytes;
             });
         } catch (ExecutionException e) {
@@ -191,9 +182,9 @@ public class CapeService {
      * Renders a cape part at the given size.
      * Canonical image is stored at max size; smaller requested sizes are produced by downscaling.
      *
-     * @param cape the cape to render
+     * @param cape     the cape to render
      * @param typeName the cape part type (e.g. FRONT)
-     * @param size the output size (height; width derived from cape aspect)
+     * @param size     the output size (height; width derived from cape aspect)
      * @return the cached cape part (PNG bytes)
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -230,13 +221,13 @@ public class CapeService {
             log.debug("Took {}ms to render cape part for cape: {}", System.currentTimeMillis() - renderStart, cape.getTextureId());
             if (cacheEnabled) {
                 final byte[] toUpload = canonicalBytes;
-                CompletableFuture.runAsync(() -> this.storageService.upload(bucket, canonicalKey, MediaType.IMAGE_PNG_VALUE, toUpload), Main.EXECUTOR)
-                    .exceptionally(ex -> {
-                        log.warn("Save failed for cape part {}: {}", canonicalKey, ex.getMessage());
-                        return null;
-                    });
+                CompletableFuture.runAsync(() -> this.storageService.upload(bucket, canonicalKey, MediaType.IMAGE_PNG_VALUE, toUpload), Main.EXECUTOR).exceptionally(ex -> {
+                    log.warn("Save failed for cape part {}: {}", canonicalKey, ex.getMessage());
+                    return null;
+                });
             }
-        } else {
+        }
+        else {
             log.debug("Got cape part for cape {} from cache in {}ms", cape.getTextureId(), System.currentTimeMillis() - cacheStart);
         }
 
@@ -258,8 +249,7 @@ public class CapeService {
         if (document == null) {
             return null;
         }
-        return new VanillaCape(document.getId(), document.getName(),
-                document.getAccountsOwned(), document.getTextureId());
+        return new VanillaCape(document.getId(), document.getName(), document.getAccountsOwned(), document.getTextureId());
     }
 
     /**

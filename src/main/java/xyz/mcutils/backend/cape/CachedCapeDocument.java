@@ -12,11 +12,9 @@ import java.util.concurrent.atomic.AtomicLong;
 @Getter
 public class CachedCapeDocument {
     private final CapeDocument document;
-
+    private final AtomicLong accountsOwned;
     @Setter
     private volatile boolean dirty;
-
-    private final AtomicLong accountsOwned;
 
     public CachedCapeDocument(CapeDocument document) {
         this.document = document;
@@ -38,12 +36,6 @@ public class CachedCapeDocument {
      */
     public CapeDocument snapshotDocument() {
         CapeDocument doc = this.document;
-        return CapeDocument.builder()
-                .id(doc.getId())
-                .name(doc.getName())
-                .textureId(doc.getTextureId())
-                .accountsOwned(this.accountsOwned.get())
-                .firstSeen(doc.getFirstSeen())
-                .build();
+        return CapeDocument.builder().id(doc.getId()).name(doc.getName()).textureId(doc.getTextureId()).accountsOwned(this.accountsOwned.get()).firstSeen(doc.getFirstSeen()).build();
     }
 }

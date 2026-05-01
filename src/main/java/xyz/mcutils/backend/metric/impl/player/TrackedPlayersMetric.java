@@ -7,11 +7,8 @@ import xyz.mcutils.backend.service.PlayerService;
 
 public class TrackedPlayersMetric extends GaugeWithCallbackMetric {
     public TrackedPlayersMetric() {
-        super(GaugeWithCallback.builder()
-                .name("tracked_players")
-                .callback(callback -> {
-                    callback.call(PlayerService.INSTANCE.getTrackedPlayerCount());
-                })
-                .register(MetricService.REGISTRY));
+        super(GaugeWithCallback.builder().name("tracked_players").callback(callback -> {
+            callback.call(PlayerService.INSTANCE.getTrackedPlayerCount());
+        }).register(MetricService.REGISTRY));
     }
 }

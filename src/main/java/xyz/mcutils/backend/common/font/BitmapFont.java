@@ -12,12 +12,16 @@ public class BitmapFont {
 
     private final Map<Integer, Glyph> glyphs = new HashMap<>();
     private final Map<Integer, Integer> advanceOverrides = new HashMap<>();
-    /** Bold offset for advance-only characters (no glyph), from widths file. */
+    /**
+     * Bold offset for advance-only characters (no glyph), from widths file.
+     */
     private final Map<Integer, Double> advanceOnlyBoldOffsets = new HashMap<>();
     private final int ascent;
     private final int height;
     private final int defaultGlyphWidth;
-    /** Default bold offset when character has no entry in widths file (e.g. from missing_char). */
+    /**
+     * Default bold offset when character has no entry in widths file (e.g. from missing_char).
+     */
     private double defaultBoldOffset = 1.0;
 
     public BitmapFont(int ascent, int height, int defaultGlyphWidth) {
@@ -26,7 +30,9 @@ public class BitmapFont {
         this.defaultGlyphWidth = defaultGlyphWidth;
     }
 
-    /** Set default bold offset (e.g. from widths file missing_char). */
+    /**
+     * Set default bold offset (e.g. from widths file missing_char).
+     */
     void setDefaultBoldOffset(double defaultBoldOffset) {
         this.defaultBoldOffset = defaultBoldOffset;
     }
@@ -39,7 +45,9 @@ public class BitmapFont {
         advanceOverrides.put(codepoint, advance);
     }
 
-    /** Set bold offset for an advance-only character (from widths file). */
+    /**
+     * Set bold offset for an advance-only character (from widths file).
+     */
     void putBoldOffset(int codepoint, double boldOffset) {
         advanceOnlyBoldOffsets.put(codepoint, boldOffset);
     }

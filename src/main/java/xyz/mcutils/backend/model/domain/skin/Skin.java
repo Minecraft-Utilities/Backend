@@ -52,33 +52,15 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
     private Map<String, String> parts;
 
     public Skin(UUID uuid, String textureId, Model model, boolean legacy) {
-        super(
-                textureId,
-                CDN_URL.formatted(textureId),
-                AppConfig.INSTANCE.getWebPublicUrl() + "/skins/%s/texture.png".formatted(textureId)
-        );
+        super(textureId, CDN_URL.formatted(textureId), AppConfig.INSTANCE.getWebPublicUrl() + "/skins/%s/texture.png".formatted(textureId));
         this.uuid = uuid;
         this.model = model;
         this.legacy = legacy;
 
         this.parts = new HashMap<>();
         for (SkinPart part : SkinPart.values()) {
-            this.parts.put(part.name(), "%s/skins/%s/%s.png".formatted(
-                    AppConfig.INSTANCE.getWebPublicUrl(),
-                    textureId,
-                    part.name().toLowerCase()
-            ));
+            this.parts.put(part.name(), "%s/skins/%s/%s.png".formatted(AppConfig.INSTANCE.getWebPublicUrl(), textureId, part.name().toLowerCase()));
         }
-    }
-
-    @Override
-    public Set<SkinPart> getSupportedParts() {
-        return EnumSet.allOf(SkinPart.class);
-    }
-
-    @Override
-    public BufferedImage render(SkinPart part, int size, RenderOptions options) {
-        return part.getRenderer().render(this, size, options);
     }
 
     /**
@@ -96,25 +78,30 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
         }
     }
 
+    @Override
+    public Set<SkinPart> getSupportedParts() {
+        return EnumSet.allOf(SkinPart.class);
+    }
+
+    @Override
+    public BufferedImage render(SkinPart part, int size, RenderOptions options) {
+        return part.getRenderer().render(this, size, options);
+    }
+
     /**
      * The model of the skin.
      */
     public enum Model {
-        DEFAULT,
-        SLIM
+        DEFAULT, SLIM
     }
 
     @Getter
     public enum SkinPart {
         // 2D
-        FACE(FaceRenderer.INSTANCE),
-        BODY(BodyRenderer.INSTANCE),
-        BACK(BackRenderer.INSTANCE),
+        FACE(FaceRenderer.INSTANCE), BODY(BodyRenderer.INSTANCE), BACK(BackRenderer.INSTANCE),
 
         // Isometric
-        HEAD_ISO(HeadIsoRenderer.INSTANCE),
-        FULLBODY_ISO_FRONT(FullBodyIsoRendererFront.INSTANCE),
-        FULLBODY_ISO_BACK(FullBodyIsoRendererBack.INSTANCE);
+        HEAD_ISO(HeadIsoRenderer.INSTANCE), FULLBODY_ISO_FRONT(FullBodyIsoRendererFront.INSTANCE), FULLBODY_ISO_BACK(FullBodyIsoRendererBack.INSTANCE);
 
         private final SkinRenderer renderer;
 

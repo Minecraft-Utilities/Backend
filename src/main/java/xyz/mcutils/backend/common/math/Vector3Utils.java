@@ -33,10 +33,10 @@ public final class Vector3Utils {
     /**
      * Rotates a vertex around a center point by yaw (Y axis) then pitch (X axis).
      *
-     * @param v         the vertex to rotate
-     * @param center    the rotation center
-     * @param yawDeg    yaw angle in degrees
-     * @param pitchDeg  pitch angle in degrees
+     * @param v        the vertex to rotate
+     * @param center   the rotation center
+     * @param yawDeg   yaw angle in degrees
+     * @param pitchDeg pitch angle in degrees
      * @return the rotated vertex
      */
     public static Vector3 rotAround(Vector3 v, Vector3 center, double yawDeg, double pitchDeg) {
@@ -65,7 +65,9 @@ public final class Vector3Utils {
         return new double[]{viewX, viewY, viewZ};
     }
 
-    /** Normalizes a vector to unit length. */
+    /**
+     * Normalizes a vector to unit length.
+     */
     public static Vector3 normalize(Vector3 v) {
         double len = Math.sqrt(v.x() * v.x() + v.y() * v.y() + v.z() * v.z());
         if (len < 1e-10) {
@@ -74,17 +76,17 @@ public final class Vector3Utils {
         return new Vector3(v.x() / len, v.y() / len, v.z() / len);
     }
 
-    /** Dot product of two vectors. */
+    /**
+     * Dot product of two vectors.
+     */
     public static double dot(Vector3 a, Vector3 b) {
         return a.x() * b.x() + a.y() * b.y() + a.z() * b.z();
     }
 
-    /** Cross product of two vectors. */
+    /**
+     * Cross product of two vectors.
+     */
     public static Vector3 cross(Vector3 a, Vector3 b) {
-        return new Vector3(
-                a.y() * b.z() - a.z() * b.y(),
-                a.z() * b.x() - a.x() * b.z(),
-                a.x() * b.y() - a.y() * b.x()
-        );
+        return new Vector3(a.y() * b.z() - a.z() * b.y(), a.z() * b.x() - a.x() * b.z(), a.x() * b.y() - a.y() * b.x());
     }
 }

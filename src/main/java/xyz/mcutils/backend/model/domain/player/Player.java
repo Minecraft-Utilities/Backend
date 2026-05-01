@@ -78,8 +78,7 @@ public class Player {
      */
     private Date firstSeen;
 
-    public Player(UUID uniqueId, String username, boolean legacyAccount, Skin skin, Set<Skin> skinHistory, @Nullable VanillaCape cape, @Nullable Set<VanillaCape> capeHistory,
-                  Set<UsernameHistory> usernameHistory, Date lastUpdated, Date firstSeen) {
+    public Player(UUID uniqueId, String username, boolean legacyAccount, Skin skin, Set<Skin> skinHistory, @Nullable VanillaCape cape, @Nullable Set<VanillaCape> capeHistory, Set<UsernameHistory> usernameHistory, Date lastUpdated, Date firstSeen) {
         this.uniqueId = uniqueId;
         this.username = username;
         this.legacyAccount = legacyAccount;

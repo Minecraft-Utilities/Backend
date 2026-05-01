@@ -48,4 +48,4 @@ public class OpenAPIConfiguration {
 
         return new OpenAPI().servers(List.of(server)).info(info);
     }
- }
+}

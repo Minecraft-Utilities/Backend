@@ -28,10 +28,7 @@ public final class ExceptionControllerAdvice {
     @ExceptionHandler(AsyncRequestTimeoutException.class)
     public ResponseEntity<ErrorResponse> handleAsyncRequestTimeout(AsyncRequestTimeoutException ex) {
         log.warn("Async request timed out: {}", ex.getMessage());
-        return new ResponseEntity<>(
-                new ErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, "Request timed out. Please try again."),
-                HttpStatus.SERVICE_UNAVAILABLE
-        );
+        return new ResponseEntity<>(new ErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, "Request timed out. Please try again."), HttpStatus.SERVICE_UNAVAILABLE);
     }
 
     @ExceptionHandler(Exception.class)
@@ -39,7 +36,8 @@ public final class ExceptionControllerAdvice {
         HttpStatus status = null; // Get the HTTP status
         if (ex instanceof NoResourceFoundException) { // Not found
             status = HttpStatus.NOT_FOUND;
-        } else if (ex instanceof UnsupportedOperationException) { // Not implemented
+        }
+        else if (ex instanceof UnsupportedOperationException) { // Not implemented
             status = HttpStatus.NOT_IMPLEMENTED;
         }
         if (ex.getClass().isAnnotationPresent(ResponseStatus.class)) { // Get from the @ResponseStatus annotation

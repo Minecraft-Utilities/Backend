@@ -7,15 +7,14 @@ import xyz.mcutils.backend.model.dto.response.StatisticsResponse;
 import xyz.mcutils.backend.websocket.WebSocketManager;
 import xyz.mcutils.backend.websocket.impl.StatisticsWebSocket;
 
-@Service @Getter
+@Service
+@Getter
 public class StatisticsService {
 
+    public static StatisticsService INSTANCE;
     private final PlayerService playerService;
     private final SkinService skinService;
     private final CapeService capeService;
-
-    public static StatisticsService INSTANCE;
-
     private long trackedPlayerCount;
     private long trackedSkinCount;
     private long trackedCapeCount;
@@ -25,13 +24,6 @@ public class StatisticsService {
         this.skinService = skinService;
         this.capeService = capeService;
         INSTANCE = this;
-    }
-
-    @PostConstruct
-    public void init() {
-        this.trackedPlayerCount = playerService.getTrackedPlayerCount();
-        this.trackedSkinCount = skinService.getTrackedSkinCount();
-        this.trackedCapeCount = capeService.getTrackedCapeCount();
     }
 
     public static void updateTrackedPlayerCount(long count) {
@@ -68,6 +60,13 @@ public class StatisticsService {
         }
     }
 
+    @PostConstruct
+    public void init() {
+        this.trackedPlayerCount = playerService.getTrackedPlayerCount();
+        this.trackedSkinCount = skinService.getTrackedSkinCount();
+        this.trackedCapeCount = capeService.getTrackedCapeCount();
+    }
+
     /**
      * Updates the statistics for the all connected WebSocket clients.
      */
@@ -81,10 +80,6 @@ public class StatisticsService {
      * @return the statistics
      */
     public StatisticsResponse getStatistics() {
-        return new StatisticsResponse(
-                trackedPlayerCount,
-                trackedSkinCount,
-                trackedCapeCount
-        );
+        return new StatisticsResponse(trackedPlayerCount, trackedSkinCount, trackedCapeCount);
     }
 }

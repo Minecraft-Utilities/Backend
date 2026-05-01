@@ -14,14 +14,7 @@ import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
 import xyz.mcutils.backend.repository.mongo.CapeRepository;
 import xyz.mcutils.backend.service.StatisticsService;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -39,8 +32,7 @@ public class CapeManager {
     private final MongoTemplate mongoTemplate;
     private final WebRequest webRequest;
     private final ConcurrentMap<String, UUID> textureIdToId = new ConcurrentHashMap<>();
-    private final Cache<UUID, CachedCapeDocument> cacheById = CacheBuilder.newBuilder()
-            .build();
+    private final Cache<UUID, CachedCapeDocument> cacheById = CacheBuilder.newBuilder().build();
 
     public CapeManager(CapeRepository capeRepository, MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.capeRepository = capeRepository;
@@ -64,11 +56,10 @@ public class CapeManager {
         if (cached != null) {
             return Optional.of(cached.snapshotDocument());
         }
-        return this.capeRepository.findById(id)
-                .map(doc -> {
-                    put(doc);
-                    return this.cacheById.getIfPresent(id).snapshotDocument();
-                });
+        return this.capeRepository.findById(id).map(doc -> {
+            put(doc);
+            return this.cacheById.getIfPresent(id).snapshotDocument();
+        });
     }
 
     /**
@@ -88,7 +79,8 @@ public class CapeManager {
             CachedCapeDocument cached = this.cacheById.getIfPresent(id);
             if (cached != null) {
                 result.put(id, cached.snapshotDocument());
-            } else {
+            }
+            else {
                 missed.add(id);
             }
         }
@@ -119,11 +111,10 @@ public class CapeManager {
             }
             return this.getById(id);
         }
-        return this.capeRepository.findByTextureId(textureId)
-                .map(doc -> {
-                    put(doc);
-                    return this.cacheById.getIfPresent(doc.getId()).snapshotDocument();
-                });
+        return this.capeRepository.findByTextureId(textureId).map(doc -> {
+            put(doc);
+            return this.cacheById.getIfPresent(doc.getId()).snapshotDocument();
+        });
     }
 
     /**
@@ -145,13 +136,7 @@ public class CapeManager {
         if (!exists) {
             throw new NotFoundException("Cape with texture id " + textureId + " was not found");
         }
-        CapeDocument document = this.capeRepository.insert(new CapeDocument(
-                UUID.randomUUID(),
-                null,
-                textureId,
-                0,
-                new Date()
-        ));
+        CapeDocument document = this.capeRepository.insert(new CapeDocument(UUID.randomUUID(), null, textureId, 0, new Date()));
         StatisticsService.updateTrackedCapeCount(StatisticsService.INSTANCE.getTrackedCapeCount() + 1);
         put(document);
         log.debug("Created cape {}", document.getTextureId());
@@ -181,12 +166,10 @@ public class CapeManager {
         }
         CachedCapeDocument cached = this.cacheById.getIfPresent(capeId);
         if (cached == null) {
-            cached = this.capeRepository.findById(capeId)
-                    .map(doc -> {
-                        put(doc);
-                        return this.cacheById.getIfPresent(capeId);
-                    })
-                    .orElse(null);
+            cached = this.capeRepository.findById(capeId).map(doc -> {
+                put(doc);
+                return this.cacheById.getIfPresent(capeId);
+            }).orElse(null);
         }
         if (cached != null) {
             cached.addAccountsOwned(delta);

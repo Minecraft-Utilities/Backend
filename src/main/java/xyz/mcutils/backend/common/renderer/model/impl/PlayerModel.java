@@ -51,5 +51,5 @@ public class PlayerModel {
         });
     }
 
-    private record FaceCacheKey(boolean slim, boolean renderOverlays) { }
+    private record FaceCacheKey(boolean slim, boolean renderOverlays) {}
 }

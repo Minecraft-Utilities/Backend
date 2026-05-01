@@ -28,13 +28,8 @@ public class DNSService {
     private static final String SRV_QUERY_PREFIX = "_minecraft._tcp.%s";
     private final Cache<DnsCacheKey, DNSRecord> objectCache;
 
-    public DNSService(
-            @Value("${mc-utils.cache.dns.enabled}") boolean cacheEnabled,
-            @Value("${mc-utils.cache.dns.ttl}") int objectCacheTtl
-    ) {
-        this.objectCache = cacheEnabled
-                ? CacheBuilder.newBuilder().expireAfterWrite(objectCacheTtl, TimeUnit.MINUTES).build()
-                : null;
+    public DNSService(@Value("${mc-utils.cache.dns.enabled}") boolean cacheEnabled, @Value("${mc-utils.cache.dns.ttl}") int objectCacheTtl) {
+        this.objectCache = cacheEnabled ? CacheBuilder.newBuilder().expireAfterWrite(objectCacheTtl, TimeUnit.MINUTES).build() : null;
     }
 
     /**
@@ -97,7 +92,7 @@ public class DNSService {
      * Cache key used for caching DNS queries.
      *
      * @param hostname the hostname that was used in the query
-     * @param type the type of the record
+     * @param type     the type of the record
      */
     public record DnsCacheKey(String hostname, int type) {}
 }

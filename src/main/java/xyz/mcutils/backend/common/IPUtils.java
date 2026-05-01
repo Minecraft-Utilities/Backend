@@ -8,10 +8,7 @@ public class IPUtils {
     /**
      * The headers that contain the IP.
      */
-    private static final String[] IP_HEADERS = new String[] {
-            "CF-Connecting-IP",
-            "X-Forwarded-For"
-    };
+    private static final String[] IP_HEADERS = new String[]{"CF-Connecting-IP", "X-Forwarded-For"};
 
     /**
      * Get the real IP from the given request.

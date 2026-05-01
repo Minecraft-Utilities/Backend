@@ -4,6 +4,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.Document;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
@@ -13,7 +14,6 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.bson.Document;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.*;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
@@ -42,34 +42,23 @@ import java.util.concurrent.TimeUnit;
 public class SkinService {
     public static final int SKINS_PER_PAGE = 25;
     public static SkinService INSTANCE;
-
-    @Value("${mc-utils.renderer.skin.cache}")
-    private boolean cacheEnabled;
-
-    @Value("${mc-utils.renderer.skin.enabled}")
-    private boolean renderingEnabled;
-
-    @Value("${mc-utils.renderer.skin.limits.min_size}")
-    private int minPartSize;
-
-    @Value("${mc-utils.renderer.skin.limits.max_size}")
-    private int maxPartSize;
-
     private final SkinManager skinManager;
     private final PlayerService playerService;
     private final StorageService storageService;
     private final MongoTemplate mongoTemplate;
     private final WebRequest webRequest;
-
-    private final Cache<String, byte[]> renderedSkinCache = CacheBuilder.newBuilder()
-            .expireAfterAccess(6, TimeUnit.HOURS)
-            .maximumSize(2000)
-            .build();
-
+    private final Cache<String, byte[]> renderedSkinCache = CacheBuilder.newBuilder().expireAfterAccess(6, TimeUnit.HOURS).maximumSize(2000).build();
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
+    @Value("${mc-utils.renderer.skin.cache}")
+    private boolean cacheEnabled;
+    @Value("${mc-utils.renderer.skin.enabled}")
+    private boolean renderingEnabled;
+    @Value("${mc-utils.renderer.skin.limits.min_size}")
+    private int minPartSize;
+    @Value("${mc-utils.renderer.skin.limits.max_size}")
+    private int maxPartSize;
 
-    public SkinService(SkinManager skinManager, @Lazy PlayerService playerService,
-                       StorageService storageService, MongoTemplate mongoTemplate, WebRequest webRequest) {
+    public SkinService(SkinManager skinManager, @Lazy PlayerService playerService, StorageService storageService, MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.skinManager = skinManager;
         this.playerService = playerService;
         this.storageService = storageService;
@@ -89,28 +78,13 @@ public class SkinService {
      * @return the paginated list of skins
      */
     public Pagination.Page<SkinsPageDTO> getPaginatedSkins(int page) {
-        Pagination<SkinsPageDTO> pagination = new Pagination<SkinsPageDTO>()
-                .setItemsPerPage(SKINS_PER_PAGE)
-                .setTotalItems(this.getTrackedSkinCount());
+        Pagination<SkinsPageDTO> pagination = new Pagination<SkinsPageDTO>().setItemsPerPage(SKINS_PER_PAGE).setTotalItems(this.getTrackedSkinCount());
         return pagination.getPage(page, (pageCallback) -> {
-            Query q = new Query()
-                    .with(PageRequest.of(page - 1, pageCallback.limit()))
-                    .with(Sort.by(Sort.Order.desc("accountsUsed"), Sort.Order.asc("_id")));
+            Query q = new Query().with(PageRequest.of(page - 1, pageCallback.limit())).with(Sort.by(Sort.Order.desc("accountsUsed"), Sort.Order.asc("_id")));
             List<Document> idDocs = MongoUtils.findWithFields(mongoTemplate, q, SkinDocument.class, "_id");
             List<UUID> ids = idDocs.stream().map(doc -> doc.get("_id", UUID.class)).toList();
             Map<UUID, SkinDocument> byId = skinManager.getByIds(ids);
-            return ids.stream()
-                    .map(byId::get)
-                    .filter(Objects::nonNull)
-                    .map(sd -> new SkinsPageDTO(
-                            sd.getId(),
-                            "%s/skins/%s/fullbody_iso_front.png".formatted(
-                                    AppConfig.INSTANCE.getWebPublicUrl(),
-                                    sd.getTextureId()
-                            ),
-                            sd.getAccountsUsed()
-                    ))
-                    .toList();
+            return ids.stream().map(byId::get).filter(Objects::nonNull).map(sd -> new SkinsPageDTO(sd.getId(), "%s/skins/%s/fullbody_iso_front.png".formatted(AppConfig.INSTANCE.getWebPublicUrl(), sd.getTextureId()), sd.getAccountsUsed())).toList();
         });
     }
 
@@ -121,8 +95,7 @@ public class SkinService {
      * @return the skin DTO
      */
     public SkinDTO getSkinDto(UUID id) {
-        SkinDocument skinDocument = this.skinManager.getById(id)
-                .orElseThrow(() -> new NotFoundException("Skin with id '%s' not found".formatted(id)));
+        SkinDocument skinDocument = this.skinManager.getById(id).orElseThrow(() -> new NotFoundException("Skin with id '%s' not found".formatted(id)));
         String firstSeenUsing = "Unknown";
         if (skinDocument.getFirstPlayerSeenUsing() != null) {
             Query firstQuery = Query.query(Criteria.where("_id").is(skinDocument.getFirstPlayerSeenUsing())).limit(1);
@@ -132,24 +105,10 @@ public class SkinService {
             }
         }
 
-        Query query = Query.query(Criteria.where("skin").is(skinDocument.getId()))
-                .with(PageRequest.of(0, 500))
-                .withHint("skin");
-        List<String> accountsSeenUsing = MongoUtils.findWithFields(mongoTemplate, query, PlayerDocument.class, "_id", "username").stream()
-                .map(doc -> doc.getString("username"))
-                .toList();
+        Query query = Query.query(Criteria.where("skin").is(skinDocument.getId())).with(PageRequest.of(0, 500)).withHint("skin");
+        List<String> accountsSeenUsing = MongoUtils.findWithFields(mongoTemplate, query, PlayerDocument.class, "_id", "username").stream().map(doc -> doc.getString("username")).toList();
 
-        return new SkinDTO(
-                skinDocument.getId(),
-                skinDocument.getTextureId(),
-                "%s/skins/%s/fullbody_iso_front.png".formatted(
-                        AppConfig.INSTANCE.getWebPublicUrl(),
-                        skinDocument.getTextureId()
-                ),
-                skinDocument.getAccountsUsed(),
-                firstSeenUsing,
-                accountsSeenUsing
-        );
+        return new SkinDTO(skinDocument.getId(), skinDocument.getTextureId(), "%s/skins/%s/fullbody_iso_front.png".formatted(AppConfig.INSTANCE.getWebPublicUrl(), skinDocument.getTextureId()), skinDocument.getAccountsUsed(), firstSeenUsing, accountsSeenUsing);
     }
 
     /**
@@ -159,9 +118,7 @@ public class SkinService {
      * @return the skin, or null if not found
      */
     public Skin getSkinByTextureId(String textureId) {
-        return this.skinManager.getByTextureId(textureId)
-                .map(this::fromDocument)
-                .orElse(null);
+        return this.skinManager.getByTextureId(textureId).map(this::fromDocument).orElse(null);
     }
 
     /**
@@ -174,15 +131,13 @@ public class SkinService {
         if (id == null) {
             return null;
         }
-        return this.skinManager.getById(id)
-                .map(this::fromDocument)
-                .orElse(null);
+        return this.skinManager.getById(id).map(this::fromDocument).orElse(null);
     }
 
     /**
      * Gets or creates the skin using its {@link SkinTextureToken}.
      *
-     * @param token the texture token for the skin
+     * @param token      the texture token for the skin
      * @param playerUuid the player's uuid who was seen wearing this skin
      * @return the skin
      */
@@ -202,7 +157,8 @@ public class SkinService {
         // a player name can't be more than 16 chars, so just assume it's a texture id
         if (query.length() > 16 && query.length() != 32 && query.length() != 36) {
             skin = this.getSkinByTextureId(query);
-        } else {
+        }
+        else {
             Player player = this.playerService.getPlayer(query);
             skin = player.getSkin();
         }
@@ -217,7 +173,7 @@ public class SkinService {
     /**
      * Creates a new skin (or returns existing) and inserts into the database if needed.
      *
-     * @param token the token for the skin from the {@link MojangProfileToken}
+     * @param token      the token for the skin from the {@link MojangProfileToken}
      * @param playerUuid the player's uuid who was seen wearing this skin
      * @return the created or existing skin
      */
@@ -237,9 +193,9 @@ public class SkinService {
     /**
      * Gets the skin image for the given skin.
      *
-     * @param textureId the texture id of the skin to get
+     * @param textureId  the texture id of the skin to get
      * @param textureUrl the texture url of the skin to get
-     * @param upgrade whether to upgrade legacy 64×32 skins to 64×64
+     * @param upgrade    whether to upgrade legacy 64×32 skins to 64×64
      * @return the skin image
      */
     public byte[] getSkinTexture(String textureId, String textureUrl, boolean upgrade) {
@@ -254,7 +210,7 @@ public class SkinService {
                 if (bytes == null) {
                     throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(textureId));
                 }
-                log.debug("Downloaded skin image for skin {} in {}ms", textureId,  System.currentTimeMillis() - start);
+                log.debug("Downloaded skin image for skin {} in {}ms", textureId, System.currentTimeMillis() - start);
                 this.storageService.upload(StorageService.Bucket.SKINS, textureId + ".png", MediaType.IMAGE_PNG_VALUE, bytes);
                 return bytes;
             }
@@ -266,10 +222,10 @@ public class SkinService {
      * Renders a skin type from the player's skin.
      * Canonical image is stored at max size; smaller requested sizes are produced by downscaling.
      *
-     * @param skin the player to get the skin for
-     * @param typeName the name of the type
+     * @param skin          the player to get the skin for
+     * @param typeName      the name of the type
      * @param renderOverlay whether to render the overlay
-     * @param size the output size (height; width derived per type)
+     * @param size          the output size (height; width derived per type)
      * @return the skin part
      */
     public byte[] renderSkin(Skin skin, String typeName, boolean renderOverlay, int size) {

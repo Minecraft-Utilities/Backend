@@ -9,12 +9,9 @@ import java.lang.management.MemoryUsage;
 
 public class MemoryUsageMetric extends GaugeWithCallbackMetric {
     public MemoryUsageMetric() {
-        super(GaugeWithCallback.builder()
-                .name("process_memory_usage_bytes")
-                .callback(callback -> {
-                    MemoryUsage heapUsage = Constants.MEMORY_BEAN.getHeapMemoryUsage();
-                    callback.call(heapUsage.getUsed());
-                })
-                .register(MetricService.REGISTRY));
+        super(GaugeWithCallback.builder().name("process_memory_usage_bytes").callback(callback -> {
+            MemoryUsage heapUsage = Constants.MEMORY_BEAN.getHeapMemoryUsage();
+            callback.call(heapUsage.getUsed());
+        }).register(MetricService.REGISTRY));
     }
 }

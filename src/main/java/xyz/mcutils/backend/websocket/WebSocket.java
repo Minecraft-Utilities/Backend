@@ -14,13 +14,10 @@ import xyz.mcutils.backend.Constants;
 import java.util.ArrayList;
 import java.util.List;
 
-@RequiredArgsConstructor @Getter @Slf4j
+@RequiredArgsConstructor
+@Getter
+@Slf4j
 public abstract class WebSocket extends TextWebSocketHandler {
-
-    /**
-     * The sessions that are connected to the WebSocket.
-     */
-    private final List<WebSocketSession> sessions = new ArrayList<>();
 
     /**
      * The path of the WebSocket.
@@ -29,6 +26,10 @@ public abstract class WebSocket extends TextWebSocketHandler {
      * </p>
      */
     public final String path;
+    /**
+     * The sessions that are connected to the WebSocket.
+     */
+    private final List<WebSocketSession> sessions = new ArrayList<>();
 
     /**
      * Sends a message to the client.

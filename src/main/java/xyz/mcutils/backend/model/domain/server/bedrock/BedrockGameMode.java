@@ -8,4 +8,4 @@ import lombok.NonNull;
  * @param name      The name of this gamemode.
  * @param numericId The numeric of this gamemode.
  */
-public record BedrockGameMode(@NonNull String name, int numericId) { }
+public record BedrockGameMode(@NonNull String name, int numericId) {}

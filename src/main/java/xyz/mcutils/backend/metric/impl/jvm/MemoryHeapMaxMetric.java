@@ -9,12 +9,9 @@ import java.lang.management.MemoryUsage;
 
 public class MemoryHeapMaxMetric extends GaugeWithCallbackMetric {
     public MemoryHeapMaxMetric() {
-        super(GaugeWithCallback.builder()
-                .name("process_memory_heap_max_bytes")
-                .callback(callback -> {
-                    MemoryUsage heapUsage = Constants.MEMORY_BEAN.getHeapMemoryUsage();
-                    callback.call(heapUsage.getMax());
-                })
-                .register(MetricService.REGISTRY));
+        super(GaugeWithCallback.builder().name("process_memory_heap_max_bytes").callback(callback -> {
+            MemoryUsage heapUsage = Constants.MEMORY_BEAN.getHeapMemoryUsage();
+            callback.call(heapUsage.getMax());
+        }).register(MetricService.REGISTRY));
     }
 }

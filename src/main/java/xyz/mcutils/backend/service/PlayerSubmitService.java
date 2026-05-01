@@ -33,17 +33,14 @@ public class PlayerSubmitService {
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final int BATCH_SIZE = 1_000;
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
+    public static PlayerSubmitService INSTANCE;
     private final RedisTemplate<String, String> redis;
     private final PlayerService playerService;
     private final MojangService mojangService;
     private final Semaphore submitConcurrencyLimit = new Semaphore(50);
-
     private volatile boolean running = true;
 
-    public static PlayerSubmitService INSTANCE;
-
-    public PlayerSubmitService(@Qualifier("queueRedisTemplate") RedisTemplate<String, String> redis,
-                               @Lazy PlayerService playerService, @Lazy MojangService mojangService) {
+    public PlayerSubmitService(@Qualifier("queueRedisTemplate") RedisTemplate<String, String> redis, @Lazy PlayerService playerService, @Lazy MojangService mojangService) {
         this.redis = redis;
         this.playerService = playerService;
         this.mojangService = mojangService;
@@ -107,10 +104,10 @@ public class PlayerSubmitService {
 
     /**
      * Processes a batch of items from the submit queue.
-     * 
-     * @param batch the list of raw entry strings
+     *
+     * @param batch   the list of raw entry strings
      * @param listOps the list operations
-     * @param setOps the set operations
+     * @param setOps  the set operations
      */
     @SneakyThrows
     private void processBatch(List<String> batch, ListOperations<String, String> listOps, SetOperations<String, String> setOps) {
@@ -173,12 +170,7 @@ public class PlayerSubmitService {
 
     public int submitPlayers(List<String> players, String submittedBy) {
         UUID by = (submittedBy != null && !submittedBy.isBlank()) ? UUIDUtils.parseUuid(submittedBy.trim()) : null;
-        List<UUID> toEnqueue = players.stream()
-                .filter(id -> id != null && !id.isBlank())
-                .map(id -> UUIDUtils.parseUuid(id.trim()))
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
+        List<UUID> toEnqueue = players.stream().filter(id -> id != null && !id.isBlank()).map(id -> UUIDUtils.parseUuid(id.trim())).filter(Objects::nonNull).distinct().toList();
         if (toEnqueue.isEmpty()) {
             return 0;
         }
@@ -246,5 +238,5 @@ public class PlayerSubmitService {
         running = false;
     }
 
-    private record QueueEntry(UUID playerId, UUID submittedBy) { }
+    private record QueueEntry(UUID playerId, UUID submittedBy) {}
 }

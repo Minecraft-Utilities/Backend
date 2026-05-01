@@ -38,18 +38,12 @@ public class BackRenderer extends SkinRenderer {
         int rightArmX = 12;
         int armW = slim ? 3 : 4;
 
-        drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(4, scale), RendererUtils.scaleLogicalCoord(0, scale), RendererUtils.scaleLogical(8, scale), RendererUtils.scaleLogical(8, scale),
-                PlayerModelCoordinates.Skin.HEAD_BACK, slim, overlays);
-        drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(4, scale), RendererUtils.scaleLogicalCoord(8, scale), RendererUtils.scaleLogical(8, scale), RendererUtils.scaleLogical(12, scale),
-                PlayerModelCoordinates.Skin.BODY_BACK, slim, overlays);
-        drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(leftArmX, scale), RendererUtils.scaleLogicalCoord(8, scale), RendererUtils.scaleLogical(armW, scale), RendererUtils.scaleLogical(12, scale),
-                PlayerModelCoordinates.Skin.LEFT_ARM_BACK, slim, overlays);
-        drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(rightArmX, scale), RendererUtils.scaleLogicalCoord(8, scale), RendererUtils.scaleLogical(armW, scale), RendererUtils.scaleLogical(12, scale),
-                PlayerModelCoordinates.Skin.RIGHT_ARM_BACK, slim, overlays);
-        drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(4, scale), RendererUtils.scaleLogicalCoord(20, scale), RendererUtils.scaleLogical(4, scale), RendererUtils.scaleLogical(12, scale),
-                PlayerModelCoordinates.Skin.LEFT_LEG_BACK, slim, overlays);
-        drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(8, scale), RendererUtils.scaleLogicalCoord(20, scale), RendererUtils.scaleLogical(4, scale), RendererUtils.scaleLogical(12, scale),
-                PlayerModelCoordinates.Skin.RIGHT_LEG_BACK, slim, overlays);
+        drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(4, scale), RendererUtils.scaleLogicalCoord(0, scale), RendererUtils.scaleLogical(8, scale), RendererUtils.scaleLogical(8, scale), PlayerModelCoordinates.Skin.HEAD_BACK, slim, overlays);
+        drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(4, scale), RendererUtils.scaleLogicalCoord(8, scale), RendererUtils.scaleLogical(8, scale), RendererUtils.scaleLogical(12, scale), PlayerModelCoordinates.Skin.BODY_BACK, slim, overlays);
+        drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(leftArmX, scale), RendererUtils.scaleLogicalCoord(8, scale), RendererUtils.scaleLogical(armW, scale), RendererUtils.scaleLogical(12, scale), PlayerModelCoordinates.Skin.LEFT_ARM_BACK, slim, overlays);
+        drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(rightArmX, scale), RendererUtils.scaleLogicalCoord(8, scale), RendererUtils.scaleLogical(armW, scale), RendererUtils.scaleLogical(12, scale), PlayerModelCoordinates.Skin.RIGHT_ARM_BACK, slim, overlays);
+        drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(4, scale), RendererUtils.scaleLogicalCoord(20, scale), RendererUtils.scaleLogical(4, scale), RendererUtils.scaleLogical(12, scale), PlayerModelCoordinates.Skin.LEFT_LEG_BACK, slim, overlays);
+        drawVanillaPart(g, skinImage, RendererUtils.scaleLogicalCoord(8, scale), RendererUtils.scaleLogicalCoord(20, scale), RendererUtils.scaleLogical(4, scale), RendererUtils.scaleLogical(12, scale), PlayerModelCoordinates.Skin.RIGHT_LEG_BACK, slim, overlays);
 
         g.dispose();
         return out;

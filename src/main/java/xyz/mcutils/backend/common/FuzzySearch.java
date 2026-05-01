@@ -16,10 +16,14 @@ import java.util.regex.Pattern;
 @UtilityClass
 public final class FuzzySearch {
 
-    /** Default maximum edit distance for fuzzy matches (typo tolerance). */
+    /**
+     * Default maximum edit distance for fuzzy matches (typo tolerance).
+     */
     public static final int DEFAULT_MAX_FUZZY_DISTANCE = 2;
 
-    /** Default pattern to split text into tokens for token-based fuzzy matching. */
+    /**
+     * Default pattern to split text into tokens for token-based fuzzy matching.
+     */
     public static final Pattern DEFAULT_TOKEN_PATTERN = Pattern.compile("[^a-z0-9]+");
 
     /**
@@ -60,9 +64,9 @@ public final class FuzzySearch {
      * Match score for query against a single text: 0 = substring match, 1..maxFuzzyDistance = fuzzy match, -1 = no match.
      * Comparison is case-insensitive. Checks substring first, then fuzzy match on the full text and on tokens.
      *
-     * @param query             search query (trimmed and lowercased by this method)
-     * @param text              text to match against (e.g. server name, hostname)
-     * @param maxFuzzyDistance  maximum Levenshtein distance to count as a match (e.g. 2 for typo tolerance)
+     * @param query            search query (trimmed and lowercased by this method)
+     * @param text             text to match against (e.g. server name, hostname)
+     * @param maxFuzzyDistance maximum Levenshtein distance to count as a match (e.g. 2 for typo tolerance)
      * @return 0 if query is a substring of text, 1..maxFuzzyDistance if within edit distance, -1 if no match
      */
     public static int matchScore(String query, String text, int maxFuzzyDistance) {
@@ -72,10 +76,10 @@ public final class FuzzySearch {
     /**
      * Match score for query against a single text with custom token pattern.
      *
-     * @param query             search query
-     * @param text              text to match against
-     * @param maxFuzzyDistance  maximum edit distance for fuzzy match
-     * @param tokenPattern      pattern to split text into tokens for token-based fuzzy matching (e.g. "wildnetwork" from "wildnetwork.net")
+     * @param query            search query
+     * @param text             text to match against
+     * @param maxFuzzyDistance maximum edit distance for fuzzy match
+     * @param tokenPattern     pattern to split text into tokens for token-based fuzzy matching (e.g. "wildnetwork" from "wildnetwork.net")
      * @return 0 = substring, 1..maxFuzzyDistance = fuzzy, -1 = no match
      */
     public static int matchScore(String query, String text, int maxFuzzyDistance, Pattern tokenPattern) {
@@ -109,9 +113,9 @@ public final class FuzzySearch {
     /**
      * Best match score for query against any of the given texts.
      *
-     * @param query             search query
-     * @param texts             candidate strings to match against (e.g. name, hostname, aliases)
-     * @param maxFuzzyDistance  maximum edit distance for fuzzy match
+     * @param query            search query
+     * @param texts            candidate strings to match against (e.g. name, hostname, aliases)
+     * @param maxFuzzyDistance maximum edit distance for fuzzy match
      * @return best score (0..maxFuzzyDistance) or -1 if no text matches
      */
     public static int bestMatchScore(String query, Collection<String> texts, int maxFuzzyDistance) {
@@ -136,30 +140,19 @@ public final class FuzzySearch {
      * Search a list of items by fuzzy-matching the query against strings extracted from each item.
      * Results are ordered by best score (exact/substring first, then by fuzzy distance) and limited.
      *
-     * @param items         list to search
-     * @param query         search query
-     * @param textExtractor function that returns the set of strings to match per item (e.g. name, hostname, aliases)
+     * @param items            list to search
+     * @param query            search query
+     * @param textExtractor    function that returns the set of strings to match per item (e.g. name, hostname, aliases)
      * @param maxFuzzyDistance maximum edit distance for fuzzy match
-     * @param limit         maximum number of results to return
-     * @param <T>           item type
+     * @param limit            maximum number of results to return
+     * @param <T>              item type
      * @return list of matching items, best matches first, size at most {@code limit}
      */
-    public static <T> List<T> search(
-            List<T> items,
-            String query,
-            Function<T, ? extends Collection<String>> textExtractor,
-            int maxFuzzyDistance,
-            int limit) {
+    public static <T> List<T> search(List<T> items, String query, Function<T, ? extends Collection<String>> textExtractor, int maxFuzzyDistance, int limit) {
         if (query == null || query.isBlank() || items == null || items.isEmpty()) {
             return List.of();
         }
-        return items.stream()
-                .map(item -> new Scored<>(item, bestMatchScore(query, textExtractor.apply(item), maxFuzzyDistance)))
-                .filter(scored -> scored.score() >= 0)
-                .sorted(Comparator.comparingInt(Scored::score))
-                .limit(limit)
-                .map(Scored::item)
-                .toList();
+        return items.stream().map(item -> new Scored<>(item, bestMatchScore(query, textExtractor.apply(item), maxFuzzyDistance))).filter(scored -> scored.score() >= 0).sorted(Comparator.comparingInt(Scored::score)).limit(limit).map(Scored::item).toList();
     }
 
     /**
@@ -175,6 +168,8 @@ public final class FuzzySearch {
         return Math.min(a, b);
     }
 
-    /** Result of scoring an item (item + match score). */
+    /**
+     * Result of scoring an item (item + match score).
+     */
     public record Scored<T>(T item, int score) {}
 }

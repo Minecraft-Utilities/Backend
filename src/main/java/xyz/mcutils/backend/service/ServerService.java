@@ -37,41 +37,30 @@ import java.util.concurrent.CompletableFuture;
 public class ServerService {
     public static final String DEFAULT_SERVER_ICON = "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";
     private static final InetAddressValidator IP_VALIDATOR = InetAddressValidator.getInstance();
-
-    @Value("${mc-utils.cache.servers.enabled}")
-    private boolean cacheEnabled;
-
-    @Value("${mc-utils.renderer.server-preview.cache}")
-    private boolean previewCacheEnabled;
-
-    @Value("${mc-utils.renderer.server-preview.enabled}")
-    private boolean renderingEnabled;
-
-    @Value("${mc-utils.renderer.server-preview.limits.min_size}")
-    private int minPreviewSize;
-
-    @Value("${mc-utils.renderer.server-preview.limits.max_size}")
-    private int maxPreviewSize;
-
-    @Value("${mc-utils.server-pinger.java.timeout}")
-    private int javaPingerTimeout;
-
-    @Value("${mc-utils.server-pinger.bedrock.timeout}")
-    private int bedrockPingerTimeout;
-
-    @Value("#{'${mc-utils.server-pinger.blacklisted-subnets}'.split(',')}")
-    private List<String> blacklistedSubnets;
-
     private final MojangService mojangService;
     private final MaxMindService maxMindService;
     private final DNSService dnsService;
     private final ServerRegistryService serverRegistryService;
     private final MinecraftServerCacheRepository serverCacheRepository;
     private final ServerPreviewCacheRepository serverPreviewCacheRepository;
+    @Value("${mc-utils.cache.servers.enabled}")
+    private boolean cacheEnabled;
+    @Value("${mc-utils.renderer.server-preview.cache}")
+    private boolean previewCacheEnabled;
+    @Value("${mc-utils.renderer.server-preview.enabled}")
+    private boolean renderingEnabled;
+    @Value("${mc-utils.renderer.server-preview.limits.min_size}")
+    private int minPreviewSize;
+    @Value("${mc-utils.renderer.server-preview.limits.max_size}")
+    private int maxPreviewSize;
+    @Value("${mc-utils.server-pinger.java.timeout}")
+    private int javaPingerTimeout;
+    @Value("${mc-utils.server-pinger.bedrock.timeout}")
+    private int bedrockPingerTimeout;
+    @Value("#{'${mc-utils.server-pinger.blacklisted-subnets}'.split(',')}")
+    private List<String> blacklistedSubnets;
 
-    public ServerService(MojangService mojangService, MaxMindService maxMindService, DNSService dnsService,
-                         ServerRegistryService serverRegistryService, MinecraftServerCacheRepository serverCacheRepository,
-                         ServerPreviewCacheRepository serverPreviewCacheRepository) {
+    public ServerService(MojangService mojangService, MaxMindService maxMindService, DNSService dnsService, ServerRegistryService serverRegistryService, MinecraftServerCacheRepository serverCacheRepository, ServerPreviewCacheRepository serverPreviewCacheRepository) {
         this.mojangService = mojangService;
         this.maxMindService = maxMindService;
         this.dnsService = dnsService;
@@ -84,7 +73,7 @@ public class ServerService {
      * Ping a server to get the server information.
      *
      * @param platformName the name of the platform
-     * @param hostname the hostname of the server
+     * @param hostname     the hostname of the server
      * @return the server
      */
     public CachedMinecraftServer getServer(String platformName, String hostname) {
@@ -111,7 +100,7 @@ public class ServerService {
         }
         String key = "%s-%s-%s".formatted(platformName, hostname, port);
         log.debug("Getting server: {}:{}", hostname, port);
-        
+
         // Check if the server is cached
         long cacheStart = System.currentTimeMillis();
         if (cacheEnabled) {
@@ -151,10 +140,7 @@ public class ServerService {
         }
 
         long pingStart = System.currentTimeMillis();
-        CachedMinecraftServer cachedServer = new CachedMinecraftServer(
-                key,
-                platform.getPinger().ping(hostname, ip, port, dnsRecords.toArray(new DNSRecord[0]), platform == Platform.JAVA ? javaPingerTimeout : bedrockPingerTimeout)
-        );
+        CachedMinecraftServer cachedServer = new CachedMinecraftServer(key, platform.getPinger().ping(hostname, ip, port, dnsRecords.toArray(new DNSRecord[0]), platform == Platform.JAVA ? javaPingerTimeout : bedrockPingerTimeout));
         log.debug("Successfully pinged server: {}:{} in {}ms", hostname, port, System.currentTimeMillis() - pingStart);
 
         // Populate the server's ip lookup data
@@ -163,8 +149,7 @@ public class ServerService {
         cachedServer.getServer().setAsn(ipLookup.asn());
 
         // Add server entry data
-        this.serverRegistryService.getEntryByHostname(hostname)
-                .ifPresent(serverRegistryEntry -> cachedServer.getServer().setRegistryEntry(serverRegistryEntry));
+        this.serverRegistryService.getEntryByHostname(hostname).ifPresent(serverRegistryEntry -> cachedServer.getServer().setRegistryEntry(serverRegistryEntry));
 
         // Check if the server is blocked by Mojang
         if (platform == Platform.JAVA) {
@@ -173,11 +158,10 @@ public class ServerService {
 
         if (cacheEnabled) {
             String finalHostname = hostname;
-            CompletableFuture.runAsync(() -> this.serverCacheRepository.save(cachedServer), Main.EXECUTOR)
-                    .exceptionally(ex -> {
-                        log.warn("Save failed for server {}: {}", finalHostname, ex.getMessage());
-                        return null;
-                    });
+            CompletableFuture.runAsync(() -> this.serverCacheRepository.save(cachedServer), Main.EXECUTOR).exceptionally(ex -> {
+                log.warn("Save failed for server {}: {}", finalHostname, ex.getMessage());
+                return null;
+            });
         }
         return cachedServer;
     }
@@ -209,8 +193,8 @@ public class ServerService {
      * Gets the server list preview image.
      *
      * @param cachedServer the server to get the preview of
-     * @param platform the platform of the server
-     * @param size the size of the preview
+     * @param platform     the platform of the server
+     * @param size         the size of the preview
      * @return the server preview
      */
     public byte[] getServerPreview(CachedMinecraftServer cachedServer, String platform, int size) {
@@ -238,14 +222,13 @@ public class ServerService {
         log.debug("Took {}ms to render preview for server: {}:{}", System.currentTimeMillis() - renderStart, server.getHostname(), server.getPort());
 
         CachedServerPreview serverPreview = new CachedServerPreview(key, preview);
-        
+
         // don't save to cache in development
         if (previewCacheEnabled) {
-            CompletableFuture.runAsync(() -> serverPreviewCacheRepository.save(serverPreview), Main.EXECUTOR)
-                .exceptionally(ex -> {
-                    log.warn("Save failed for server preview {}: {}", key, ex.getMessage());
-                    return null;
-                });
+            CompletableFuture.runAsync(() -> serverPreviewCacheRepository.save(serverPreview), Main.EXECUTOR).exceptionally(ex -> {
+                log.warn("Save failed for server preview {}: {}", key, ex.getMessage());
+                return null;
+            });
         }
         return preview;
     }
@@ -274,7 +257,7 @@ public class ServerService {
      * Checks if the given address is inside the subnet.
      *
      * @param address the address to check
-     * @param cidr the subnet to check
+     * @param cidr    the subnet to check
      * @return if the given address is inside the subnet
      */
     private boolean isInSubnet(InetAddress address, String cidr) {

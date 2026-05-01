@@ -51,7 +51,6 @@ public class FullBodyIsoRendererBase {
      * The side of the body to render.
      */
     public enum Side {
-        FRONT,
-        BACK
+        FRONT, BACK
     }
 }

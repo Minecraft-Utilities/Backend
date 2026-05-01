@@ -12,23 +12,10 @@ import java.awt.image.BufferedImage;
 public abstract class SkinRenderer extends Renderer<Skin> {
 
     /**
-     * Renders the skin part for the player's skin (convenience method).
-     *
-     * @param skin           the player's skin
-     * @param renderOverlays whether the overlays should be rendered
-     * @param size           the output size (height; width derived per part)
-     * @return the rendered skin part
-     */
-    public BufferedImage render(Skin skin, boolean renderOverlays, int size) {
-        return render(skin, size, new RenderOptions(renderOverlays));
-    }
-
-    /**
      * Draws a vanilla skin part from the full skin image onto the given graphics at (dx, dy)
      * with destination size (dw, dh). No extra BufferedImage allocations.
      */
-    protected static void drawVanillaPart(Graphics2D g, BufferedImage skinImage, int dx, int dy, int dw, int dh,
-                                         PlayerModelCoordinates.Skin part, boolean slim, boolean renderOverlays) {
+    protected static void drawVanillaPart(Graphics2D g, BufferedImage skinImage, int dx, int dy, int dw, int dh, PlayerModelCoordinates.Skin part, boolean slim, boolean renderOverlays) {
         Coordinates c = part.getCoordinates();
         int sw = c.width();
         if (slim && part.isArm()) {
@@ -38,7 +25,7 @@ public abstract class SkinRenderer extends Renderer<Skin> {
         int sx = c.x();
         int sy = c.y();
         g.drawImage(skinImage, dx, dy, dx + dw, dy + dh, sx, sy, sx + sw, sy + sh, null);
-        if (renderOverlays && part.getOverlays().length > 0) {
+        if (renderOverlays) {
             for (PlayerModelCoordinates.Skin overlay : part.getOverlays()) {
                 Coordinates oc = overlay.getCoordinates();
                 int ow = oc.width();
@@ -48,6 +35,18 @@ public abstract class SkinRenderer extends Renderer<Skin> {
                 g.drawImage(skinImage, dx, dy, dx + dw, dy + dh, oc.x(), oc.y(), oc.x() + ow, oc.y() + oc.height(), null);
             }
         }
+    }
+
+    /**
+     * Renders the skin part for the player's skin (convenience method).
+     *
+     * @param skin           the player's skin
+     * @param renderOverlays whether the overlays should be rendered
+     * @param size           the output size (height; width derived per part)
+     * @return the rendered skin part
+     */
+    public BufferedImage render(Skin skin, boolean renderOverlays, int size) {
+        return render(skin, size, new RenderOptions(renderOverlays));
     }
 
 }

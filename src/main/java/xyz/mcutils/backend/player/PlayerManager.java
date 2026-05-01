@@ -22,13 +22,7 @@ import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.mongo.SkinHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * In-memory cache for player documents. Cache-first lookups; periodic flush of dirty entries to MongoDB.
@@ -45,14 +39,18 @@ public class PlayerManager {
     private final CapeHistoryRepository capeHistoryRepository;
     private final UsernameHistoryRepository usernameHistoryRepository;
     private final MongoTemplate mongoTemplate;
-    private final Cache<UUID, CachedPlayerDocument> cache = CacheBuilder.newBuilder()
-            .maximumSize(100_000)
-            .removalListener(this::onRemove)
-            .build();
+    private final Cache<UUID, CachedPlayerDocument> cache = CacheBuilder.newBuilder().maximumSize(100_000).removalListener(this::onRemove).build();
+
+    public PlayerManager(PlayerRepository playerRepository, SkinHistoryRepository skinHistoryRepository, CapeHistoryRepository capeHistoryRepository, UsernameHistoryRepository usernameHistoryRepository, MongoTemplate mongoTemplate) {
+        this.playerRepository = playerRepository;
+        this.skinHistoryRepository = skinHistoryRepository;
+        this.capeHistoryRepository = capeHistoryRepository;
+        this.usernameHistoryRepository = usernameHistoryRepository;
+        this.mongoTemplate = mongoTemplate;
+    }
 
     private void onRemove(RemovalNotification<UUID, CachedPlayerDocument> notification) {
-        if (notification.getCause() == RemovalCause.SIZE || notification.getCause() == RemovalCause.EXPLICIT
-                || notification.getCause() == RemovalCause.REPLACED) {
+        if (notification.getCause() == RemovalCause.SIZE || notification.getCause() == RemovalCause.EXPLICIT || notification.getCause() == RemovalCause.REPLACED) {
             CachedPlayerDocument cached = notification.getValue();
             if (cached != null && cached.isDirty()) {
                 try {
@@ -62,18 +60,6 @@ public class PlayerManager {
                 }
             }
         }
-    }
-
-    public PlayerManager(PlayerRepository playerRepository,
-                         SkinHistoryRepository skinHistoryRepository,
-                         CapeHistoryRepository capeHistoryRepository,
-                         UsernameHistoryRepository usernameHistoryRepository,
-                         MongoTemplate mongoTemplate) {
-        this.playerRepository = playerRepository;
-        this.skinHistoryRepository = skinHistoryRepository;
-        this.capeHistoryRepository = capeHistoryRepository;
-        this.usernameHistoryRepository = usernameHistoryRepository;
-        this.mongoTemplate = mongoTemplate;
     }
 
     @PostConstruct
@@ -92,11 +78,10 @@ public class PlayerManager {
         if (cached != null) {
             return Optional.of(cached.getDocument());
         }
-        return this.playerRepository.findById(uuid)
-                .map(doc -> {
-                    this.cache.put(uuid, new CachedPlayerDocument(doc));
-                    return doc;
-                });
+        return this.playerRepository.findById(uuid).map(doc -> {
+            this.cache.put(uuid, new CachedPlayerDocument(doc));
+            return doc;
+        });
     }
 
     /**
@@ -116,7 +101,8 @@ public class PlayerManager {
             CachedPlayerDocument cached = this.cache.getIfPresent(uuid);
             if (cached != null) {
                 result.put(uuid, cached.getDocument());
-            } else {
+            }
+            else {
                 missed.add(uuid);
             }
         }
@@ -139,10 +125,7 @@ public class PlayerManager {
         if (username == null || username.isBlank()) {
             return Optional.empty();
         }
-        Query query = new Query(Criteria.where("username").is(username))
-                .collation(Collation.of("en").strength(Collation.ComparisonLevel.secondary()))
-                .withHint("username_case_insensitive")
-                .limit(1);
+        Query query = new Query(Criteria.where("username").is(username)).collation(Collation.of("en").strength(Collation.ComparisonLevel.secondary())).withHint("username_case_insensitive").limit(1);
         List<Document> found = MongoUtils.findWithFields(this.mongoTemplate, query, PlayerDocument.class, "_id");
         if (found.isEmpty()) {
             return Optional.empty();
@@ -224,13 +207,11 @@ public class PlayerManager {
         }
         CachedPlayerDocument cached = this.cache.getIfPresent(playerId);
         if (cached == null) {
-            cached = this.playerRepository.findById(playerId)
-                    .map(doc -> {
-                        CachedPlayerDocument c = new CachedPlayerDocument(doc);
-                        this.cache.put(playerId, c);
-                        return c;
-                    })
-                    .orElse(null);
+            cached = this.playerRepository.findById(playerId).map(doc -> {
+                CachedPlayerDocument c = new CachedPlayerDocument(doc);
+                this.cache.put(playerId, c);
+                return c;
+            }).orElse(null);
         }
         if (cached != null) {
             cached.addSubmittedUuids(delta);

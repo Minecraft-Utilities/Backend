@@ -16,13 +16,11 @@ public class MetricsAuthFilter implements Filter {
     private final Optional<String> requiredToken;
 
     public MetricsAuthFilter(String configuredToken) {
-        this.requiredToken = Optional.ofNullable(configuredToken)
-                .filter(t -> !t.isBlank());
+        this.requiredToken = Optional.ofNullable(configuredToken).filter(t -> !t.isBlank());
     }
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-            throws IOException, ServletException {
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         if (requiredToken.isEmpty()) {
             chain.doFilter(request, response);
             return;

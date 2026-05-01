@@ -69,8 +69,7 @@ public class AppConfig {
             @Override
             public void addCorsMappings(@NonNull CorsRegistry registry) {
                 // Allow all origins to access the API
-                registry.addMapping("/**")
-                        .allowedOrigins("*") // Allow all origins
+                registry.addMapping("/**").allowedOrigins("*") // Allow all origins
                         .allowedMethods("*") // Allow all methods
                         .allowedHeaders("*"); // Allow all headers
             }

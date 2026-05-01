@@ -21,8 +21,7 @@ public class FlushScheduler {
     private final PlayerSubmitService playerSubmitService;
     private final PlayerRefreshService playerRefreshService;
 
-    public FlushScheduler(PlayerManager playerManager, SkinManager skinManager, CapeManager capeManager,
-                          PlayerSubmitService playerSubmitService, PlayerRefreshService playerRefreshService) {
+    public FlushScheduler(PlayerManager playerManager, SkinManager skinManager, CapeManager capeManager, PlayerSubmitService playerSubmitService, PlayerRefreshService playerRefreshService) {
         this.playerManager = playerManager;
         this.skinManager = skinManager;
         this.capeManager = capeManager;

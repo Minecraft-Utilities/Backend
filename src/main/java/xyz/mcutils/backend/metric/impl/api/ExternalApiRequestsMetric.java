@@ -12,19 +12,7 @@ import xyz.mcutils.backend.service.MetricService;
 public class ExternalApiRequestsMetric extends Metric<ExternalApiRequestsMetric.Holder> {
 
     public ExternalApiRequestsMetric() {
-        super(new Holder(
-                Counter.builder()
-                        .name("external_api_requests_total")
-                        .help("Total external API requests by api, endpoint and status")
-                        .labelNames("api", "endpoint", "status")
-                        .register(MetricService.REGISTRY),
-                Histogram.builder()
-                        .name("external_api_request_duration_milliseconds")
-                        .help("External API request duration in milliseconds")
-                        .labelNames("api", "endpoint")
-                        .classicUpperBounds(10, 25, 50, 100, 250, 500, 1000, 2500, 5000)
-                        .register(MetricService.REGISTRY)
-        ));
+        super(new Holder(Counter.builder().name("external_api_requests_total").help("Total external API requests by api, endpoint and status").labelNames("api", "endpoint", "status").register(MetricService.REGISTRY), Histogram.builder().name("external_api_request_duration_milliseconds").help("External API request duration in milliseconds").labelNames("api", "endpoint").classicUpperBounds(10, 25, 50, 100, 250, 500, 1000, 2500, 5000).register(MetricService.REGISTRY)));
     }
 
     /**
@@ -42,6 +30,5 @@ public class ExternalApiRequestsMetric extends Metric<ExternalApiRequestsMetric.
         h.histogram.labelValues(api, endpoint).observe(durationMs);
     }
 
-    public record Holder(Counter counter, Histogram histogram) {
-    }
+    public record Holder(Counter counter, Histogram histogram) {}
 }

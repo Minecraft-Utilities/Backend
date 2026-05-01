@@ -12,19 +12,13 @@ public class StatisticsWebSocket extends WebSocket {
 
     @Override
     public void onSessionConnect(WebSocketSession session) {
-        sendMessage(session, new StatisticsMessage(
-                StatisticsService.INSTANCE.getTrackedPlayerCount(),
-                StatisticsService.INSTANCE.getTrackedSkinCount()
-        ));
+        sendMessage(session, new StatisticsMessage(StatisticsService.INSTANCE.getTrackedPlayerCount(), StatisticsService.INSTANCE.getTrackedSkinCount()));
     }
 
     /**
      * Updates the statistics for the all connected WebSocket clients.
      */
     public void updateStatistics() {
-        sendMessageToAll(new StatisticsMessage(
-                StatisticsService.INSTANCE.getTrackedPlayerCount(),
-                StatisticsService.INSTANCE.getTrackedSkinCount()
-        ));
+        sendMessageToAll(new StatisticsMessage(StatisticsService.INSTANCE.getTrackedPlayerCount(), StatisticsService.INSTANCE.getTrackedSkinCount()));
     }
 }

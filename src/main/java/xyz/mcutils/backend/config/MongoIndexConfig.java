@@ -24,10 +24,6 @@ public class MongoIndexConfig {
     @PostConstruct
     public void ensureIndexes() {
         // Case-insensitive index for username prefix search (regex with collation uses this)
-        mongoTemplate.indexOps(PlayerDocument.class).createIndex(
-                new Index().on("username", Sort.Direction.ASC)
-                        .named("username_case_insensitive")
-                        .collation(Collation.of("en").strength(Collation.ComparisonLevel.secondary()))
-        );
+        mongoTemplate.indexOps(PlayerDocument.class).createIndex(new Index().on("username", Sort.Direction.ASC).named("username_case_insensitive").collation(Collation.of("en").strength(Collation.ComparisonLevel.secondary())));
     }
 }

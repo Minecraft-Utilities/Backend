@@ -16,5 +16,5 @@ public record ForgeModInfo(@NonNull String type, ForgeMod[] modList) {
      * @param name    The id of this mod.
      * @param version The version of this mod.
      */
-    private record ForgeMod(@SerializedName("modid") @NonNull String name, String version) { }
+    private record ForgeMod(@SerializedName("modid") @NonNull String name, String version) {}
 }

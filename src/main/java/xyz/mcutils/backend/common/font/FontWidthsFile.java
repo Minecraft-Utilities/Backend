@@ -21,25 +21,6 @@ public class FontWidthsFile {
     @JsonProperty("chars")
     private Map<String, CharWidthEntry> chars;
 
-    /**
-     * Per-character width entry (Minecraft uses width for advance; bold_offset for bold advance).
-     */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record CharWidthEntry(
-            int width,
-            @JsonProperty("bold_offset") double boldOffset,
-            @JsonProperty("shadow_offset") double shadowOffset
-    ) {
-        @JsonCreator
-        public CharWidthEntry(
-                @JsonProperty("width") int width,
-                @JsonProperty("bold_offset") Double boldOffset,
-                @JsonProperty("shadow_offset") Double shadowOffset
-        ) {
-            this(width, boldOffset != null ? boldOffset : 1.0, shadowOffset != null ? shadowOffset : 1.0);
-        }
-    }
-
     public int getAdvance(int codepoint) {
         CharWidthEntry e = getCharWidthEntry(codepoint);
         return e != null ? e.width() : -1;
@@ -63,5 +44,17 @@ public class FontWidthsFile {
 
     public int getMissingCharWidth() {
         return missingChar != null ? missingChar.width() : 6;
+    }
+
+    /**
+     * Per-character width entry (Minecraft uses width for advance; bold_offset for bold advance).
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record CharWidthEntry(int width, @JsonProperty("bold_offset") double boldOffset,
+                                 @JsonProperty("shadow_offset") double shadowOffset) {
+        @JsonCreator
+        public CharWidthEntry(@JsonProperty("width") int width, @JsonProperty("bold_offset") Double boldOffset, @JsonProperty("shadow_offset") Double shadowOffset) {
+            this(width, boldOffset != null ? boldOffset : 1.0, shadowOffset != null ? shadowOffset : 1.0);
+        }
     }
 }

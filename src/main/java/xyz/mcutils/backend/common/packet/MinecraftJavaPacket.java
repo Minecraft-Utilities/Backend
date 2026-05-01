@@ -17,7 +17,7 @@ public abstract class MinecraftJavaPacket {
     /**
      * Process this packet.
      *
-     * @param inputStream the input stream to read from
+     * @param inputStream  the input stream to read from
      * @param outputStream the output stream to write to
      * @throws IOException if an I/O error occurs
      */
@@ -27,7 +27,7 @@ public abstract class MinecraftJavaPacket {
      * Write a variable integer to the output stream.
      *
      * @param outputStream the output stream to write to
-     * @param paramInt the integer to write
+     * @param paramInt     the integer to write
      * @throws IOException if an I/O error occurs
      */
     protected final void writeVarInt(DataOutputStream outputStream, int paramInt) throws IOException {

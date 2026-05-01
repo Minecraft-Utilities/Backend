@@ -11,12 +11,7 @@ import xyz.mcutils.backend.service.MetricService;
 public class AccountsUpdatedMetric extends Metric<AccountsUpdatedMetric.Holder> {
 
     public AccountsUpdatedMetric() {
-        super(new Holder(
-                Counter.builder()
-                        .name("accounts_updated_total")
-                        .help("Total number of tracked player accounts successfully refreshed")
-                        .register(MetricService.REGISTRY)
-        ));
+        super(new Holder(Counter.builder().name("accounts_updated_total").help("Total number of tracked player accounts successfully refreshed").register(MetricService.REGISTRY)));
     }
 
     /**
@@ -28,6 +23,5 @@ public class AccountsUpdatedMetric extends Metric<AccountsUpdatedMetric.Holder> 
         }
     }
 
-    public record Holder(Counter counter) {
-    }
+    public record Holder(Counter counter) {}
 }

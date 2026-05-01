@@ -32,35 +32,19 @@ public class PlayerController {
     }
 
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<PlayerSearchEntry>> searchPlayers(
-            @Parameter(
-                    description = "The query to search for (username prefix, case-insensitive)",
-                    example = "ImFascinated"
-            ) @RequestParam String query
-    ) {
+    public ResponseEntity<List<PlayerSearchEntry>> searchPlayers(@Parameter(description = "The query to search for (username prefix, case-insensitive)", example = "ImFascinated") @RequestParam String query) {
         List<PlayerSearchEntry> entries = this.playerService.searchPlayers(query);
-        return ResponseEntity.ok()
-                .body(entries);
+        return ResponseEntity.ok().body(entries);
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Player> getPlayer(
-            @Parameter(
-                    description = "The UUID or Username of the player",
-                    example = "ImFascinated"
-            ) @PathVariable String id
-    ) {
+    public ResponseEntity<Player> getPlayer(@Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String id) {
         Player player = this.playerService.getPlayer(id);
-        return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
-                .body(player);
+        return ResponseEntity.ok().cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic()).body(player);
     }
 
     @PostMapping(value = "/submit", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<SubmitPlayersResponse> submitPlayers(
-            @Parameter(description = "List of player UUIDs")
-            @Valid @RequestBody SubmitPlayersRequest request
-    ) {
+    public ResponseEntity<SubmitPlayersResponse> submitPlayers(@Parameter(description = "List of player UUIDs") @Valid @RequestBody SubmitPlayersRequest request) {
         int enqueued = playerSubmitService.submitPlayers(request.uuids(), request.submittedBy());
         return ResponseEntity.accepted().body(new SubmitPlayersResponse(enqueued));
     }

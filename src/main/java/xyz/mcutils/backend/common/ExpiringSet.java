@@ -20,7 +20,8 @@ public final class ExpiringSet<T> implements Iterable<T> {
     /**
      * The internal cache for this set.
      */
-    @NonNull private final ExpiringMap<T, Long> cache;
+    @NonNull
+    private final ExpiringMap<T, Long> cache;
 
     /**
      * The lifetime (in millis) of the elements in this set.
@@ -33,11 +34,7 @@ public final class ExpiringSet<T> implements Iterable<T> {
 
     public ExpiringSet(@NonNull ExpirationPolicy expirationPolicy, long duration, @NonNull TimeUnit timeUnit, @NonNull Consumer<T> onExpire) {
         //noinspection unchecked
-        this.cache = ExpiringMap.builder()
-                .expirationPolicy(expirationPolicy)
-                .expiration(duration, timeUnit)
-                .expirationListener((key, ignored) -> onExpire.accept((T) key))
-                .build();
+        this.cache = ExpiringMap.builder().expirationPolicy(expirationPolicy).expiration(duration, timeUnit).expirationListener((key, ignored) -> onExpire.accept((T) key)).build();
         this.lifetime = timeUnit.toMillis(duration); // Get the lifetime in millis
     }
 
@@ -125,7 +122,8 @@ public final class ExpiringSet<T> implements Iterable<T> {
      *
      * @return an Iterator.
      */
-    @Override @NonNull
+    @Override
+    @NonNull
     public Iterator<T> iterator() {
         return this.cache.keySet().iterator();
     }

@@ -32,6 +32,27 @@ public class FontManager {
         return instance;
     }
 
+    private static FontWidthsFile loadWidths(String path) {
+        try (InputStream in = Main.class.getResourceAsStream(path)) {
+            if (in != null) {
+                return MAPPER.readValue(in, FontWidthsFile.class);
+            }
+        } catch (Exception e) {
+            // optional
+        }
+        return null;
+    }
+
+    private static int getAdvance(FontWidthsFile widths, BufferedImage texture, int srcX, int srcY, int cellW, int cellH, int codepoint) {
+        if (widths != null) {
+            int w = widths.getAdvance(codepoint);
+            if (w >= 0) {
+                return w;
+            }
+        }
+        return Glyph.measureAdvance(texture, srcX, srcY, cellW, cellH);
+    }
+
     /**
      * Load font from meta and build BitmapFont. Idempotent after first successful load per name.
      */
@@ -56,14 +77,12 @@ public class FontManager {
         BitmapFont font = buildFont(metaPath, widthsFile, isUniform, new HashSet<>());
         if (font != null) {
             fonts.put(name, font);
-            log.info("Loaded bitmap font '{}' from {} (widths: {})",
-                    name, metaPath, widthsFile != null ? "Minecraft" : "default");
+            log.info("Loaded bitmap font '{}' from {} (widths: {})", name, metaPath, widthsFile != null ? "Minecraft" : "default");
         }
         return font;
     }
 
-    private BitmapFont buildFont(String metaPath, FontWidthsFile widthsFile,
-                                 boolean isUniform, Set<String> visitedRefs) {
+    private BitmapFont buildFont(String metaPath, FontWidthsFile widthsFile, boolean isUniform, Set<String> visitedRefs) {
         try (InputStream in = Main.class.getResourceAsStream(metaPath)) {
             if (in == null) {
                 log.error("Font meta not found: {}", metaPath);
@@ -90,8 +109,7 @@ public class FontManager {
         }
     }
 
-    private void processProviders(List<ProviderDefinition> providers, BitmapFont font,
-                                  FontWidthsFile widthsFile, boolean isUniform, Set<String> visitedRefs) {
+    private void processProviders(List<ProviderDefinition> providers, BitmapFont font, FontWidthsFile widthsFile, boolean isUniform, Set<String> visitedRefs) {
         for (ProviderDefinition provider : providers) {
             String type = provider.getType();
             if (type == null) {
@@ -107,8 +125,7 @@ public class FontManager {
         }
     }
 
-    private void processReference(ProviderDefinition provider, BitmapFont font,
-                                  FontWidthsFile widthsFile, boolean isUniform, Set<String> visitedRefs) {
+    private void processReference(ProviderDefinition provider, BitmapFont font, FontWidthsFile widthsFile, boolean isUniform, Set<String> visitedRefs) {
         String id = provider.getId();
         if (id == null || id.isEmpty()) {
             log.warn("Reference provider missing id");
@@ -217,28 +234,6 @@ public class FontManager {
                 }
             }
         }
-    }
-
-    private static FontWidthsFile loadWidths(String path) {
-        try (InputStream in = Main.class.getResourceAsStream(path)) {
-            if (in != null) {
-                return MAPPER.readValue(in, FontWidthsFile.class);
-            }
-        } catch (Exception e) {
-            // optional
-        }
-        return null;
-    }
-
-    private static int getAdvance(FontWidthsFile widths, BufferedImage texture,
-                                  int srcX, int srcY, int cellW, int cellH, int codepoint) {
-        if (widths != null) {
-            int w = widths.getAdvance(codepoint);
-            if (w >= 0) {
-                return w;
-            }
-        }
-        return Glyph.measureAdvance(texture, srcX, srcY, cellW, cellH);
     }
 
     public BitmapFont getDefaultFont() {

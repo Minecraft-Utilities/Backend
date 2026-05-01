@@ -9,18 +9,21 @@ import xyz.mcutils.backend.model.domain.dns.DNSRecord;
 
 import java.net.InetSocketAddress;
 
-@Setter @Getter
+@Setter
+@Getter
 @NoArgsConstructor
 public final class SRVRecord extends DNSRecord {
     /**
      * The name of this record.
      */
-    @NonNull private String name;
+    @NonNull
+    private String name;
 
     /**
      * The target of this record.
      */
-    @NonNull private String target;
+    @NonNull
+    private String target;
 
     /**
      * The priority of this record.
@@ -52,7 +55,8 @@ public final class SRVRecord extends DNSRecord {
      *
      * @return the socket address
      */
-    @NonNull @JsonIgnore
+    @NonNull
+    @JsonIgnore
     public InetSocketAddress getSocketAddress() {
         return new InetSocketAddress(this.target, this.port);
     }

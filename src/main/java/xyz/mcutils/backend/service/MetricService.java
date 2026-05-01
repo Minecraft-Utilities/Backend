@@ -53,22 +53,22 @@ public class MetricService {
     }
 
     /**
+     * Gets a metric by its class
+     *
+     * @param metricClass the metric to get
+     * @param <T>         the class to cast the metric by
+     * @return the metric
+     */
+    public static <T extends Metric<?>> T getMetric(Class<T> metricClass) {
+        return (T) metrics.get(metricClass);
+    }
+
+    /**
      * Registers a metric
      *
      * @param metric the metric to register
      */
     private void registerMetric(Metric<?> metric) {
         metrics.put(metric.getClass(), metric);
-    }
-
-    /**
-     * Gets a metric by its class
-     *
-     * @param metricClass the metric to get
-     * @return the metric
-     * @param <T> the class to cast the metric by
-     */
-    public static <T extends Metric<?>> T getMetric(Class<T> metricClass) {
-        return (T) metrics.get(metricClass);
     }
 }

@@ -17,7 +17,8 @@ import java.io.IOException;
  * @author Braydon
  * @see <a href="https://wiki.vg/Protocol#Handshake">Protocol Docs</a>
  */
-@AllArgsConstructor @ToString
+@AllArgsConstructor
+@ToString
 public final class JavaPacketHandshakingInSetProtocol extends MinecraftJavaPacket {
     private static final byte ID = 0x00; // The ID of the packet
     private static final int STATUS_HANDSHAKE = 1; // The status handshake ID
@@ -25,7 +26,8 @@ public final class JavaPacketHandshakingInSetProtocol extends MinecraftJavaPacke
     /**
      * The hostname of the server.
      */
-    @NonNull private final String hostname;
+    @NonNull
+    private final String hostname;
 
     /**
      * The port of the server.
@@ -46,9 +48,7 @@ public final class JavaPacketHandshakingInSetProtocol extends MinecraftJavaPacke
      */
     @Override
     public void process(@NonNull DataInputStream inputStream, @NonNull DataOutputStream outputStream) throws IOException {
-        try (ByteArrayOutputStream handshakeBytes = new ByteArrayOutputStream();
-             DataOutputStream handshake = new DataOutputStream(handshakeBytes)
-        ) {
+        try (ByteArrayOutputStream handshakeBytes = new ByteArrayOutputStream(); DataOutputStream handshake = new DataOutputStream(handshakeBytes)) {
             handshake.writeByte(ID); // Write the ID of the packet
             writeVarInt(handshake, protocolVersion); // Write the protocol version
             writeVarInt(handshake, hostname.length()); // Write the length of the hostname

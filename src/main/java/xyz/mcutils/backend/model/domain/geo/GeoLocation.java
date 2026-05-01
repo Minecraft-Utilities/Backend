@@ -14,4 +14,4 @@ package xyz.mcutils.backend.model.domain.geo;
  * @param flagUrl     Direct link to a url for the country flag.
  */
 public record GeoLocation(String country, String countryCode, String region, String city, String timeZone,
-                          String postalCode, Double latitude, Double longitude, String flagUrl) { }
+                          String postalCode, Double latitude, Double longitude, String flagUrl) {}

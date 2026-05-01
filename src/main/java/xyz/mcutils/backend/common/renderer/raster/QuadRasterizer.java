@@ -14,12 +14,7 @@ public final class QuadRasterizer {
      * Parallelogram: (dx0,dy0)=texture(texX0,texY0), (dx1,dy1)=texture(texX0+tw,texY0), (dx2,dy2)=texture(texX0,texY0+th).
      * Scanline: for each y, intersect with edges to get left/right x and (u,v), then interpolate along the span.
      */
-    public static void rasterizeQuad(
-            int[] outPixels, int outW, int outH,
-            double dx0, double dy0, double dx1, double dy1, double dx2, double dy2,
-            int texX0, int texY0, int tw, int th,
-            int[] texPixels, int texW, int texH,
-            float brightness) {
+    public static void rasterizeQuad(int[] outPixels, int outW, int outH, double dx0, double dy0, double dx1, double dy1, double dx2, double dy2, int texX0, int texY0, int tw, int th, int[] texPixels, int texW, int texH, float brightness) {
 
         if (tw <= 0 || th <= 0) {
             return;
@@ -86,7 +81,10 @@ public final class QuadRasterizer {
                 if (xMid >= 0 && xMid < outW) {
                     xStart = xMid;
                     xEnd = xMid;
-                } else continue;
+                }
+                else {
+                    continue;
+                }
             }
 
             double dx = xMax - xMin;
@@ -127,7 +125,8 @@ public final class QuadRasterizer {
                 int dst = outPixels[dstIdx];
                 if (a_ >= 254) {
                     outPixels[dstIdx] = (a_ << 24) | (r << 16) | (g << 8) | b;
-                } else {
+                }
+                else {
                     int da = (dst >> 24) & 0xFF;
                     int dr = (dst >> 16) & 0xFF;
                     int dg = (dst >> 8) & 0xFF;

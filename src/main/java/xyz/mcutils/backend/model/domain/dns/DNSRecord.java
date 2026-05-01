@@ -2,8 +2,11 @@ package xyz.mcutils.backend.model.domain.dns;
 
 import lombok.*;
 
-@NoArgsConstructor @AllArgsConstructor
-@Setter @Getter @EqualsAndHashCode
+@NoArgsConstructor
+@AllArgsConstructor
+@Setter
+@Getter
+@EqualsAndHashCode
 public abstract class DNSRecord {
     /**
      * The type of this record.

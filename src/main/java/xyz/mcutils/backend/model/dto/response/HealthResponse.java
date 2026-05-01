@@ -5,4 +5,4 @@ package xyz.mcutils.backend.model.dto.response;
  *
  * @param status The health status.
  */
-public record HealthResponse(String status) { }
+public record HealthResponse(String status) {}

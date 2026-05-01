@@ -5,4 +5,4 @@ package xyz.mcutils.backend.model.dto.response;
  *
  * @param blocked Whether the server is blocked.
  */
-public record ServerBlockedResponse(boolean blocked) { }
+public record ServerBlockedResponse(boolean blocked) {}

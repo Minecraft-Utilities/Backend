@@ -17,12 +17,16 @@ import xyz.mcutils.backend.model.token.server.JavaServerStatusToken;
 /**
  * @author Braydon
  */
-@Setter @Getter @SuperBuilder @NoArgsConstructor(access = lombok.AccessLevel.PROTECTED, force = true)
+@Setter
+@Getter
+@SuperBuilder
+@NoArgsConstructor(access = lombok.AccessLevel.PROTECTED, force = true)
 public final class JavaMinecraftServer extends MinecraftServer {
     /**
      * The version of the server.
      */
-    @NonNull private JavaVersion version;
+    @NonNull
+    private JavaVersion version;
 
     /**
      * The mods running on this server.
@@ -79,38 +83,18 @@ public final class JavaMinecraftServer extends MinecraftServer {
      * Create a new Java Minecraft server.
      *
      * @param hostname the hostname of the server
-     * @param ip the IP address of the server
-     * @param port the port of the server
-     * @param token the status token
+     * @param ip       the IP address of the server
+     * @param port     the port of the server
+     * @param token    the status token
      * @return the Java Minecraft server
      */
     @NonNull
     public static JavaMinecraftServer create(@NonNull String hostname, String ip, int port, DNSRecord[] records, @NonNull JavaServerStatusToken token) {
         String motdString = token.getDescription() instanceof String ? (String) token.getDescription() : null;
         if (motdString == null) { // Not a string motd, convert from Json
-            motdString = LegacyComponentSerializer.builder()
-                    .character(LegacyComponentSerializer.SECTION_CHAR)
-                    .hexColors()
-                    .useUnusualXRepeatedCharacterHexFormat()
-                    .build()
-                    .serialize(GsonComponentSerializer.gson().deserialize(Constants.GSON.toJson(token.getDescription())));
+            motdString = LegacyComponentSerializer.builder().character(LegacyComponentSerializer.SECTION_CHAR).hexColors().useUnusualXRepeatedCharacterHexFormat().build().serialize(GsonComponentSerializer.gson().deserialize(Constants.GSON.toJson(token.getDescription())));
         }
 
-        return JavaMinecraftServer.builder()
-                .hostname(hostname)
-                .ip(ip)
-                .port(port)
-                .records(records)
-                .motd(MOTD.create(ServerUtils.getAddress(hostname, port), Platform.JAVA, motdString))
-                .players(Players.create(token.getPlayers()))
-                .version(token.getVersion().detailedCopy())
-                .favicon(Favicon.create(token.getFavicon(), ServerUtils.getAddress(hostname, port)))
-                .modInfo(token.getModInfo())
-                .forgeData(token.getForgeData())
-                .preventsChatReports(token.isPreventsChatReports())
-                .enforcesSecureChat(token.isEnforcesSecureChat())
-                .previewsChat(token.isPreviewsChat())
-                .isModded(token.isModded())
-                .build();
+        return JavaMinecraftServer.builder().hostname(hostname).ip(ip).port(port).records(records).motd(MOTD.create(ServerUtils.getAddress(hostname, port), Platform.JAVA, motdString)).players(Players.create(token.getPlayers())).version(token.getVersion().detailedCopy()).favicon(Favicon.create(token.getFavicon(), ServerUtils.getAddress(hostname, port))).modInfo(token.getModInfo()).forgeData(token.getForgeData()).preventsChatReports(token.isPreventsChatReports()).enforcesSecureChat(token.isEnforcesSecureChat()).previewsChat(token.isPreviewsChat()).isModded(token.isModded()).build();
     }
 }

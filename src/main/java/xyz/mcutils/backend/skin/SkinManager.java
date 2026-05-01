@@ -17,14 +17,7 @@ import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.repository.mongo.SkinRepository;
 import xyz.mcutils.backend.service.StatisticsService;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -38,14 +31,16 @@ public class SkinManager {
     private final MongoTemplate mongoTemplate;
     private final WebRequest webRequest;
     private final ConcurrentMap<String, UUID> textureIdToId = new ConcurrentHashMap<>();
-    private final Cache<UUID, CachedSkinDocument> cacheById = CacheBuilder.newBuilder()
-            .maximumSize(1_000_000)
-            .removalListener(this::onEvictSkin)
-            .build();
+    private final Cache<UUID, CachedSkinDocument> cacheById = CacheBuilder.newBuilder().maximumSize(1_000_000).removalListener(this::onEvictSkin).build();
+
+    public SkinManager(SkinRepository skinRepository, MongoTemplate mongoTemplate, WebRequest webRequest) {
+        this.skinRepository = skinRepository;
+        this.mongoTemplate = mongoTemplate;
+        this.webRequest = webRequest;
+    }
 
     private void onEvictSkin(RemovalNotification<UUID, CachedSkinDocument> notification) {
-        if (notification.getCause() == RemovalCause.SIZE || notification.getCause() == RemovalCause.EXPLICIT
-                || notification.getCause() == RemovalCause.REPLACED) {
+        if (notification.getCause() == RemovalCause.SIZE || notification.getCause() == RemovalCause.EXPLICIT || notification.getCause() == RemovalCause.REPLACED) {
             CachedSkinDocument c = notification.getValue();
             if (c != null) {
                 if (c.isDirty()) {
@@ -64,12 +59,6 @@ public class SkinManager {
         }
     }
 
-    public SkinManager(SkinRepository skinRepository, MongoTemplate mongoTemplate, WebRequest webRequest) {
-        this.skinRepository = skinRepository;
-        this.mongoTemplate = mongoTemplate;
-        this.webRequest = webRequest;
-    }
-
     @PostConstruct
     void init() {
         INSTANCE = this;
@@ -86,11 +75,10 @@ public class SkinManager {
         if (cached != null) {
             return Optional.of(cached.snapshotDocument());
         }
-        return this.skinRepository.findById(id)
-                .map(doc -> {
-                    put(doc);
-                    return doc;
-                });
+        return this.skinRepository.findById(id).map(doc -> {
+            put(doc);
+            return doc;
+        });
     }
 
     /**
@@ -110,7 +98,8 @@ public class SkinManager {
             CachedSkinDocument cached = this.cacheById.getIfPresent(id);
             if (cached != null) {
                 result.put(id, cached.snapshotDocument());
-            } else {
+            }
+            else {
                 missed.add(id);
             }
         }
@@ -141,11 +130,10 @@ public class SkinManager {
             }
             return this.getById(id);
         }
-        return this.skinRepository.findByTextureId(textureId)
-                .map(doc -> {
-                    put(doc);
-                    return doc;
-                });
+        return this.skinRepository.findByTextureId(textureId).map(doc -> {
+            put(doc);
+            return doc;
+        });
     }
 
     /**
@@ -157,15 +145,7 @@ public class SkinManager {
             return existing.get();
         }
         SkinTextureToken.Metadata metadata = token.metadata();
-        SkinDocument document = this.skinRepository.insert(new SkinDocument(
-                UUID.randomUUID(),
-                token.getTextureId(),
-                EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.model()),
-                Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), this.webRequest),
-                0,
-                playerUuid,
-                new Date()
-        ));
+        SkinDocument document = this.skinRepository.insert(new SkinDocument(UUID.randomUUID(), token.getTextureId(), EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.model()), Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), this.webRequest), 0, playerUuid, new Date()));
         StatisticsService.updateTrackedSkinCount(StatisticsService.INSTANCE.getTrackedSkinCount() + 1);
         put(document);
         log.debug("Created skin {}", document.getTextureId());
@@ -195,19 +175,17 @@ public class SkinManager {
         }
         CachedSkinDocument cached = this.cacheById.getIfPresent(skinId);
         if (cached == null) {
-            cached = this.skinRepository.findById(skinId)
-                    .map(doc -> {
-                        put(doc);
-                        return this.cacheById.getIfPresent(skinId);
-                    })
-                    .orElse(null);
+            cached = this.skinRepository.findById(skinId).map(doc -> {
+                put(doc);
+                return this.cacheById.getIfPresent(skinId);
+            }).orElse(null);
         }
         if (cached != null) {
             cached.addAccountsUsed(delta);
         }
     }
 
-    
+
     /**
      * Returns the number of cached skin documents pending save (dirty).
      */

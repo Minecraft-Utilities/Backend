@@ -63,19 +63,14 @@ public class RedisConfig {
     public LettuceConnectionFactory lettuceConnectionFactory() {
         log.info("Connecting to Redis at {}:{}/{} with Lettuce", host, port, database);
 
-        RedisStandaloneConfiguration config =
-                new RedisStandaloneConfiguration(host, port);
+        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(host, port);
         config.setDatabase(database);
 
         if (!auth.trim().isEmpty()) {
             config.setPassword(auth);
         }
 
-        LettuceClientConfiguration clientConfig =
-                LettuceClientConfiguration.builder()
-                        .commandTimeout(Duration.ofSeconds(10))
-                        .shutdownTimeout(Duration.ofMillis(100))
-                        .build();
+        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder().commandTimeout(Duration.ofSeconds(10)).shutdownTimeout(Duration.ofMillis(100)).build();
 
         return new LettuceConnectionFactory(config, clientConfig);
     }

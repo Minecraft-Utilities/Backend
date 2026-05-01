@@ -13,21 +13,18 @@ public class JavaVersion {
      */
     @NonNull
     private final String name;
-
-    /**
-     * The server platform.
-     */
-    private String platform;
-
     /**
      * The protocol version.
      */
     private final int protocol;
-
     /**
      * The name of the protocol, null if not found.
      */
     private final String protocolName;
+    /**
+     * The server platform.
+     */
+    private String platform;
 
     /**
      * Create a more detailed

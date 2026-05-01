@@ -28,7 +28,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-@Service @Slf4j
+@Service
+@Slf4j
 public class ServerRegistryService {
     private static final String REPOSITORY_OWNER = "Minecraft-Utilities";
     private static final String REPOSITORY_NAME = "ServerRegistry";
@@ -39,8 +40,8 @@ public class ServerRegistryService {
 
     private final GitHub githubClient;
     private final WebRequest webRequest;
-    private String lastSeenHash = null;
     private final List<ServerRegistryEntry> entries = new CopyOnWriteArrayList<>();
+    private String lastSeenHash = null;
 
     @SneakyThrows
     public ServerRegistryService(WebRequest webRequest) {
@@ -58,19 +59,13 @@ public class ServerRegistryService {
      * @return the entries that match the query, best matches first
      */
     public List<ServerRegistryEntry> searchEntries(String query) {
-        return FuzzySearch.search(
-                entries,
-                query,
-                entry -> {
-                    List<String> texts = new ArrayList<>();
-                    texts.add(entry.displayName());
-                    texts.addAll(entry.hostnames());
-                    texts.addAll(entry.wildcardHostnames());
-                    return texts;
-                },
-                FuzzySearch.DEFAULT_MAX_FUZZY_DISTANCE,
-                MAX_RETURNED_RESULTS
-        );
+        return FuzzySearch.search(entries, query, entry -> {
+            List<String> texts = new ArrayList<>();
+            texts.add(entry.displayName());
+            texts.addAll(entry.hostnames());
+            texts.addAll(entry.wildcardHostnames());
+            return texts;
+        }, FuzzySearch.DEFAULT_MAX_FUZZY_DISTANCE, MAX_RETURNED_RESULTS);
     }
 
     /**
@@ -85,12 +80,7 @@ public class ServerRegistryService {
             return Optional.empty();
         }
         String normalized = hostname.strip().toLowerCase();
-        return entries.stream()
-                .filter(entry ->
-                        entry.hostnames().stream().anyMatch(h -> h != null && h.equalsIgnoreCase(normalized))
-                                || entry.wildcardHostnames().stream().anyMatch(p -> DomainUtils.matchesWildcard(p, normalized))
-                )
-                .findFirst();
+        return entries.stream().filter(entry -> entry.hostnames().stream().anyMatch(h -> h != null && h.equalsIgnoreCase(normalized)) || entry.wildcardHostnames().stream().anyMatch(p -> DomainUtils.matchesWildcard(p, normalized))).findFirst();
     }
 
     /**
@@ -133,18 +123,7 @@ public class ServerRegistryService {
                     continue;
                 }
                 String serverId = manifest.get("serverId").getAsString();
-                result.add(new ServerRegistryEntry(
-                        serverId,
-                        manifest.get("displayName").getAsString(),
-                        manifest.get("hostnames").getAsJsonArray().asList().stream().map(JsonElement::getAsString).toList(),
-                        manifest.get("wildcardHostnames").getAsJsonArray().asList().stream().map(JsonElement::getAsString).toList(),
-                        "https://github.com/%s/%s/blob/main/minecraft_servers/%s/background.webp?raw=true".formatted(
-                                REPOSITORY_OWNER,
-                                REPOSITORY_NAME,
-                                serverId
-                        ),
-                        EnumUtils.getEnumConstant(Platform.class, manifest.get("platform").getAsString())
-                ));
+                result.add(new ServerRegistryEntry(serverId, manifest.get("displayName").getAsString(), manifest.get("hostnames").getAsJsonArray().asList().stream().map(JsonElement::getAsString).toList(), manifest.get("wildcardHostnames").getAsJsonArray().asList().stream().map(JsonElement::getAsString).toList(), "https://github.com/%s/%s/blob/main/minecraft_servers/%s/background.webp?raw=true".formatted(REPOSITORY_OWNER, REPOSITORY_NAME, serverId), EnumUtils.getEnumConstant(Platform.class, manifest.get("platform").getAsString())));
             }
         } catch (IOException e) {
             log.warn("Failed to extract manifests from zip", e);
@@ -155,11 +134,10 @@ public class ServerRegistryService {
     /**
      * Update the Server Registry data.
      */
-    @Scheduled(cron = "0 */10 * * * *") @SneakyThrows
+    @Scheduled(cron = "0 */10 * * * *")
+    @SneakyThrows
     private void updateRegistry() {
-        GHCommit ghCommit = (GHCommit) Arrays.stream(githubClient.getRepository(REPOSITORY_OWNER + "/" + REPOSITORY_NAME).listCommits().toArray())
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No commits in repository"));
+        GHCommit ghCommit = Arrays.stream(githubClient.getRepository(REPOSITORY_OWNER + "/" + REPOSITORY_NAME).listCommits().toArray()).findFirst().orElseThrow(() -> new IllegalStateException("No commits in repository"));
         String commitHash = ghCommit.getSHA1();
 
         if (lastSeenHash != null && lastSeenHash.equals(commitHash)) {

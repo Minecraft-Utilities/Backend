@@ -33,8 +33,7 @@ public final class CoalescingLoader<K, V> {
      * @throws RuntimeException if the loader throws (or any failure), unwrapped from {@link CompletionException}
      */
     public V get(K key, Supplier<V> loader) {
-        CompletableFuture<V> future = inFlight.computeIfAbsent(key, _ ->
-                CompletableFuture.supplyAsync(loader, executor));
+        CompletableFuture<V> future = inFlight.computeIfAbsent(key, _ -> CompletableFuture.supplyAsync(loader, executor));
         try {
             return future.join();
         } catch (CompletionException e) {

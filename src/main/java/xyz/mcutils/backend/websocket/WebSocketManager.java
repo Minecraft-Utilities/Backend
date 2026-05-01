@@ -17,23 +17,6 @@ import java.util.List;
 public class WebSocketManager implements WebSocketConfigurer {
     private static final List<WebSocket> WEB_SOCKETS = new ArrayList<>();
 
-    @Override
-    public void registerWebSocketHandlers(@NotNull WebSocketHandlerRegistry registry) {
-        this.registerWebSocket(registry, new StatisticsWebSocket());
-    }
-
-    /**
-     * Registers a WebSocket.
-     *
-     * @param registry the registry to register the WebSocket on
-     * @param webSocket the WebSocket to register
-     */
-    private void registerWebSocket(WebSocketHandlerRegistry registry, WebSocket webSocket) {
-        registry.addHandler(webSocket, webSocket.getPath()).setAllowedOrigins("*");
-        WEB_SOCKETS.add(webSocket);
-        log.info("Registered WebSocket at path {}", webSocket.getPath());
-    }
-
     /**
      * Gets a WebSocket by its class.
      *
@@ -51,5 +34,22 @@ public class WebSocketManager implements WebSocketConfigurer {
      */
     public static int getTotalConnections() {
         return WEB_SOCKETS.stream().mapToInt(webSocket -> webSocket.getSessions().size()).sum();
+    }
+
+    @Override
+    public void registerWebSocketHandlers(@NotNull WebSocketHandlerRegistry registry) {
+        this.registerWebSocket(registry, new StatisticsWebSocket());
+    }
+
+    /**
+     * Registers a WebSocket.
+     *
+     * @param registry  the registry to register the WebSocket on
+     * @param webSocket the WebSocket to register
+     */
+    private void registerWebSocket(WebSocketHandlerRegistry registry, WebSocket webSocket) {
+        registry.addHandler(webSocket, webSocket.getPath()).setAllowedOrigins("*");
+        WEB_SOCKETS.add(webSocket);
+        log.info("Registered WebSocket at path {}", webSocket.getPath());
     }
 }

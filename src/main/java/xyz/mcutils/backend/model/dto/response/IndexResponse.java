@@ -7,4 +7,4 @@ package xyz.mcutils.backend.model.dto.response;
  * @param version The application version.
  * @param docs    The URL to the API documentation.
  */
-public record IndexResponse(String app, String version, String docs) { }
+public record IndexResponse(String app, String version, String docs) {}

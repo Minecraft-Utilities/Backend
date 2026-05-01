@@ -19,8 +19,7 @@ public class SecurityHeadersFilter implements Filter {
     private static final String NO_REFERRER = "no-referrer";
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
-            throws IOException, ServletException {
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
         if (response instanceof HttpServletResponse httpResponse) {
             httpResponse.setHeader(X_FRAME_OPTIONS, X_FRAME_OPTIONS_DENY);
             httpResponse.setHeader(X_CONTENT_TYPE_OPTIONS, NOSNIFF);

@@ -17,15 +17,11 @@ public record ForgeData(Channel[] channels, Mod[] mods, boolean truncated, int f
      * @param version  The version of this mod channel.
      * @param required Whether this mod channel is required to join.
      */
-    public record Channel(
-            @SerializedName("res") @NonNull String name,
-            String version,
-            boolean required
-    ) { }
+    public record Channel(@SerializedName("res") @NonNull String name, String version, boolean required) {}
 
     /**
      * @param name    The id of this mod.
      * @param version The version of this mod.
      */
-    public record Mod(@SerializedName("modId") @NonNull String name, @SerializedName("modmarker") String version) { }
+    public record Mod(@SerializedName("modId") @NonNull String name, @SerializedName("modmarker") String version) {}
 }

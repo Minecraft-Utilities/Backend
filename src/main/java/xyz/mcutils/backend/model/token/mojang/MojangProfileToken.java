@@ -10,7 +10,9 @@ import xyz.mcutils.backend.common.Tuple;
 
 import java.util.Base64;
 
-@Getter @NoArgsConstructor @AllArgsConstructor
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
 public class MojangProfileToken {
     /**
      * The UUID of the player.
@@ -33,6 +35,10 @@ public class MojangProfileToken {
      * </p>
      */
     private Boolean legacy;
+    /**
+     * The properties of the player.
+     */
+    private ProfileProperty[] properties = new ProfileProperty[0];
 
     /**
      * Whether this profile is legacy (unmigrated). Null from API is treated as false.
@@ -41,11 +47,6 @@ public class MojangProfileToken {
         return Boolean.TRUE.equals(legacy);
     }
 
-    /**
-     * The properties of the player.
-     */
-    private ProfileProperty[] properties = new ProfileProperty[0];
-    
     /**
      * Get the skin and cape of the player.
      */
@@ -61,7 +62,7 @@ public class MojangProfileToken {
         TexturesToken textures = decoded.textures();
         return new Tuple<>(textures.skin(), textures.cape());
     }
-    
+
     /**
      * Get a profile property for the player
      *
@@ -76,7 +77,8 @@ public class MojangProfileToken {
         return null;
     }
 
-    @Getter @NoArgsConstructor
+    @Getter
+    @NoArgsConstructor
     public static class ProfileProperty {
         /**
          * The name of the property.

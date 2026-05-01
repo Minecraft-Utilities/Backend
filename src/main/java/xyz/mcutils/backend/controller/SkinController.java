@@ -31,69 +31,26 @@ public class SkinController {
     }
 
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Pagination.Page<SkinsPageDTO>> getSkins(
-            @Parameter(
-                    description = "The page of skins to get",
-                    example = "1"
-            ) @RequestParam(required = false, defaultValue = "1") int page
-    ) {
-        return ResponseEntity.ok()
-                .body(skinService.getPaginatedSkins(page));
+    public ResponseEntity<Pagination.Page<SkinsPageDTO>> getSkins(@Parameter(description = "The page of skins to get", example = "1") @RequestParam(required = false, defaultValue = "1") int page) {
+        return ResponseEntity.ok().body(skinService.getPaginatedSkins(page));
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<SkinDTO> getSkin(
-            @Parameter(
-                    description = "The UUID of the skin"
-            ) @PathVariable UUID id
-    ) {
-        return ResponseEntity.ok()
-                .body(skinService.getSkinDto(id));
+    public ResponseEntity<SkinDTO> getSkin(@Parameter(description = "The UUID of the skin") @PathVariable UUID id) {
+        return ResponseEntity.ok().body(skinService.getSkinDto(id));
     }
 
     @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)
-    public ResponseEntity<byte[]> getPlayerSkinTexture(
-            @Parameter(
-                    description = "The UUID or Username of the player or the skin's texture id",
-                    example = "ImFascinated"
-            ) @PathVariable String query,
-            @Parameter(
-                    description = "Whether to upgrade the skin to the modern format",
-                    example = "true"
-            ) @RequestParam(required = false, defaultValue = "true") boolean upgrade
-    ) {
+    public ResponseEntity<byte[]> getPlayerSkinTexture(@Parameter(description = "The UUID or Username of the player or the skin's texture id", example = "ImFascinated") @PathVariable String query, @Parameter(description = "Whether to upgrade the skin to the modern format", example = "true") @RequestParam(required = false, defaultValue = "true") boolean upgrade) {
         Skin skin = this.skinService.getSkinFromTextureIdOrPlayer(query);
         byte[] texture = skinService.getSkinTexture(skin.getTextureId(), skin.getRawTextureUrl(), upgrade);
-        return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic())
-                .contentType(MediaType.IMAGE_PNG)
-                .body(texture);
+        return ResponseEntity.ok().cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic()).contentType(MediaType.IMAGE_PNG).body(texture);
     }
 
     @GetMapping(value = "/{query}/{type}.png", produces = MediaType.IMAGE_PNG_VALUE)
-    public ResponseEntity<byte[]> getPlayerSkin(
-            @Parameter(
-                    description = "The UUID or Username of the player",
-                    example = "ImFascinated"
-            ) @PathVariable String query,
-            @Parameter(
-                    description = "The part of the skin",
-                    schema = @Schema(implementation = Skin.SkinPart.class)
-            ) @PathVariable String type,
-            @Parameter(
-                    description = "The size of the image (height; width derived per part)",
-                    example = "768"
-            ) @RequestParam(required = false, defaultValue = "768") int size,
-            @Parameter(
-                    description = "Whether to render the skin overlay (skin layers)",
-                    example = "true"
-            ) @RequestParam(required = false, defaultValue = "true") boolean overlays
-    ) {
+    public ResponseEntity<byte[]> getPlayerSkin(@Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String query, @Parameter(description = "The part of the skin", schema = @Schema(implementation = Skin.SkinPart.class)) @PathVariable String type, @Parameter(description = "The size of the image (height; width derived per part)", example = "768") @RequestParam(required = false, defaultValue = "768") int size, @Parameter(description = "Whether to render the skin overlay (skin layers)", example = "true") @RequestParam(required = false, defaultValue = "true") boolean overlays) {
         Skin skin = this.skinService.getSkinFromTextureIdOrPlayer(query);
         byte[] bytes = skinService.renderSkin(skin, type, overlays, size);
-        return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic())
-                .contentType(MediaType.IMAGE_PNG)
-                .body(bytes);
+        return ResponseEntity.ok().cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic()).contentType(MediaType.IMAGE_PNG).body(bytes);
     }
 }

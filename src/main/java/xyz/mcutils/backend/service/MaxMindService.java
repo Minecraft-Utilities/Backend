@@ -45,16 +45,24 @@ import java.util.concurrent.CompletionException;
 @Service
 @Slf4j
 public class MaxMindService {
-    public static MaxMindService INSTANCE;
-
     private static final String DATABASE_DOWNLOAD_ENDPOINT = "https://download.maxmind.com/app/geoip_download?edition_id=%s&license_key=%s&suffix=tar.gz";
     private static final Map<Database, DatabaseReader> DATABASES = new HashMap<>();
-
+    public static MaxMindService INSTANCE;
     @Value("${mc-utils.maxmind.license}")
     private String license;
 
     @Value("${mc-utils.maxmind.database-dir:databases}")
     private String databaseDirPath;
+
+    /**
+     * Get the reader for the given database.
+     *
+     * @param database the database to get
+     * @return the database reader, null if none
+     */
+    public static DatabaseReader getDatabase(@NonNull Database database) {
+        return DATABASES.get(database);
+    }
 
     @PostConstruct
     public void onInitialize() {
@@ -88,15 +96,8 @@ public class MaxMindService {
             throw new NotFoundException("No data found for IP address: %s".formatted(ip));
         }
 
-        log.debug(
-                "Got IP lookup for {} from {}ms",
-                ip, System.currentTimeMillis() - lookupStart
-        );
-        return new IpLookup(
-            ip,
-            location,
-            asn
-        );
+        log.debug("Got IP lookup for {} from {}ms", ip, System.currentTimeMillis() - lookupStart);
+        return new IpLookup(ip, location, asn);
     }
 
     /**
@@ -118,11 +119,7 @@ public class MaxMindService {
                     return null;
                 }
 
-                return new AsnLookup(
-                        "AS%s".formatted(asn.autonomousSystemNumber()),
-                        asn.autonomousSystemOrganization(),
-                        asn.network().toString()
-                );
+                return new AsnLookup("AS%s".formatted(asn.autonomousSystemNumber()), asn.autonomousSystemOrganization(), asn.network().toString());
             } catch (AddressNotFoundException ignored) {
                 return null;
             } catch (Exception e) {
@@ -156,35 +153,13 @@ public class MaxMindService {
                 Postal postal = city.postal();
                 String isoCode = country.isoCode();
 
-                return new GeoLocation(
-                        country.name(),
-                        isoCode,
-                        city.mostSpecificSubdivision().name(),
-                        city.city().name(),
-                        location.timeZone(),
-                        postal != null ? postal.code() : null,
-                        location.latitude(),
-                        location.longitude(),
-                        "https://flagcdn.com/w20/" + isoCode.toLowerCase() + ".webp"
-                );
+                return new GeoLocation(country.name(), isoCode, city.mostSpecificSubdivision().name(), city.city().name(), location.timeZone(), postal != null ? postal.code() : null, location.latitude(), location.longitude(), "https://flagcdn.com/w20/" + isoCode.toLowerCase() + ".webp");
             } catch (AddressNotFoundException ignored) {
                 return null;
             } catch (Exception e) {
                 throw new CompletionException(e);
             }
         }, Main.EXECUTOR);
-    }
-
-
-
-    /**
-     * Get the reader for the given database.
-     *
-     * @param database the database to get
-     * @return the database reader, null if none
-     */
-    public static DatabaseReader getDatabase(@NonNull Database database) {
-        return DATABASES.get(database);
     }
 
     /**
@@ -234,11 +209,13 @@ public class MaxMindService {
                     if (ageInMillis > 3L * 24L * 60L * 60L * 1000L) {
                         needsUpdate = true;
                         log.info("Database {} is {} days old (max 3 days), attempting update...", database.getEdition(), daysOld);
-                    } else {
+                    }
+                    else {
                         log.debug("Database {} is {} days old, no update needed", database.getEdition(), daysOld);
                     }
                 }
-            } else {
+            }
+            else {
                 log.info("Database {} not found, downloading for the first time...", database.getEdition());
                 loadedCount++;
             }
@@ -258,12 +235,13 @@ public class MaxMindService {
                 if (!downloaded) {
                     if (fileExisted && needsUpdate) {
                         log.warn("Download failed for {} (e.g. rate limit 429); keeping existing database", database.getEdition());
-                    } else {
-                        log.warn("Download failed for {}; GeoIP for this database will be unavailable. " +
-                                "Download manually from MaxMind or retry later.", database.getEdition());
+                    }
+                    else {
+                        log.warn("Download failed for {}; GeoIP for this database will be unavailable. " + "Download manually from MaxMind or retry later.", database.getEdition());
                         continue;
                     }
-                } else if (needsUpdate) {
+                }
+                else if (needsUpdate) {
                     updatedCount++;
                 }
             }
@@ -280,16 +258,14 @@ public class MaxMindService {
                 DATABASES.remove(database);
             }
 
-            DATABASES.put(database, new DatabaseReader.Builder(databaseFile)
-                    .withCache(new CHMCache())
-                    .build()
-            );
+            DATABASES.put(database, new DatabaseReader.Builder(databaseFile).withCache(new CHMCache()).build());
             log.info("Successfully loaded database: {}", database.getEdition());
         }
 
         if (isScheduled && updatedCount > 0) {
             log.info("Scheduled check complete: {} database(s) updated", updatedCount);
-        } else if (!isScheduled) {
+        }
+        else if (!isScheduled) {
             log.info("Initialization complete: {} database(s) active ({} new, {} updated)", DATABASES.size(), loadedCount, updatedCount);
         }
     }
@@ -302,8 +278,7 @@ public class MaxMindService {
      * @param databasesDir the directory containing databases
      * @return true if download and extraction succeeded, false on failure (e.g. 429 rate limit)
      */
-    private boolean downloadDatabase(@NonNull Database database, @NonNull File databaseFile,
-                                    @NonNull File databasesDir) {
+    private boolean downloadDatabase(@NonNull Database database, @NonNull File databaseFile, @NonNull File databasesDir) {
         File downloadedFile = new File(databasesDir, database.getEdition() + ".tar.gz");
 
         if (!downloadedFile.exists()) {
@@ -313,15 +288,11 @@ public class MaxMindService {
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 int code = conn.getResponseCode();
                 if (code != HttpURLConnection.HTTP_OK) {
-                    log.warn("MaxMind returned HTTP {} for {} ({}); skipping download",
-                            code, database.getEdition(), code == 429 ? "rate limited" : "check MaxMind status");
+                    log.warn("MaxMind returned HTTP {} for {} ({}); skipping download", code, database.getEdition(), code == 429 ? "rate limited" : "check MaxMind status");
                     return false;
                 }
                 long before = System.currentTimeMillis();
-                try (
-                        BufferedInputStream inputStream = new BufferedInputStream(conn.getInputStream());
-                        FileOutputStream fileOutputStream = new FileOutputStream(downloadedFile)
-                ) {
+                try (BufferedInputStream inputStream = new BufferedInputStream(conn.getInputStream()); FileOutputStream fileOutputStream = new FileOutputStream(downloadedFile)) {
                     byte[] dataBuffer = new byte[8192];
                     int bytesRead;
                     while ((bytesRead = inputStream.read(dataBuffer)) != -1) {
@@ -378,7 +349,8 @@ public class MaxMindService {
     /**
      * Cleanup when the app is destroyed.
      */
-    @PreDestroy @SneakyThrows
+    @PreDestroy
+    @SneakyThrows
     public void cleanup() {
         for (DatabaseReader database : DATABASES.values()) {
             database.close();
@@ -399,14 +371,16 @@ public class MaxMindService {
     /**
      * A database for MaxMind.
      */
-    @AllArgsConstructor @Getter @ToString
+    @AllArgsConstructor
+    @Getter
+    @ToString
     public enum Database {
-        CITY("GeoLite2-City"),
-        ASN("GeoLite2-ASN");
+        CITY("GeoLite2-City"), ASN("GeoLite2-ASN");
 
         /**
          * The edition of this database.
          */
-        @NonNull private final String edition;
+        @NonNull
+        private final String edition;
     }
 }

@@ -8,4 +8,4 @@ import xyz.mcutils.backend.model.persistence.redis.CachedMinecraftServer;
  *
  * @author Braydon
  */
-public interface MinecraftServerCacheRepository extends CrudRepository<CachedMinecraftServer, String> { }
+public interface MinecraftServerCacheRepository extends CrudRepository<CachedMinecraftServer, String> {}

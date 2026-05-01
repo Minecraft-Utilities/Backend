@@ -25,8 +25,7 @@ public class FaceRenderer extends SkinRenderer {
 
         BufferedImage out = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = out.createGraphics();
-        drawVanillaPart(g, skinImage, 0, 0, size, size,
-                PlayerModelCoordinates.Skin.FACE, false, overlays);
+        drawVanillaPart(g, skinImage, 0, 0, size, size, PlayerModelCoordinates.Skin.FACE, false, overlays);
         g.dispose();
         return out;
     }

@@ -51,40 +51,24 @@ public class WebRequest {
 
     @PostConstruct
     private void initHttpClient() {
-        SocketConfig socketConfig = SocketConfig.custom()
-                .setSoTimeout(Timeout.of(socketTimeoutMs, TimeUnit.MILLISECONDS))
-                .build();
+        SocketConfig socketConfig = SocketConfig.custom().setSoTimeout(Timeout.of(socketTimeoutMs, TimeUnit.MILLISECONDS)).build();
 
-        PoolingHttpClientConnectionManager connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
-                .setMaxConnTotal(maxTotalConnections)
-                .setMaxConnPerRoute(maxConnectionsPerRoute)
-                .setDefaultSocketConfig(socketConfig)
-                .build();
+        PoolingHttpClientConnectionManager connectionManager = PoolingHttpClientConnectionManagerBuilder.create().setMaxConnTotal(maxTotalConnections).setMaxConnPerRoute(maxConnectionsPerRoute).setDefaultSocketConfig(socketConfig).build();
 
-        RequestConfig requestConfig = RequestConfig.custom()
-                .setResponseTimeout(Timeout.of(socketTimeoutMs, TimeUnit.MILLISECONDS))
-                .setConnectionRequestTimeout(Timeout.of(connectTimeoutMs, TimeUnit.MILLISECONDS))
-                .build();
+        RequestConfig requestConfig = RequestConfig.custom().setResponseTimeout(Timeout.of(socketTimeoutMs, TimeUnit.MILLISECONDS)).setConnectionRequestTimeout(Timeout.of(connectTimeoutMs, TimeUnit.MILLISECONDS)).build();
 
-        httpClient = HttpClients.custom()
-                .setConnectionManager(connectionManager)
-                .setDefaultRequestConfig(requestConfig)
-                .evictIdleConnections(Timeout.of(connectionTimeToLiveSeconds, TimeUnit.SECONDS))
-                .evictExpiredConnections()
-                .build();
+        httpClient = HttpClients.custom().setConnectionManager(connectionManager).setDefaultRequestConfig(requestConfig).evictIdleConnections(Timeout.of(connectionTimeToLiveSeconds, TimeUnit.SECONDS)).evictExpiredConnections().build();
 
         HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(httpClient);
         requestFactory.setConnectionRequestTimeout(connectTimeoutMs);
 
-        client = RestClient.builder()
-                .requestFactory(requestFactory)
-                .build();
+        client = RestClient.builder().requestFactory(requestFactory).build();
     }
 
     /**
      * Converts the given URL to a request URL, optionally via the URL proxy (proxy base + "/" + url).
      *
-     * @param url the URL
+     * @param url      the URL
      * @param useProxy when true and httpProxy is set, the request goes to httpProxy/url
      * @return the request URL
      */
@@ -101,8 +85,8 @@ public class WebRequest {
      * Gets a response from the given URL.
      *
      * @param url the url
-     * @return the response
      * @param <T> the type of the response
+     * @return the response
      */
     public <T> T getAsEntity(String url, Class<T> clazz) throws RateLimitException {
         return getAsEntity(url, clazz, false);
@@ -111,17 +95,14 @@ public class WebRequest {
     /**
      * Gets a response from the given URL, optionally via the URL proxy (proxy base + "/" + url).
      *
-     * @param url the url
+     * @param url      the url
      * @param useProxy when true and httpProxy is set, the request goes to httpProxy/url
+     * @param <T>      the type of the response
      * @return the response
-     * @param <T> the type of the response
      */
     public <T> T getAsEntity(String url, Class<T> clazz, boolean useProxy) throws RateLimitException {
         String requestUrl = toRequestUrl(url, useProxy);
-        ResponseEntity<T> responseEntity = client.get()
-                .uri(requestUrl)
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, (_, _) -> {}) // Don't throw exceptions on error
+        ResponseEntity<T> responseEntity = client.get().uri(requestUrl).retrieve().onStatus(HttpStatusCode::isError, (_, _) -> {}) // Don't throw exceptions on error
                 .toEntity(clazz);
 
         if (responseEntity.getStatusCode().isError()) {
@@ -146,15 +127,12 @@ public class WebRequest {
     /**
      * Gets a response from the given URL, optionally via the URL proxy (proxy base + "/" + url).
      *
-     * @param url the url
+     * @param url      the url
      * @param useProxy when true and httpProxy is set, the request goes to httpProxy/url
      * @return the response
      */
     public ResponseEntity<?> get(String url, Class<?> clazz, boolean useProxy) {
-        return client.get()
-                .uri(toRequestUrl(url, useProxy))
-                .retrieve()
-                .onStatus(HttpStatusCode::isError, (_, _) -> {}) // Don't throw exceptions on error
+        return client.get().uri(toRequestUrl(url, useProxy)).retrieve().onStatus(HttpStatusCode::isError, (_, _) -> {}) // Don't throw exceptions on error
                 .toEntity(clazz);
     }
 
@@ -171,17 +149,13 @@ public class WebRequest {
     /**
      * Checks whether a resource exists at the given URL, optionally via the URL proxy (proxy base + "/" + url).
      *
-     * @param url the URL
+     * @param url      the URL
      * @param useProxy when true and httpProxy is set, the request goes to httpProxy/url
      * @return true if the resource exists (status 200), false otherwise or on error
      */
     public boolean checkExists(String url, boolean useProxy) {
         try {
-            ResponseEntity<Void> response = client.head()
-                    .uri(toRequestUrl(url, useProxy))
-                    .retrieve()
-                    .onStatus(HttpStatusCode::isError, (_, _) -> {})
-                    .toBodilessEntity();
+            ResponseEntity<Void> response = client.head().uri(toRequestUrl(url, useProxy)).retrieve().onStatus(HttpStatusCode::isError, (_, _) -> {}).toBodilessEntity();
             return response.getStatusCode().isSameCodeAs(HttpStatus.OK);
         } catch (Exception e) {
             return false;
@@ -201,17 +175,13 @@ public class WebRequest {
     /**
      * Performs a GET request and returns the response body as a byte array, optionally via the URL proxy (proxy base + "/" + url).
      *
-     * @param url the URL
+     * @param url      the URL
      * @param useProxy when true and httpProxy is set, the request goes to httpProxy/url
      * @return the response body, or null if status is not 2xx or on error
      */
     public byte[] getAsByteArray(String url, boolean useProxy) {
         try {
-            ResponseEntity<byte[]> response = client.get()
-                    .uri(toRequestUrl(url, useProxy))
-                    .retrieve()
-                    .onStatus(HttpStatusCode::isError, (_, _) -> {})
-                    .toEntity(byte[].class);
+            ResponseEntity<byte[]> response = client.get().uri(toRequestUrl(url, useProxy)).retrieve().onStatus(HttpStatusCode::isError, (_, _) -> {}).toEntity(byte[].class);
             if (!response.getStatusCode().is2xxSuccessful()) {
                 return null;
             }

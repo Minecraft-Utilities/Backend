@@ -56,9 +56,11 @@ public final class BedrockMinecraftServerPinger implements MinecraftServerPinger
         } catch (IOException ex) {
             if (ex instanceof UnknownHostException) {
                 throw new BadRequestException("Unknown hostname '%s'".formatted(hostname));
-            } else if (ex instanceof SocketTimeoutException) {
+            }
+            else if (ex instanceof SocketTimeoutException) {
                 throw new BadRequestException("Server '%s' did not respond to ping".formatted(hostname));
-            } else {
+            }
+            else {
                 log.debug("An error occurred pinging {}:{}:", hostname, port, ex);
                 throw new BadRequestException("An error occurred pinging '%s:%s'".formatted(hostname, port));
             }

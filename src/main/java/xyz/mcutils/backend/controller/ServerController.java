@@ -36,73 +36,32 @@ public class ServerController {
     }
 
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<ServerRegistryEntry>> getServers(
-            @Parameter(
-                    description = "The query to search for",
-                    example = "WildNetwork"
-            ) @RequestParam String query
-    ) {
+    public ResponseEntity<List<ServerRegistryEntry>> getServers(@Parameter(description = "The query to search for", example = "WildNetwork") @RequestParam String query) {
         List<ServerRegistryEntry> entries = this.serverRegistryService.searchEntries(query);
-        return ResponseEntity.ok()
-                .body(entries);
+        return ResponseEntity.ok().body(entries);
     }
 
     @GetMapping(value = "/{platform}/{hostname}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<CachedMinecraftServer> getServer(
-            @PathVariable String platform,
-            @PathVariable String hostname
-    ) {
+    public ResponseEntity<CachedMinecraftServer> getServer(@PathVariable String platform, @PathVariable String hostname) {
         CachedMinecraftServer server = serverService.getServer(platform, hostname);
-        return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
-                .body(server);
+        return ResponseEntity.ok().cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic()).body(server);
     }
 
     @GetMapping(value = "/{hostname}/icon.png", produces = MediaType.IMAGE_PNG_VALUE)
-    public ResponseEntity<byte[]> getServerIcon(
-            @Parameter(
-                    description = "The hostname and port of the server",
-                    example = "aetheria.cc"
-            ) @PathVariable String hostname
-    ) {
+    public ResponseEntity<byte[]> getServerIcon(@Parameter(description = "The hostname and port of the server", example = "aetheria.cc") @PathVariable String hostname) {
         byte[] favicon = serverService.getServerFavicon(hostname);
-        return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic())
-                .contentType(MediaType.IMAGE_PNG)
-                .body(favicon);
+        return ResponseEntity.ok().cacheControl(CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic()).contentType(MediaType.IMAGE_PNG).body(favicon);
     }
 
     @GetMapping(value = "/{platform}/{hostname}/preview.png", produces = MediaType.IMAGE_PNG_VALUE)
-    public ResponseEntity<byte[]> getServerPreview(
-            @Parameter(
-                    description = "The platform of the server",
-                    schema = @Schema(implementation = Platform.class)
-            ) @PathVariable String platform,
-            @Parameter(
-                    description = "The hostname and port of the server",
-                    example = "aetheria.cc"
-            ) @PathVariable String hostname,
-            @Parameter(
-                    description = "The size of the image",
-                    example = "768"
-            ) @RequestParam(required = false, defaultValue = "768") int size
-    ) {
+    public ResponseEntity<byte[]> getServerPreview(@Parameter(description = "The platform of the server", schema = @Schema(implementation = Platform.class)) @PathVariable String platform, @Parameter(description = "The hostname and port of the server", example = "aetheria.cc") @PathVariable String hostname, @Parameter(description = "The size of the image", example = "768") @RequestParam(required = false, defaultValue = "768") int size) {
         CachedMinecraftServer server = serverService.getServer(platform, hostname);
         byte[] preview = serverService.getServerPreview(server, platform, size);
-        return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic())
-                .contentType(MediaType.IMAGE_PNG)
-                .body(preview);
+        return ResponseEntity.ok().cacheControl(CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic()).contentType(MediaType.IMAGE_PNG).body(preview);
     }
 
     @GetMapping(value = "/blocked/{hostname}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ServerBlockedResponse> getServerBlockedStatus(
-            @Parameter(
-                    description = "The hostname of the server",
-                    example = "aetheria.cc"
-            ) @PathVariable String hostname
-    ) {
-        return ResponseEntity.ok()
-                .body(new ServerBlockedResponse(this.mojangService.isServerBlocked(hostname)));
+    public ResponseEntity<ServerBlockedResponse> getServerBlockedStatus(@Parameter(description = "The hostname of the server", example = "aetheria.cc") @PathVariable String hostname) {
+        return ResponseEntity.ok().body(new ServerBlockedResponse(this.mojangService.isServerBlocked(hostname)));
     }
 }

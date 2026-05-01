@@ -6,8 +6,6 @@ import xyz.mcutils.backend.service.MetricService;
 
 public class RequestsMetric extends CounterMetric {
     public RequestsMetric() {
-        super(Counter.builder()
-                .name("requests_total")
-                .register(MetricService.REGISTRY));
+        super(Counter.builder().name("requests_total").register(MetricService.REGISTRY));
     }
 }

@@ -37,6 +37,7 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
 
     private static BufferedImage SERVER_BACKGROUND;
     private static BufferedImage PING_ICON;
+
     static {
         try {
             SERVER_BACKGROUND = ImageIO.read(new ByteArrayInputStream(Objects.requireNonNull(Main.class.getResourceAsStream("/icons/server_background.png")).readAllBytes()));
@@ -93,9 +94,7 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
         Players players = server.getPlayers();
         String playersOnline = players.online() + "";
         String playersMax = players.max() + "";
-        int onlineWidth = GraphicsUtils.stringWidthAtScale(Fonts.MINECRAFT, playersOnline, SCALE)
-                + GraphicsUtils.stringWidthAtScale(Fonts.MINECRAFT, "/", SCALE)
-                + GraphicsUtils.stringWidthAtScale(Fonts.MINECRAFT, playersMax, SCALE);
+        int onlineWidth = GraphicsUtils.stringWidthAtScale(Fonts.MINECRAFT, playersOnline, SCALE) + GraphicsUtils.stringWidthAtScale(Fonts.MINECRAFT, "/", SCALE) + GraphicsUtils.stringWidthAtScale(Fonts.MINECRAFT, playersMax, SCALE);
         int statusTextX = statusIconX - onlineWidth - RIGHT_SPACING;
         int statusTextY = PADDING + SCALE + fontAscent * SCALE;
 
@@ -132,7 +131,7 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
 
             String textBeforeColor = line.substring(index, colorIndex);
             drawX = GraphicsUtils.drawStringWithStyle(graphics, Fonts.MINECRAFT, textBeforeColor, drawX, y, true, bold, italic, underline, strikethrough, SCALE);
-            
+
             // §x§R§R§G§G§B§B or §#RRGGBB (gradient support)
             HexColorResult hexResult = ColorUtils.parseHexColor(line, colorIndex);
             if (hexResult != null) {
@@ -142,7 +141,8 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
                 underline = false;
                 strikethrough = false;
                 index = colorIndex + hexResult.charsConsumed();
-            } else if (colorIndex + 1 < line.length()) {
+            }
+            else if (colorIndex + 1 < line.length()) {
                 char colorCode = Character.toLowerCase(line.charAt(colorIndex + 1));
                 switch (colorCode) {
                     case 'l' -> bold = true;
@@ -168,7 +168,8 @@ public class ServerPreviewRenderer extends Renderer<MinecraftServer> {
                     }
                 }
                 index = colorIndex + 2;
-            } else {
+            }
+            else {
                 index = colorIndex + 1;
             }
         }

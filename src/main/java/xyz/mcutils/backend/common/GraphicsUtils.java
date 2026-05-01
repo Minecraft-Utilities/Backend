@@ -37,8 +37,7 @@ public class GraphicsUtils {
      * Draws a string with Minecraft-style style options: shadow (dark offset pass), bold (double-draw +1px),
      * italic (shear transform), underline, strikethrough. Returns the x position after the last character (advance = stringWidth + 1 if bold).
      */
-    public static int drawStringWithStyle(Graphics2D g, BitmapFont font, String str, int x, int y,
-                                         boolean shadow, boolean bold, boolean italic) {
+    public static int drawStringWithStyle(Graphics2D g, BitmapFont font, String str, int x, int y, boolean shadow, boolean bold, boolean italic) {
         return drawStringWithStyle(g, font, str, x, y, shadow, bold, italic, false, false, 1);
     }
 
@@ -46,8 +45,7 @@ public class GraphicsUtils {
      * Draws a string with style at the given scale (without mutating the font). When scale != 1, applies
      * a transform so the font renders at native 1x and is scaled up. Underline and strikethrough draw 1px lines in the current color.
      */
-    public static int drawStringWithStyle(Graphics2D g, BitmapFont font, String str, int x, int y,
-                                         boolean shadow, boolean bold, boolean italic, boolean underline, boolean strikethrough, int scale) {
+    public static int drawStringWithStyle(Graphics2D g, BitmapFont font, String str, int x, int y, boolean shadow, boolean bold, boolean italic, boolean underline, boolean strikethrough, int scale) {
         if (str == null || str.isEmpty()) {
             return x;
         }
@@ -65,12 +63,7 @@ public class GraphicsUtils {
         }
         Color savedColor = g.getColor();
         if (shadow) {
-            g.setColor(new Color(
-                (int) (savedColor.getRed() * 0.25f),
-                (int) (savedColor.getGreen() * 0.25f),
-                (int) (savedColor.getBlue() * 0.25f),
-                savedColor.getAlpha()
-            ));
+            g.setColor(new Color((int) (savedColor.getRed() * 0.25f), (int) (savedColor.getGreen() * 0.25f), (int) (savedColor.getBlue() * 0.25f), savedColor.getAlpha()));
             font.drawString(g, str, drawX + 1, drawY + 1, bold);
             if (bold) {
                 font.drawString(g, str, drawX + 2, drawY + 1, true);  // Shadow for bold copy

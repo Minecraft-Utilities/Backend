@@ -11,8 +11,5 @@ import com.google.gson.annotations.SerializedName;
  * @param skin The SKIN entry.
  * @param cape The CAPE entry.
  */
-public record TexturesToken(
-        @SerializedName("SKIN") SkinTextureToken skin,
-        @SerializedName("CAPE") CapeTextureToken cape
-) {
-}
+public record TexturesToken(@SerializedName("SKIN") SkinTextureToken skin,
+                            @SerializedName("CAPE") CapeTextureToken cape) {}
