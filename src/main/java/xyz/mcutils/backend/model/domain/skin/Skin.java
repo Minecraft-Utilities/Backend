@@ -52,7 +52,7 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
     private Map<String, String> parts;
 
     public Skin(UUID uuid, String textureId, Model model, boolean legacy) {
-        super(textureId, CDN_URL.formatted(textureId), AppConfig.INSTANCE.getWebPublicUrl() + "/skins/%s/texture.png".formatted(textureId));
+        super(AppConfig.INSTANCE.getWebPublicUrl() + "/skins/%s/texture.png".formatted(textureId), textureId, CDN_URL.formatted(textureId));
         this.uuid = uuid;
         this.model = model;
         this.legacy = legacy;

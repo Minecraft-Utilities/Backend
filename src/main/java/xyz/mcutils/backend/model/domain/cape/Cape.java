@@ -18,7 +18,7 @@ public abstract class Cape<P extends Enum<P>> extends Texture implements PartRen
     private Map<String, String> parts;
 
     public Cape(String textureId, String rawTextureUrl, String textureUrl, Map<String, String> parts) {
-        super(textureId, rawTextureUrl, textureUrl);
+        super(textureUrl, textureId, rawTextureUrl);
         this.parts = parts;
     }
 
