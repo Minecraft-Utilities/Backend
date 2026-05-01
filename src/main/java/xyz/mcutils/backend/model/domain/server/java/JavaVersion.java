@@ -42,6 +42,6 @@ public class JavaVersion {
             }
         }
         JavaMinecraftVersion minecraftVersion = JavaMinecraftVersion.byProtocol(protocol);
-        return new JavaVersion(name, platform, protocol, minecraftVersion == null ? null : minecraftVersion.getName());
+        return new JavaVersion(name, protocol, minecraftVersion == null ? null : minecraftVersion.getName(), platform);
     }
 }
