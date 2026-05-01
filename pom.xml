@@ -228,7 +228,7 @@
         <dependency>
             <groupId>io.prometheus</groupId>
             <artifactId>prometheus-metrics-core</artifactId>
-            <version>1.4.3</version>
+            <version>1.5.0</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
