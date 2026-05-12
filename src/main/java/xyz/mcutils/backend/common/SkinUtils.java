@@ -2,7 +2,6 @@ package xyz.mcutils.backend.common;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
-import xyz.mcutils.backend.common.renderer.texture.Coordinates;
 import xyz.mcutils.backend.common.renderer.texture.PlayerModelCoordinates;
 
 import java.awt.*;
@@ -99,16 +98,21 @@ public class SkinUtils {
      * @param skinImage the 64×64 skin image to modify in-place
      */
     private static void fillBaseLayerBlack(BufferedImage skinImage) {
-        for (PlayerModelCoordinates.Skin part : PlayerModelCoordinates.Skin.values()) {
-            if (part.getOverlays().length == 0) {
-                continue;
-            }
-            Coordinates c = part.getCoordinates();
-            int w = c.width();
-            int h = c.height();
-            int[] pixels = new int[w * h];
-            Arrays.fill(pixels, 0xFF000000);
-            skinImage.setRGB(c.x(), c.y(), w, h, pixels, 0, w);
+        for (PlayerModelCoordinates.ModelBox box : PlayerModelCoordinates.ModelBox.values()) {
+            int[] uv = box.getBaseUv(false);
+            int x = uv[0], y = uv[1], sizeX = uv[2], sizeY = uv[3], sizeZ = uv[4];
+            fillRect(skinImage, x,                    y,        sizeX,  sizeY);  // front
+            fillRect(skinImage, x + sizeX + sizeZ,    y,        sizeX,  sizeY);  // back
+            fillRect(skinImage, x - sizeZ,            y,        sizeZ,  sizeY);  // side A
+            fillRect(skinImage, x + sizeX,            y,        sizeZ,  sizeY);  // side B
+            fillRect(skinImage, x,                    y - sizeZ, sizeX, sizeZ);  // top
+            fillRect(skinImage, x + sizeX,            y - sizeZ, sizeX, sizeZ);  // bottom
         }
+    }
+
+    private static void fillRect(BufferedImage image, int x, int y, int w, int h) {
+        int[] pixels = new int[w * h];
+        Arrays.fill(pixels, 0xFF000000);
+        image.setRGB(x, y, w, h, pixels, 0, w);
     }
 }
