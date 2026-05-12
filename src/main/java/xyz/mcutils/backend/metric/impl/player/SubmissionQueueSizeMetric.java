@@ -6,11 +6,9 @@ import xyz.mcutils.backend.service.MetricService;
 import xyz.mcutils.backend.service.PlayerSubmitService;
 
 public class SubmissionQueueSizeMetric extends GaugeWithCallbackMetric {
-    public SubmissionQueueSizeMetric() {
+    public SubmissionQueueSizeMetric(PlayerSubmitService playerSubmitService) {
         super(GaugeWithCallback.builder().name("player_submission_queue_size").callback(callback -> {
-            if (PlayerSubmitService.INSTANCE != null) {
-                callback.call(PlayerSubmitService.INSTANCE.getSubmissionQueueSize());
-            }
+            callback.call(playerSubmitService.getSubmissionQueueSize());
         }).register(MetricService.REGISTRY));
     }
 }

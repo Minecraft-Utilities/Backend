@@ -2,6 +2,7 @@ package xyz.mcutils.backend.service;
 
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.metric.Metric;
 import xyz.mcutils.backend.metric.impl.api.ExternalApiRequestsMetric;
@@ -27,7 +28,7 @@ public class MetricService {
     public static final PrometheusRegistry REGISTRY = new PrometheusRegistry();
     private static final Map<Class<?>, Metric<?>> metrics = new ConcurrentHashMap<>();
 
-    public MetricService() {
+    public MetricService(@Lazy PlayerSubmitService playerSubmitService) {
         // JVM
         this.registerMetric(new MemoryUsageMetric());
         this.registerMetric(new MemoryHeapMaxMetric());
@@ -40,7 +41,7 @@ public class MetricService {
         // Player
         this.registerMetric(new TrackedPlayersMetric());
         this.registerMetric(new AccountsUpdatedMetric());
-        this.registerMetric(new SubmissionQueueSizeMetric());
+        this.registerMetric(new SubmissionQueueSizeMetric(playerSubmitService));
         this.registerMetric(new DirtyPlayersBacklogMetric());
 
         // Skin
