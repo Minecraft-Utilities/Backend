@@ -6,11 +6,9 @@ import xyz.mcutils.backend.metric.GaugeWithCallbackMetric;
 import xyz.mcutils.backend.service.MetricService;
 
 public class DirtyCapesBacklogMetric extends GaugeWithCallbackMetric {
-    public DirtyCapesBacklogMetric() {
+    public DirtyCapesBacklogMetric(CapeManager capeManager) {
         super(GaugeWithCallback.builder().name("dirty_capes_backlog").help("Number of cape cache entries pending save to MongoDB").callback(callback -> {
-            if (CapeManager.INSTANCE != null) {
-                callback.call(CapeManager.INSTANCE.getDirtyCount());
-            }
+            callback.call(capeManager.getDirtyCount());
         }).register(MetricService.REGISTRY));
     }
 }

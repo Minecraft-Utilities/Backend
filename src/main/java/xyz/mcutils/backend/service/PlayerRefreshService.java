@@ -35,8 +35,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
 public class PlayerRefreshService {
     private static final int REFRESH_CHUNK_SIZE = 5_000;
-    private static final Semaphore REFRESH_CONCURRENCY_LIMIT = new Semaphore(5);
-
+    
+    private final Semaphore refreshConcurrencyLimit = new Semaphore(5);
     private final MojangService mojangService;
     private final SkinService skinService;
     private final CapeService capeService;
@@ -65,7 +65,7 @@ public class PlayerRefreshService {
                 try {
                     List<UUID> ids = findRefreshChunkIds();
                     if (ids.isEmpty()) {
-                        Thread.sleep(Duration.ofSeconds(10).toMillis());
+                        Thread.sleep(Duration.ofSeconds(10));
                         continue;
                     }
                     Date batchTime = new Date();
@@ -82,7 +82,7 @@ public class PlayerRefreshService {
                                 return;
                             }
                             try {
-                                REFRESH_CONCURRENCY_LIMIT.acquire();
+                                refreshConcurrencyLimit.acquire();
                             } catch (InterruptedException e) {
                                 Thread.currentThread().interrupt();
                                 return;
@@ -97,7 +97,7 @@ public class PlayerRefreshService {
                                 applyProfileToPlayer(playerDocument.getId(), skinId, capeId, token, playerDocument, batchTime);
                                 refreshedIds.add(playerDocument.getId());
                             } finally {
-                                REFRESH_CONCURRENCY_LIMIT.release();
+                                refreshConcurrencyLimit.release();
                             }
                         }));
                     }
@@ -158,7 +158,7 @@ public class PlayerRefreshService {
                 CapeDocument capeDoc = capeManager.getOrCreateByTextureId(skinAndCape.right().getTextureId());
                 newCapeId = capeDoc != null ? capeDoc.getId() : currentCapeId;
             } catch (Exception e) {
-                log.debug("Cape resolve failed for player {}; keeping current cape {}", playerId, e);
+                log.debug("Cape resolve failed for player {}; keeping current cape {}", playerId, currentCapeId, e);
                 newCapeId = currentCapeId;
             }
         } else {
@@ -201,10 +201,9 @@ public class PlayerRefreshService {
      * Applies Mojang profile to the player document: resolves assets, writes history, and patches the document.
      */
     private void applyProfileToPlayer(UUID playerId, UUID currentSkinId, UUID currentCapeId, MojangProfileToken token, PlayerDocument doc, Date updatedAt) {
-        Date now = updatedAt != null ? updatedAt : new Date();
         ResolvedAssets assets = resolveAssets(playerId, currentSkinId, currentCapeId, token);
-        writeHistory(playerId, token.getName(), assets, now);
-        patchDocument(doc, token.getName(), token.isLegacy(), assets, now);
+        writeHistory(playerId, token.getName(), assets, updatedAt);
+        patchDocument(doc, token.getName(), token.isLegacy(), assets, updatedAt);
     }
 
     /**
@@ -219,7 +218,7 @@ public class PlayerRefreshService {
         UUID currentSkinId = document.getSkinId();
         UUID currentCapeId = document.getCapeId();
 
-        applyProfileToPlayer(playerId, currentSkinId, currentCapeId, token, document, null);
+        applyProfileToPlayer(playerId, currentSkinId, currentCapeId, token, document, new Date());
 
         // Reload from manager to get updated doc and sync to Player entity
         playerManager.getByUuid(playerId).ifPresent(updated -> {

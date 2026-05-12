@@ -46,11 +46,11 @@ import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 public class PlayerSubmitService {
     
     private static final int BATCH_SIZE = 1_000;
-    private static final Semaphore SUBMIT_CONCURRENCY_LIMIT = new Semaphore(10);
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
-
+    
+    private final Semaphore submitConcurrencyLimit = new Semaphore(10);
     private final RedisTemplate<String, String> redis;
     private final PlayerService playerService;
     private final MojangService mojangService;
@@ -84,7 +84,7 @@ public class PlayerSubmitService {
         });
     }
 
-    @SuppressWarnings({"unchecked"})
+    @SuppressWarnings("unchecked")
     private List<String> takeBatchFromQueue(int batchSize) {
         List<Object> results = redis.execute(new SessionCallback<>() {
             @Override
@@ -139,7 +139,7 @@ public class PlayerSubmitService {
         for (QueueEntry entry : toProcess) {
             Future<?> future = Main.EXECUTOR.submit(() -> {
                 try {
-                    SUBMIT_CONCURRENCY_LIMIT.acquire();
+                    submitConcurrencyLimit.acquire();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     return;
@@ -153,7 +153,8 @@ public class PlayerSubmitService {
                             return;
                         }
                         created.add(new PlayerCreateSubmission(token, entry.submittedBy()));
-                    } catch (NotFoundException ignored) {
+                    } catch (NotFoundException e) {
+                        log.debug("Player {} not found on Mojang, removing from queue", entry.playerId(), e);
                     } catch (MojangAPIRateLimitException e) {
                         listOps.rightPush(REDIS_QUEUE_KEY, entry.toRedisValue());
                         requeued = true;
@@ -163,7 +164,7 @@ public class PlayerSubmitService {
                         }
                     }
                 } finally {
-                    SUBMIT_CONCURRENCY_LIMIT.release();
+                    submitConcurrencyLimit.release();
                 }
             });
             futures.add(future);

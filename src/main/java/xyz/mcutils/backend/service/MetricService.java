@@ -4,6 +4,7 @@ import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import xyz.mcutils.backend.cape.CapeManager;
 import xyz.mcutils.backend.metric.Metric;
 import xyz.mcutils.backend.metric.impl.api.ExternalApiRequestsMetric;
 import xyz.mcutils.backend.metric.impl.api.RequestsMetric;
@@ -18,6 +19,8 @@ import xyz.mcutils.backend.metric.impl.player.SubmissionQueueSizeMetric;
 import xyz.mcutils.backend.metric.impl.player.TrackedPlayersMetric;
 import xyz.mcutils.backend.metric.impl.skin.DirtySkinsBacklogMetric;
 import xyz.mcutils.backend.metric.impl.skin.TrackedSkinsMetric;
+import xyz.mcutils.backend.player.PlayerManager;
+import xyz.mcutils.backend.skin.SkinManager;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,7 +31,14 @@ public class MetricService {
     public static final PrometheusRegistry REGISTRY = new PrometheusRegistry();
     private static final Map<Class<?>, Metric<?>> metrics = new ConcurrentHashMap<>();
 
-    public MetricService(@Lazy PlayerSubmitService playerSubmitService) {
+    public MetricService(
+            @Lazy PlayerSubmitService playerSubmitService,
+            @Lazy PlayerService playerService,
+            @Lazy PlayerManager playerManager,
+            @Lazy SkinService skinService,
+            @Lazy SkinManager skinManager,
+            @Lazy CapeService capeService,
+            @Lazy CapeManager capeManager) {
         // JVM
         this.registerMetric(new MemoryUsageMetric());
         this.registerMetric(new MemoryHeapMaxMetric());
@@ -39,18 +49,18 @@ public class MetricService {
         this.registerMetric(new ExternalApiRequestsMetric());
 
         // Player
-        this.registerMetric(new TrackedPlayersMetric());
+        this.registerMetric(new TrackedPlayersMetric(playerService));
         this.registerMetric(new AccountsUpdatedMetric());
         this.registerMetric(new SubmissionQueueSizeMetric(playerSubmitService));
-        this.registerMetric(new DirtyPlayersBacklogMetric());
+        this.registerMetric(new DirtyPlayersBacklogMetric(playerManager));
 
         // Skin
-        this.registerMetric(new TrackedSkinsMetric());
-        this.registerMetric(new DirtySkinsBacklogMetric());
+        this.registerMetric(new TrackedSkinsMetric(skinService));
+        this.registerMetric(new DirtySkinsBacklogMetric(skinManager));
 
         // Cape
-        this.registerMetric(new TrackedCapesMetric());
-        this.registerMetric(new DirtyCapesBacklogMetric());
+        this.registerMetric(new TrackedCapesMetric(capeService));
+        this.registerMetric(new DirtyCapesBacklogMetric(capeManager));
     }
 
     /**
@@ -60,6 +70,7 @@ public class MetricService {
      * @param <T>         the class to cast the metric by
      * @return the metric
      */
+    @SuppressWarnings("unchecked")
     public static <T extends Metric<?>> T getMetric(Class<T> metricClass) {
         return (T) metrics.get(metricClass);
     }

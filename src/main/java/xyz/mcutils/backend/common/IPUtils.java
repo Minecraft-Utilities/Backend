@@ -27,12 +27,8 @@ public class IPUtils {
                 ip = header;
                 break;
             }
-            // Handle multiple IPs
-            String[] ips = header.split(",");
-            for (String ipHeader : ips) {
-                ip = ipHeader;
-                break;
-            }
+            // Handle multiple IPs - take the first (leftmost client IP)
+            ip = header.split(",")[0].trim();
         }
         return ip;
     }

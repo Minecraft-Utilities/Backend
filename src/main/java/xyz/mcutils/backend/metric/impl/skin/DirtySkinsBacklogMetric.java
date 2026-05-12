@@ -6,11 +6,9 @@ import xyz.mcutils.backend.service.MetricService;
 import xyz.mcutils.backend.skin.SkinManager;
 
 public class DirtySkinsBacklogMetric extends GaugeWithCallbackMetric {
-    public DirtySkinsBacklogMetric() {
+    public DirtySkinsBacklogMetric(SkinManager skinManager) {
         super(GaugeWithCallback.builder().name("dirty_skins_backlog").help("Number of skin cache entries pending save to MongoDB").callback(callback -> {
-            if (SkinManager.INSTANCE != null) {
-                callback.call(SkinManager.INSTANCE.getDirtyCount());
-            }
+            callback.call(skinManager.getDirtyCount());
         }).register(MetricService.REGISTRY));
     }
 }

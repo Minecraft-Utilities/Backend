@@ -6,11 +6,9 @@ import xyz.mcutils.backend.player.PlayerManager;
 import xyz.mcutils.backend.service.MetricService;
 
 public class DirtyPlayersBacklogMetric extends GaugeWithCallbackMetric {
-    public DirtyPlayersBacklogMetric() {
+    public DirtyPlayersBacklogMetric(PlayerManager playerManager) {
         super(GaugeWithCallback.builder().name("dirty_players_backlog").help("Number of player cache entries pending save to MongoDB").callback(callback -> {
-            if (PlayerManager.INSTANCE != null) {
-                callback.call(PlayerManager.INSTANCE.getDirtyCount());
-            }
+            callback.call(playerManager.getDirtyCount());
         }).register(MetricService.REGISTRY));
     }
 }

@@ -6,9 +6,9 @@ import xyz.mcutils.backend.service.CapeService;
 import xyz.mcutils.backend.service.MetricService;
 
 public class TrackedCapesMetric extends GaugeWithCallbackMetric {
-    public TrackedCapesMetric() {
+    public TrackedCapesMetric(CapeService capeService) {
         super(GaugeWithCallback.builder().name("tracked_capes").callback(callback -> {
-            callback.call(CapeService.INSTANCE.getTrackedCapeCount());
+            callback.call(capeService.getTrackedCapeCount());
         }).register(MetricService.REGISTRY));
     }
 }

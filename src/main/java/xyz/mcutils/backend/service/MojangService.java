@@ -16,6 +16,7 @@ import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
@@ -42,7 +43,7 @@ public class MojangService {
      * {@link #updateBlockedServers()} for more info.
      * </p>
      */
-    private final Set<String> blockedServerHashes = Collections.synchronizedSet(new HashSet<>());
+    private final Set<String> blockedServerHashes = ConcurrentHashMap.newKeySet();
 
     private final WebRequest webRequest;
 
