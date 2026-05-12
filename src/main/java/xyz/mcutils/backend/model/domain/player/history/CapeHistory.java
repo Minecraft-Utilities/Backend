@@ -12,18 +12,18 @@ import java.util.Date;
 @Slf4j
 public class CapeHistory extends VanillaCape {
     /**
-     * The date this cape was first used by the player.
+     * The date this cape was first seen on the player.
      */
-    private Date firstUsed;
+    private Date firstSeen;
 
     /**
-     * The date this cape was last used by the player.
+     * The date this cape was last seen on the player.
      */
     private Date lastUsed;
 
-    public CapeHistory(VanillaCape cape, Date firstUsed, Date lastUsed) {
+    public CapeHistory(VanillaCape cape, Date firstSeen, Date lastUsed) {
         super(cape.getUuid(), cape.getName(), cape.getAccountsOwned(), cape.getTextureId());
-        this.firstUsed = firstUsed;
+        this.firstSeen = firstSeen;
         this.lastUsed = lastUsed;
     }
 }

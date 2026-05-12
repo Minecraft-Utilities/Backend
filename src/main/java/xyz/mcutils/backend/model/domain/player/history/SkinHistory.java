@@ -12,18 +12,18 @@ import java.util.Date;
 @EqualsAndHashCode(callSuper = false)
 public class SkinHistory extends Skin {
     /**
-     * The date this skin was first used by the player.
+     * The date this skin was first seen on the player.
      */
-    private Date firstUsed;
+    private Date firstSeen;
 
     /**
-     * The date this skin was last used by the player.
+     * The date this skin was last seen on the player.
      */
     private Date lastUsed;
 
-    public SkinHistory(Skin skin, Date firstUsed, Date lastUsed) {
+    public SkinHistory(Skin skin, Date firstSeen, Date lastUsed) {
         super(skin.getUuid(), skin.getTextureId(), skin.getModel(), skin.isLegacy());
-        this.firstUsed = firstUsed;
+        this.firstSeen = firstSeen;
         this.lastUsed = lastUsed;
     }
 }
