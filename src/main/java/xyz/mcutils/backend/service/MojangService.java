@@ -15,7 +15,9 @@ import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
 
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service

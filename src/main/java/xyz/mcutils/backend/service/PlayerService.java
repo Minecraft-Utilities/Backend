@@ -3,7 +3,6 @@ package xyz.mcutils.backend.service;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Collation;
@@ -19,6 +18,7 @@ import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.exception.impl.RateLimitException;
+import xyz.mcutils.backend.metric.impl.player.AccountsUpdatedMetric;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.domain.player.UsernameHistory;
@@ -31,7 +31,6 @@ import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.player.PlayerManager;
-import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.skin.SkinManager;
 
 import java.time.Duration;
@@ -43,30 +42,26 @@ import java.util.*;
 public class PlayerService {
     private static final Duration PLAYER_UPDATE_INTERVAL = Duration.ofHours(3);
     private static final int MAX_PLAYER_SEARCH_RESULTS = 5;
+
     public static PlayerService INSTANCE;
     private final MojangService mojangService;
     private final SkinService skinService;
     private final CapeService capeService;
-    private final PlayerRefreshService playerRefreshService;
     private final PlayerManager playerManager;
     private final SkinManager skinManager;
     private final CapeManager capeManager;
-    private final PlayerRepository playerRepository;
     private final PlayerHistoryService playerHistoryService;
     private final MongoTemplate mongoTemplate;
     private final CoalescingLoader<String, Player> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
-    @Value("${mc-utils.cache.player.enabled}")
-    private boolean cacheEnabled;
 
-    public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerRefreshService playerRefreshService, PlayerManager playerManager, SkinManager skinManager, CapeManager capeManager, PlayerRepository playerRepository, PlayerHistoryService playerHistoryService, MongoTemplate mongoTemplate) {
+    public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerManager playerManager,
+                         SkinManager skinManager, CapeManager capeManager, PlayerHistoryService playerHistoryService, MongoTemplate mongoTemplate) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
-        this.playerRefreshService = playerRefreshService;
         this.playerManager = playerManager;
         this.skinManager = skinManager;
         this.capeManager = capeManager;
-        this.playerRepository = playerRepository;
         this.playerHistoryService = playerHistoryService;
         this.mongoTemplate = mongoTemplate;
     }
@@ -106,7 +101,7 @@ public class PlayerService {
                     if (token == null) {
                         throw new NotFoundException("Player with uuid '%s' was not found".formatted(finalPlayerUuid));
                     }
-                    this.playerRefreshService.updatePlayer(player, document, token);
+                    this.updatePlayer(player, document, token);
                 }
                 return player;
             }).orElseGet(() -> {
@@ -186,14 +181,14 @@ public class PlayerService {
             }
 
             if (skinUuid != null) {
-                skinCounts.merge(skinUuid, 1L, (a, b) -> (a != null ? a : 0L) + (b != null ? b : 0L));
+                skinCounts.merge(skinUuid, 1L, Long::sum);
             }
             if (capeUuid != null) {
-                capeCounts.merge(capeUuid, 1L, (a, b) -> (a != null ? a : 0L) + (b != null ? b : 0L));
+                capeCounts.merge(capeUuid, 1L, Long::sum);
             }
             UUID submittedBy = submission.submittedBy();
             if (submittedBy != null) {
-                submitterCounts.merge(submittedBy, 1L, (a, b) -> (a != null ? a : 0L) + (b != null ? b : 0L));
+                submitterCounts.merge(submittedBy, 1L, Long::sum);
             }
         }
 
@@ -229,22 +224,6 @@ public class PlayerService {
         }
 
         log.debug("Bulk created {} players", submissions.size());
-    }
-
-    /**
-     * Checks if a player exists in the database. Uses cache first to avoid a DB read when the player is already loaded.
-     *
-     * @param id the uuid of the player
-     * @return true if the player exists, false otherwise
-     */
-    public boolean exists(UUID id) {
-        if (id == null) {
-            return false;
-        }
-        if (this.playerManager.isCached(id)) {
-            return true;
-        }
-        return this.playerRepository.existsById(id);
     }
 
     /**
@@ -309,16 +288,6 @@ public class PlayerService {
             skinById.put(e.getKey(), skinService.fromDocument(e.getValue()));
         }
         return docs.stream().map(d -> new PlayerSearchEntry(d.get("_id", UUID.class), d.getString("username"), d.get("skin", UUID.class) != null ? skinById.get(d.get("skin", UUID.class)) : null)).toList();
-    }
-
-    /**
-     * Gets a player by their username.
-     *
-     * @param username the username of the player
-     * @return the player document
-     */
-    public Optional<PlayerDocument> getPlayerByUsername(String username) {
-        return playerManager.getByUsername(username);
     }
 
     /**
@@ -411,4 +380,104 @@ public class PlayerService {
 
         return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, skinHistory, cape, capeHistory, usernameHistory, document.getLastUpdated(), document.getFirstSeen());
     }
+
+    /**
+     * Writes username, skin, and cape history entries for the player, incrementing usage counters on first-seen entries.
+     */
+    private void writeHistory(UUID playerId, String currentName, String newName, ResolvedAssets assets, Date now) {
+        if (!newName.equals(currentName)) {
+            playerHistoryService.ensureUsernameInHistory(playerId, newName, now);
+        }
+        if (assets.skinId() != null && playerHistoryService.ensureSkinInHistory(playerId, assets.skinId(), now)) {
+            skinManager.incrementAccountsUsed(assets.skinId(), 1);
+        }
+        if (assets.capeId() != null && playerHistoryService.ensureCapeInHistory(playerId, assets.capeId(), now)) {
+            capeManager.incrementAccountsOwned(assets.capeId(), 1);
+        }
+    }
+
+    /**
+     * Resolves the skin and cape documents from the Mojang profile token.
+     * Distinguishes between Mojang returning null (keep current) and resolution failure (log and keep current).
+     */
+    private ResolvedAssets resolveAssets(UUID playerId, UUID currentSkinId, UUID currentCapeId, MojangProfileToken token) {
+        Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
+
+        UUID newSkinId;
+        if (skinAndCape.left() != null) {
+            SkinDocument skinDoc = skinManager.getOrCreateByTextureId(skinAndCape.left(), playerId);
+            newSkinId = skinDoc != null ? skinDoc.getId() : currentSkinId;
+        } else {
+            if (currentSkinId != null) {
+                log.debug("Mojang profile had no skin for player {}; keeping current skin {}", playerId, currentSkinId);
+            }
+            newSkinId = currentSkinId;
+        }
+
+        UUID newCapeId;
+        if (skinAndCape.right() != null) {
+            try {
+                CapeDocument capeDoc = capeManager.getOrCreateByTextureId(skinAndCape.right().getTextureId());
+                newCapeId = capeDoc != null ? capeDoc.getId() : currentCapeId;
+            } catch (Exception e) {
+                log.debug("Cape resolve failed for player {}; keeping current cape {}", playerId, currentCapeId, e);
+                newCapeId = currentCapeId;
+            }
+        } else {
+            if (currentCapeId != null) {
+                log.debug("Mojang profile had no cape for player {}; keeping current cape {}", playerId, currentCapeId);
+            }
+            newCapeId = currentCapeId;
+        }
+
+        return new ResolvedAssets(newSkinId, newCapeId);
+    }
+
+    /**
+     * Patches the player document fields in place and marks it dirty for flushing.
+     */
+    private void patchDocument(PlayerDocument doc, String name, boolean legacyAccount, ResolvedAssets assets, Date now) {
+        doc.setUsername(name);
+        doc.setSkinId(assets.skinId());
+        doc.setCapeId(assets.capeId());
+        doc.setLegacyAccount(legacyAccount);
+        doc.setLastUpdated(now);
+        playerManager.markDirty(doc.getId());
+        MetricService.getMetric(AccountsUpdatedMetric.class).inc(1);
+    }
+
+    /**
+     * Applies Mojang profile to the player document: resolves assets, writes history, and patches the document.
+     */
+    public void applyProfileToPlayer(UUID playerId, UUID currentSkinId, UUID currentCapeId, MojangProfileToken token, PlayerDocument doc, Date updatedAt) {
+        ResolvedAssets assets = resolveAssets(playerId, currentSkinId, currentCapeId, token);
+        writeHistory(playerId, doc.getUsername(), token.getName(), assets, updatedAt);
+        patchDocument(doc, token.getName(), token.isLegacy(), assets, updatedAt);
+    }
+
+    /**
+     * Updates the in-memory player and document from the token; player document is updated in cache and marked dirty.
+     *
+     * @param player   the player
+     * @param document the player document
+     * @param token    the mojang profile token
+     */
+    public void updatePlayer(Player player, PlayerDocument document, MojangProfileToken token) {
+        UUID playerId = document.getId();
+        UUID currentSkinId = document.getSkinId();
+        UUID currentCapeId = document.getCapeId();
+
+        applyProfileToPlayer(playerId, currentSkinId, currentCapeId, token, document, new Date());
+
+        // Reload from manager to get updated doc and sync to Player entity
+        playerManager.getByUuid(playerId).ifPresent(updated -> {
+            player.setUsername(updated.getUsername());
+            player.setSkin(updated.getSkinId() != null ? skinManager.getById(updated.getSkinId()).map(skinService::fromDocument).orElse(null) : null);
+            player.setCape(updated.getCapeId() != null ? capeManager.getById(updated.getCapeId()).map(capeService::fromDocument).orElse(null) : null);
+            player.setLegacyAccount(updated.isLegacyAccount());
+            player.setLastUpdated(updated.getLastUpdated());
+        });
+    }
+
+    private record ResolvedAssets(UUID skinId, UUID capeId) {}
 }
