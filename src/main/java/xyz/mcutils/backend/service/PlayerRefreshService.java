@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Service
 @Slf4j
 public class PlayerRefreshService {
-    private static final int REFRESH_CHUNK_SIZE = 5_000;
+    private static final int REFRESH_CHUNK_SIZE = 50_000;
     
     private final RateLimiter rateLimiter = RateLimiter.create(40);
     private final MojangService mojangService;
@@ -74,6 +74,7 @@ public class PlayerRefreshService {
                     Map<UUID, PlayerDocument> playerMap = this.playerManager.getByUuids(ids);
                     List<Future<?>> futures = new ArrayList<>();
                     for (UUID playerId : ids) {
+                        rateLimiter.acquire();
                         futures.add(Main.EXECUTOR.submit(() -> {
                             if (!running.get()) {
                                 return;
@@ -82,7 +83,6 @@ public class PlayerRefreshService {
                             if (playerDocument == null) {
                                 return;
                             }
-                            rateLimiter.acquire();
                             MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
                             if (token == null) {
                                 return;
