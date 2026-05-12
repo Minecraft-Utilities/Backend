@@ -383,7 +383,7 @@ public class PlayerService {
             }
         }
 
-        return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, skinHistory, cape,
+        return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), document.getSubmittedUuids(), skin, skinHistory, cape,
                 capeHistory, usernameHistory, document.getLastUpdated(), document.getFirstSeen());
     }
 

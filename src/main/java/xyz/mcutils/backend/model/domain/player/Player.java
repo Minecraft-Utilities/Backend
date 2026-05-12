@@ -44,6 +44,11 @@ public class Player {
     private boolean legacyAccount;
 
     /**
+     * The amount of new uuids this player has submitted.
+     */
+    private long submittedUuids;
+
+    /**
      * The Skin for the player.
      */
     private Skin skin;
@@ -81,10 +86,11 @@ public class Player {
      */
     private Instant firstSeen;
 
-    public Player(UUID uniqueId, String username, boolean legacyAccount, Skin skin, Set<SkinHistory> skinHistory, @Nullable VanillaCape cape, @Nullable Set<CapeHistory> capeHistory, Set<UsernameHistory> usernameHistory, Instant lastUpdated, Instant firstSeen) {
+    public Player(UUID uniqueId, String username, boolean legacyAccount, long submittedUuids, Skin skin, Set<SkinHistory> skinHistory, @Nullable VanillaCape cape, @Nullable Set<CapeHistory> capeHistory, Set<UsernameHistory> usernameHistory, Instant lastUpdated, Instant firstSeen) {
         this.uniqueId = uniqueId;
         this.username = username;
         this.legacyAccount = legacyAccount;
+        this.submittedUuids = submittedUuids;
         this.skin = skin;
         this.skinHistory = skinHistory;
         this.cape = cape;
