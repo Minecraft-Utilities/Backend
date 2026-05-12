@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
 public class PlayerRefreshService {
     private static final int REFRESH_CHUNK_SIZE = 5_000;
-    private static final Semaphore REFRESH_CONCURRENCY_LIMIT = new Semaphore(4);
+    private static final Semaphore REFRESH_CONCURRENCY_LIMIT = new Semaphore(5);
 
     private final MojangService mojangService;
     private final SkinService skinService;
