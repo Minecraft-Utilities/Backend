@@ -12,6 +12,7 @@ import org.apache.hc.core5.util.Timeout;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
@@ -104,16 +105,20 @@ public class WebRequest {
      */
     public <T> T getAsEntity(String url, Class<T> clazz, boolean useProxy) throws RateLimitException {
         String requestUrl = toRequestUrl(url, useProxy);
-        ResponseEntity<T> responseEntity = client.get().uri(requestUrl).retrieve().onStatus(HttpStatusCode::isError, (_, _) -> {}) // Don't throw exceptions on error
-                .toEntity(clazz);
-
-        if (responseEntity.getStatusCode().isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
-            throw new RateLimitException("Rate limit was reached");
-        }
-        if (responseEntity.getStatusCode().isError()) {
-            return null;
-        }
-        return responseEntity.getBody();
+        return client.get().uri(requestUrl).exchange((request, response) -> {
+            HttpStatusCode status = response.getStatusCode();
+            if (status.isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
+                throw new RateLimitException("Rate limit was reached");
+            }
+            if (status.isError() || status.isSameCodeAs(HttpStatus.NO_CONTENT)) {
+                return null;
+            }
+            MediaType contentType = response.getHeaders().getContentType();
+            if (contentType == null || !contentType.isCompatibleWith(MediaType.APPLICATION_JSON)) {
+                return null;
+            }
+            return response.bodyTo(clazz);
+        });
     }
 
     /**

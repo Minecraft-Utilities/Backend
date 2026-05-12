@@ -275,8 +275,10 @@ public class PlayerService {
      * @return list of matching players with skin, up to {@value #MAX_PLAYER_SEARCH_RESULTS}
      */
     public List<PlayerSearchEntry> searchPlayers(String query) {
-        String prefixEnd = query.isEmpty() ? "\uFFFF" : query.charAt(query.length() - 1) == Character.MAX_VALUE ? query + "\uFFFF" : query.substring(0, query.length() - 1) + (char) (query.charAt(query.length() - 1) + 1);
-        Query q = Query.query(Criteria.where("username").gte(query).lt(prefixEnd)).collation(Collation.of("en").strength(Collation.ComparisonLevel.secondary())).withHint("username_case_insensitive").with(PageRequest.of(0, MAX_PLAYER_SEARCH_RESULTS));
+        String prefixEnd = query.isEmpty() ? "\uFFFF" : query.charAt(query.length() - 1) == Character.MAX_VALUE ? query + "\uFFFF" :
+                                                        query.substring(0, query.length() - 1) + (char) (query.charAt(query.length() - 1) + 1);
+        Query q = Query.query(Criteria.where("username").gte(query).lt(prefixEnd)).collation(Collation.of("en")
+                .strength(Collation.ComparisonLevel.secondary())).withHint("username_case_insensitive").with(PageRequest.of(0, MAX_PLAYER_SEARCH_RESULTS));
         List<Document> docs = MongoUtils.findWithFields(mongoTemplate, q, PlayerDocument.class, "_id", "username", "skin");
         Set<UUID> skinIds = new HashSet<>();
         for (Document d : docs) {
@@ -289,7 +291,8 @@ public class PlayerService {
         for (var e : skinManager.getByIds(skinIds).entrySet()) {
             skinById.put(e.getKey(), skinService.fromDocument(e.getValue()));
         }
-        return docs.stream().map(d -> new PlayerSearchEntry(d.get("_id", UUID.class), d.getString("username"), d.get("skin", UUID.class) != null ? skinById.get(d.get("skin", UUID.class)) : null)).toList();
+        return docs.stream().map(d -> new PlayerSearchEntry(d.get("_id", UUID.class), d.getString("username"),
+                d.get("skin", UUID.class) != null ? skinById.get(d.get("skin", UUID.class)) : null)).toList();
     }
 
     /**
@@ -380,13 +383,15 @@ public class PlayerService {
             }
         }
 
-        return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, skinHistory, cape, capeHistory, usernameHistory, document.getLastUpdated(), document.getFirstSeen());
+        return new Player(document.getId(), document.getUsername(), document.isLegacyAccount(), skin, skinHistory, cape,
+                capeHistory, usernameHistory, document.getLastUpdated(), document.getFirstSeen());
     }
 
     /**
      * Writes username, skin, and cape history entries for the player, incrementing usage counters on first-seen entries.
      */
-    private void writeHistory(UUID playerId, String currentName, String newName, UUID currentSkinId, UUID currentCapeId, ResolvedAssets assets, Instant now) {
+    private void writeHistory(UUID playerId, String currentName, String newName, UUID currentSkinId, UUID currentCapeId,
+                              ResolvedAssets assets, Instant now) {
         if (!newName.equals(currentName)) {
             playerHistoryService.ensureUsernameInHistory(playerId, newName, now);
         }
@@ -451,7 +456,8 @@ public class PlayerService {
     /**
      * Applies Mojang profile to the player document: resolves assets, writes history, and patches the document.
      */
-    public void applyProfileToPlayer(UUID playerId, UUID currentSkinId, UUID currentCapeId, MojangProfileToken token, PlayerDocument doc, Instant updatedAt) {
+    public void applyProfileToPlayer(UUID playerId, UUID currentSkinId, UUID currentCapeId, MojangProfileToken token,
+                                     PlayerDocument doc, Instant updatedAt) {
         ResolvedAssets assets = resolveAssets(playerId, currentSkinId, currentCapeId, token);
         writeHistory(playerId, doc.getUsername(), token.getName(), currentSkinId, currentCapeId, assets, updatedAt);
         patchDocument(doc, token.getName(), token.isLegacy(), assets, updatedAt);
