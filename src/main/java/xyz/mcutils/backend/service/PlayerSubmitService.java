@@ -6,6 +6,7 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.*;
@@ -52,6 +53,11 @@ public class PlayerSubmitService {
         this.mojangService = mojangService;
     }
 
+    @EventListener(ContextClosedEvent.class)
+    public void onContextClosed() {
+        running.set(false);
+    }
+
     @EventListener(ApplicationReadyEvent.class)
     public void startSubmitConsumer() {
         var listOps = redis.opsForList();
@@ -69,6 +75,9 @@ public class PlayerSubmitService {
                     batch.addAll(takeBatchFromQueue(BATCH_SIZE - 1));
                     processBatch(batch, listOps, setOps);
                 } catch (Exception e) {
+                    if (!running.get()) {
+                        break;
+                    }
                     log.error("Submit queue consumer error, continuing", e);
                 }
             }
@@ -219,10 +228,6 @@ public class PlayerSubmitService {
         return size != null ? size : 0L;
     }
 
-
-    public void stop() {
-        running.set(false);
-    }
 
     private record QueueEntry(UUID playerId, UUID submittedBy) {
         String toRedisValue() {

@@ -4,6 +4,7 @@ import com.google.common.util.concurrent.RateLimiter;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -40,6 +41,11 @@ public class PlayerRefreshService {
         this.playerManager = playerManager;
         this.playerService = playerService;
         this.mongoTemplate = mongoTemplate;
+    }
+
+    @EventListener(ContextClosedEvent.class)
+    public void onContextClosed() {
+        running.set(false);
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -102,10 +108,4 @@ public class PlayerRefreshService {
                 .toList();
     }
 
-    /**
-     * Stops the refresh loop (e.g. on shutdown before flush).
-     */
-    public void stop() {
-        running.set(false);
-    }
 }
