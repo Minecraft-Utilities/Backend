@@ -16,8 +16,6 @@ spring:
     default-property-inclusion: non_null
     mapper:
       sort-properties-alphabetically: false
-    serialization:
-      write-dates-as-timestamps: false
 
 logging:
   pattern:
