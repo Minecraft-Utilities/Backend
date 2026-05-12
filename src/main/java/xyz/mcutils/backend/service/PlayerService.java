@@ -384,14 +384,14 @@ public class PlayerService {
     /**
      * Writes username, skin, and cape history entries for the player, incrementing usage counters on first-seen entries.
      */
-    private void writeHistory(UUID playerId, String currentName, String newName, ResolvedAssets assets, Date now) {
+    private void writeHistory(UUID playerId, String currentName, String newName, UUID currentSkinId, UUID currentCapeId, ResolvedAssets assets, Date now) {
         if (!newName.equals(currentName)) {
             playerHistoryService.ensureUsernameInHistory(playerId, newName, now);
         }
-        if (assets.skinId() != null && playerHistoryService.ensureSkinInHistory(playerId, assets.skinId(), now)) {
+        if (assets.skinId() != null && !assets.skinId().equals(currentSkinId) && playerHistoryService.ensureSkinInHistory(playerId, assets.skinId(), now)) {
             skinManager.incrementAccountsUsed(assets.skinId(), 1);
         }
-        if (assets.capeId() != null && playerHistoryService.ensureCapeInHistory(playerId, assets.capeId(), now)) {
+        if (assets.capeId() != null && !assets.capeId().equals(currentCapeId) && playerHistoryService.ensureCapeInHistory(playerId, assets.capeId(), now)) {
             capeManager.incrementAccountsOwned(assets.capeId(), 1);
         }
     }
@@ -451,7 +451,7 @@ public class PlayerService {
      */
     public void applyProfileToPlayer(UUID playerId, UUID currentSkinId, UUID currentCapeId, MojangProfileToken token, PlayerDocument doc, Date updatedAt) {
         ResolvedAssets assets = resolveAssets(playerId, currentSkinId, currentCapeId, token);
-        writeHistory(playerId, doc.getUsername(), token.getName(), assets, updatedAt);
+        writeHistory(playerId, doc.getUsername(), token.getName(), currentSkinId, currentCapeId, assets, updatedAt);
         patchDocument(doc, token.getName(), token.isLegacy(), assets, updatedAt);
     }
 

@@ -137,7 +137,7 @@ public class SkinManager {
     }
 
     /**
-     * Gets or creates a skin by texture id. If missing, inserts and puts in cache.
+     * Gets or creates a skin by texture id. If missing, creates in memory and marks dirty for flush.
      */
     public SkinDocument getOrCreateByTextureId(SkinTextureToken token, UUID playerUuid) {
         Optional<SkinDocument> existing = this.getByTextureId(token.getTextureId());
@@ -145,9 +145,13 @@ public class SkinManager {
             return existing.get();
         }
         SkinTextureToken.Metadata metadata = token.metadata();
-        SkinDocument document = this.skinRepository.insert(new SkinDocument(UUID.randomUUID(), token.getTextureId(), EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.model()), Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), this.webRequest), 0, playerUuid, new Date()));
+        SkinDocument document = new SkinDocument(UUID.randomUUID(), token.getTextureId(), EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.model()), Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), this.webRequest), 0, playerUuid, new Date());
         StatisticsService.updateTrackedSkinCount(StatisticsService.INSTANCE.getTrackedSkinCount() + 1);
         put(document);
+        CachedSkinDocument cached = this.cacheById.getIfPresent(document.getId());
+        if (cached != null) {
+            cached.setDirty(true);
+        }
         log.debug("Created skin {}", document.getTextureId());
         return document;
     }

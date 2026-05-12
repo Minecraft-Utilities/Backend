@@ -118,7 +118,7 @@ public class CapeManager {
     }
 
     /**
-     * Gets or creates a cape by texture id. If missing, validates existence then inserts and puts in cache.
+     * Gets or creates a cape by texture id. If missing, validates existence then creates in memory and marks dirty for flush.
      *
      * @throws NotFoundException if the cape does not exist and cannot be created
      */
@@ -136,9 +136,13 @@ public class CapeManager {
         if (!exists) {
             throw new NotFoundException("Cape with texture id " + textureId + " was not found");
         }
-        CapeDocument document = this.capeRepository.insert(new CapeDocument(UUID.randomUUID(), null, textureId, 0, new Date()));
+        CapeDocument document = new CapeDocument(UUID.randomUUID(), null, textureId, 0, new Date());
         StatisticsService.updateTrackedCapeCount(StatisticsService.INSTANCE.getTrackedCapeCount() + 1);
         put(document);
+        CachedCapeDocument cached = this.cacheById.getIfPresent(document.getId());
+        if (cached != null) {
+            cached.setDirty(true);
+        }
         log.debug("Created cape {}", document.getTextureId());
         return document;
     }
