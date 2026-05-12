@@ -74,6 +74,7 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
             BufferedImage image = ImageUtils.decodeImage(webRequest.getAsByteArray(textureUrl));
             return image.getWidth() == 64 && image.getHeight() == 32;
         } catch (IllegalStateException e) {
+            log.debug("Failed to determine legacy skin status for texture URL: {}", textureUrl, e);
             return false;
         }
     }
