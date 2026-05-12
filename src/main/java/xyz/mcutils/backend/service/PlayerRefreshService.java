@@ -1,5 +1,6 @@
 package xyz.mcutils.backend.service;
 
+import com.google.common.util.concurrent.RateLimiter;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -28,15 +29,15 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Future;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+@SuppressWarnings("UnstableApiUsage")
 @Service
 @Slf4j
 public class PlayerRefreshService {
     private static final int REFRESH_CHUNK_SIZE = 5_000;
     
-    private final Semaphore refreshConcurrencyLimit = new Semaphore(5);
+    private final RateLimiter rateLimiter = RateLimiter.create(40);
     private final MojangService mojangService;
     private final SkinService skinService;
     private final CapeService capeService;
@@ -81,24 +82,15 @@ public class PlayerRefreshService {
                             if (playerDocument == null) {
                                 return;
                             }
-                            try {
-                                refreshConcurrencyLimit.acquire();
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
+                            rateLimiter.acquire();
+                            MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
+                            if (token == null) {
                                 return;
                             }
-                            try {
-                                MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
-                                if (token == null) {
-                                    return;
-                                }
-                                UUID skinId = playerDocument.getSkinId();
-                                UUID capeId = playerDocument.getCapeId();
-                                applyProfileToPlayer(playerDocument.getId(), skinId, capeId, token, playerDocument, batchTime);
-                                refreshedIds.add(playerDocument.getId());
-                            } finally {
-                                refreshConcurrencyLimit.release();
-                            }
+                            UUID skinId = playerDocument.getSkinId();
+                            UUID capeId = playerDocument.getCapeId();
+                            applyProfileToPlayer(playerDocument.getId(), skinId, capeId, token, playerDocument, batchTime);
+                            refreshedIds.add(playerDocument.getId());
                         }));
                     }
                     FutureUtils.awaitAll(futures, "player refresh");

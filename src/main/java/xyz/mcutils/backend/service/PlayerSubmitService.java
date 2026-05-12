@@ -1,34 +1,16 @@
 package xyz.mcutils.backend.service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Future;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-
+import com.google.common.util.concurrent.RateLimiter;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.connection.RedisConnection;
-import org.springframework.data.redis.core.ListOperations;
-import org.springframework.data.redis.core.RedisOperations;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.SessionCallback;
-import org.springframework.data.redis.core.SetOperations;
+import org.springframework.data.redis.core.*;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.stereotype.Service;
-
-import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.FutureUtils;
 import xyz.mcutils.backend.common.UUIDUtils;
@@ -37,10 +19,18 @@ import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.dto.PlayerCreateSubmission;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * Dedicated submit queue for tracking new players.
  * Queue entries are stored as strings: {@code playerUuid,submitterUuid} (or {@code playerUuid} when no submitter).
  */
+@SuppressWarnings("UnstableApiUsage")
 @Service
 @Slf4j
 public class PlayerSubmitService {
@@ -50,7 +40,7 @@ public class PlayerSubmitService {
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
     
-    private final Semaphore submitConcurrencyLimit = new Semaphore(10);
+    private final RateLimiter rateLimiter = RateLimiter.create(40);
     private final RedisTemplate<String, String> redis;
     private final PlayerService playerService;
     private final MojangService mojangService;
@@ -138,33 +128,24 @@ public class PlayerSubmitService {
         List<Future<?>> futures = new ArrayList<>();
         for (QueueEntry entry : toProcess) {
             Future<?> future = Main.EXECUTOR.submit(() -> {
+                rateLimiter.acquire();
+                boolean requeued = false;
                 try {
-                    submitConcurrencyLimit.acquire();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
-                try {
-                    boolean requeued = false;
-                    try {
-                        MojangProfileToken token = mojangService.getProfile(entry.playerId().toString());
-                        if (token == null) {
-                            log.warn("Player with uuid '{}' was not found", entry.playerId());
-                            return;
-                        }
-                        created.add(new PlayerCreateSubmission(token, entry.submittedBy()));
-                    } catch (NotFoundException e) {
-                        log.debug("Player {} not found on Mojang, removing from queue", entry.playerId(), e);
-                    } catch (MojangAPIRateLimitException e) {
-                        listOps.rightPush(REDIS_QUEUE_KEY, entry.toRedisValue());
-                        requeued = true;
-                    } finally {
-                        if (!requeued) {
-                            idsToRemoveFromQueue.add(entry.playerId().toString());
-                        }
+                    MojangProfileToken token = mojangService.getProfile(entry.playerId().toString());
+                    if (token == null) {
+                        log.warn("Player with uuid '{}' was not found", entry.playerId());
+                        return;
                     }
+                    created.add(new PlayerCreateSubmission(token, entry.submittedBy()));
+                } catch (NotFoundException e) {
+                    log.debug("Player {} not found on Mojang, removing from queue", entry.playerId(), e);
+                } catch (MojangAPIRateLimitException e) {
+                    listOps.rightPush(REDIS_QUEUE_KEY, entry.toRedisValue());
+                    requeued = true;
                 } finally {
-                    submitConcurrencyLimit.release();
+                    if (!requeued) {
+                        idsToRemoveFromQueue.add(entry.playerId().toString());
+                    }
                 }
             });
             futures.add(future);
