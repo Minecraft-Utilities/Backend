@@ -10,7 +10,7 @@ import xyz.mcutils.backend.model.domain.player.history.SkinHistory;
 import xyz.mcutils.backend.model.domain.player.history.UsernameHistory;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 
@@ -74,14 +74,14 @@ public class Player {
     /**
      * The time this account was last updated.
      */
-    private Date lastUpdated;
+    private Instant lastUpdated;
 
     /**
      * The date this player was first seen on.
      */
-    private Date firstSeen;
+    private Instant firstSeen;
 
-    public Player(UUID uniqueId, String username, boolean legacyAccount, Skin skin, Set<SkinHistory> skinHistory, @Nullable VanillaCape cape, @Nullable Set<CapeHistory> capeHistory, Set<UsernameHistory> usernameHistory, Date lastUpdated, Date firstSeen) {
+    public Player(UUID uniqueId, String username, boolean legacyAccount, Skin skin, Set<SkinHistory> skinHistory, @Nullable VanillaCape cape, @Nullable Set<CapeHistory> capeHistory, Set<UsernameHistory> usernameHistory, Instant lastUpdated, Instant firstSeen) {
         this.uniqueId = uniqueId;
         this.username = username;
         this.legacyAccount = legacyAccount;

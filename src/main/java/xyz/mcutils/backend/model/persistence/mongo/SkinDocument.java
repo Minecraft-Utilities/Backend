@@ -7,7 +7,7 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -59,5 +59,5 @@ public class SkinDocument {
     /**
      * The date this skin was first seen on.
      */
-    private Date firstSeen;
+    private Instant firstSeen;
 }

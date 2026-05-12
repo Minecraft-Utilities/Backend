@@ -5,7 +5,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -37,7 +37,7 @@ public class PlayerRefreshRow {
     @Field("cape")
     private UUID cape;
 
-    private Date lastUpdated;
+    private Instant lastUpdated;
 
     private boolean legacyAccount;
 }

@@ -17,6 +17,7 @@ import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.repository.mongo.SkinRepository;
 import xyz.mcutils.backend.service.StatisticsService;
 
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -145,7 +146,7 @@ public class SkinManager {
             return existing.get();
         }
         SkinTextureToken.Metadata metadata = token.metadata();
-        SkinDocument document = new SkinDocument(UUID.randomUUID(), token.getTextureId(), EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.model()), Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), this.webRequest), 0, playerUuid, new Date());
+        SkinDocument document = new SkinDocument(UUID.randomUUID(), token.getTextureId(), EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.model()), Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), this.webRequest), 0, playerUuid, Instant.now());
         StatisticsService.updateTrackedSkinCount(StatisticsService.INSTANCE.getTrackedSkinCount() + 1);
         put(document);
         CachedSkinDocument cached = this.cacheById.getIfPresent(document.getId());

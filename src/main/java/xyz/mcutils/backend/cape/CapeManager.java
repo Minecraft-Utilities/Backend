@@ -14,6 +14,7 @@ import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
 import xyz.mcutils.backend.repository.mongo.CapeRepository;
 import xyz.mcutils.backend.service.StatisticsService;
 
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -136,7 +137,7 @@ public class CapeManager {
         if (!exists) {
             throw new NotFoundException("Cape with texture id " + textureId + " was not found");
         }
-        CapeDocument document = new CapeDocument(UUID.randomUUID(), null, textureId, 0, new Date());
+        CapeDocument document = new CapeDocument(UUID.randomUUID(), null, textureId, 0, Instant.now());
         StatisticsService.updateTrackedCapeCount(StatisticsService.INSTANCE.getTrackedCapeCount() + 1);
         put(document);
         CachedCapeDocument cached = this.cacheById.getIfPresent(document.getId());

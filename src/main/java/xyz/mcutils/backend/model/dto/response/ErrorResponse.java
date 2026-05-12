@@ -2,7 +2,7 @@ package xyz.mcutils.backend.model.dto.response;
 
 import org.springframework.http.HttpStatus;
 
-import java.util.Date;
+import java.time.Instant;
 
 /**
  * @param status    The status code of this error.
@@ -10,8 +10,8 @@ import java.util.Date;
  * @param message   The message of this error.
  * @param timestamp The timestamp this error occurred.
  */
-public record ErrorResponse(HttpStatus status, int code, String message, Date timestamp) {
+public record ErrorResponse(HttpStatus status, int code, String message, Instant timestamp) {
     public ErrorResponse(HttpStatus status, String message) {
-        this(status, status.value(), message, new Date());
+        this(status, status.value(), message, Instant.now());
     }
 }

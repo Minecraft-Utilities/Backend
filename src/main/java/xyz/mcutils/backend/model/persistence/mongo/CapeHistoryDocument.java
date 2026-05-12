@@ -6,7 +6,7 @@ import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.DocumentReference;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.UUID;
 
 @Document(collection = "cape-history")
@@ -37,10 +37,10 @@ public class CapeHistoryDocument {
     /**
      * The time this cape was last used by the player.
      */
-    private Date lastUsed;
+    private Instant lastUsed;
 
     /**
      * The time this cape was seen on the player.
      */
-    private Date timestamp;
+    private Instant timestamp;
 }

@@ -6,7 +6,7 @@ import xyz.mcutils.backend.repository.mongo.CapeHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.SkinHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,7 +35,7 @@ public class PlayerHistoryService {
      * @param username the current username to ensure
      * @param now      the timestamp
      */
-    public void ensureUsernameInHistory(UUID playerId, String username, Date now) {
+    public void ensureUsernameInHistory(UUID playerId, String username, Instant now) {
         if (username == null || username.isBlank()) {
             return;
         }
@@ -53,7 +53,7 @@ public class PlayerHistoryService {
      * @param now      the timestamp
      * @return true if a new entry was inserted, false if an existing entry was updated or already present
      */
-    public boolean ensureSkinInHistory(UUID playerId, UUID skinId, Date now) {
+    public boolean ensureSkinInHistory(UUID playerId, UUID skinId, Instant now) {
         if (playerId == null || skinId == null) {
             return false;
         }
@@ -76,7 +76,7 @@ public class PlayerHistoryService {
      * @param now      the timestamp
      * @return true if a new entry was inserted, false if an existing entry was updated or already present
      */
-    public boolean ensureCapeInHistory(UUID playerId, UUID capeId, Date now) {
+    public boolean ensureCapeInHistory(UUID playerId, UUID capeId, Instant now) {
         if (playerId == null || capeId == null) {
             return false;
         }

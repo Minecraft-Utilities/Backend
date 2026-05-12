@@ -17,6 +17,7 @@ import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.player.PlayerManager;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -51,7 +52,7 @@ public class PlayerRefreshService {
                         Thread.sleep(Duration.ofSeconds(10));
                         continue;
                     }
-                    Date batchTime = new Date();
+                    Instant batchTime = Instant.now();
                     Map<UUID, PlayerDocument> playerMap = this.playerManager.getByUuids(ids);
                     List<Future<?>> futures = new ArrayList<>();
                     for (UUID playerId : ids) {

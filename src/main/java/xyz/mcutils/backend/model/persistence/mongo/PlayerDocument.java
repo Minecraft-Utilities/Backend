@@ -8,7 +8,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 import xyz.mcutils.backend.model.domain.player.Player;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -62,10 +62,10 @@ public class PlayerDocument {
      * The time this account was last updated.
      */
     @Indexed
-    private Date lastUpdated;
+    private Instant lastUpdated;
 
     /**
      * The date this player was first seen on.
      */
-    private Date firstSeen;
+    private Instant firstSeen;
 }

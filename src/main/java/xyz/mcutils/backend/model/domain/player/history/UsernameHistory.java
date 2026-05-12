@@ -1,6 +1,6 @@
 package xyz.mcutils.backend.model.domain.player.history;
 
-import java.util.Date;
+import java.time.Instant;
 
 /**
  * A record representing a username history entry for a player.
@@ -8,4 +8,4 @@ import java.util.Date;
  * @param username  the username of the player
  * @param timestamp the timestamp of the username history entry
  */
-public record UsernameHistory(String username, Date timestamp) {}
+public record UsernameHistory(String username, Instant timestamp) {}

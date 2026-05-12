@@ -4,7 +4,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,5 +21,5 @@ public interface PlayerRepository extends MongoRepository<PlayerDocument, UUID> 
      * @param pageable page and size (e.g. first 2500)
      * @return list of player documents (no total count query)
      */
-    List<PlayerDocument> findListByLastUpdatedBeforeOrderByLastUpdatedAsc(Date before, Pageable pageable);
+    List<PlayerDocument> findListByLastUpdatedBeforeOrderByLastUpdatedAsc(Instant before, Pageable pageable);
 }

@@ -98,7 +98,7 @@ public class PlayerService {
             UUID finalPlayerUuid = playerUuid;
             return playerDocument.map(document -> {
                 Player player = fromDocument(document);
-                if (document.getLastUpdated().toInstant().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
+                if (document.getLastUpdated().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
                     MojangProfileToken token = mojangService.getProfile(finalPlayerUuid.toString());
                     if (token == null) {
                         throw new NotFoundException("Player with uuid '%s' was not found".formatted(finalPlayerUuid));
@@ -146,7 +146,7 @@ public class PlayerService {
         if (submissions == null || submissions.isEmpty()) {
             return;
         }
-        Date now = new Date();
+        Instant now = Instant.now();
         List<PlayerDocument> playerDocuments = new ArrayList<>();
         List<SkinHistoryDocument> skinHistoryDocuments = new ArrayList<>();
         List<UsernameHistoryDocument> usernameHistoryDocuments = new ArrayList<>();
@@ -386,7 +386,7 @@ public class PlayerService {
     /**
      * Writes username, skin, and cape history entries for the player, incrementing usage counters on first-seen entries.
      */
-    private void writeHistory(UUID playerId, String currentName, String newName, UUID currentSkinId, UUID currentCapeId, ResolvedAssets assets, Date now) {
+    private void writeHistory(UUID playerId, String currentName, String newName, UUID currentSkinId, UUID currentCapeId, ResolvedAssets assets, Instant now) {
         if (!newName.equals(currentName)) {
             playerHistoryService.ensureUsernameInHistory(playerId, newName, now);
         }
@@ -438,7 +438,7 @@ public class PlayerService {
     /**
      * Patches the player document fields in place and marks it dirty for flushing.
      */
-    private void patchDocument(PlayerDocument doc, String name, boolean legacyAccount, ResolvedAssets assets, Date now) {
+    private void patchDocument(PlayerDocument doc, String name, boolean legacyAccount, ResolvedAssets assets, Instant now) {
         doc.setUsername(name);
         doc.setSkinId(assets.skinId());
         doc.setCapeId(assets.capeId());
@@ -451,7 +451,7 @@ public class PlayerService {
     /**
      * Applies Mojang profile to the player document: resolves assets, writes history, and patches the document.
      */
-    public void applyProfileToPlayer(UUID playerId, UUID currentSkinId, UUID currentCapeId, MojangProfileToken token, PlayerDocument doc, Date updatedAt) {
+    public void applyProfileToPlayer(UUID playerId, UUID currentSkinId, UUID currentCapeId, MojangProfileToken token, PlayerDocument doc, Instant updatedAt) {
         ResolvedAssets assets = resolveAssets(playerId, currentSkinId, currentCapeId, token);
         writeHistory(playerId, doc.getUsername(), token.getName(), currentSkinId, currentCapeId, assets, updatedAt);
         patchDocument(doc, token.getName(), token.isLegacy(), assets, updatedAt);
@@ -469,7 +469,7 @@ public class PlayerService {
         UUID currentSkinId = document.getSkinId();
         UUID currentCapeId = document.getCapeId();
 
-        applyProfileToPlayer(playerId, currentSkinId, currentCapeId, token, document, new Date());
+        applyProfileToPlayer(playerId, currentSkinId, currentCapeId, token, document, Instant.now());
 
         // Reload from manager to get updated doc and sync to Player entity
         playerManager.getByUuid(playerId).ifPresent(updated -> {

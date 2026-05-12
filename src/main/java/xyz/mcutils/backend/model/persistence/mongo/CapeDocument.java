@@ -5,7 +5,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.util.Date;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -47,5 +47,5 @@ public class CapeDocument {
     /**
      * The date this cape was first seen on.
      */
-    private Date firstSeen;
+    private Instant firstSeen;
 }

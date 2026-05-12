@@ -64,8 +64,9 @@ public class PlayerSubmitService {
                     if (first == null) {
                         continue;
                     }
-                    List<String> batch = new ArrayList<>(takeBatchFromQueue(BATCH_SIZE - 1));
-                    batch.addFirst(first);
+                    List<String> batch = new ArrayList<>(BATCH_SIZE);
+                    batch.add(first);
+                    batch.addAll(takeBatchFromQueue(BATCH_SIZE - 1));
                     processBatch(batch, listOps, setOps);
                 } catch (Exception e) {
                     log.error("Submit queue consumer error, continuing", e);
