@@ -21,7 +21,9 @@ import xyz.mcutils.backend.exception.impl.RateLimitException;
 import xyz.mcutils.backend.metric.impl.player.AccountsUpdatedMetric;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
-import xyz.mcutils.backend.model.domain.player.UsernameHistory;
+import xyz.mcutils.backend.model.domain.player.history.CapeHistory;
+import xyz.mcutils.backend.model.domain.player.history.SkinHistory;
+import xyz.mcutils.backend.model.domain.player.history.UsernameHistory;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.dto.PlayerCreateSubmission;
 import xyz.mcutils.backend.model.dto.response.PlayerSearchEntry;
@@ -339,14 +341,14 @@ public class PlayerService {
             skin = sd != null ? skinService.fromDocument(sd) : null;
         }
 
-        Set<Skin> skinHistory = null;
+        Set<SkinHistory> skinHistory = null;
         if (!skinHistoryDocs.isEmpty()) {
             skinHistory = new HashSet<>();
             for (SkinHistoryDocument entry : skinHistoryDocs) {
                 if (entry.getSkin() != null && entry.getSkin().getId() != null) {
                     SkinDocument sd = skinDocById.get(entry.getSkin().getId());
                     if (sd != null) {
-                        skinHistory.add(skinService.fromDocument(sd));
+                        skinHistory.add(new SkinHistory(skinService.fromDocument(sd), entry.getTimestamp(), entry.getLastUsed()));
                     }
                 }
             }
@@ -357,14 +359,14 @@ public class PlayerService {
             CapeDocument cd = capeDocById.get(document.getCapeId());
             cape = cd != null ? capeService.fromDocument(cd) : null;
         }
-        Set<VanillaCape> capeHistory = null;
+        Set<CapeHistory> capeHistory = null;
         if (!capeHistoryDocs.isEmpty()) {
             capeHistory = new HashSet<>();
             for (CapeHistoryDocument entry : capeHistoryDocs) {
                 if (entry.getCape() != null && entry.getCape().getId() != null) {
                     CapeDocument cd = capeDocById.get(entry.getCape().getId());
                     if (cd != null) {
-                        capeHistory.add(capeService.fromDocument(cd));
+                        capeHistory.add(new CapeHistory(capeService.fromDocument(cd), entry.getTimestamp(), entry.getLastUsed()));
                     }
                 }
             }

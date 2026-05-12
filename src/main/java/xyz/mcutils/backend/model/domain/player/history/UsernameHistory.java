@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.model.domain.player;
+package xyz.mcutils.backend.model.domain.player.history;
 
 import java.util.Date;
 

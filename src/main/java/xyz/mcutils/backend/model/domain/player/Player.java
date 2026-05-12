@@ -5,6 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.data.annotation.Id;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
+import xyz.mcutils.backend.model.domain.player.history.CapeHistory;
+import xyz.mcutils.backend.model.domain.player.history.SkinHistory;
+import xyz.mcutils.backend.model.domain.player.history.UsernameHistory;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 
 import java.util.Date;
@@ -48,7 +51,7 @@ public class Player {
     /**
      * The skins this player has previously equipped (including current).
      */
-    private Set<Skin> skinHistory;
+    private Set<SkinHistory> skinHistory;
 
     /**
      * The Cape for the player.
@@ -60,7 +63,7 @@ public class Player {
      * The capes this player has previously equipped (including current).
      */
     @Nullable
-    private Set<VanillaCape> capeHistory;
+    private Set<CapeHistory> capeHistory;
 
     /**
      * The username history of the player.
@@ -78,7 +81,7 @@ public class Player {
      */
     private Date firstSeen;
 
-    public Player(UUID uniqueId, String username, boolean legacyAccount, Skin skin, Set<Skin> skinHistory, @Nullable VanillaCape cape, @Nullable Set<VanillaCape> capeHistory, Set<UsernameHistory> usernameHistory, Date lastUpdated, Date firstSeen) {
+    public Player(UUID uniqueId, String username, boolean legacyAccount, Skin skin, Set<SkinHistory> skinHistory, @Nullable VanillaCape cape, @Nullable Set<CapeHistory> capeHistory, Set<UsernameHistory> usernameHistory, Date lastUpdated, Date firstSeen) {
         this.uniqueId = uniqueId;
         this.username = username;
         this.legacyAccount = legacyAccount;
