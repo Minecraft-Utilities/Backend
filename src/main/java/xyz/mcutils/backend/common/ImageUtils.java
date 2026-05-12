@@ -212,6 +212,38 @@ public class ImageUtils {
     }
 
     /**
+     * Returns {@code true} if every pixel in the image has an alpha value of zero
+     * (i.e. the image is fully transparent with no visible content).
+     *
+     * @param image the image to test
+     * @return {@code true} if all pixels are fully transparent
+     */
+    public static boolean isFullyTransparent(BufferedImage image) {
+        int w = image.getWidth();
+        int h = image.getHeight();
+        int[] pixels = image.getRGB(0, 0, w, h, null, 0, w);
+        for (int pixel : pixels) {
+            if (((pixel >> 24) & 0xFF) != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Fills every pixel in the image with fully-opaque black (0xFF000000).
+     *
+     * @param image the image to modify in-place
+     */
+    public static void fillBlack(BufferedImage image) {
+        int w = image.getWidth();
+        int h = image.getHeight();
+        int[] pixels = new int[w * h];
+        Arrays.fill(pixels, 0xFF000000);
+        image.setRGB(0, 0, w, h, pixels, 0, w);
+    }
+
+    /**
      * Encodes the image as PNG bytes. Uses PngEncoder for faster encoding than ImageIO.
      *
      * @param image the image to encode

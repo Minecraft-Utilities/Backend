@@ -199,11 +199,10 @@ public class SkinService {
      * @return the skin image
      */
     public byte[] getSkinTexture(String textureId, String textureUrl, boolean upgrade) {
-        return textureLoader.get(textureId + "-" + upgrade, () -> {
-            byte[] skinBytes;
+        byte[] skin = textureLoader.get(textureId, () -> {
             long start = System.currentTimeMillis();
 
-            skinBytes = this.storageService.get(StorageService.Bucket.SKINS, textureId + ".png");
+            byte[] skinBytes = this.storageService.get(StorageService.Bucket.SKINS, textureId + ".png");
             if (skinBytes == null) {
                 log.debug("Downloading skin image for skin {}", textureId);
                 byte[] bytes = webRequest.getAsByteArray(textureUrl);
@@ -212,10 +211,11 @@ public class SkinService {
                 }
                 log.debug("Downloaded skin image for skin {} in {}ms", textureId, System.currentTimeMillis() - start);
                 this.storageService.upload(StorageService.Bucket.SKINS, textureId + ".png", MediaType.IMAGE_PNG_VALUE, bytes);
-                return bytes;
+                skinBytes = bytes;
             }
-            return upgrade ? SkinUtils.upgradeLegacySkin(textureId, skinBytes) : skinBytes;
+            return skinBytes;
         });
+        return SkinUtils.fixTransparentSkin(upgrade ? SkinUtils.upgradeLegacySkin(textureId, skin) : skin);
     }
 
     /**

@@ -2,10 +2,12 @@ package xyz.mcutils.backend.common;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
+import xyz.mcutils.backend.common.renderer.texture.Coordinates;
 import xyz.mcutils.backend.common.renderer.texture.PlayerModelCoordinates;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.util.Arrays;
 
 @Slf4j
 public class SkinUtils {
@@ -71,5 +73,42 @@ public class SkinUtils {
         }
 
         return upgraded;
+    }
+
+    /**
+     * If the given skin texture is fully transparent (no visible pixels), fills all base-layer
+     * skin regions with opaque black so renders produce a visible silhouette rather than nothing.
+     * Overlay regions are left untouched.
+     *
+     * @param skinBytes the raw PNG bytes of the skin texture
+     * @return the (possibly modified) PNG bytes
+     */
+    public static byte[] fixTransparentSkin(byte[] skinBytes) {
+        BufferedImage skinImage = ImageUtils.decodeImage(skinBytes);
+        if (!ImageUtils.isFullyTransparent(skinImage)) {
+            return skinBytes;
+        }
+        fillBaseLayerBlack(skinImage);
+        return ImageUtils.imageToBytes(skinImage);
+    }
+
+    /**
+     * Fills every base-layer skin region (head, body, arms, legs — not overlays) with fully
+     * opaque black. Overlay regions are not modified.
+     *
+     * @param skinImage the 64×64 skin image to modify in-place
+     */
+    private static void fillBaseLayerBlack(BufferedImage skinImage) {
+        for (PlayerModelCoordinates.Skin part : PlayerModelCoordinates.Skin.values()) {
+            if (part.getOverlays().length == 0) {
+                continue;
+            }
+            Coordinates c = part.getCoordinates();
+            int w = c.width();
+            int h = c.height();
+            int[] pixels = new int[w * h];
+            Arrays.fill(pixels, 0xFF000000);
+            skinImage.setRGB(c.x(), c.y(), w, h, pixels, 0, w);
+        }
     }
 }
