@@ -137,14 +137,17 @@ public class CapeManager {
     public CapeDocument getOrCreateByTextureId(String textureId, UUID playerUuid) {
         Optional<CapeDocument> existing = this.getByTextureId(textureId);
         if (existing.isPresent()) {
-            return existing.get();
+            CapeDocument existingDoc = existing.get();
+            // Add missing playerSeenUsing if not already set
+            if (playerUuid != null && existingDoc.getFirstPlayerSeenUsing() == null) {
+                CachedCapeDocument cached = this.cacheById.getIfPresent(existingDoc.getId());
+                if (cached != null) {
+                    cached.setFirstPlayerSeenUsing(playerUuid);
+                }
+            }
+            return existingDoc;
         }
         return capeCreateLoader.get(textureId, () -> {
-            // Re-check inside the loader — cape may have been created via another path while we were waiting.
-            Optional<CapeDocument> recheck = this.getByTextureId(textureId);
-            if (recheck.isPresent()) {
-                return recheck.get();
-            }
             boolean exists = false;
             try {
                 exists = VanillaCape.capeExists(textureId, this.webRequest).get();

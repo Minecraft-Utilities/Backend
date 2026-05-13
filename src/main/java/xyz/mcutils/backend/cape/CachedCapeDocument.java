@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
 
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -24,6 +25,11 @@ public class CachedCapeDocument {
 
     public void addAccountsOwned(long delta) {
         this.accountsOwned.addAndGet(delta);
+        this.dirty = true;
+    }
+
+    public void setFirstPlayerSeenUsing(UUID playerUuid) {
+        this.document.setFirstPlayerSeenUsing(playerUuid);
         this.dirty = true;
     }
 
