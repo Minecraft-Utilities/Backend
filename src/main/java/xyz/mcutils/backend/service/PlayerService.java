@@ -38,6 +38,7 @@ import xyz.mcutils.backend.skin.SkinManager;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.Future;
 
 @Service
 @Slf4j
@@ -147,54 +148,55 @@ public class PlayerService {
             return;
         }
         Instant now = Instant.now();
-        List<PlayerDocument> playerDocuments = new ArrayList<>();
-        List<SkinHistoryDocument> skinHistoryDocuments = new ArrayList<>();
-        List<UsernameHistoryDocument> usernameHistoryDocuments = new ArrayList<>();
+
+        // Resolve skin/cape for each submission in parallel — each may do an HTTP call (isLegacySkin check).
+        List<Future<ResolvedEntry>> futures = new ArrayList<>(submissions.size());
+        for (PlayerCreateSubmission submission : submissions) {
+            futures.add(Main.EXECUTOR.submit(() -> resolveEntry(submission, now)));
+        }
+
+        List<PlayerDocument> playerDocuments = new ArrayList<>(submissions.size());
+        List<SkinHistoryDocument> skinHistoryDocuments = new ArrayList<>(submissions.size());
+        List<UsernameHistoryDocument> usernameHistoryDocuments = new ArrayList<>(submissions.size());
         List<CapeHistoryDocument> capeHistoryDocuments = new ArrayList<>();
         Map<UUID, Long> skinCounts = new HashMap<>();
         Map<UUID, Long> capeCounts = new HashMap<>();
         Map<UUID, Long> submitterCounts = new HashMap<>();
 
-        for (PlayerCreateSubmission submission : submissions) {
-            MojangProfileToken token = submission.profile();
-            UUID playerUuid = UUIDUtils.addDashes(token.getId());
-            Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
-
-            Skin skin = null;
-            if (skinAndCape != null && skinAndCape.left() != null) {
-                skin = this.skinService.getOrCreateSkinByTextureId(skinAndCape.left(), playerUuid);
+        for (Future<ResolvedEntry> future : futures) {
+            ResolvedEntry entry;
+            try {
+                entry = future.get();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted while resolving player submission, skipping", e);
+                continue;
+            } catch (Exception e) {
+                log.warn("Failed to resolve player submission, skipping", e);
+                continue;
             }
-            VanillaCape cape = null;
-            if (skinAndCape != null && skinAndCape.right() != null) {
-                cape = this.capeService.getCapeByTextureId(skinAndCape.right().getTextureId());
+            playerDocuments.add(entry.player());
+            skinHistoryDocuments.add(entry.skinHistory());
+            usernameHistoryDocuments.add(entry.usernameHistory());
+            if (entry.capeHistory() != null) {
+                capeHistoryDocuments.add(entry.capeHistory());
             }
-
-            UUID skinUuid = skin != null ? skin.getUuid() : null;
-            UUID capeUuid = cape != null ? cape.getUuid() : null;
-
-            playerDocuments.add(PlayerDocument.builder().id(playerUuid).username(token.getName()).legacyAccount(token.isLegacy()).skinId(skinUuid).capeId(capeUuid).lastUpdated(now).firstSeen(now).build());
-
-            skinHistoryDocuments.add(SkinHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerUuid).skin(skinUuid != null ? SkinDocument.builder().id(skinUuid).build() : null).lastUsed(now).firstSeen(now).build());
-
-            usernameHistoryDocuments.add(UsernameHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerUuid).username(token.getName()).firstSeen(now).lastUsed(now).build());
-
-            if (capeUuid != null) {
-                capeHistoryDocuments.add(CapeHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerUuid).cape(CapeDocument.builder().id(capeUuid).build()).lastUsed(now).firstSeen(now).build());
+            if (entry.player().getSkinId() != null) {
+                skinCounts.merge(entry.player().getSkinId(), 1L, Long::sum);
             }
-
-            if (skinUuid != null) {
-                skinCounts.merge(skinUuid, 1L, Long::sum);
+            if (entry.player().getCapeId() != null) {
+                capeCounts.merge(entry.player().getCapeId(), 1L, Long::sum);
             }
-            if (capeUuid != null) {
-                capeCounts.merge(capeUuid, 1L, Long::sum);
-            }
-            UUID submittedBy = submission.submittedBy();
-            if (submittedBy != null) {
-                submitterCounts.merge(submittedBy, 1L, Long::sum);
+            if (entry.submittedBy() != null) {
+                submitterCounts.merge(entry.submittedBy(), 1L, Long::sum);
             }
         }
 
-        StatisticsService.addTrackedPlayerCount(submissions.size());
+        if (playerDocuments.isEmpty()) {
+            return;
+        }
+
+        StatisticsService.addTrackedPlayerCount(playerDocuments.size());
 
         MongoUtils.bulkInsertUnordered(mongoTemplate, playerDocuments, PlayerDocument.class);
         MongoUtils.bulkInsertUnordered(mongoTemplate, skinHistoryDocuments, SkinHistoryDocument.class);
@@ -225,7 +227,34 @@ public class PlayerService {
             }
         }
 
-        log.debug("Bulk created {} players", submissions.size());
+        log.debug("Bulk created {} players", playerDocuments.size());
+    }
+
+    private ResolvedEntry resolveEntry(PlayerCreateSubmission submission, Instant now) {
+        MojangProfileToken token = submission.profile();
+        UUID playerUuid = UUIDUtils.addDashes(token.getId());
+        Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
+
+        Skin skin = null;
+        if (skinAndCape != null && skinAndCape.left() != null) {
+            skin = this.skinService.getOrCreateSkinByTextureId(skinAndCape.left(), playerUuid);
+        }
+        VanillaCape cape = null;
+        if (skinAndCape != null && skinAndCape.right() != null) {
+            cape = this.capeService.getCapeByTextureId(skinAndCape.right().getTextureId());
+        }
+
+        UUID skinUuid = skin != null ? skin.getUuid() : null;
+        UUID capeUuid = cape != null ? cape.getUuid() : null;
+
+        PlayerDocument playerDoc = PlayerDocument.builder().id(playerUuid).username(token.getName()).legacyAccount(token.isLegacy()).skinId(skinUuid).capeId(capeUuid).lastUpdated(now).firstSeen(now).build();
+        SkinHistoryDocument skinHistoryDoc = SkinHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerUuid).skin(skinUuid != null ? SkinDocument.builder().id(skinUuid).build() : null).lastUsed(now).firstSeen(now).build();
+        UsernameHistoryDocument usernameHistoryDoc = UsernameHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerUuid).username(token.getName()).firstSeen(now).lastUsed(now).build();
+        CapeHistoryDocument capeHistoryDoc = capeUuid != null
+                ? CapeHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerUuid).cape(CapeDocument.builder().id(capeUuid).build()).lastUsed(now).firstSeen(now).build()
+                : null;
+
+        return new ResolvedEntry(playerDoc, skinHistoryDoc, usernameHistoryDoc, capeHistoryDoc, submission.submittedBy());
     }
 
     /**
@@ -488,4 +517,8 @@ public class PlayerService {
     }
 
     private record ResolvedAssets(UUID skinId, UUID capeId) {}
+
+    private record ResolvedEntry(PlayerDocument player, SkinHistoryDocument skinHistory,
+                                  UsernameHistoryDocument usernameHistory, CapeHistoryDocument capeHistory,
+                                  UUID submittedBy) {}
 }

@@ -8,6 +8,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
+import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.common.CoalescingLoader;
 import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.WebRequest;
@@ -35,6 +37,7 @@ public class SkinManager {
     private final WebRequest webRequest;
     private final ConcurrentMap<String, UUID> textureIdToId = new ConcurrentHashMap<>();
     private final Cache<UUID, CachedSkinDocument> cacheById = CacheBuilder.newBuilder().maximumSize(1_000_000).removalListener(this::onEvictSkin).build();
+    private final CoalescingLoader<String, SkinDocument> skinCreateLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     public SkinManager(SkinRepository skinRepository, MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.skinRepository = skinRepository;
@@ -153,13 +156,15 @@ public class SkinManager {
         if (existing.isPresent()) {
             return existing.get();
         }
-        SkinTextureToken.Metadata metadata = token.metadata();
-        SkinDocument document = new SkinDocument(UUID.randomUUID(), token.getTextureId(), EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.model()), Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), this.webRequest), 0, playerUuid, Instant.now());
-        StatisticsService.updateTrackedSkinCount(StatisticsService.INSTANCE.getTrackedSkinCount() + 1);
-        this.skinRepository.insert(document);
-        put(document);
-        log.debug("Created skin {}", document.getTextureId());
-        return document;
+        return skinCreateLoader.get(token.getTextureId(), () -> {
+            SkinTextureToken.Metadata metadata = token.metadata();
+            SkinDocument document = new SkinDocument(UUID.randomUUID(), token.getTextureId(), EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.model()), Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), this.webRequest), 0, playerUuid, Instant.now());
+            this.skinRepository.insert(document);
+            StatisticsService.updateTrackedSkinCount(StatisticsService.INSTANCE.getTrackedSkinCount() + 1);
+            put(document);
+            log.debug("Created skin {}", document.getTextureId());
+            return document;
+        });
     }
 
     /**

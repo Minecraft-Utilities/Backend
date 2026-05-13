@@ -121,7 +121,6 @@ public class PlayerSubmitService {
      * @param setOps  the set operations
      */
     private void processBatch(List<String> batch, ListOperations<String, String> listOps, SetOperations<String, String> setOps) {
-        long batchStart = System.currentTimeMillis();
         List<QueueEntry> entries = batch.stream().map(QueueEntry::fromRedisValue).filter(Optional::isPresent).map(Optional::get).toList();
         if (entries.isEmpty()) {
             return;
@@ -135,12 +134,10 @@ public class PlayerSubmitService {
         if (!duplicateIdsToRemove.isEmpty()) {
             setOps.remove(REDIS_QUEUE_SET_KEY, (Object[]) duplicateIdsToRemove.toArray(new String[0]));
         }
-        log.debug("processBatch: raw={}, duplicates={}, toProcess={}", entries.size(), duplicateIdsToRemove.size(), toProcess.size());
 
         Set<String> idsToRemoveFromQueue = ConcurrentHashMap.newKeySet();
         Queue<PlayerCreateSubmission> created = new ConcurrentLinkedQueue<>();
         List<Future<?>> futures = new ArrayList<>();
-        long dispatchStart = System.currentTimeMillis();
         for (QueueEntry entry : toProcess) {
             rateLimiter.acquire();
             Future<?> future = Main.EXECUTOR.submit(() -> {
@@ -174,23 +171,12 @@ public class PlayerSubmitService {
             });
             futures.add(future);
         }
-        log.debug("processBatch: dispatch loop took {}ms for {} entries", System.currentTimeMillis() - dispatchStart, toProcess.size());
 
-        long awaitStart = System.currentTimeMillis();
         FutureUtils.awaitAll(futures, "submit");
-        log.debug("processBatch: awaitAll took {}ms", System.currentTimeMillis() - awaitStart);
-
         if (!idsToRemoveFromQueue.isEmpty()) {
             setOps.remove(REDIS_QUEUE_SET_KEY, (Object[]) idsToRemoveFromQueue.toArray(new String[0]));
         }
-
-        long createStart = System.currentTimeMillis();
         playerService.createPlayers(new ArrayList<>(created));
-        log.debug("processBatch: createPlayers took {}ms for {} players", System.currentTimeMillis() - createStart, created.size());
-
-        log.info("processBatch: completed {} entries in {}ms (dispatched={}, created={}, requeued={})",
-                toProcess.size(), System.currentTimeMillis() - batchStart,
-                futures.size(), created.size(), toProcess.size() - idsToRemoveFromQueue.size());
     }
 
     public int submitPlayers(List<String> players, String submittedBy) {
