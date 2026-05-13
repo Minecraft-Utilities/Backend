@@ -8,14 +8,16 @@ import java.util.UUID;
 /**
  * A page of capes for the /capes endpoint
  *
- * @param id           the UUID of the cape
- * @param imageUrl     the URL for the rendered cape image
+ * @param id            the UUID of the cape
+ * @param name          the display name of the cape
+ * @param imageUrl      the URL for the rendered cape image
  * @param accountsOwned the amount of accounts that own this cape
  */
-public record CapesPageDTO(UUID id, String imageUrl, long accountsOwned) {
+public record CapesPageDTO(UUID id, String name, String imageUrl, long accountsOwned) {
     public static CapesPageDTO fromDocument(CapeDocument document) {
         return new CapesPageDTO(
                 document.getId(),
+                document.getName(),
                 "%s/capes/vanilla/%s/front.png".formatted(AppConfig.INSTANCE.getWebPublicUrl(), document.getTextureId()),
                 document.getAccountsOwned()
         );
