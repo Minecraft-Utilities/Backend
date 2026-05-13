@@ -1,6 +1,8 @@
 package xyz.mcutils.backend.model.domain.player.history;
 
-import lombok.*;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 

@@ -8,10 +8,8 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.Pagination;
 import xyz.mcutils.backend.model.domain.cape.Cape;
-import xyz.mcutils.backend.model.domain.cape.CapeType;
 import xyz.mcutils.backend.model.dto.response.cape.CapeDTO;
 import xyz.mcutils.backend.model.dto.response.cape.CapesPageDTO;
 import xyz.mcutils.backend.service.CapeService;
@@ -42,14 +40,14 @@ public class CapeController {
 
     @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getCapeTexture(@Parameter(description = "The UUID or Username of the player or the capes's texture id", example = "dbc21e222528e30dc88445314f7be6ff12d3aeebc3c192054fba7e3b3f8c77b1") @PathVariable String query) {
-        Cape<?> cape = this.capeService.getCapeFromTextureIdOrPlayer(query, CapeType.VANILLA);
+        Cape<?> cape = this.capeService.getCapeFromTextureIdOrPlayer(query);
         byte[] bytes = capeService.getCapeTexture(cape);
         return ResponseEntity.ok().cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic()).body(bytes);
     }
 
-    @GetMapping(value = "/{type}/{query}/{part}.png", produces = MediaType.IMAGE_PNG_VALUE)
-    public ResponseEntity<byte[]> getCapePart(@Parameter(description = "The type of the cape", schema = @Schema(implementation = CapeType.class)) @PathVariable String type, @Parameter(description = "The UUID or Username of the player or the cape's texture id", example = "dbc21e222528e30dc88445314f7be6ff12d3aeebc3c192054fba7e3b3f8c77b1") @PathVariable String query, @Parameter(description = "The part of the cape", schema = @Schema(example = "front")) @PathVariable String part, @Parameter(description = "The size of the image (height; width derived per part)", example = "768") @RequestParam(required = false, defaultValue = "768") int size) {
-        Cape<?> cape = this.capeService.getCapeFromTextureIdOrPlayer(query, EnumUtils.getEnumConstant(CapeType.class, type));
+    @GetMapping(value = "/{query}/{part}.png", produces = MediaType.IMAGE_PNG_VALUE)
+    public ResponseEntity<byte[]> getCapePart(@Parameter(description = "The UUID or Username of the player or the cape's texture id", example = "dbc21e222528e30dc88445314f7be6ff12d3aeebc3c192054fba7e3b3f8c77b1") @PathVariable String query, @Parameter(description = "The part of the cape", schema = @Schema(example = "front")) @PathVariable String part, @Parameter(description = "The size of the image (height; width derived per part)", example = "768") @RequestParam(required = false, defaultValue = "768") int size) {
+        Cape<?> cape = this.capeService.getCapeFromTextureIdOrPlayer(query);
         byte[] bytes = this.capeService.renderCape(cape, part, size);
         return ResponseEntity.ok().cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic()).contentType(MediaType.IMAGE_PNG).body(bytes);
     }

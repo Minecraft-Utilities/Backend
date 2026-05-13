@@ -20,20 +20,4 @@ public final class CapeModelCoordinates {
             this.coordinates = coordinates;
         }
     }
-
-    /**
-     * Optifine skin part definitions with coordinates and dimensions.
-     */
-    @Getter
-    public enum Optifine {
-        CAPE_FRONT(new Coordinates(2, 2, 20, 32), new Coordinates(1, 1, 10, 16));
-
-        private final Coordinates coordinates;
-        private final Coordinates legacyCoordinates;
-
-        Optifine(Coordinates coordinates, Coordinates legacyCoordinates) {
-            this.coordinates = coordinates;
-            this.legacyCoordinates = legacyCoordinates;
-        }
-    }
 }

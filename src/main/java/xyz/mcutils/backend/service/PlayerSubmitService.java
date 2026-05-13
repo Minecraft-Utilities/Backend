@@ -21,7 +21,6 @@ import xyz.mcutils.backend.metric.impl.player.PlayerSubmitOutcomesMetric;
 import xyz.mcutils.backend.metric.impl.player.PlayerSubmitProcessingMetric;
 import xyz.mcutils.backend.model.dto.PlayerCreateSubmission;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
-import xyz.mcutils.backend.service.MetricService;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;

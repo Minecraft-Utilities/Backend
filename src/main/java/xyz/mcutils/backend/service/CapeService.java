@@ -22,27 +22,19 @@ import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.Pagination;
 import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
-import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.cape.CapeRenderMetric;
 import xyz.mcutils.backend.model.domain.cape.Cape;
-import xyz.mcutils.backend.model.domain.cape.CapeType;
-import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.dto.response.cape.CapeDTO;
 import xyz.mcutils.backend.model.dto.response.cape.CapesPageDTO;
 import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
 import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
-import xyz.mcutils.backend.service.MetricService;
 
 import java.awt.image.BufferedImage;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -170,11 +162,7 @@ public class CapeService {
      * @param query the query to search for
      * @return the cape, or null
      */
-    public Cape<?> getCapeFromTextureIdOrPlayer(String query, CapeType type) {
-        if (type == CapeType.OPTIFINE) {
-            return new OptifineCape(query);
-        }
-
+    public Cape<?> getCapeFromTextureIdOrPlayer(String query) {
         Cape<?> cape;
         // I really have no idea how long their sha-1 string length is
         // a player name can't be more than 16 chars, so just assume it's a texture id
@@ -207,16 +195,22 @@ public class CapeService {
      * @return the cape image
      */
     public byte[] getCapeTexture(Cape<?> cape) {
+        String cacheKey = cape.getTextureId() + ".png";
         byte[] capeBytes;
         try {
-            long start = System.currentTimeMillis();
-            capeBytes = this.capeTextureCache.get("%s-%s.png".formatted(cape.getClass().getName(), cape.getTextureId()), () -> {
-                log.debug("Downloading cape image for skin {}", cape.getTextureId());
+            capeBytes = this.capeTextureCache.get(cacheKey, () -> {
+                long start = System.currentTimeMillis();
+                byte[] stored = this.storageService.get(StorageService.Bucket.VANILLA_CAPES, cacheKey);
+                if (stored != null) {
+                    return stored;
+                }
+                log.debug("Downloading cape image for cape {}", cape.getTextureId());
                 byte[] bytes = webRequest.getAsByteArray(cape.getRawTextureUrl());
                 if (bytes == null) {
-                    throw new IllegalStateException("Cape image for skin '%s' was not found".formatted(cape.getTextureId()));
+                    throw new IllegalStateException("Cape image for cape '%s' was not found".formatted(cape.getTextureId()));
                 }
-                log.debug("Downloaded cape image for skin {} in {}ms", cape.getTextureId(), System.currentTimeMillis() - start);
+                log.debug("Downloaded cape image for cape {} in {}ms", cape.getTextureId(), System.currentTimeMillis() - start);
+                this.storageService.upload(StorageService.Bucket.VANILLA_CAPES, cacheKey, MediaType.IMAGE_PNG_VALUE, bytes);
                 return bytes;
             });
         } catch (UncheckedExecutionException | ExecutionException e) {
@@ -255,11 +249,7 @@ public class CapeService {
         String canonicalKey = "%s-%s-%s.png".formatted(cape.getClass().getName(), cape.getTextureId(), part.name());
         log.debug("Getting cape part for cape: {} (part {}, size {})", cape.getTextureId(), typeName, size);
 
-        StorageService.Bucket bucket = switch (cape) {
-            case VanillaCape _ -> StorageService.Bucket.RENDERED_VANILLA_CAPES;
-            case OptifineCape _ -> StorageService.Bucket.RENDERED_OPTIFINE_CAPES;
-            default -> throw new IllegalStateException("Unknown cape type: " + cape.getClass().getName());
-        };
+        StorageService.Bucket bucket = StorageService.Bucket.RENDERED_VANILLA_CAPES;
 
         long cacheStart = System.currentTimeMillis();
         byte[] canonicalBytes = cacheEnabled ? this.storageService.get(bucket, canonicalKey) : null;

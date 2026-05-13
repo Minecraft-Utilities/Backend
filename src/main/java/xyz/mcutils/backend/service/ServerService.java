@@ -24,7 +24,6 @@ import xyz.mcutils.backend.model.persistence.redis.CachedMinecraftServer;
 import xyz.mcutils.backend.model.persistence.redis.CachedServerPreview;
 import xyz.mcutils.backend.repository.redis.MinecraftServerCacheRepository;
 import xyz.mcutils.backend.repository.redis.ServerPreviewCacheRepository;
-import xyz.mcutils.backend.service.MetricService;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
