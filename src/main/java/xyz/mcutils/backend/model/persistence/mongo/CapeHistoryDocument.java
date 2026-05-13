@@ -9,6 +9,11 @@ import org.springframework.data.mongodb.core.mapping.DocumentReference;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * MongoDB document for cape history.
+ *
+ * @author Fascinated
+ */
 @Document(collection = "cape-history")
 @CompoundIndex(name = "playerId_asc_lastUsed_desc", def = "{ 'playerId' : 1, 'lastUsed' : -1 }")
 @Getter
@@ -40,7 +45,7 @@ public class CapeHistoryDocument {
     private Instant lastUsed;
 
     /**
-     * The time this cape was seen on the player.
+     * The time this cape was first seen on the player.
      */
-    private Instant timestamp;
+    private Instant firstSeen;
 }

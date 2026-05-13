@@ -8,8 +8,13 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * MongoDB document for username history.
+ *
+ * @author Fascinated
+ */
 @Document(collection = "username-history")
-@CompoundIndex(name = "playerId_asc_timestamp_desc", def = "{ 'playerId' : 1, 'timestamp' : -1 }")
+@CompoundIndex(name = "playerId_asc_lastUsed_desc", def = "{ 'playerId' : 1, 'lastUsed' : -1 }")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -33,7 +38,12 @@ public class UsernameHistoryDocument {
     private String username;
 
     /**
-     * The time this username was seen on the player.
+     * The time this username was first seen on the player.
      */
-    private Instant timestamp;
+    private Instant firstSeen;
+
+    /**
+     * The time this username was last seen on the player.
+     */
+    private Instant lastUsed;
 }

@@ -180,13 +180,13 @@ public class PlayerManager {
     }
 
     /**
-     * Gets username history for the player (ordered by timestamp descending).
+     * Gets username history for the player (ordered by lastUsed descending).
      */
     public List<UsernameHistoryDocument> getPlayerUsernameHistory(UUID playerId) {
         if (playerId == null) {
             return List.of();
         }
-        return usernameHistoryRepository.findByPlayerIdOrderByTimestampDesc(playerId);
+        return usernameHistoryRepository.findByPlayerIdOrderByLastUsedDesc(playerId);
     }
 
     /**

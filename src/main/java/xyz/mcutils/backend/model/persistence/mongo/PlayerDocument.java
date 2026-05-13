@@ -3,6 +3,7 @@ package xyz.mcutils.backend.model.persistence.mongo;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.IndexDirection;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -43,7 +44,7 @@ public class PlayerDocument {
     /**
      * The amount of new uuids this player has submitted.
      */
-    @Indexed(name = "submittedUuids_desc")
+    @Indexed(name = "submittedUuids_desc", direction = IndexDirection.DESCENDING)
     private long submittedUuids;
 
     /**
@@ -62,7 +63,6 @@ public class PlayerDocument {
     /**
      * The time this account was last updated.
      */
-    @Indexed
     private Instant lastUpdated;
 
     /**

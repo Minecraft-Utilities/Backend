@@ -39,10 +39,14 @@ public class PlayerHistoryService {
         if (username == null || username.isBlank()) {
             return;
         }
-        if (usernameHistoryRepository.findFirstByPlayerIdAndUsername(playerId, username).isPresent()) {
+        Optional<UsernameHistoryDocument> existing = usernameHistoryRepository.findFirstByPlayerIdAndUsername(playerId, username);
+        if (existing.isPresent()) {
+            UsernameHistoryDocument d = existing.get();
+            d.setLastUsed(now);
+            usernameHistoryRepository.save(d);
             return;
         }
-        usernameHistoryRepository.save(UsernameHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerId).username(username).timestamp(now).build());
+        usernameHistoryRepository.save(UsernameHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerId).username(username).firstSeen(now).lastUsed(now).build());
     }
 
     /**
@@ -64,7 +68,7 @@ public class PlayerHistoryService {
             skinHistoryRepository.save(d);
             return false;
         }
-        skinHistoryRepository.save(SkinHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerId).skin(SkinDocument.builder().id(skinId).build()).lastUsed(now).timestamp(now).build());
+        skinHistoryRepository.save(SkinHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerId).skin(SkinDocument.builder().id(skinId).build()).lastUsed(now).firstSeen(now).build());
         return true;
     }
 
@@ -87,7 +91,7 @@ public class PlayerHistoryService {
             capeHistoryRepository.save(d);
             return false;
         }
-        capeHistoryRepository.save(CapeHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerId).cape(CapeDocument.builder().id(capeId).build()).lastUsed(now).timestamp(now).build());
+        capeHistoryRepository.save(CapeHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerId).cape(CapeDocument.builder().id(capeId).build()).lastUsed(now).firstSeen(now).build());
         return true;
     }
 }

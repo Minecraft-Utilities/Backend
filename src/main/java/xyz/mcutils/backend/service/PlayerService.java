@@ -174,12 +174,12 @@ public class PlayerService {
 
             playerDocuments.add(PlayerDocument.builder().id(playerUuid).username(token.getName()).legacyAccount(token.isLegacy()).skinId(skinUuid).capeId(capeUuid).lastUpdated(now).firstSeen(now).build());
 
-            skinHistoryDocuments.add(SkinHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerUuid).skin(skinUuid != null ? SkinDocument.builder().id(skinUuid).build() : null).lastUsed(now).timestamp(now).build());
+            skinHistoryDocuments.add(SkinHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerUuid).skin(skinUuid != null ? SkinDocument.builder().id(skinUuid).build() : null).lastUsed(now).firstSeen(now).build());
 
-            usernameHistoryDocuments.add(UsernameHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerUuid).username(token.getName()).timestamp(now).build());
+            usernameHistoryDocuments.add(UsernameHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerUuid).username(token.getName()).firstSeen(now).lastUsed(now).build());
 
             if (capeUuid != null) {
-                capeHistoryDocuments.add(CapeHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerUuid).cape(CapeDocument.builder().id(capeUuid).build()).lastUsed(now).timestamp(now).build());
+                capeHistoryDocuments.add(CapeHistoryDocument.builder().id(UUID.randomUUID()).playerId(playerUuid).cape(CapeDocument.builder().id(capeUuid).build()).lastUsed(now).firstSeen(now).build());
             }
 
             if (skinUuid != null) {
@@ -351,7 +351,7 @@ public class PlayerService {
                 if (entry.getSkin() != null && entry.getSkin().getId() != null) {
                     SkinDocument sd = skinDocById.get(entry.getSkin().getId());
                     if (sd != null) {
-                        skinHistory.add(new SkinHistory(skinService.fromDocument(sd), entry.getTimestamp(), entry.getLastUsed()));
+                        skinHistory.add(new SkinHistory(skinService.fromDocument(sd), entry.getFirstSeen(), entry.getLastUsed()));
                     }
                 }
             }
@@ -369,7 +369,7 @@ public class PlayerService {
                 if (entry.getCape() != null && entry.getCape().getId() != null) {
                     CapeDocument cd = capeDocById.get(entry.getCape().getId());
                     if (cd != null) {
-                        capeHistory.add(new CapeHistory(capeService.fromDocument(cd), entry.getTimestamp(), entry.getLastUsed()));
+                        capeHistory.add(new CapeHistory(capeService.fromDocument(cd), entry.getFirstSeen(), entry.getLastUsed()));
                     }
                 }
             }
@@ -379,7 +379,7 @@ public class PlayerService {
         if (!usernameHistoryDocs.isEmpty()) {
             usernameHistory = new HashSet<>();
             for (UsernameHistoryDocument entry : usernameHistoryDocs) {
-                usernameHistory.add(new UsernameHistory(entry.getUsername(), entry.getTimestamp()));
+                usernameHistory.add(new UsernameHistory(entry.getUsername(), entry.getFirstSeen(), entry.getLastUsed()));
             }
         }
 

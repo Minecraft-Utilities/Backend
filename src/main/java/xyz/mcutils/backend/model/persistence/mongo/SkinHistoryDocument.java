@@ -9,6 +9,11 @@ import org.springframework.data.mongodb.core.mapping.DocumentReference;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * MongoDB document for skin history.
+ *
+ * @author Fascinated
+ */
 @Document(collection = "skin-history")
 @CompoundIndex(name = "playerId_asc_lastUsed_desc", def = "{ 'playerId' : 1, 'lastUsed' : -1 }")
 @Getter
@@ -42,5 +47,5 @@ public class SkinHistoryDocument {
     /**
      * The time this skin was first seen on the player.
      */
-    private Instant timestamp;
+    private Instant firstSeen;
 }

@@ -4,7 +4,6 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,11 +22,4 @@ public interface CapeRepository extends MongoRepository<CapeDocument, UUID> {
     @Query("{ textureId: ?0 }")
     Optional<CapeDocument> findByTextureId(String textureId);
 
-    /**
-     * Finds all cape documents ordered by the number of accounts that have this cape owned (descending),
-     * then by id (ascending) for stable ordering when counts tie.
-     *
-     * @return the cape documents
-     */
-    List<CapeDocument> findAllByOrderByAccountsOwnedDescIdAsc();
-}   
+}

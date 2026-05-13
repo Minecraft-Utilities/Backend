@@ -13,8 +13,8 @@ import java.util.UUID;
  */
 public interface UsernameHistoryRepository extends MongoRepository<UsernameHistoryDocument, UUID> {
 
-    @Query(value = "{ 'playerId' : ?0 }", sort = "{ 'timestamp' : -1 }")
-    List<UsernameHistoryDocument> findByPlayerIdOrderByTimestampDesc(UUID playerId);
+    @Query(value = "{ 'playerId' : ?0 }", sort = "{ 'lastUsed' : -1 }")
+    List<UsernameHistoryDocument> findByPlayerIdOrderByLastUsedDesc(UUID playerId);
 
     Optional<UsernameHistoryDocument> findFirstByPlayerIdAndUsername(UUID playerId, String username);
 }

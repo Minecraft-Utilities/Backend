@@ -36,6 +36,14 @@ public class CachedSkinDocument {
      */
     public SkinDocument snapshotDocument() {
         SkinDocument doc = this.document;
-        return SkinDocument.builder().id(doc.getId()).textureId(doc.getTextureId()).model(doc.getModel()).legacy(doc.isLegacy()).accountsUsed(this.accountsUsed.get()).firstPlayerSeenUsing(doc.getFirstPlayerSeenUsing()).firstSeen(doc.getFirstSeen()).build();
+        return SkinDocument.builder()
+                .id(doc.getId())
+                .textureId(doc.getTextureId())
+                .model(doc.getModel())
+                .legacy(doc.isLegacy())
+                .accountsUsed(this.accountsUsed.get())
+                .firstPlayerSeenUsing(doc.getFirstPlayerSeenUsing())
+                .firstSeen(doc.getFirstSeen())
+                .build();
     }
 }
