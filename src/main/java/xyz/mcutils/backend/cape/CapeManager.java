@@ -134,15 +134,7 @@ public class CapeManager {
     public CapeDocument getOrCreateByTextureId(String textureId, UUID playerUuid) {
         Optional<CapeDocument> existing = this.getByTextureId(textureId);
         if (existing.isPresent()) {
-            CapeDocument doc = existing.get();
-            if (doc.getFirstPlayerSeenUsing() == null && playerUuid != null) {
-                doc.setFirstPlayerSeenUsing(playerUuid);
-                CachedCapeDocument cached = this.cacheById.getIfPresent(doc.getId());
-                if (cached != null) {
-                    cached.setDirty(true);
-                }
-            }
-            return doc;
+            return existing.get();
         }
         boolean exists = false;
         try {

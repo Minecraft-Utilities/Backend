@@ -151,15 +151,7 @@ public class SkinManager {
     public SkinDocument getOrCreateByTextureId(SkinTextureToken token, UUID playerUuid) {
         Optional<SkinDocument> existing = this.getByTextureId(token.getTextureId());
         if (existing.isPresent()) {
-            SkinDocument doc = existing.get();
-            if (doc.getFirstPlayerSeenUsing() == null && playerUuid != null) {
-                doc.setFirstPlayerSeenUsing(playerUuid);
-                CachedSkinDocument cached = this.cacheById.getIfPresent(doc.getId());
-                if (cached != null) {
-                    cached.setDirty(true);
-                }
-            }
-            return doc;
+            return existing.get();
         }
         SkinTextureToken.Metadata metadata = token.metadata();
         SkinDocument document = new SkinDocument(UUID.randomUUID(), token.getTextureId(), EnumUtils.getEnumConstant(Skin.Model.class, metadata == null ? "DEFAULT" : metadata.model()), Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), this.webRequest), 0, playerUuid, Instant.now());
