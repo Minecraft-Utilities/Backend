@@ -21,12 +21,14 @@ import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
+import xyz.mcutils.backend.metric.impl.cape.CapeRenderMetric;
 import xyz.mcutils.backend.model.domain.cape.Cape;
 import xyz.mcutils.backend.model.domain.cape.CapeType;
 import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
+import xyz.mcutils.backend.service.MetricService;
 
 import java.awt.image.BufferedImage;
 import java.util.LinkedHashMap;
@@ -224,6 +226,7 @@ public class CapeService {
             canonicalImage = ((Cape) cape).render(part, maxPartSize, RenderOptions.DEFAULT);
             canonicalBytes = ImageUtils.imageToBytes(canonicalImage, 1);
             log.debug("Took {}ms to render cape part for cape: {}", System.currentTimeMillis() - renderStart, cape.getTextureId());
+            MetricService.getMetric(CapeRenderMetric.class).recordMiss(System.currentTimeMillis() - renderStart);
             if (cacheEnabled) {
                 final byte[] toUpload = canonicalBytes;
                 CompletableFuture.runAsync(() -> this.storageService.upload(bucket, canonicalKey, MediaType.IMAGE_PNG_VALUE, toUpload), Main.EXECUTOR).exceptionally(ex -> {
@@ -234,6 +237,7 @@ public class CapeService {
         }
         else {
             log.debug("Got cape part for cape {} from cache in {}ms", cape.getTextureId(), System.currentTimeMillis() - cacheStart);
+            MetricService.getMetric(CapeRenderMetric.class).recordHit();
         }
 
         if (size == maxPartSize) {

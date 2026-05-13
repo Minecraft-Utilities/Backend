@@ -43,6 +43,7 @@ public class PlayerDocument {
     /**
      * The amount of new uuids this player has submitted.
      */
+    @Indexed(name = "submittedUuids_desc")
     private long submittedUuids;
 
     /**

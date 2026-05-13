@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.xbill.DNS.Lookup;
 import org.xbill.DNS.Record;
 import org.xbill.DNS.Type;
+import xyz.mcutils.backend.metric.impl.dns.DnsQueryMetric;
 import xyz.mcutils.backend.model.domain.dns.DNSRecord;
 import xyz.mcutils.backend.model.domain.dns.impl.ARecord;
 import xyz.mcutils.backend.model.domain.dns.impl.SRVRecord;
@@ -43,11 +44,14 @@ public class DNSService {
     public SRVRecord resolveSRV(@NonNull String hostname) {
         DNSRecord dnsRecord = objectCache != null ? objectCache.getIfPresent(new DnsCacheKey(hostname.toUpperCase(), Type.SRV)) : null;
         if (dnsRecord != null) {
+            MetricService.getMetric(DnsQueryMetric.class).record(DnsQueryMetric.QueryType.SRV, DnsQueryMetric.Result.CACHE_HIT, 0);
             return (SRVRecord) dnsRecord;
         }
 
+        long start = System.currentTimeMillis();
         Record[] records = new Lookup(SRV_QUERY_PREFIX.formatted(hostname), Type.SRV).run(); // Resolve SRV records
         if (records == null) { // No records exist
+            MetricService.getMetric(DnsQueryMetric.class).record(DnsQueryMetric.QueryType.SRV, DnsQueryMetric.Result.NOT_FOUND, System.currentTimeMillis() - start);
             return null;
         }
         SRVRecord result = null;
@@ -57,6 +61,7 @@ public class DNSService {
         if (objectCache != null && result != null) {
             objectCache.put(new DnsCacheKey(hostname.toUpperCase(), Type.SRV), result);
         }
+        MetricService.getMetric(DnsQueryMetric.class).record(DnsQueryMetric.QueryType.SRV, DnsQueryMetric.Result.RESOLVED, System.currentTimeMillis() - start);
         return result;
     }
 
@@ -71,11 +76,14 @@ public class DNSService {
     public ARecord resolveA(@NonNull String hostname) {
         DNSRecord dnsRecord = objectCache != null ? objectCache.getIfPresent(new DnsCacheKey(hostname.toUpperCase(), Type.A)) : null;
         if (dnsRecord != null) {
+            MetricService.getMetric(DnsQueryMetric.class).record(DnsQueryMetric.QueryType.A, DnsQueryMetric.Result.CACHE_HIT, 0);
             return (ARecord) dnsRecord;
         }
 
+        long start = System.currentTimeMillis();
         Record[] records = new Lookup(hostname, Type.A).run(); // Resolve A records
         if (records == null) { // No records exist
+            MetricService.getMetric(DnsQueryMetric.class).record(DnsQueryMetric.QueryType.A, DnsQueryMetric.Result.NOT_FOUND, System.currentTimeMillis() - start);
             return null;
         }
         ARecord result = null;
@@ -85,6 +93,7 @@ public class DNSService {
         if (objectCache != null && result != null) {
             objectCache.put(new DnsCacheKey(hostname.toUpperCase(), Type.A), result);
         }
+        MetricService.getMetric(DnsQueryMetric.class).record(DnsQueryMetric.QueryType.A, DnsQueryMetric.Result.RESOLVED, System.currentTimeMillis() - start);
         return result;
     }
 

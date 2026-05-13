@@ -10,6 +10,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import xyz.mcutils.backend.metric.impl.storage.StorageOperationMetric;
 
 import java.io.ByteArrayInputStream;
 
@@ -52,16 +53,19 @@ public class StorageService {
      */
     @SneakyThrows
     public void upload(Bucket bucket, String fileName, String contentType, byte[] data) {
+        long before = System.currentTimeMillis();
         try {
-            long before = System.currentTimeMillis();
             this.minioClient.putObject(PutObjectArgs.builder().bucket(bucket.getName()).object(fileName).stream(new ByteArrayInputStream(data), data.length, -1).contentType(contentType)
 
                     .build());
             if (this.objectCache != null) {
                 this.objectCache.put(new ObjectCacheKey(bucket, fileName), data);
             }
-            log.debug("Uploaded object {} to bucket {} in {}ms", fileName, bucket.getName(), System.currentTimeMillis() - before);
+            long duration = System.currentTimeMillis() - before;
+            MetricService.getMetric(StorageOperationMetric.class).record(StorageOperationMetric.Operation.UPLOAD, StorageOperationMetric.Status.SUCCESS, duration);
+            log.debug("Uploaded object {} to bucket {} in {}ms", fileName, bucket.getName(), duration);
         } catch (Exception ex) {
+            MetricService.getMetric(StorageOperationMetric.class).record(StorageOperationMetric.Operation.UPLOAD, StorageOperationMetric.Status.FAILURE, System.currentTimeMillis() - before);
             // Upload is best-effort: callers may rely on the object being present only when no error is logged.
             log.error("Failed to upload file to bucket {}", bucket.getName(), ex);
         }
@@ -76,21 +80,25 @@ public class StorageService {
      */
     @SneakyThrows
     public byte[] get(Bucket bucket, String fileName) {
+        long before = System.currentTimeMillis();
         try {
             byte[] object = this.objectCache != null ? this.objectCache.getIfPresent(new ObjectCacheKey(bucket, fileName)) : null;
             if (object != null) {
+                MetricService.getMetric(StorageOperationMetric.class).record(StorageOperationMetric.Operation.GET, StorageOperationMetric.Status.CACHE_HIT, 0);
                 log.debug("Got object {} from bucket {} (cached in-memory)", fileName, bucket.getName());
                 return object;
             }
 
-            long before = System.currentTimeMillis();
             byte[] bytes = minioClient.getObject(GetObjectArgs.builder().bucket(bucket.getName()).object(fileName).build()).readAllBytes();
             if (this.objectCache != null) {
                 this.objectCache.put(new ObjectCacheKey(bucket, fileName), bytes);
             }
-            log.debug("Got object {} from bucket {} in {}ms", fileName, bucket.getName(), System.currentTimeMillis() - before);
+            long duration = System.currentTimeMillis() - before;
+            MetricService.getMetric(StorageOperationMetric.class).record(StorageOperationMetric.Operation.GET, StorageOperationMetric.Status.SUCCESS, duration);
+            log.debug("Got object {} from bucket {} in {}ms", fileName, bucket.getName(), duration);
             return bytes;
         } catch (Exception ex) {
+            MetricService.getMetric(StorageOperationMetric.class).record(StorageOperationMetric.Operation.GET, StorageOperationMetric.Status.FAILURE, System.currentTimeMillis() - before);
             return null;
         }
     }

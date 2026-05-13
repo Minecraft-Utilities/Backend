@@ -20,6 +20,7 @@ import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
+import xyz.mcutils.backend.metric.impl.skin.SkinRenderMetric;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.dto.response.skin.SkinDTO;
@@ -28,6 +29,7 @@ import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 import xyz.mcutils.backend.model.persistence.mongo.SkinDocument;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
+import xyz.mcutils.backend.service.MetricService;
 import xyz.mcutils.backend.skin.SkinManager;
 
 import java.awt.image.BufferedImage;
@@ -245,12 +247,16 @@ public class SkinService {
         byte[] canonicalBytes = cacheEnabled ? this.renderedSkinCache.getIfPresent(canonicalKey) : null;
 
         if (canonicalBytes == null) {
+            long renderStart = System.currentTimeMillis();
             BufferedImage img = skin.render(part, maxPartSize, new RenderOptions(renderOverlay));
             byte[] bytes = ImageUtils.imageToBytes(img, 1);
             if (cacheEnabled) {
                 this.renderedSkinCache.put(canonicalKey, bytes);
             }
+            MetricService.getMetric(SkinRenderMetric.class).recordMiss(System.currentTimeMillis() - renderStart);
             canonicalBytes = bytes;
+        } else {
+            MetricService.getMetric(SkinRenderMetric.class).recordHit();
         }
 
         if (size == maxPartSize) {

@@ -9,9 +9,11 @@ import org.springframework.stereotype.Component;
 import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
+import xyz.mcutils.backend.metric.impl.cape.CapeCacheMetric;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
 import xyz.mcutils.backend.repository.mongo.CapeRepository;
+import xyz.mcutils.backend.service.MetricService;
 import xyz.mcutils.backend.service.StatisticsService;
 
 import java.time.Instant;
@@ -55,12 +57,18 @@ public class CapeManager {
         }
         CachedCapeDocument cached = this.cacheById.getIfPresent(id);
         if (cached != null) {
+            MetricService.getMetric(CapeCacheMetric.class).recordHit();
             return Optional.of(cached.snapshotDocument());
         }
+        MetricService.getMetric(CapeCacheMetric.class).recordMiss();
         return this.capeRepository.findById(id).map(doc -> {
             put(doc);
             return this.cacheById.getIfPresent(id).snapshotDocument();
         });
+    }
+
+    public long getCacheSize() {
+        return this.cacheById.size();
     }
 
     /**

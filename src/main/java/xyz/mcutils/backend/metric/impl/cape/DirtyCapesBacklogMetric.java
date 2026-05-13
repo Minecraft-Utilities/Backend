@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.metric.impl.cape.skin;
+package xyz.mcutils.backend.metric.impl.cape;
 
 import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import xyz.mcutils.backend.cape.CapeManager;

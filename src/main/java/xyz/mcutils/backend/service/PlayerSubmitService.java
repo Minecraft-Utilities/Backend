@@ -17,8 +17,11 @@ import xyz.mcutils.backend.common.FutureUtils;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
+import xyz.mcutils.backend.metric.impl.player.PlayerSubmitOutcomesMetric;
+import xyz.mcutils.backend.metric.impl.player.PlayerSubmitProcessingMetric;
 import xyz.mcutils.backend.model.dto.PlayerCreateSubmission;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
+import xyz.mcutils.backend.service.MetricService;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -140,18 +143,27 @@ public class PlayerSubmitService {
             Future<?> future = Main.EXECUTOR.submit(() -> {
                 rateLimiter.acquire();
                 boolean requeued = false;
+                long processStart = System.currentTimeMillis();
                 try {
                     MojangProfileToken token = mojangService.getProfile(entry.playerId().toString());
                     if (token == null) {
                         log.warn("Player with uuid '{}' was not found", entry.playerId());
+                        MetricService.getMetric(PlayerSubmitProcessingMetric.class).record(
+                                PlayerSubmitProcessingMetric.Outcome.NOT_FOUND, System.currentTimeMillis() - processStart);
                         return;
                     }
                     created.add(new PlayerCreateSubmission(token, entry.submittedBy()));
+                    MetricService.getMetric(PlayerSubmitProcessingMetric.class).record(
+                            PlayerSubmitProcessingMetric.Outcome.CREATED, System.currentTimeMillis() - processStart);
                 } catch (NotFoundException e) {
                     log.debug("Player {} not found on Mojang, removing from queue", entry.playerId(), e);
+                    MetricService.getMetric(PlayerSubmitProcessingMetric.class).record(
+                            PlayerSubmitProcessingMetric.Outcome.NOT_FOUND, System.currentTimeMillis() - processStart);
                 } catch (MojangAPIRateLimitException e) {
                     listOps.rightPush(REDIS_QUEUE_KEY, entry.toRedisValue());
                     requeued = true;
+                    MetricService.getMetric(PlayerSubmitProcessingMetric.class).record(
+                            PlayerSubmitProcessingMetric.Outcome.RATE_LIMITED, System.currentTimeMillis() - processStart);
                 } finally {
                     if (!requeued) {
                         idsToRemoveFromQueue.add(entry.playerId().toString());
@@ -175,6 +187,9 @@ public class PlayerSubmitService {
             return 0;
         }
         Set<UUID> existingInDb = playerService.getExistingPlayerIds(toEnqueue);
+        if (!existingInDb.isEmpty()) {
+            MetricService.getMetric(PlayerSubmitOutcomesMetric.class).inc(PlayerSubmitOutcomesMetric.Outcome.ALREADY_TRACKED, existingInDb.size());
+        }
         toEnqueue = toEnqueue.stream().filter(uuid -> !existingInDb.contains(uuid)).toList();
         if (toEnqueue.isEmpty()) {
             return 0;
@@ -183,12 +198,18 @@ public class PlayerSubmitService {
         List<Boolean> inQueue = isAlreadyQueued(toEnqueue);
         List<String> entryStrings = new ArrayList<>();
         List<String> playerIdStrings = new ArrayList<>();
+        long alreadyQueuedCount = 0;
         for (int i = 0; i < toEnqueue.size(); i++) {
             if (!Boolean.TRUE.equals(inQueue.get(i))) {
                 UUID uuid = toEnqueue.get(i);
                 entryStrings.add(new QueueEntry(uuid, by).toRedisValue());
                 playerIdStrings.add(uuid.toString());
+            } else {
+                alreadyQueuedCount++;
             }
+        }
+        if (alreadyQueuedCount > 0) {
+            MetricService.getMetric(PlayerSubmitOutcomesMetric.class).inc(PlayerSubmitOutcomesMetric.Outcome.ALREADY_QUEUED, alreadyQueuedCount);
         }
         if (entryStrings.isEmpty()) {
             return 0;
@@ -200,6 +221,7 @@ public class PlayerSubmitService {
         setOps.add(REDIS_QUEUE_SET_KEY, playerIdStrings.toArray(new String[0]));
         Long size = listOps.size(REDIS_QUEUE_KEY);
         log.info("Submitted {} players to submit queue (total queued: {}, submittedBy: {})", entryStrings.size(), size != null ? size : 0, submittedBy);
+        MetricService.getMetric(PlayerSubmitOutcomesMetric.class).inc(PlayerSubmitOutcomesMetric.Outcome.ENQUEUED, entryStrings.size());
         return entryStrings.size();
     }
 

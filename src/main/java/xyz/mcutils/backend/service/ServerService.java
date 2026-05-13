@@ -11,6 +11,7 @@ import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.renderer.impl.server.ServerPreviewRenderer;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
+import xyz.mcutils.backend.metric.impl.server.ServerLookupMetric;
 import xyz.mcutils.backend.model.domain.IpLookup;
 import xyz.mcutils.backend.model.domain.dns.DNSRecord;
 import xyz.mcutils.backend.model.domain.dns.impl.ARecord;
@@ -23,6 +24,7 @@ import xyz.mcutils.backend.model.persistence.redis.CachedMinecraftServer;
 import xyz.mcutils.backend.model.persistence.redis.CachedServerPreview;
 import xyz.mcutils.backend.repository.redis.MinecraftServerCacheRepository;
 import xyz.mcutils.backend.repository.redis.ServerPreviewCacheRepository;
+import xyz.mcutils.backend.service.MetricService;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -109,6 +111,7 @@ public class ServerService {
                 CachedMinecraftServer server = cached.get();
                 log.debug("Got server {}:{} from cache in {}ms", hostname, port, System.currentTimeMillis() - cacheStart);
                 server.setCached(true);
+                MetricService.getMetric(ServerLookupMetric.class).recordHit();
                 return server;
             }
         }
@@ -141,7 +144,9 @@ public class ServerService {
 
         long pingStart = System.currentTimeMillis();
         CachedMinecraftServer cachedServer = new CachedMinecraftServer(key, platform.getPinger().ping(hostname, ip, port, dnsRecords.toArray(new DNSRecord[0]), platform == Platform.JAVA ? javaPingerTimeout : bedrockPingerTimeout));
-        log.debug("Successfully pinged server: {}:{} in {}ms", hostname, port, System.currentTimeMillis() - pingStart);
+        long pingDurationMs = System.currentTimeMillis() - pingStart;
+        log.debug("Successfully pinged server: {}:{} in {}ms", hostname, port, pingDurationMs);
+        MetricService.getMetric(ServerLookupMetric.class).recordMiss(pingDurationMs);
 
         // Populate the server's ip lookup data
         IpLookup ipLookup = maxMindService.lookupIp(ip);

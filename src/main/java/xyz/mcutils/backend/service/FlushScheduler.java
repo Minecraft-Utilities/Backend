@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.cape.CapeManager;
+import xyz.mcutils.backend.metric.impl.flush.FlushDurationMetric;
 import xyz.mcutils.backend.player.PlayerManager;
 import xyz.mcutils.backend.skin.SkinManager;
 
@@ -28,9 +29,9 @@ public class FlushScheduler {
 
     @Scheduled(fixedRate = 60_000 * 10)
     public void flushCaches() {
-        this.playerManager.flush();
-        this.skinManager.flush();
-        this.capeManager.flush();
+        flushWithMetric("player", playerManager::flush);
+        flushWithMetric("skin", skinManager::flush);
+        flushWithMetric("cape", capeManager::flush);
     }
 
     @PreDestroy
@@ -38,5 +39,11 @@ public class FlushScheduler {
         log.info("Shutdown: flushing caches...");
         flushCaches();
         log.info("Shutdown: caches flushed.");
+    }
+
+    private void flushWithMetric(String entityType, Runnable flush) {
+        long start = System.currentTimeMillis();
+        flush.run();
+        MetricService.getMetric(FlushDurationMetric.class).record(entityType, System.currentTimeMillis() - start);
     }
 }

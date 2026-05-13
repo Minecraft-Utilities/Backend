@@ -15,6 +15,7 @@ import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.MongoUtils;
+import xyz.mcutils.backend.metric.impl.player.PlayerCacheMetric;
 import xyz.mcutils.backend.model.persistence.mongo.CapeHistoryDocument;
 import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 import xyz.mcutils.backend.model.persistence.mongo.SkinHistoryDocument;
@@ -23,6 +24,7 @@ import xyz.mcutils.backend.repository.mongo.CapeHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.PlayerRepository;
 import xyz.mcutils.backend.repository.mongo.SkinHistoryRepository;
 import xyz.mcutils.backend.repository.mongo.UsernameHistoryRepository;
+import xyz.mcutils.backend.service.MetricService;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -88,12 +90,18 @@ public class PlayerManager {
         }
         CachedPlayerDocument cached = this.cache.getIfPresent(uuid);
         if (cached != null) {
+            MetricService.getMetric(PlayerCacheMetric.class).recordHit();
             return Optional.of(cached.getDocument());
         }
+        MetricService.getMetric(PlayerCacheMetric.class).recordMiss();
         return this.playerRepository.findById(uuid).map(doc -> {
             this.cache.put(uuid, new CachedPlayerDocument(doc));
             return doc;
         });
+    }
+
+    public long getCacheSize() {
+        return this.cache.size();
     }
 
     /**

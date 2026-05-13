@@ -11,10 +11,12 @@ import org.springframework.stereotype.Component;
 import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.WebRequest;
+import xyz.mcutils.backend.metric.impl.skin.SkinCacheMetric;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.persistence.mongo.SkinDocument;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.repository.mongo.SkinRepository;
+import xyz.mcutils.backend.service.MetricService;
 import xyz.mcutils.backend.service.StatisticsService;
 
 import java.time.Instant;
@@ -74,12 +76,18 @@ public class SkinManager {
         }
         CachedSkinDocument cached = this.cacheById.getIfPresent(id);
         if (cached != null) {
+            MetricService.getMetric(SkinCacheMetric.class).recordHit();
             return Optional.of(cached.snapshotDocument());
         }
+        MetricService.getMetric(SkinCacheMetric.class).recordMiss();
         return this.skinRepository.findById(id).map(doc -> {
             put(doc);
             return doc;
         });
+    }
+
+    public long getCacheSize() {
+        return this.cacheById.size();
     }
 
     /**

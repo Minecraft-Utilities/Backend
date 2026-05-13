@@ -20,6 +20,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
+import xyz.mcutils.backend.metric.impl.ip.IpLookupMetric;
 import xyz.mcutils.backend.model.domain.IpLookup;
 import xyz.mcutils.backend.model.domain.asn.AsnLookup;
 import xyz.mcutils.backend.model.domain.geo.GeoLocation;
@@ -84,20 +85,27 @@ public class MaxMindService {
         log.debug("Getting lookup for IP: {}", ip);
 
         long lookupStart = System.currentTimeMillis();
-        CompletableFuture<GeoLocation> cityFuture = lookupCity(ip);
-        CompletableFuture<AsnLookup> asnFuture = lookupAsn(ip);
+        IpLookupMetric.Result metricResult = IpLookupMetric.Result.ERROR;
+        try {
+            CompletableFuture<GeoLocation> cityFuture = lookupCity(ip);
+            CompletableFuture<AsnLookup> asnFuture = lookupAsn(ip);
 
-        CompletableFuture.allOf(cityFuture, asnFuture).join();
+            CompletableFuture.allOf(cityFuture, asnFuture).join();
 
-        GeoLocation location = cityFuture.join();
-        AsnLookup asn = asnFuture.join();
+            GeoLocation location = cityFuture.join();
+            AsnLookup asn = asnFuture.join();
 
-        if (location == null && asn == null) {
-            throw new NotFoundException("No data found for IP address: %s".formatted(ip));
+            if (location == null && asn == null) {
+                metricResult = IpLookupMetric.Result.NOT_FOUND;
+                throw new NotFoundException("No data found for IP address: %s".formatted(ip));
+            }
+
+            metricResult = IpLookupMetric.Result.SUCCESS;
+            log.debug("Got IP lookup for {} from {}ms", ip, System.currentTimeMillis() - lookupStart);
+            return new IpLookup(ip, location, asn);
+        } finally {
+            MetricService.getMetric(IpLookupMetric.class).record(metricResult, System.currentTimeMillis() - lookupStart);
         }
-
-        log.debug("Got IP lookup for {} from {}ms", ip, System.currentTimeMillis() - lookupStart);
-        return new IpLookup(ip, location, asn);
     }
 
     /**
