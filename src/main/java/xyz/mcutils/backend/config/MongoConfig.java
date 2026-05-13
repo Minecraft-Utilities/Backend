@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.data.mongodb.core.SimpleMongoClientDatabaseFactory;
+import org.springframework.data.mongodb.core.convert.MongoCustomConversions;
 import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
@@ -33,8 +34,9 @@ public class MongoConfig {
     }
 
     @Bean
-    public MongoMappingContext mongoMappingContext() {
+    public MongoMappingContext mongoMappingContext(MongoCustomConversions customConversions) throws ClassNotFoundException {
         MongoMappingContext context = new MongoMappingContext();
+        context.setSimpleTypeHolder(customConversions.getSimpleTypeHolder());
         context.setAutoIndexCreation(true);
         return context;
     }
