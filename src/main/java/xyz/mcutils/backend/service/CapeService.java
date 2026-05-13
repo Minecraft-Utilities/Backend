@@ -42,7 +42,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Slf4j
 public class CapeService {
-    public static final int CAPES_PER_PAGE = 25;
+    public static final int CAPES_PER_PAGE = 50;
     public static CapeService INSTANCE;
     
     private final StorageService storageService;
