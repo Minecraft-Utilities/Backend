@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
 public class PlayerSubmitService {
     
-    private static final int BATCH_SIZE = 1_000;
+    private static final int BATCH_SIZE = 50_000;
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
