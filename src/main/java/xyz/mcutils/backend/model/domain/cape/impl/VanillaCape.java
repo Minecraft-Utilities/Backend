@@ -74,7 +74,7 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
      */
     public static Map<String, String> buildParts(String capeId) {
         Map<String, String> parts = new HashMap<>();
-        String base = "%s/capes/vanilla/%s".formatted(AppConfig.INSTANCE.getWebPublicUrl(), capeId);
+        String base = "%s/capes/%s".formatted(AppConfig.INSTANCE.getWebPublicUrl(), capeId);
         for (Part p : Part.values()) {
             parts.put(p.name(), "%s/%s.png".formatted(base, p.name().toLowerCase()));
         }
