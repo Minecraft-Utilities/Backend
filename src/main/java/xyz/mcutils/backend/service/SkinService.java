@@ -94,7 +94,7 @@ public class SkinService {
      */
     public Skin getSkin(UUID id) {
         SkinDocument skinDocument = this.skinManager.getById(id).orElseThrow(() -> new NotFoundException("Skin with id '%s' not found".formatted(id)));
-        String firstSeenUsing = "Unknown";
+        String firstSeenUsing = null;
         if (skinDocument.getFirstPlayerSeenUsing() != null) {
             Query firstQuery = Query.query(Criteria.where("_id").is(skinDocument.getFirstPlayerSeenUsing())).limit(1);
             List<Document> firstDoc = MongoUtils.findWithFields(mongoTemplate, firstQuery, PlayerDocument.class, "_id", "username");

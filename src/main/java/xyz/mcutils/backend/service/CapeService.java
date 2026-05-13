@@ -100,7 +100,7 @@ public class CapeService {
      */
     public VanillaCape getCape(UUID id) {
         CapeDocument capeDocument = this.capeManager.getById(id).orElseThrow(() -> new NotFoundException("Cape with id '%s' not found".formatted(id)));
-        String firstSeenUsing = "Unknown";
+        String firstSeenUsing = null;
         if (capeDocument.getFirstPlayerSeenUsing() != null) {
             Query firstQuery = Query.query(Criteria.where("_id").is(capeDocument.getFirstPlayerSeenUsing())).limit(1);
             List<Document> firstDoc = MongoUtils.findWithFields(mongoTemplate, firstQuery, PlayerDocument.class, "_id", "username");
