@@ -6,6 +6,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
+import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.common.CoalescingLoader;
 import xyz.mcutils.backend.common.MongoUtils;
 import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
@@ -36,6 +38,7 @@ public class CapeManager {
     private final WebRequest webRequest;
     private final ConcurrentMap<String, UUID> textureIdToId = new ConcurrentHashMap<>();
     private final Cache<UUID, CachedCapeDocument> cacheById = CacheBuilder.newBuilder().build();
+    private final CoalescingLoader<String, CapeDocument> capeCreateLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     public CapeManager(CapeRepository capeRepository, MongoTemplate mongoTemplate, WebRequest webRequest) {
         this.capeRepository = capeRepository;
@@ -136,21 +139,28 @@ public class CapeManager {
         if (existing.isPresent()) {
             return existing.get();
         }
-        boolean exists = false;
-        try {
-            exists = VanillaCape.capeExists(textureId, this.webRequest).get();
-        } catch (Exception ex) {
-            log.debug("Cape existence check failed for textureId {}", textureId, ex);
-        }
-        if (!exists) {
-            throw new NotFoundException("Cape with texture id " + textureId + " was not found");
-        }
-        CapeDocument document = new CapeDocument(UUID.randomUUID(), null, textureId, 0, Instant.now(), playerUuid);
-        StatisticsService.updateTrackedCapeCount(StatisticsService.INSTANCE.getTrackedCapeCount() + 1);
-        this.capeRepository.insert(document);
-        put(document);
-        log.debug("Created cape {}", document.getTextureId());
-        return document;
+        return capeCreateLoader.get(textureId, () -> {
+            // Re-check inside the loader — cape may have been created via another path while we were waiting.
+            Optional<CapeDocument> recheck = this.getByTextureId(textureId);
+            if (recheck.isPresent()) {
+                return recheck.get();
+            }
+            boolean exists = false;
+            try {
+                exists = VanillaCape.capeExists(textureId, this.webRequest).get();
+            } catch (Exception ex) {
+                log.debug("Cape existence check failed for textureId {}", textureId, ex);
+            }
+            if (!exists) {
+                throw new NotFoundException("Cape with texture id " + textureId + " was not found");
+            }
+            CapeDocument document = new CapeDocument(UUID.randomUUID(), null, textureId, 0, Instant.now(), playerUuid);
+            this.capeRepository.insert(document);
+            StatisticsService.updateTrackedCapeCount(StatisticsService.INSTANCE.getTrackedCapeCount() + 1);
+            put(document);
+            log.debug("Created cape {}", document.getTextureId());
+            return document;
+        });
     }
 
     /**
