@@ -8,8 +8,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -17,8 +19,10 @@ import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.cape.CapeManager;
 import xyz.mcutils.backend.common.ImageUtils;
 import xyz.mcutils.backend.common.MongoUtils;
+import xyz.mcutils.backend.common.Pagination;
 import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
+import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.cape.CapeRenderMetric;
@@ -27,13 +31,17 @@ import xyz.mcutils.backend.model.domain.cape.CapeType;
 import xyz.mcutils.backend.model.domain.cape.impl.OptifineCape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
+import xyz.mcutils.backend.model.dto.response.cape.CapeDTO;
+import xyz.mcutils.backend.model.dto.response.cape.CapesPageDTO;
 import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
+import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 import xyz.mcutils.backend.service.MetricService;
 
 import java.awt.image.BufferedImage;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -42,19 +50,25 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Slf4j
 public class CapeService {
+    public static final int CAPES_PER_PAGE = 25;
     public static CapeService INSTANCE;
+    
     private final StorageService storageService;
     private final PlayerService playerService;
     private final CapeManager capeManager;
     private final MongoTemplate mongoTemplate;
     private final WebRequest webRequest;
     private final Cache<String, byte[]> capeTextureCache = CacheBuilder.newBuilder().expireAfterAccess(6, TimeUnit.HOURS).maximumSize(1000).build();
+    
     @Value("${mc-utils.renderer.cape.cache}")
     private boolean cacheEnabled;
+    
     @Value("${mc-utils.renderer.cape.enabled}")
     private boolean renderingEnabled;
+    
     @Value("${mc-utils.renderer.cape.limits.min_size}")
     private int minPartSize;
+    
     @Value("${mc-utils.renderer.cape.limits.max_size}")
     private int maxPartSize;
 
@@ -69,6 +83,36 @@ public class CapeService {
     @PostConstruct
     public void init() {
         INSTANCE = this;
+    }
+
+    /**
+     * Gets a paginated list of capes.
+     *
+     * @param page the page to get
+     * @return the paginated list of capes
+     */
+    public Pagination.Page<CapesPageDTO> getPaginatedCapes(int page) {
+        Pagination<CapesPageDTO> pagination = new Pagination<CapesPageDTO>().setItemsPerPage(CAPES_PER_PAGE).setTotalItems(this.getTrackedCapeCount());
+        return pagination.getPage(page, (pageCallback) -> {
+            Query q = new Query().with(PageRequest.of(page - 1, pageCallback.limit())).with(Sort.by(Sort.Order.desc("accountsOwned"), Sort.Order.asc("_id")));
+            List<Document> idDocs = MongoUtils.findWithFields(mongoTemplate, q, CapeDocument.class, "_id");
+            List<UUID> ids = idDocs.stream().map(doc -> doc.get("_id", UUID.class)).toList();
+            Map<UUID, CapeDocument> byId = capeManager.getByIds(ids);
+            return ids.stream().map(byId::get).filter(Objects::nonNull).map(CapesPageDTO::fromDocument).toList();
+        });
+    }
+
+    /**
+     * Gets the DTO for the given cape.
+     *
+     * @param id the UUID of the cape
+     * @return the cape DTO
+     */
+    public CapeDTO getCapeDto(UUID id) {
+        CapeDocument capeDocument = this.capeManager.getById(id).orElseThrow(() -> new NotFoundException("Cape with id '%s' not found".formatted(id)));
+        Query query = Query.query(Criteria.where("cape").is(capeDocument.getId())).with(PageRequest.of(0, 500));
+        List<String> accountsSeenOwning = MongoUtils.findWithFields(mongoTemplate, query, PlayerDocument.class, "_id", "username").stream().map(doc -> doc.getString("username")).toList();
+        return CapeDTO.fromDocument(capeDocument, accountsSeenOwning);
     }
 
     /**

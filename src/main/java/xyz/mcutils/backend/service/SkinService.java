@@ -86,7 +86,7 @@ public class SkinService {
             List<Document> idDocs = MongoUtils.findWithFields(mongoTemplate, q, SkinDocument.class, "_id");
             List<UUID> ids = idDocs.stream().map(doc -> doc.get("_id", UUID.class)).toList();
             Map<UUID, SkinDocument> byId = skinManager.getByIds(ids);
-            return ids.stream().map(byId::get).filter(Objects::nonNull).map(sd -> new SkinsPageDTO(sd.getId(), "%s/skins/%s/fullbody_iso_front.png".formatted(AppConfig.INSTANCE.getWebPublicUrl(), sd.getTextureId()), sd.getAccountsUsed())).toList();
+            return ids.stream().map(byId::get).filter(Objects::nonNull).map(SkinsPageDTO::fromDocument).toList();
         });
     }
 
@@ -110,7 +110,7 @@ public class SkinService {
         Query query = Query.query(Criteria.where("skin").is(skinDocument.getId())).with(PageRequest.of(0, 500)).withHint("skin");
         List<String> accountsSeenUsing = MongoUtils.findWithFields(mongoTemplate, query, PlayerDocument.class, "_id", "username").stream().map(doc -> doc.getString("username")).toList();
 
-        return new SkinDTO(skinDocument.getId(), skinDocument.getTextureId(), "%s/skins/%s/fullbody_iso_front.png".formatted(AppConfig.INSTANCE.getWebPublicUrl(), skinDocument.getTextureId()), skinDocument.getAccountsUsed(), firstSeenUsing, accountsSeenUsing);
+        return SkinDTO.fromDocument(skinDocument, firstSeenUsing, accountsSeenUsing);
     }
 
     /**
