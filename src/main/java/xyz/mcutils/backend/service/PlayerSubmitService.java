@@ -139,8 +139,8 @@ public class PlayerSubmitService {
         Queue<PlayerCreateSubmission> created = new ConcurrentLinkedQueue<>();
         List<Future<?>> futures = new ArrayList<>();
         for (QueueEntry entry : toProcess) {
+            rateLimiter.acquire();
             Future<?> future = Main.EXECUTOR.submit(() -> {
-                rateLimiter.acquire();
                 boolean requeued = false;
                 long processStart = System.currentTimeMillis();
                 try {
