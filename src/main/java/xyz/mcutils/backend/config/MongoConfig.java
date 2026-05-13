@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.MongoDatabaseFactory;
 import org.springframework.data.mongodb.core.SimpleMongoClientDatabaseFactory;
+import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
 @Configuration
@@ -29,5 +30,12 @@ public class MongoConfig {
             database = "mcutils";
         }
         return new SimpleMongoClientDatabaseFactory(mongoClient, database);
+    }
+
+    @Bean
+    public MongoMappingContext mongoMappingContext() {
+        MongoMappingContext context = new MongoMappingContext();
+        context.setAutoIndexCreation(true);
+        return context;
     }
 }
