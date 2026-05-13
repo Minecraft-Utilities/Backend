@@ -42,7 +42,7 @@ import java.util.*;
 @Service
 @Slf4j
 public class PlayerService {
-    private static final Duration PLAYER_UPDATE_INTERVAL = Duration.ofHours(3);
+    static final Duration PLAYER_UPDATE_INTERVAL = Duration.ofHours(3);
     private static final int MAX_PLAYER_SEARCH_RESULTS = 5;
 
     public static PlayerService INSTANCE;

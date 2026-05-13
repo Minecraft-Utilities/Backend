@@ -147,11 +147,8 @@ public class CapeManager {
         }
         CapeDocument document = new CapeDocument(UUID.randomUUID(), null, textureId, 0, Instant.now(), playerUuid);
         StatisticsService.updateTrackedCapeCount(StatisticsService.INSTANCE.getTrackedCapeCount() + 1);
+        this.capeRepository.insert(document);
         put(document);
-        CachedCapeDocument cached = this.cacheById.getIfPresent(document.getId());
-        if (cached != null) {
-            cached.setDirty(true);
-        }
         log.debug("Created cape {}", document.getTextureId());
         return document;
     }

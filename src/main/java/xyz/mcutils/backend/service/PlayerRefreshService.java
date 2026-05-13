@@ -8,6 +8,7 @@ import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
@@ -74,6 +75,10 @@ public class PlayerRefreshService {
                             if (playerDocument == null) {
                                 return;
                             }
+                            // Skip players refreshed recently (e.g. via an API lookup) since the batch query ran
+                            if (playerDocument.getLastUpdated() != null && playerDocument.getLastUpdated().isAfter(batchTime.minus(PlayerService.PLAYER_UPDATE_INTERVAL))) {
+                                return;
+                            }
                             MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
                             if (token == null) {
                                 return;
@@ -93,10 +98,14 @@ public class PlayerRefreshService {
     }
 
     /**
-     * Returns player ids with oldest lastUpdated first (projection _id only). Use manager to load full document.
+     * Returns player ids whose lastUpdated is older than the update interval, ordered oldest first.
+     * Projection is _id only; use manager to load full documents.
      */
     private List<UUID> findRefreshChunkIds() {
-        Query query = new Query().with(Sort.by(Sort.Direction.ASC, "lastUpdated")).limit(PlayerRefreshService.REFRESH_CHUNK_SIZE);
+        Instant cutoff = Instant.now().minus(PlayerService.PLAYER_UPDATE_INTERVAL);
+        Query query = new Query(Criteria.where("lastUpdated").lt(cutoff))
+                .with(Sort.by(Sort.Direction.ASC, "lastUpdated"))
+                .limit(PlayerRefreshService.REFRESH_CHUNK_SIZE);
         List<Document> found = MongoUtils.findWithFields(mongoTemplate, query, PlayerDocument.class, "_id");
         return found.stream()
                 .map(doc -> doc.get("_id"))
