@@ -301,7 +301,9 @@ public class CapeService {
         if (document == null) {
             return null;
         }
-        return new VanillaCape(document.getId(), document.getName(), document.getAccountsOwned(), document.getTextureId());
+        VanillaCape cape = new VanillaCape(document.getId(), document.getName(), document.getAccountsOwned(), document.getTextureId());
+        cape.setFirstSeen(document.getFirstSeen());
+        return cape;
     }
 
     /**

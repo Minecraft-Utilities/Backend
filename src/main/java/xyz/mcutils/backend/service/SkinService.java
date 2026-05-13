@@ -278,6 +278,7 @@ public class SkinService {
         }
         Skin skin = new Skin(document.getId(), document.getTextureId(), document.getModel(), document.isLegacy());
         skin.setAccountsUsed(document.getAccountsUsed());
+        skin.setFirstSeen(document.getFirstSeen());
         return skin;
     }
 

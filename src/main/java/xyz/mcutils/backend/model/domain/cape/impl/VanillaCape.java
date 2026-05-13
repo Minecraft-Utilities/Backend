@@ -15,6 +15,7 @@ import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.domain.cape.Cape;
 
 import java.awt.image.BufferedImage;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
@@ -54,6 +55,12 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
      */
     @Setter
     private long accountsOwned;
+
+    /**
+     * The date this cape was first seen.
+     */
+    @Setter
+    private Instant firstSeen;
 
     public VanillaCape(UUID uuid, String name, long accountsOwned, String textureId) {
         super(textureId, CDN_URL.formatted(textureId), AppConfig.INSTANCE.getWebPublicUrl() + "/capes/%s/texture.png".formatted(textureId), buildParts(textureId));

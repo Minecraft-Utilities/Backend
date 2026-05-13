@@ -19,6 +19,7 @@ import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.domain.Texture;
 
 import java.awt.image.BufferedImage;
+import java.time.Instant;
 import java.util.*;
 
 @AllArgsConstructor
@@ -40,6 +41,12 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
      */
     @Setter
     private long accountsUsed;
+
+    /**
+     * The date this skin was first seen.
+     */
+    @Setter
+    private Instant firstSeen;
 
     /**
      * The first player seen using this skin (only set on detail responses).
