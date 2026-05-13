@@ -36,6 +36,6 @@ public class CachedCapeDocument {
      */
     public CapeDocument snapshotDocument() {
         CapeDocument doc = this.document;
-        return CapeDocument.builder().id(doc.getId()).name(doc.getName()).textureId(doc.getTextureId()).accountsOwned(this.accountsOwned.get()).firstSeen(doc.getFirstSeen()).build();
+        return CapeDocument.builder().id(doc.getId()).name(doc.getName()).textureId(doc.getTextureId()).accountsOwned(this.accountsOwned.get()).firstSeen(doc.getFirstSeen()).firstPlayerSeenUsing(doc.getFirstPlayerSeenUsing()).build();
     }
 }

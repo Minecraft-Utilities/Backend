@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.model.domain.skin;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.ImageUtils;
@@ -31,8 +32,28 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
     /**
      * The UUID of this skin.
      */
-    @JsonIgnore
+    @JsonProperty("id")
     private UUID uuid;
+
+    /**
+     * The number of accounts that have used this skin.
+     */
+    @Setter
+    private long accountsUsed;
+
+    /**
+     * The first player seen using this skin (only set on detail responses).
+     */
+    @Setter
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String firstSeenUsing;
+
+    /**
+     * The accounts currently using this skin (only set on detail responses).
+     */
+    @Setter
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private List<String> accountsSeenUsing;
 
     /**
      * The model for the skin

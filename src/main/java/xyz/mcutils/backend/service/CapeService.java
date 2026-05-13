@@ -28,8 +28,6 @@ import xyz.mcutils.backend.metric.impl.cape.CapeRenderMetric;
 import xyz.mcutils.backend.model.domain.cape.Cape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.Player;
-import xyz.mcutils.backend.model.dto.response.cape.CapeDTO;
-import xyz.mcutils.backend.model.dto.response.cape.CapesPageDTO;
 import xyz.mcutils.backend.model.persistence.mongo.CapeDocument;
 import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 
@@ -83,14 +81,14 @@ public class CapeService {
      * @param page the page to get
      * @return the paginated list of capes
      */
-    public Pagination.Page<CapesPageDTO> getPaginatedCapes(int page) {
-        Pagination<CapesPageDTO> pagination = new Pagination<CapesPageDTO>().setItemsPerPage(CAPES_PER_PAGE).setTotalItems(this.getTrackedCapeCount());
+    public Pagination.Page<VanillaCape> getPaginatedCapes(int page) {
+        Pagination<VanillaCape> pagination = new Pagination<VanillaCape>().setItemsPerPage(CAPES_PER_PAGE).setTotalItems(this.getTrackedCapeCount());
         return pagination.getPage(page, (pageCallback) -> {
             Query q = new Query().with(PageRequest.of(page - 1, pageCallback.limit())).with(Sort.by(Sort.Order.desc("accountsOwned"), Sort.Order.asc("_id")));
             List<Document> idDocs = MongoUtils.findWithFields(mongoTemplate, q, CapeDocument.class, "_id");
             List<UUID> ids = idDocs.stream().map(doc -> doc.get("_id", UUID.class)).toList();
             Map<UUID, CapeDocument> byId = capeManager.getByIds(ids);
-            return ids.stream().map(byId::get).filter(Objects::nonNull).map(CapesPageDTO::fromDocument).toList();
+            return ids.stream().map(byId::get).filter(Objects::nonNull).map(this::fromDocument).toList();
         });
     }
 
@@ -100,11 +98,22 @@ public class CapeService {
      * @param id the UUID of the cape
      * @return the cape DTO
      */
-    public CapeDTO getCapeDto(UUID id) {
+    public VanillaCape getCape(UUID id) {
         CapeDocument capeDocument = this.capeManager.getById(id).orElseThrow(() -> new NotFoundException("Cape with id '%s' not found".formatted(id)));
+        String firstSeenUsing = "Unknown";
+        if (capeDocument.getFirstPlayerSeenUsing() != null) {
+            Query firstQuery = Query.query(Criteria.where("_id").is(capeDocument.getFirstPlayerSeenUsing())).limit(1);
+            List<Document> firstDoc = MongoUtils.findWithFields(mongoTemplate, firstQuery, PlayerDocument.class, "_id", "username");
+            if (!firstDoc.isEmpty()) {
+                firstSeenUsing = firstDoc.getFirst().getString("username");
+            }
+        }
         Query query = Query.query(Criteria.where("cape").is(capeDocument.getId())).with(PageRequest.of(0, 500));
         List<String> accountsSeenOwning = MongoUtils.findWithFields(mongoTemplate, query, PlayerDocument.class, "_id", "username").stream().map(doc -> doc.getString("username")).toList();
-        return CapeDTO.fromDocument(capeDocument, accountsSeenOwning);
+        VanillaCape cape = fromDocument(capeDocument);
+        cape.setFirstSeenUsing(firstSeenUsing);
+        cape.setAccountsSeenOwning(accountsSeenOwning);
+        return cape;
     }
 
     /**
@@ -153,7 +162,7 @@ public class CapeService {
         if (textureId == null || textureId.isBlank()) {
             return null;
         }
-        return capeManager.getByTextureId(textureId).map(this::fromDocument).orElseGet(() -> fromDocument(capeManager.getOrCreateByTextureId(textureId)));
+        return capeManager.getByTextureId(textureId).map(this::fromDocument).orElseGet(() -> fromDocument(capeManager.getOrCreateByTextureId(textureId, null)));
     }
 
     /**

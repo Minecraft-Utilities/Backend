@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.model.domain.cape.impl;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -24,10 +25,24 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
     private static final String CDN_URL = "https://textures.minecraft.net/texture/%s";
 
     /**
-     * The UUID of this skin.
+     * The UUID of this cape.
      */
-    @JsonIgnore
+    @JsonProperty("id")
     private UUID uuid;
+
+    /**
+     * The accounts currently owning this cape (only set on detail responses).
+     */
+    @Setter
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private List<String> accountsSeenOwning;
+
+    /**
+     * The first player seen using this cape (only set on detail responses).
+     */
+    @Setter
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String firstSeenUsing;
 
     /**
      * The name of this cape.

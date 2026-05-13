@@ -11,8 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.common.Pagination;
 import xyz.mcutils.backend.model.domain.skin.Skin;
-import xyz.mcutils.backend.model.dto.response.skin.SkinDTO;
-import xyz.mcutils.backend.model.dto.response.skin.SkinsPageDTO;
 import xyz.mcutils.backend.service.SkinService;
 
 import java.util.UUID;
@@ -31,13 +29,13 @@ public class SkinController {
     }
 
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Pagination.Page<SkinsPageDTO>> getSkins(@Parameter(description = "The page of skins to get", example = "1") @RequestParam(required = false, defaultValue = "1") int page) {
+    public ResponseEntity<Pagination.Page<Skin>> getSkins(@Parameter(description = "The page of skins to get", example = "1") @RequestParam(required = false, defaultValue = "1") int page) {
         return ResponseEntity.ok().body(skinService.getPaginatedSkins(page));
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<SkinDTO> getSkin(@Parameter(description = "The UUID of the skin") @PathVariable UUID id) {
-        return ResponseEntity.ok().body(skinService.getSkinDto(id));
+    public ResponseEntity<Skin> getSkin(@Parameter(description = "The UUID of the skin") @PathVariable UUID id) {
+        return ResponseEntity.ok().body(skinService.getSkin(id));
     }
 
     @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)

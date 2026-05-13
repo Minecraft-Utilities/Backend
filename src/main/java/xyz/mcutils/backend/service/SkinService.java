@@ -22,8 +22,6 @@ import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.skin.SkinRenderMetric;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.domain.skin.Skin;
-import xyz.mcutils.backend.model.dto.response.skin.SkinDTO;
-import xyz.mcutils.backend.model.dto.response.skin.SkinsPageDTO;
 import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
 import xyz.mcutils.backend.model.persistence.mongo.SkinDocument;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
@@ -77,14 +75,14 @@ public class SkinService {
      * @param page the page to get
      * @return the paginated list of skins
      */
-    public Pagination.Page<SkinsPageDTO> getPaginatedSkins(int page) {
-        Pagination<SkinsPageDTO> pagination = new Pagination<SkinsPageDTO>().setItemsPerPage(SKINS_PER_PAGE).setTotalItems(this.getTrackedSkinCount());
+    public Pagination.Page<Skin> getPaginatedSkins(int page) {
+        Pagination<Skin> pagination = new Pagination<Skin>().setItemsPerPage(SKINS_PER_PAGE).setTotalItems(this.getTrackedSkinCount());
         return pagination.getPage(page, (pageCallback) -> {
             Query q = new Query().with(PageRequest.of(page - 1, pageCallback.limit())).with(Sort.by(Sort.Order.desc("accountsUsed"), Sort.Order.asc("_id")));
             List<Document> idDocs = MongoUtils.findWithFields(mongoTemplate, q, SkinDocument.class, "_id");
             List<UUID> ids = idDocs.stream().map(doc -> doc.get("_id", UUID.class)).toList();
             Map<UUID, SkinDocument> byId = skinManager.getByIds(ids);
-            return ids.stream().map(byId::get).filter(Objects::nonNull).map(SkinsPageDTO::fromDocument).toList();
+            return ids.stream().map(byId::get).filter(Objects::nonNull).map(this::fromDocument).toList();
         });
     }
 
@@ -94,7 +92,7 @@ public class SkinService {
      * @param id the UUID of the skin
      * @return the skin DTO
      */
-    public SkinDTO getSkinDto(UUID id) {
+    public Skin getSkin(UUID id) {
         SkinDocument skinDocument = this.skinManager.getById(id).orElseThrow(() -> new NotFoundException("Skin with id '%s' not found".formatted(id)));
         String firstSeenUsing = "Unknown";
         if (skinDocument.getFirstPlayerSeenUsing() != null) {
@@ -108,7 +106,10 @@ public class SkinService {
         Query query = Query.query(Criteria.where("skin").is(skinDocument.getId())).with(PageRequest.of(0, 500)).withHint("skin");
         List<String> accountsSeenUsing = MongoUtils.findWithFields(mongoTemplate, query, PlayerDocument.class, "_id", "username").stream().map(doc -> doc.getString("username")).toList();
 
-        return SkinDTO.fromDocument(skinDocument, firstSeenUsing, accountsSeenUsing);
+        Skin skin = fromDocument(skinDocument);
+        skin.setFirstSeenUsing(firstSeenUsing);
+        skin.setAccountsSeenUsing(accountsSeenUsing);
+        return skin;
     }
 
     /**
@@ -275,7 +276,9 @@ public class SkinService {
         if (document == null) {
             return null;
         }
-        return new Skin(document.getId(), document.getTextureId(), document.getModel(), document.isLegacy());
+        Skin skin = new Skin(document.getId(), document.getTextureId(), document.getModel(), document.isLegacy());
+        skin.setAccountsUsed(document.getAccountsUsed());
+        return skin;
     }
 
     /**

@@ -424,7 +424,7 @@ public class PlayerService {
         UUID newCapeId;
         if (skinAndCape.right() != null) {
             try {
-                CapeDocument capeDoc = capeManager.getOrCreateByTextureId(skinAndCape.right().getTextureId());
+                CapeDocument capeDoc = capeManager.getOrCreateByTextureId(skinAndCape.right().getTextureId(), playerId);
                 newCapeId = capeDoc != null ? capeDoc.getId() : currentCapeId;
             } catch (Exception e) {
                 log.debug("Cape resolve failed for player {}; keeping current cape {}", playerId, currentCapeId, e);

@@ -10,8 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.common.Pagination;
 import xyz.mcutils.backend.model.domain.cape.Cape;
-import xyz.mcutils.backend.model.dto.response.cape.CapeDTO;
-import xyz.mcutils.backend.model.dto.response.cape.CapesPageDTO;
+import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.service.CapeService;
 
 import java.util.UUID;
@@ -29,13 +28,13 @@ public class CapeController {
     }
 
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Pagination.Page<CapesPageDTO>> getCapes(@Parameter(description = "The page of capes to get", example = "1") @RequestParam(required = false, defaultValue = "1") int page) {
+    public ResponseEntity<Pagination.Page<VanillaCape>> getCapes(@Parameter(description = "The page of capes to get", example = "1") @RequestParam(required = false, defaultValue = "1") int page) {
         return ResponseEntity.ok().body(capeService.getPaginatedCapes(page));
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<CapeDTO> getCape(@Parameter(description = "The UUID of the cape") @PathVariable UUID id) {
-        return ResponseEntity.ok().body(capeService.getCapeDto(id));
+    public ResponseEntity<VanillaCape> getCape(@Parameter(description = "The UUID of the cape") @PathVariable UUID id) {
+        return ResponseEntity.ok().body(capeService.getCape(id));
     }
 
     @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)

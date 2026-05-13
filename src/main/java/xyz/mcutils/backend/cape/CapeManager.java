@@ -131,10 +131,18 @@ public class CapeManager {
      *
      * @throws NotFoundException if the cape does not exist and cannot be created
      */
-    public CapeDocument getOrCreateByTextureId(String textureId) {
+    public CapeDocument getOrCreateByTextureId(String textureId, UUID playerUuid) {
         Optional<CapeDocument> existing = this.getByTextureId(textureId);
         if (existing.isPresent()) {
-            return existing.get();
+            CapeDocument doc = existing.get();
+            if (doc.getFirstPlayerSeenUsing() == null && playerUuid != null) {
+                doc.setFirstPlayerSeenUsing(playerUuid);
+                CachedCapeDocument cached = this.cacheById.getIfPresent(doc.getId());
+                if (cached != null) {
+                    cached.setDirty(true);
+                }
+            }
+            return doc;
         }
         boolean exists = false;
         try {
@@ -145,7 +153,7 @@ public class CapeManager {
         if (!exists) {
             throw new NotFoundException("Cape with texture id " + textureId + " was not found");
         }
-        CapeDocument document = new CapeDocument(UUID.randomUUID(), null, textureId, 0, Instant.now());
+        CapeDocument document = new CapeDocument(UUID.randomUUID(), null, textureId, 0, Instant.now(), playerUuid);
         StatisticsService.updateTrackedCapeCount(StatisticsService.INSTANCE.getTrackedCapeCount() + 1);
         put(document);
         CachedCapeDocument cached = this.cacheById.getIfPresent(document.getId());

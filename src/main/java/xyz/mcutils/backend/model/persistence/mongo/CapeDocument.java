@@ -48,4 +48,9 @@ public class CapeDocument {
      * The date this cape was first seen on.
      */
     private Instant firstSeen;
+
+    /**
+     * The first player seen using this cape.
+     */
+    private UUID firstPlayerSeenUsing;
 }
