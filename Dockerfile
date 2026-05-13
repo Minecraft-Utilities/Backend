@@ -36,10 +36,4 @@ ENV PORT=80
 ENV ENVIRONMENT=production
 
 # Start the application
-CMD ["java",
-  "-XX:MaxRAMPercentage=75.0",
-  "-XX:+UseZGC",
-  "-XX:+ZGenerational",
-  "-Djava.awt.headless=true",
-  "-jar", "target/Minecraft-Utilities.jar"
-]
+CMD ["java", "-XX:MaxRAMPercentage=75.0", "-XX:+UseZGC", "-XX:+ZGenerational", "-Djava.awt.headless=true", "-jar", "target/Minecraft-Utilities.jar"]
