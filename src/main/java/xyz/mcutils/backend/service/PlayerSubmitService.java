@@ -43,7 +43,7 @@ public class PlayerSubmitService {
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
     
-    private final RateLimiter rateLimiter = RateLimiter.create(40);
+    private final RateLimiter rateLimiter = RateLimiter.create(250);
     private final RedisTemplate<String, String> redis;
     private final PlayerService playerService;
     private final MojangService mojangService;
