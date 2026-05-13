@@ -10,6 +10,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -56,7 +57,13 @@ public class AppConfig {
 
     @Bean
     public FilterRegistrationBean<ShallowEtagHeaderFilter> shallowEtagHeaderFilter() {
-        FilterRegistrationBean<ShallowEtagHeaderFilter> filterRegistrationBean = new FilterRegistrationBean<>(new ShallowEtagHeaderFilter());
+        ShallowEtagHeaderFilter filter = new ShallowEtagHeaderFilter() {
+            @Override
+            protected boolean shouldNotFilter(HttpServletRequest request) {
+                return request.getRequestURI().endsWith(".png");
+            }
+        };
+        FilterRegistrationBean<ShallowEtagHeaderFilter> filterRegistrationBean = new FilterRegistrationBean<>(filter);
         filterRegistrationBean.addUrlPatterns("/*");
         filterRegistrationBean.setOrder(2);
         filterRegistrationBean.setName("etagFilter");
