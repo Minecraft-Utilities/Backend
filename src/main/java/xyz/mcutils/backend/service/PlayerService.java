@@ -185,26 +185,11 @@ public class PlayerService {
         this.playerRepository.saveAll(playerRows);
         StatisticsService.addTrackedPlayerCount(playerRows.size());
 
-        // Save events in parallel; capture skin/cape results to extract IDs for bulk unique_owners update
-        CompletableFuture<List<SkinChangeEventRow>> skinEventsFuture = CompletableFuture.supplyAsync(
-                () -> this.skinChangeEventRepository.saveAll(skinChangeEvents), Main.EXECUTOR);
-        CompletableFuture<List<CapeChangeEventRow>> capeEventsFuture = CompletableFuture.supplyAsync(
-                () -> this.capeChangeEventRepository.saveAll(capeChangeEvents), Main.EXECUTOR);
-        CompletableFuture<Void> usernameEventsFuture = CompletableFuture.runAsync(
-                () -> this.usernameChangeEventRepository.saveAll(usernameChangeEvents), Main.EXECUTOR);
-
-        List<Long> skinEventIds = skinEventsFuture.join().stream().map(SkinChangeEventRow::getId).toList();
-        List<Long> capeEventIds = capeEventsFuture.join().stream().map(CapeChangeEventRow::getId).toList();
-        usernameEventsFuture.join();
-
-        // One bulk UPDATE per table instead of one correlated subquery + UPDATE per inserted row
-        CompletableFuture<Void> skinOwnersFuture = skinEventIds.isEmpty()
-                ? CompletableFuture.completedFuture(null)
-                : CompletableFuture.runAsync(() -> this.skinChangeEventRepository.bulkUpdateUniqueOwners(skinEventIds), Main.EXECUTOR);
-        CompletableFuture<Void> capeOwnersFuture = capeEventIds.isEmpty()
-                ? CompletableFuture.completedFuture(null)
-                : CompletableFuture.runAsync(() -> this.capeChangeEventRepository.bulkUpdateUniqueOwners(capeEventIds), Main.EXECUTOR);
-        CompletableFuture.allOf(skinOwnersFuture, capeOwnersFuture).join();
+        CompletableFuture.allOf(
+                CompletableFuture.runAsync(() -> this.skinChangeEventRepository.saveAll(skinChangeEvents), Main.EXECUTOR),
+                CompletableFuture.runAsync(() -> this.capeChangeEventRepository.saveAll(capeChangeEvents), Main.EXECUTOR),
+                CompletableFuture.runAsync(() -> this.usernameChangeEventRepository.saveAll(usernameChangeEvents), Main.EXECUTOR)
+        ).join();
     }
 
     public void updatePlayers(List<PlayerUpdate> playerUpdates) {
