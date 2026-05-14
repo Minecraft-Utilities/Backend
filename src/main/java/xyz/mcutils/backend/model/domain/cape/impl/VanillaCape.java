@@ -57,14 +57,14 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
     /**
      * The date this cape was first seen.
      */
-    @Setter
     private Instant firstSeen;
 
-    public VanillaCape(long id, String name, String textureId, long uniqueOwners) {
+    public VanillaCape(long id, String name, String textureId, long uniqueOwners, Instant firstSeen) {
         super(textureId, CDN_URL.formatted(textureId), AppConfig.INSTANCE.getWebPublicUrl() + "/capes/%s/texture.png".formatted(textureId), buildParts(textureId));
         this.id = id;
         this.name = name;
         this.uniqueOwners = uniqueOwners;
+        this.firstSeen = firstSeen;
     }
 
     /**
@@ -121,6 +121,6 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
     }
 
     public static VanillaCape fromRow(CapeRow capeRow) {
-        return new VanillaCape(capeRow.getId(), capeRow.getName(), capeRow.getTextureId(), capeRow.getUniqueOwners());
+        return new VanillaCape(capeRow.getId(), capeRow.getName(), capeRow.getTextureId(), capeRow.getUniqueOwners(), capeRow.getFirstSeen());
     }
 }
