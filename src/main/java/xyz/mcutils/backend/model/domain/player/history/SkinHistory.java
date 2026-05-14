@@ -19,7 +19,7 @@ public class SkinHistory extends Skin {
     private Instant lastUsed;
 
     public SkinHistory(Skin skin, Instant lastUsed) {
-        super(skin.getId(), skin.getTextureId(), skin.getModel(), skin.getUniqueOwners(), skin.isLegacy());
+        super(skin.getId(), skin.getTextureId(), skin.getModel(), skin.getUniqueOwners(), skin.isLegacy(), skin.getFirstSeen());
         this.lastUsed = lastUsed;
     }
 }
