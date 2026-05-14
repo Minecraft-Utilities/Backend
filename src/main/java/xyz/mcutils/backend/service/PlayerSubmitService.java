@@ -163,7 +163,6 @@ public class PlayerSubmitService {
                 if (result.entry().submittedBy() != null) {
                     submitterCounts.merge(result.entry().submittedBy(), 1L, Long::sum);
                 }
-                recordOutcome(PlayerSubmitProcessingMetric.Outcome.CREATED, result.processStart());
             }
         }
 
@@ -180,6 +179,7 @@ public class PlayerSubmitService {
                 recordOutcome(PlayerSubmitProcessingMetric.Outcome.NOT_FOUND, processStart);
                 return new FetchResult(entry, null, PlayerSubmitProcessingMetric.Outcome.NOT_FOUND, processStart);
             }
+            recordOutcome(PlayerSubmitProcessingMetric.Outcome.CREATED, processStart);
             return new FetchResult(entry, token, PlayerSubmitProcessingMetric.Outcome.CREATED, processStart);
         } catch (NotFoundException e) {
             log.debug("Player {} not found on Mojang, removing from queue", entry.playerId(), e);

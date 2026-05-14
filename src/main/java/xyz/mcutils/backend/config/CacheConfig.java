@@ -3,21 +3,31 @@ package xyz.mcutils.backend.config;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.cache.caffeine.CaffeineCache;
+import org.springframework.cache.support.SimpleCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Configuration
 @EnableCaching
 public class CacheConfig {
+
     @Bean
     public CacheManager cacheManager() {
-        CaffeineCacheManager manager = new CaffeineCacheManager("geoLookup");
-        manager.setCaffeine(Caffeine.newBuilder()
-                .maximumSize(10_000)
-                .expireAfterWrite(1, TimeUnit.HOURS));
+        SimpleCacheManager manager = new SimpleCacheManager();
+        manager.setCaches(List.of(
+            buildCache("geoLookup", 30, TimeUnit.MINUTES, 5_000)
+        ));
         return manager;
+    }
+
+    private CaffeineCache buildCache(String name, long ttl, TimeUnit unit, long maxSize) {
+        return new CaffeineCache(name, Caffeine.newBuilder()
+                .expireAfterWrite(ttl, unit)
+                .maximumSize(maxSize)
+                .build());
     }
 }
