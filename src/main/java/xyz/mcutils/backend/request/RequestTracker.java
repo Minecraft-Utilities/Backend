@@ -26,11 +26,6 @@ public class RequestTracker implements ResponseBodyAdvice<Object> {
         HttpServletRequest request = ((ServletServerHttpRequest) rawRequest).getServletRequest();
         String uri = request.getRequestURI();
 
-        // Ignore metrics and health check requests
-        if (uri.contains("/metrics") || uri.contains("/health")) {
-            return body;
-        }
-
         String pattern = (String) request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
         String endpoint = pattern != null ? pattern : uri;
         String method = rawRequest.getMethod().name();
