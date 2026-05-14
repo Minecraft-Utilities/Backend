@@ -282,9 +282,7 @@ public class PlayerService {
                 .collect(Collectors.toMap(row -> (Long) row[0], row -> (Instant) row[1]));
         return events.stream().map(row -> {
             VanillaCape cape = VanillaCape.fromRow(row.getCape());
-            CapeHistory capeHistory = new CapeHistory(cape, row.getTimestamp());
-            capeHistory.setFirstSeen(firstSeenByCapeId.get(cape.getId()));
-            return capeHistory;
+            return new CapeHistory(cape, row.getTimestamp());
         }).collect(Collectors.toSet());
     }
 
