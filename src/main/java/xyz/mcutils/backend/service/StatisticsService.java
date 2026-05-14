@@ -38,9 +38,6 @@ public class StatisticsService {
         }
     }
 
-    /**
-     * Incremental update to avoid Mongo estimatedCount on every bulk create.
-     */
     public static void addTrackedPlayerCount(long delta) {
         if (delta == 0) {
             return;
@@ -51,16 +48,22 @@ public class StatisticsService {
         }
     }
 
-    public static void updateTrackedSkinCount(long count) {
-        INSTANCE.trackedSkinCount = count;
-        if (count % 100 == 0) {
+    public static void addTrackedSkinCount(long delta) {
+        if (delta == 0) {
+            return;
+        }
+        INSTANCE.trackedSkinCount += delta;
+        if (INSTANCE.trackedSkinCount % 100 == 0) {
             INSTANCE.updateStatistics();
         }
     }
 
-    public static void updateTrackedCapeCount(long count) {
-        INSTANCE.trackedCapeCount = count;
-        if (count % 100 == 0) {
+    public static void addTrackedCapeCount(long delta) {
+        if (delta == 0) {
+            return;
+        }
+        INSTANCE.trackedCapeCount += delta;
+        if (INSTANCE.trackedCapeCount % 100 == 0) {
             INSTANCE.updateStatistics();
         }
     }

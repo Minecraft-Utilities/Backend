@@ -90,13 +90,18 @@ public class SkinService {
     @Transactional
     public SkinRow getOrCreateSkin(SkinTextureToken token) {
         Optional<SkinRow> optionalSkinRow = this.skinRepository.findByTextureId(token.getTextureId());
-        return optionalSkinRow.orElseGet(() -> this.skinRepository.save(new SkinRow(
+        if (optionalSkinRow.isPresent()) {
+            return optionalSkinRow.get();
+        }
+        SkinRow skinRow = this.skinRepository.save(new SkinRow(
                 token.getTextureId(),
                 token.metadata() == null ? Skin.Model.DEFAULT : Skin.Model.valueOf(token.metadata().model().toUpperCase()),
                 Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), this.webRequest),
                 0,
                 Instant.now()
-        )));
+        ));
+        StatisticsService.addTrackedSkinCount(1);
+        return skinRow;
     }
 
     public Pagination.Page<Skin> getPaginatedSkins(int page) {
