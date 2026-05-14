@@ -10,8 +10,10 @@ import org.springframework.transaction.annotation.Transactional;
 import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
@@ -25,6 +27,9 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
 
     @Query("SELECT p FROM PlayerRow p WHERE p.cape.id = :capeId")
     List<PlayerRow> findByCapeId(long capeId, Pageable pageable);
+
+    @Query("SELECT p.id FROM PlayerRow p WHERE p.id IN :ids")
+    Set<UUID> findExistingIds(@Param("ids") Collection<UUID> ids);
 
     @Modifying
     @Transactional

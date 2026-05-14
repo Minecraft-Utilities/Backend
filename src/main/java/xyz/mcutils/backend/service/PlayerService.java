@@ -309,9 +309,7 @@ public class PlayerService {
     }
 
     public Set<UUID> getExistingPlayerIds(List<UUID> ids) {
-        return this.playerRepository.findAllById(ids).stream()
-                .map(PlayerRow::getId)
-                .collect(Collectors.toSet());
+        return this.playerRepository.findExistingIds(ids);
     }
 
     public void incrementSubmittedUuids(UUID playerId, long count) {
