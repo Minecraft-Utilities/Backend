@@ -31,13 +31,6 @@ public class StatisticsService {
         INSTANCE = this;
     }
 
-    public static void updateTrackedPlayerCount(long count) {
-        INSTANCE.trackedPlayerCount = count;
-        if (count % 100 == 0) {
-            INSTANCE.updateStatistics();
-        }
-    }
-
     public static void addTrackedPlayerCount(long delta) {
         if (delta == 0) {
             return;

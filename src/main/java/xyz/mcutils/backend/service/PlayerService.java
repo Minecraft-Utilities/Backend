@@ -255,13 +255,37 @@ public class PlayerService {
     }
 
     public Set<SkinHistory> getSkinHistory(PlayerRow player) {
-        return this.skinChangeEventRepository.findByPlayerId(player.getId()).stream().map(row ->
-                new SkinHistory(Skin.fromRow(this.skinService.getSkinByTextureIdOrPlayer(row.getSkin().getTextureId())), row.getTimestamp())).collect(Collectors.toSet());
+        List<SkinChangeEventRow> events = this.skinChangeEventRepository.findByPlayerId(player.getId());
+        if (events.isEmpty()) {
+            return Collections.emptySet();
+        }
+        Set<Long> skinIds = events.stream().map(e -> e.getSkin().getId()).collect(Collectors.toSet());
+        Map<Long, Instant> firstSeenBySkinId = this.skinChangeEventRepository.findFirstTimestampsBySkinIds(skinIds)
+                .stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Instant) row[1]));
+        return events.stream().map(row -> {
+            Skin skin = Skin.fromRow(row.getSkin());
+            SkinHistory skinHistory = new SkinHistory(skin, row.getTimestamp());
+            skinHistory.setFirstSeen(firstSeenBySkinId.get(skin.getId()));
+            return skinHistory;
+        }).collect(Collectors.toSet());
     }
 
     public Set<CapeHistory> getCapeHistory(PlayerRow player) {
-        return this.capeChangeEventRepository.findByPlayerId(player.getId()).stream().map(row ->
-                new CapeHistory(VanillaCape.fromRow(this.capeService.getCapeByTextureIdOrPlayer(row.getCape().getTextureId())), row.getTimestamp())).collect(Collectors.toSet());
+        List<CapeChangeEventRow> events = this.capeChangeEventRepository.findByPlayerId(player.getId());
+        if (events.isEmpty()) {
+            return Collections.emptySet();
+        }
+        Set<Long> capeIds = events.stream().map(e -> e.getCape().getId()).collect(Collectors.toSet());
+        Map<Long, Instant> firstSeenByCapeId = this.capeChangeEventRepository.findFirstTimestampsByCapeIds(capeIds)
+                .stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Instant) row[1]));
+        return events.stream().map(row -> {
+            VanillaCape cape = VanillaCape.fromRow(row.getCape());
+            CapeHistory capeHistory = new CapeHistory(cape, row.getTimestamp());
+            capeHistory.setFirstSeen(firstSeenByCapeId.get(cape.getId()));
+            return capeHistory;
+        }).collect(Collectors.toSet());
     }
 
     public List<FullPlayer> searchPlayers(String query) {
