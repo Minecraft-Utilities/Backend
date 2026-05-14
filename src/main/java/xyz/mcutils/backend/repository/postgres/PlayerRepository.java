@@ -20,6 +20,12 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
     List<PlayerRow> findTopByOrderBySubmittedUuidsDesc(Pageable pageable);
     Page<PlayerRow> findAllByLastUpdatedBeforeOrderByLastUpdatedAsc(Instant cutoff, Pageable pageable);
 
+    @Query("SELECT p FROM PlayerRow p WHERE p.skin.id = :skinId")
+    List<PlayerRow> findBySkinId(long skinId, Pageable pageable);
+
+    @Query("SELECT p FROM PlayerRow p WHERE p.cape.id = :capeId")
+    List<PlayerRow> findByCapeId(long capeId, Pageable pageable);
+
     @Modifying
     @Transactional
     @Query("UPDATE PlayerRow p SET p.submittedUuids = p.submittedUuids + :count WHERE p.id = :id")

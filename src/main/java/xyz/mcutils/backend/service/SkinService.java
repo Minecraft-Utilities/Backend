@@ -19,12 +19,17 @@ import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.skin.SkinRenderMetric;
 import xyz.mcutils.backend.model.domain.player.BasicPlayer;
 import xyz.mcutils.backend.model.domain.skin.Skin;
+import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
+import xyz.mcutils.backend.model.persistence.postgres.SkinChangeEventRow;
 import xyz.mcutils.backend.model.persistence.postgres.SkinRow;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
+import xyz.mcutils.backend.repository.postgres.PlayerRepository;
+import xyz.mcutils.backend.repository.postgres.SkinChangeEventRepository;
 import xyz.mcutils.backend.repository.postgres.SkinRepository;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -35,6 +40,8 @@ public class SkinService {
     public static SkinService INSTANCE;
 
     private final SkinRepository skinRepository;
+    private final SkinChangeEventRepository skinChangeEventRepository;
+    private final PlayerRepository playerRepository;
     private final PlayerService playerService;
     private final StorageService storageService;
     private final WebRequest webRequest;
@@ -53,8 +60,10 @@ public class SkinService {
     @Value("${mc-utils.renderer.skin.limits.max_size}")
     private int maxPartSize;
 
-    public SkinService(SkinRepository skinRepository, @Lazy PlayerService playerService, StorageService storageService, WebRequest webRequest) {
+    public SkinService(SkinRepository skinRepository, SkinChangeEventRepository skinChangeEventRepository, PlayerRepository playerRepository, @Lazy PlayerService playerService, StorageService storageService, WebRequest webRequest) {
         this.skinRepository = skinRepository;
+        this.skinChangeEventRepository = skinChangeEventRepository;
+        this.playerRepository = playerRepository;
         this.playerService = playerService;
         this.storageService = storageService;
         this.webRequest = webRequest;
@@ -70,7 +79,19 @@ public class SkinService {
         if (optionalSkinRow.isEmpty()) {
             throw new NotFoundException("Skin not found");
         }
-        return Skin.fromRow(optionalSkinRow.get());
+        SkinRow skinRow = optionalSkinRow.get();
+        Skin skin = Skin.fromRow(skinRow);
+
+        Optional<SkinChangeEventRow> firstEvent = this.skinChangeEventRepository.findFirstBySkinId(skinRow.getId());
+        if (firstEvent.isPresent()) {
+            Optional<PlayerRow> firstPlayer = this.playerRepository.findById(firstEvent.get().getPlayerId());
+            firstPlayer.ifPresent(p -> skin.setFirstSeenUsing(p.getUsername()));
+        }
+
+        List<PlayerRow> usersUsing = this.playerRepository.findBySkinId(skinRow.getId(), PageRequest.of(0, 100));
+        skin.setAccountsSeenUsing(usersUsing.stream().map(PlayerRow::getUsername).toList());
+
+        return skin;
     }
 
     public SkinRow getSkinByTextureIdOrPlayer(String query) {

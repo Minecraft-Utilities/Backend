@@ -113,7 +113,7 @@ public class PlayerService {
         }
         this.usernameChangeEventRepository.save(new UsernameChangeEventRow(id, token.getName(), null, Instant.now()));
 
-        return FullPlayer.fromRow(this.playerRepository.save(new PlayerRow(
+        FullPlayer fullPlayer = FullPlayer.fromRow(this.playerRepository.save(new PlayerRow(
                 id,
                 token.getName(),
                 token.getLegacy() != null && token.getLegacy(),
@@ -121,6 +121,8 @@ public class PlayerService {
                 Instant.now(),
                 Instant.now()
         )), this);
+        StatisticsService.addTrackedPlayerCount(1);
+        return fullPlayer;
     }
 
     public PlayerRow updatePlayer(PlayerRow playerRow, MojangProfileToken token) {
@@ -169,6 +171,7 @@ public class PlayerService {
         }
 
         this.playerRepository.saveAll(playerRows);
+        StatisticsService.addTrackedPlayerCount(playerRows.size());
         this.skinChangeEventRepository.saveAll(skinChangeEvents);
         this.capeChangeEventRepository.saveAll(capeChangeEvents);
         this.usernameChangeEventRepository.saveAll(usernameChangeEvents);

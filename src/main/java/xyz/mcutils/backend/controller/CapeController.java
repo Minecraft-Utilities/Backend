@@ -33,7 +33,7 @@ public class CapeController {
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<VanillaCape> getCape(@Parameter(description = "The UUID of the cape") @PathVariable long id) {
-        return ResponseEntity.ok().body(VanillaCape.fromRow(this.capeService.getCapeById(id)));
+        return ResponseEntity.ok().body(this.capeService.getCapeById(id));
     }
 
     @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)

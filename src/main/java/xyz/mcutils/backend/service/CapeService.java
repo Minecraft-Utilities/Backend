@@ -21,12 +21,17 @@ import xyz.mcutils.backend.metric.impl.cape.CapeRenderMetric;
 import xyz.mcutils.backend.model.domain.cape.Cape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.BasicPlayer;
+import xyz.mcutils.backend.model.persistence.postgres.CapeChangeEventRow;
 import xyz.mcutils.backend.model.persistence.postgres.CapeRow;
+import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
 import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
+import xyz.mcutils.backend.repository.postgres.CapeChangeEventRepository;
 import xyz.mcutils.backend.repository.postgres.CapeRepository;
+import xyz.mcutils.backend.repository.postgres.PlayerRepository;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -39,6 +44,8 @@ public class CapeService {
     private final StorageService storageService;
     private final PlayerService playerService;
     private final CapeRepository capeRepository;
+    private final CapeChangeEventRepository capeChangeEventRepository;
+    private final PlayerRepository playerRepository;
     private final WebRequest webRequest;
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
     
@@ -54,10 +61,12 @@ public class CapeService {
     @Value("${mc-utils.renderer.cape.limits.max_size}")
     private int maxPartSize;
 
-    public CapeService(StorageService storageService, @Lazy PlayerService playerService, CapeRepository capeRepository, WebRequest webRequest) {
+    public CapeService(StorageService storageService, @Lazy PlayerService playerService, CapeRepository capeRepository, CapeChangeEventRepository capeChangeEventRepository, PlayerRepository playerRepository, WebRequest webRequest) {
         this.storageService = storageService;
         this.playerService = playerService;
         this.capeRepository = capeRepository;
+        this.capeChangeEventRepository = capeChangeEventRepository;
+        this.playerRepository = playerRepository;
         this.webRequest = webRequest;
     }
 
@@ -66,12 +75,24 @@ public class CapeService {
         INSTANCE = this;
     }
 
-    public CapeRow getCapeById(long id) {
-        Optional<CapeRow> optionalSkinRow = this.capeRepository.findById(id);
-        if (optionalSkinRow.isEmpty()) {
+    public VanillaCape getCapeById(long id) {
+        Optional<CapeRow> optionalCapeRow = this.capeRepository.findById(id);
+        if (optionalCapeRow.isEmpty()) {
             throw new NotFoundException("Skin not found");
         }
-        return optionalSkinRow.get();
+        CapeRow capeRow = optionalCapeRow.get();
+        VanillaCape cape = VanillaCape.fromRow(capeRow);
+
+        Optional<CapeChangeEventRow> firstEvent = this.capeChangeEventRepository.findFirstByCapeId(capeRow.getId());
+        if (firstEvent.isPresent()) {
+            Optional<PlayerRow> firstPlayer = this.playerRepository.findById(firstEvent.get().getPlayerId());
+            firstPlayer.ifPresent(p -> cape.setFirstSeenUsing(p.getUsername()));
+        }
+
+        List<PlayerRow> usersOwning = this.playerRepository.findByCapeId(capeRow.getId(), PageRequest.of(0, 100));
+        cape.setAccountsSeenOwning(usersOwning.stream().map(PlayerRow::getUsername).toList());
+
+        return cape;
     }
 
     public CapeRow getCapeByTextureIdOrPlayer(String query) {
