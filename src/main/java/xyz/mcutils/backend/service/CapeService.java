@@ -8,6 +8,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.CoalescingLoader;
@@ -110,6 +111,12 @@ public class CapeService {
             throw new NotFoundException("Skin not found");
         }
         return optionalSkinRow.get();
+    }
+
+    @Cacheable(value = "capeByTextureId", key = "#token.textureId")
+    @Transactional
+    public CapeRow getOrCreateCapeCached(CapeTextureToken token) {
+        return getOrCreateCape(token);
     }
 
     @Transactional

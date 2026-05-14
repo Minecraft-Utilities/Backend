@@ -105,9 +105,9 @@ public class PlayerService {
     @Transactional
     public FullPlayer createPlayer(MojangProfileToken token) {
         UUID id = UUIDUtils.parseUuid(token.getId());
-        SkinRow skin = this.skinService.getOrCreateSkin(token.getSkinAndCape().left());
+        SkinRow skin = this.skinService.getOrCreateSkinCached(token.getSkinAndCape().left());
         CapeTextureToken capeToken = token.getSkinAndCape().right();
-        CapeRow cape = capeToken != null ? this.capeService.getOrCreateCape(capeToken) : null;
+        CapeRow cape = capeToken != null ? this.capeService.getOrCreateCapeCached(capeToken) : null;
 
         this.skinChangeEventRepository.save(new SkinChangeEventRow(id, skin, Instant.now()));
         if (cape != null) {
@@ -138,14 +138,14 @@ public class PlayerService {
                 .map(t -> t.getSkinAndCape().left())
                 .collect(Collectors.toMap(
                         SkinTextureToken::getTextureId,
-                        t -> CompletableFuture.supplyAsync(() -> this.skinService.getOrCreateSkin(t), Main.EXECUTOR),
+                        t -> CompletableFuture.supplyAsync(() -> this.skinService.getOrCreateSkinCached(t), Main.EXECUTOR),
                         (a, b) -> a));
         Map<String, CompletableFuture<CapeRow>> capeFutures = tokens.stream()
                 .map(t -> t.getSkinAndCape().right())
                 .filter(Objects::nonNull)
                 .collect(Collectors.toMap(
                         CapeTextureToken::getTextureId,
-                        t -> CompletableFuture.supplyAsync(() -> this.capeService.getOrCreateCape(t), Main.EXECUTOR),
+                        t -> CompletableFuture.supplyAsync(() -> this.capeService.getOrCreateCapeCached(t), Main.EXECUTOR),
                         (a, b) -> a));
 
         CompletableFuture.allOf(Stream.concat(skinFutures.values().stream(), capeFutures.values().stream())
@@ -239,12 +239,12 @@ public class PlayerService {
         SkinTextureToken skinToken = skinAndCape.left();
         CapeTextureToken capeToken = skinAndCape.right();
         if (!playerRow.getSkin().getTextureId().equals(skinToken.getTextureId())) {
-            SkinRow newSkin = this.skinService.getOrCreateSkin(skinToken);
+            SkinRow newSkin = this.skinService.getOrCreateSkinCached(skinToken);
             playerRow.setSkin(newSkin);
             skinChangeEventRow = new SkinChangeEventRow(playerRow.getId(), newSkin, Instant.now());
         }
         if (!playerRow.getCape().getTextureId().equals(capeToken.getTextureId())) {
-            CapeRow newCape = this.capeService.getOrCreateCape(capeToken);
+            CapeRow newCape = this.capeService.getOrCreateCapeCached(capeToken);
             playerRow.setCape(newCape);
             capeChangeEventRow = new CapeChangeEventRow(playerRow.getId(), newCape, Instant.now());
         }

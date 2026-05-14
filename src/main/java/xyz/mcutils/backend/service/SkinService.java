@@ -10,6 +10,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.*;
@@ -106,6 +107,12 @@ public class SkinService {
             throw new NotFoundException("Skin not found");
         }
         return optionalSkinRow.get();
+    }
+
+    @Cacheable(value = "skinByTextureId", key = "#token.textureId")
+    @Transactional
+    public SkinRow getOrCreateSkinCached(SkinTextureToken token) {
+        return getOrCreateSkin(token);
     }
 
     @Transactional
