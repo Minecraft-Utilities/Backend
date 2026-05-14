@@ -193,6 +193,7 @@ public class PlayerSubmitService {
             recordOutcome(PlayerSubmitProcessingMetric.Outcome.TIMED_OUT, processStart);
             return new FetchResult(entry, null, PlayerSubmitProcessingMetric.Outcome.TIMED_OUT, processStart);
         }
+    }
 
     private void recordOutcome(PlayerSubmitProcessingMetric.Outcome outcome, long startMs) {
         MetricService.getMetric(PlayerSubmitProcessingMetric.class).record(outcome, System.currentTimeMillis() - startMs);
