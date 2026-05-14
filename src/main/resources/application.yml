@@ -53,6 +53,7 @@ mc-utils:
     max-total-connections: 1000
     max-connections-per-route: 100
     connect-timeout-ms: 2500
+    connection-request-timeout-ms: 60000
     socket-timeout-ms: 10000
     connection-time-to-live-seconds: 60
 

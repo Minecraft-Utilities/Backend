@@ -2,16 +2,18 @@ package xyz.mcutils.backend.service;
 
 import com.google.common.util.concurrent.RateLimiter;
 import lombok.extern.slf4j.Slf4j;
-import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.connection.RedisConnection;
-import org.springframework.data.redis.core.*;
+import org.springframework.data.redis.core.ListOperations;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.FutureUtils;
 import xyz.mcutils.backend.common.UUIDUtils;
@@ -143,7 +145,8 @@ public class PlayerSubmitService {
         List<FetchResult> successResults = new ArrayList<>();
 
         for (FetchResult result : fetchResults) {
-            if (result.outcome() == PlayerSubmitProcessingMetric.Outcome.RATE_LIMITED) {
+            if (result.outcome() == PlayerSubmitProcessingMetric.Outcome.RATE_LIMITED
+                    || result.outcome() == PlayerSubmitProcessingMetric.Outcome.TIMED_OUT) {
                 listOps.rightPush(REDIS_QUEUE_KEY, result.entry().toRedisValue());
             } else {
                 idsToRemoveFromQueue.add(result.entry().playerId().toString());
@@ -185,8 +188,11 @@ public class PlayerSubmitService {
         } catch (MojangAPIRateLimitException e) {
             recordOutcome(PlayerSubmitProcessingMetric.Outcome.RATE_LIMITED, processStart);
             return new FetchResult(entry, null, PlayerSubmitProcessingMetric.Outcome.RATE_LIMITED, processStart);
+        } catch (ResourceAccessException e) {
+            log.debug("Timed out fetching profile for {}, re-queuing", entry.playerId());
+            recordOutcome(PlayerSubmitProcessingMetric.Outcome.TIMED_OUT, processStart);
+            return new FetchResult(entry, null, PlayerSubmitProcessingMetric.Outcome.TIMED_OUT, processStart);
         }
-    }
 
     private void recordOutcome(PlayerSubmitProcessingMetric.Outcome outcome, long startMs) {
         MetricService.getMetric(PlayerSubmitProcessingMetric.class).record(outcome, System.currentTimeMillis() - startMs);

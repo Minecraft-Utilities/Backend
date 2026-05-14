@@ -19,7 +19,8 @@ public class PlayerSubmitProcessingMetric extends Metric<PlayerSubmitProcessingM
     public enum Outcome {
         CREATED("created"),
         NOT_FOUND("not_found"),
-        RATE_LIMITED("rate_limited");
+        RATE_LIMITED("rate_limited"),
+        TIMED_OUT("timed_out");
 
         private final String label;
 

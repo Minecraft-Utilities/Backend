@@ -2,6 +2,7 @@ package xyz.mcutils.backend.common;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.client5.http.config.ConnectionConfig;
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
@@ -36,6 +37,9 @@ public class WebRequest {
     @Value("${mc-utils.http-client.connect-timeout-ms}")
     private int connectTimeoutMs;
 
+    @Value("${mc-utils.http-client.connection-request-timeout-ms}")
+    private int connectionRequestTimeoutMs;
+
     @Value("${mc-utils.http-client.socket-timeout-ms}")
     private int socketTimeoutMs;
 
@@ -54,18 +58,39 @@ public class WebRequest {
 
     @PostConstruct
     private void initHttpClient() {
-        SocketConfig socketConfig = SocketConfig.custom().setSoTimeout(Timeout.of(socketTimeoutMs, TimeUnit.MILLISECONDS)).build();
+        SocketConfig socketConfig = SocketConfig.custom()
+                .setSoTimeout(Timeout.of(socketTimeoutMs, TimeUnit.MILLISECONDS))
+                .build();
 
-        PoolingHttpClientConnectionManager connectionManager = PoolingHttpClientConnectionManagerBuilder.create().setMaxConnTotal(maxTotalConnections).setMaxConnPerRoute(maxConnectionsPerRoute).setDefaultSocketConfig(socketConfig).build();
+        ConnectionConfig connectionConfig = ConnectionConfig.custom()
+                .setConnectTimeout(Timeout.of(connectTimeoutMs, TimeUnit.MILLISECONDS))
+                .build();
 
-        RequestConfig requestConfig = RequestConfig.custom().setResponseTimeout(Timeout.of(socketTimeoutMs, TimeUnit.MILLISECONDS)).setConnectionRequestTimeout(Timeout.of(connectTimeoutMs, TimeUnit.MILLISECONDS)).build();
+        PoolingHttpClientConnectionManager connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
+                .setMaxConnTotal(maxTotalConnections)
+                .setMaxConnPerRoute(maxConnectionsPerRoute)
+                .setDefaultSocketConfig(socketConfig)
+                .setDefaultConnectionConfig(connectionConfig)
+                .build();
 
-        httpClient = HttpClients.custom().setConnectionManager(connectionManager).setDefaultRequestConfig(requestConfig).evictIdleConnections(Timeout.of(connectionTimeToLiveSeconds, TimeUnit.SECONDS)).evictExpiredConnections().build();
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setResponseTimeout(Timeout.of(socketTimeoutMs, TimeUnit.MILLISECONDS))
+                .setConnectionRequestTimeout(Timeout.of(connectionRequestTimeoutMs, TimeUnit.MILLISECONDS))
+                .build();
+
+        httpClient = HttpClients.custom()
+                .setConnectionManager(connectionManager)
+                .setDefaultRequestConfig(requestConfig)
+                .evictIdleConnections(Timeout.of(connectionTimeToLiveSeconds, TimeUnit.SECONDS))
+                .evictExpiredConnections()
+                .build();
 
         HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(httpClient);
-        requestFactory.setConnectionRequestTimeout(connectTimeoutMs);
+        requestFactory.setConnectionRequestTimeout(connectionRequestTimeoutMs);
 
-        client = RestClient.builder().requestFactory(requestFactory).build();
+        client = RestClient.builder()
+                .requestFactory(requestFactory)
+                .build();
     }
 
     /**
