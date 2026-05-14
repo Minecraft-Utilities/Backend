@@ -30,7 +30,9 @@ import xyz.mcutils.backend.repository.postgres.UsernameChangeEventRepository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Slf4j
@@ -132,17 +134,27 @@ public class PlayerService {
     }
 
     public void savePlayers(List<MojangProfileToken> tokens) {
-        Map<String, SkinRow> skinsByTextureId = new HashMap<>();
-        Map<String, CapeRow> capesByTextureId = new HashMap<>();
+        Map<String, CompletableFuture<SkinRow>> skinFutures = tokens.stream()
+                .map(t -> t.getSkinAndCape().left())
+                .collect(Collectors.toMap(
+                        SkinTextureToken::getTextureId,
+                        t -> CompletableFuture.supplyAsync(() -> this.skinService.getOrCreateSkin(t), Main.EXECUTOR),
+                        (a, b) -> a));
+        Map<String, CompletableFuture<CapeRow>> capeFutures = tokens.stream()
+                .map(t -> t.getSkinAndCape().right())
+                .filter(Objects::nonNull)
+                .collect(Collectors.toMap(
+                        CapeTextureToken::getTextureId,
+                        t -> CompletableFuture.supplyAsync(() -> this.capeService.getOrCreateCape(t), Main.EXECUTOR),
+                        (a, b) -> a));
 
-        for (MojangProfileToken token : tokens) {
-            SkinTextureToken skinToken = token.getSkinAndCape().left();
-            CapeTextureToken capeToken = token.getSkinAndCape().right();
-            skinsByTextureId.computeIfAbsent(skinToken.getTextureId(), k -> this.skinService.getOrCreateSkin(skinToken));
-            if (capeToken != null) {
-                capesByTextureId.computeIfAbsent(capeToken.getTextureId(), k -> this.capeService.getOrCreateCape(capeToken));
-            }
-        }
+        CompletableFuture.allOf(Stream.concat(skinFutures.values().stream(), capeFutures.values().stream())
+                .toArray(CompletableFuture[]::new)).join();
+
+        Map<String, SkinRow> skinsByTextureId = skinFutures.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().join()));
+        Map<String, CapeRow> capesByTextureId = capeFutures.entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().join()));
 
         List<PlayerRow> playerRows = new ArrayList<>();
         List<SkinChangeEventRow> skinChangeEvents = new ArrayList<>();
