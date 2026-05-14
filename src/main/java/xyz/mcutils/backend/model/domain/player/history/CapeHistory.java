@@ -18,7 +18,7 @@ public class CapeHistory extends VanillaCape {
     private Instant lastUsed;
 
     public CapeHistory(VanillaCape cape, Instant lastUsed) {
-        super(cape.getId(), cape.getName(), cape.getTextureId(), cape.getUniqueOwners());
+        super(cape.getId(), cape.getName(), cape.getTextureId(), cape.getUniqueOwners(), cape.getFirstSeen());
         this.lastUsed = lastUsed;
     }
 }
