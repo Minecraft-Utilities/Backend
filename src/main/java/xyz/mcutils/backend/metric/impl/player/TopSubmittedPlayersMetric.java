@@ -2,11 +2,9 @@ package xyz.mcutils.backend.metric.impl.player;
 
 import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import xyz.mcutils.backend.metric.Metric;
-import xyz.mcutils.backend.model.domain.player.Player;
+import xyz.mcutils.backend.model.domain.player.FullPlayer;
 import xyz.mcutils.backend.service.MetricService;
 import xyz.mcutils.backend.service.PlayerService;
-
-import java.util.List;
 
 /**
  * Exposes the top 10 players by total submitted UUIDs as a gauge, read directly from MongoDB.
@@ -21,7 +19,7 @@ public class TopSubmittedPlayersMetric extends Metric<TopSubmittedPlayersMetric.
                         .help("Submitted UUID count for the top 10 players by submission count")
                         .labelNames("username")
                         .callback(callback -> {
-                            for (Player player : playerService.getTopSubmittedPlayers(10)) {
+                            for (FullPlayer player : playerService.getTopSubmittedPlayers(10)) {
                                 callback.call(player.getSubmittedUuids(), player.getUsername());
                             }
                         })

@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,7 +17,7 @@ import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.skin.SkinRenderMetric;
-import xyz.mcutils.backend.model.domain.player.Player;
+import xyz.mcutils.backend.model.domain.player.BasicPlayer;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.persistence.postgres.SkinRow;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
@@ -77,7 +76,7 @@ public class SkinService {
     public SkinRow getSkinByTextureIdOrPlayer(String query) {
         // By player
         if (query.length() <= 36) {
-            Player player = this.playerService.getPlayer(query);
+            BasicPlayer player = this.playerService.getPlayer(query);
             Skin skin = player.getSkin();
             return new SkinRow(skin.getTextureId(), skin.getModel(), skin.isLegacy(), skin.getUniqueOwners(), skin.getFirstSeen());
         }

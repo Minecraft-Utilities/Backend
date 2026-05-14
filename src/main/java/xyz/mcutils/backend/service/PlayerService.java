@@ -12,7 +12,7 @@ import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
-import xyz.mcutils.backend.model.domain.player.Player;
+import xyz.mcutils.backend.model.domain.player.FullPlayer;
 import xyz.mcutils.backend.model.domain.player.history.CapeHistory;
 import xyz.mcutils.backend.model.domain.player.history.SkinHistory;
 import xyz.mcutils.backend.model.domain.player.history.UsernameHistory;
@@ -47,7 +47,7 @@ public class PlayerService {
     private final SkinChangeEventRepository skinChangeEventRepository;
     private final CapeChangeEventRepository capeChangeEventRepository;
 
-    private final CoalescingLoader<String, Player> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
+    private final CoalescingLoader<String, FullPlayer> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerRepository playerRepository,
                          UsernameChangeEventRepository usernameChangeEventRepository, SkinChangeEventRepository skinChangeEventRepository,
@@ -66,7 +66,7 @@ public class PlayerService {
         INSTANCE = this;
     }
 
-    public Player getPlayer(String query) {
+    public FullPlayer getPlayer(String query) {
         return playerLoader.get(query, () -> {
             boolean isUsername = query.length() <= 16;
             Optional<PlayerRow> optionalPlayerRow = isUsername ? this.playerRepository.findByUsernameIgnoreCase(query) : this.playerRepository.findById(UUIDUtils.parseUuid(query));
@@ -96,12 +96,12 @@ public class PlayerService {
                 }
                 playerRow = this.updatePlayer(playerRow, token);
             }
-            return Player.fromRow(playerRow, this);
+            return FullPlayer.fromRow(playerRow, this);
         });
     }
 
     @Transactional
-    public Player createPlayer(MojangProfileToken token) {
+    public FullPlayer createPlayer(MojangProfileToken token) {
         UUID id = UUIDUtils.parseUuid(token.getId());
         SkinRow skin = this.skinService.getOrCreateSkin(token.getSkinAndCape().left());
         CapeTextureToken capeToken = token.getSkinAndCape().right();
@@ -113,7 +113,7 @@ public class PlayerService {
         }
         this.usernameChangeEventRepository.save(new UsernameChangeEventRow(id, token.getName(), null, Instant.now()));
 
-        return Player.fromRow(this.playerRepository.save(new PlayerRow(
+        return FullPlayer.fromRow(this.playerRepository.save(new PlayerRow(
                 id,
                 token.getName(),
                 token.getLegacy() != null && token.getLegacy(),
@@ -261,14 +261,14 @@ public class PlayerService {
                 new CapeHistory(VanillaCape.fromRow(this.capeService.getCapeByTextureIdOrPlayer(row.getCape().getTextureId())), row.getTimestamp())).collect(Collectors.toSet());
     }
 
-    public List<Player> searchPlayers(String query) {
+    public List<FullPlayer> searchPlayers(String query) {
         return this.playerRepository.findByUsernameContainingIgnoreCase(query, Pageable.ofSize(MAX_PLAYER_SEARCH_RESULTS)).stream()
-                .map(playerRow -> Player.fromRow(playerRow, this)).toList();
+                .map(playerRow -> FullPlayer.fromRow(playerRow, this)).toList();
     }
 
-    public List<Player> getTopSubmittedPlayers(int amount) {
+    public List<FullPlayer> getTopSubmittedPlayers(int amount) {
         return this.playerRepository.findTopByOrderBySubmittedUuidsDesc(PageRequest.of(0, amount)).stream()
-                .map(playerRow -> Player.fromRow(playerRow, this)).toList();
+                .map(playerRow -> FullPlayer.fromRow(playerRow, this)).toList();
     }
 
     public Set<UUID> getExistingPlayerIds(List<UUID> ids) {

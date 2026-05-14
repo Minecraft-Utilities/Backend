@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,7 +20,7 @@ import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.cape.CapeRenderMetric;
 import xyz.mcutils.backend.model.domain.cape.Cape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
-import xyz.mcutils.backend.model.domain.player.Player;
+import xyz.mcutils.backend.model.domain.player.BasicPlayer;
 import xyz.mcutils.backend.model.persistence.postgres.CapeRow;
 import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
 import xyz.mcutils.backend.repository.postgres.CapeRepository;
@@ -78,7 +77,7 @@ public class CapeService {
     public CapeRow getCapeByTextureIdOrPlayer(String query) {
         // By player
         if (query.length() <= 36) {
-            Player player = this.playerService.getPlayer(query);
+            BasicPlayer player = this.playerService.getPlayer(query);
             VanillaCape cape = player.getCape();
             if (cape == null) {
                 return null;

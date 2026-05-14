@@ -1,9 +1,8 @@
 package xyz.mcutils.backend.model.domain.player;
 
 import lombok.*;
-import lombok.extern.slf4j.Slf4j;
+import lombok.experimental.SuperBuilder;
 import org.jetbrains.annotations.Nullable;
-import org.springframework.data.annotation.Id;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.history.CapeHistory;
 import xyz.mcutils.backend.model.domain.player.history.SkinHistory;
@@ -15,28 +14,14 @@ import xyz.mcutils.backend.service.PlayerService;
 
 import java.time.Instant;
 import java.util.Set;
-import java.util.UUID;
 
-@AllArgsConstructor
+@SuperBuilder
 @NoArgsConstructor
 @Getter
 @Setter
-@EqualsAndHashCode
-@ToString
-@Slf4j
-public class Player {
-    /**
-     * The UUID of the player
-     */
-    @Id
-    private UUID uniqueId;
-
-    /**
-     * The username of the player
-     */
-    @Setter
-    private String username;
-
+@EqualsAndHashCode(callSuper = true)
+@ToString(callSuper = true)
+public class FullPlayer extends BasicPlayer {
     /**
      * Is this profile legacy?
      * <p>
@@ -44,24 +29,12 @@ public class Player {
      * has not yet migrated to a Mojang account.
      * </p>
      */
-    @Setter
     private boolean legacyAccount;
 
     /**
      * The amount of new uuids this player has submitted.
      */
     private long submittedUuids;
-
-    /**
-     * The Skin for the player.
-     */
-    private Skin skin;
-
-    /**
-     * The Cape for the player.
-     */
-    @Nullable
-    private VanillaCape cape;
 
     /**
      * The skins this player has previously equipped (including current).
@@ -85,25 +58,20 @@ public class Player {
      */
     private Instant lastUpdated;
 
-    /**
-     * The date this player was first seen on.
-     */
-    private Instant firstSeen;
-
-    public static Player fromRow(PlayerRow playerRow, PlayerService playerService) {
+    public static FullPlayer fromRow(PlayerRow playerRow, PlayerService playerService) {
         CapeRow cape = playerRow.getCape();
-        return new Player(
-                playerRow.getId(),
-                playerRow.getUsername(),
-                playerRow.isLegacyAccount(),
-                playerRow.getSubmittedUuids(),
-                Skin.fromRow(playerRow.getSkin()),
-                cape != null ? VanillaCape.fromRow(cape) : null,
-                playerService.getSkinHistory(playerRow),
-                playerService.getCapeHistory(playerRow),
-                playerService.getUsernameHistory(playerRow),
-                playerRow.getLastUpdated(),
-                playerRow.getFirstSeen()
-        );
+        return FullPlayer.builder()
+                .uniqueId(playerRow.getId())
+                .username(playerRow.getUsername())
+                .skin(Skin.fromRow(playerRow.getSkin()))
+                .cape(cape != null ? VanillaCape.fromRow(cape) : null)
+                .firstSeen(playerRow.getFirstSeen())
+                .legacyAccount(playerRow.isLegacyAccount())
+                .submittedUuids(playerRow.getSubmittedUuids())
+                .skinHistory(playerService.getSkinHistory(playerRow))
+                .capeHistory(playerService.getCapeHistory(playerRow))
+                .usernameHistory(playerService.getUsernameHistory(playerRow))
+                .lastUpdated(playerRow.getLastUpdated())
+                .build();
     }
 }
