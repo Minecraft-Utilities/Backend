@@ -121,6 +121,12 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
     }
 
     public static VanillaCape fromRow(CapeRow capeRow) {
-        return new VanillaCape(capeRow.getId(), capeRow.getName(), capeRow.getTextureId(), capeRow.getUniqueOwners(), capeRow.getFirstSeen());
+        return new VanillaCape(
+                capeRow.getId(),
+                capeRow.getName(),
+                capeRow.getTextureId(),
+                capeRow.getUniqueOwners(),
+                capeRow.getFirstSeen()
+        );
     }
 }

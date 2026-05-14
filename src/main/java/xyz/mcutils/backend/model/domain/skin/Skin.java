@@ -77,12 +77,13 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
     @Setter
     private Map<String, String> parts;
 
-    public Skin(long id, String textureId, Model model, long uniqueOwners, boolean legacy) {
+    public Skin(long id, String textureId, Model model, long uniqueOwners, boolean legacy, Instant firstSeen) {
         super(AppConfig.INSTANCE.getWebPublicUrl() + "/skins/%s/texture.png".formatted(textureId), textureId, CDN_URL.formatted(textureId));
         this.id = id;
         this.model = model;
         this.uniqueOwners = uniqueOwners;
         this.legacy = legacy;
+        this.firstSeen = firstSeen;
 
         this.parts = new HashMap<>();
         for (SkinPart part : SkinPart.values()) {
@@ -139,6 +140,13 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
     }
 
     public static Skin fromRow(SkinRow skinRow) {
-        return new Skin(skinRow.getId(), skinRow.getTextureId(), skinRow.getModel(), skinRow.getUniqueOwners(), skinRow.isLegacy());
+        return new Skin(
+                skinRow.getId(),
+                skinRow.getTextureId(),
+                skinRow.getModel(),
+                skinRow.getUniqueOwners(),
+                skinRow.isLegacy(),
+                skinRow.getFirstSeen()
+        );
     }
 }
