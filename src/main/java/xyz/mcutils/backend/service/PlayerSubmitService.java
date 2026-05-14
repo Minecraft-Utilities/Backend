@@ -22,7 +22,7 @@ import xyz.mcutils.backend.metric.impl.player.PlayerSubmitProcessingMetric;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -124,49 +124,67 @@ public class PlayerSubmitService {
     }
 
     private Map<UUID, Long> processEntries(List<QueueEntry> toProcess, ListOperations<String, String> listOps, SetOperations<String, String> setOps) {
-        Set<String> idsToRemoveFromQueue = ConcurrentHashMap.newKeySet();
-        Map<UUID, Long> submitterCounts = new ConcurrentHashMap<>();
+        Queue<FetchResult> fetchResults = new ConcurrentLinkedQueue<>();
         List<Future<Void>> futures = new ArrayList<>();
 
         for (QueueEntry entry : toProcess) {
             rateLimiter.acquire();
             futures.add(Main.EXECUTOR.submit(() -> {
-                processEntry(entry, listOps, idsToRemoveFromQueue, submitterCounts);
+                fetchResults.add(fetchProfile(entry));
                 return null;
             }));
         }
 
         FutureUtils.awaitAll(futures, "submit");
+
+        Set<String> idsToRemoveFromQueue = new HashSet<>();
+        Map<UUID, Long> submitterCounts = new HashMap<>();
+        List<MojangProfileToken> tokensToSave = new ArrayList<>();
+        List<FetchResult> successResults = new ArrayList<>();
+
+        for (FetchResult result : fetchResults) {
+            if (result.outcome() == PlayerSubmitProcessingMetric.Outcome.RATE_LIMITED) {
+                listOps.rightPush(REDIS_QUEUE_KEY, result.entry().toRedisValue());
+            } else {
+                idsToRemoveFromQueue.add(result.entry().playerId().toString());
+                if (result.token() != null) {
+                    tokensToSave.add(result.token());
+                    successResults.add(result);
+                }
+            }
+        }
+
+        if (!tokensToSave.isEmpty()) {
+            playerService.savePlayers(tokensToSave);
+            for (FetchResult result : successResults) {
+                if (result.entry().submittedBy() != null) {
+                    submitterCounts.merge(result.entry().submittedBy(), 1L, Long::sum);
+                }
+                recordOutcome(PlayerSubmitProcessingMetric.Outcome.CREATED, result.processStart());
+            }
+        }
+
         removeFromQueueSet(setOps, idsToRemoveFromQueue);
         return submitterCounts;
     }
 
-    private void processEntry(QueueEntry entry, ListOperations<String, String> listOps, Set<String> idsToRemove, Map<UUID, Long> submitterCounts) {
-        boolean requeued = false;
+    private FetchResult fetchProfile(QueueEntry entry) {
         long processStart = System.currentTimeMillis();
         try {
             MojangProfileToken token = mojangService.getProfile(entry.playerId().toString());
             if (token == null) {
                 log.warn("Player with uuid '{}' was not found", entry.playerId());
                 recordOutcome(PlayerSubmitProcessingMetric.Outcome.NOT_FOUND, processStart);
-                return;
+                return new FetchResult(entry, null, PlayerSubmitProcessingMetric.Outcome.NOT_FOUND, processStart);
             }
-            playerService.createPlayer(token);
-            if (entry.submittedBy() != null) {
-                submitterCounts.merge(entry.submittedBy(), 1L, Long::sum);
-            }
-            recordOutcome(PlayerSubmitProcessingMetric.Outcome.CREATED, processStart);
+            return new FetchResult(entry, token, PlayerSubmitProcessingMetric.Outcome.CREATED, processStart);
         } catch (NotFoundException e) {
             log.debug("Player {} not found on Mojang, removing from queue", entry.playerId(), e);
             recordOutcome(PlayerSubmitProcessingMetric.Outcome.NOT_FOUND, processStart);
+            return new FetchResult(entry, null, PlayerSubmitProcessingMetric.Outcome.NOT_FOUND, processStart);
         } catch (MojangAPIRateLimitException e) {
-            listOps.rightPush(REDIS_QUEUE_KEY, entry.toRedisValue());
-            requeued = true;
             recordOutcome(PlayerSubmitProcessingMetric.Outcome.RATE_LIMITED, processStart);
-        } finally {
-            if (!requeued) {
-                idsToRemove.add(entry.playerId().toString());
-            }
+            return new FetchResult(entry, null, PlayerSubmitProcessingMetric.Outcome.RATE_LIMITED, processStart);
         }
     }
 
@@ -250,6 +268,8 @@ public class PlayerSubmitService {
         Long size = redis.opsForList().size(REDIS_QUEUE_KEY);
         return size != null ? size : 0L;
     }
+
+    private record FetchResult(QueueEntry entry, MojangProfileToken token, PlayerSubmitProcessingMetric.Outcome outcome, long processStart) {}
 
     private record QueueEntry(UUID playerId, UUID submittedBy) {
         String toRedisValue() {

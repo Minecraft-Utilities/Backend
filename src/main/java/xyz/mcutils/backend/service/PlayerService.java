@@ -129,6 +129,51 @@ public class PlayerService {
         return update.playerRow();
     }
 
+    public void savePlayers(List<MojangProfileToken> tokens) {
+        Map<String, SkinRow> skinsByTextureId = new HashMap<>();
+        Map<String, CapeRow> capesByTextureId = new HashMap<>();
+
+        for (MojangProfileToken token : tokens) {
+            SkinTextureToken skinToken = token.getSkinAndCape().left();
+            CapeTextureToken capeToken = token.getSkinAndCape().right();
+            skinsByTextureId.computeIfAbsent(skinToken.getTextureId(), k -> this.skinService.getOrCreateSkin(skinToken));
+            if (capeToken != null) {
+                capesByTextureId.computeIfAbsent(capeToken.getTextureId(), k -> this.capeService.getOrCreateCape(capeToken));
+            }
+        }
+
+        List<PlayerRow> playerRows = new ArrayList<>();
+        List<SkinChangeEventRow> skinChangeEvents = new ArrayList<>();
+        List<CapeChangeEventRow> capeChangeEvents = new ArrayList<>();
+        List<UsernameChangeEventRow> usernameChangeEvents = new ArrayList<>();
+
+        for (MojangProfileToken token : tokens) {
+            UUID id = UUIDUtils.parseUuid(token.getId());
+            SkinRow skin = skinsByTextureId.get(token.getSkinAndCape().left().getTextureId());
+            CapeTextureToken capeToken = token.getSkinAndCape().right();
+            CapeRow cape = capeToken != null ? capesByTextureId.get(capeToken.getTextureId()) : null;
+
+            skinChangeEvents.add(new SkinChangeEventRow(id, skin, Instant.now()));
+            if (cape != null) {
+                capeChangeEvents.add(new CapeChangeEventRow(id, cape, Instant.now()));
+            }
+            usernameChangeEvents.add(new UsernameChangeEventRow(id, token.getName(), null, Instant.now()));
+            playerRows.add(new PlayerRow(
+                    id,
+                    token.getName(),
+                    token.getLegacy() != null && token.getLegacy(),
+                    0, skin, cape,
+                    Instant.now(),
+                    Instant.now()
+            ));
+        }
+
+        this.playerRepository.saveAll(playerRows);
+        this.skinChangeEventRepository.saveAll(skinChangeEvents);
+        this.capeChangeEventRepository.saveAll(capeChangeEvents);
+        this.usernameChangeEventRepository.saveAll(usernameChangeEvents);
+    }
+
     public void updatePlayers(List<PlayerUpdate> playerUpdates) {
         List<PlayerRow> playerRows = new ArrayList<>();
         List<SkinChangeEventRow> skinChangeEvents = new ArrayList<>();

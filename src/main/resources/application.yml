@@ -10,6 +10,11 @@ spring:
     virtual:
       enabled: true
 
+  # Don't serialize null values by default with Jackson
+  jackson:
+    default-property-inclusion: non_null
+    mapper:
+      sort-properties-alphabetically: false
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
