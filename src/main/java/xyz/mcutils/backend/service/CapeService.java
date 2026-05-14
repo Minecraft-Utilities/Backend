@@ -114,18 +114,15 @@ public class CapeService {
 
     @Transactional
     public CapeRow getOrCreateCape(CapeTextureToken token) {
-        Optional<CapeRow> optionalSkinRow = this.capeRepository.findByTextureId(token.getTextureId());
-        if (optionalSkinRow.isPresent()) {
-            return optionalSkinRow.get();
+        Optional<CapeRow> optionalCapeRow = this.capeRepository.findByTextureId(token.getTextureId());
+        if (optionalCapeRow.isPresent()) {
+            return optionalCapeRow.get();
         }
-        CapeRow capeRow = this.capeRepository.save(new CapeRow(
-                null,
-                token.getTextureId(),
-                0,
-                Instant.now()
-        ));
-        StatisticsService.addTrackedCapeCount(1);
-        return capeRow;
+        int inserted = this.capeRepository.insertIfAbsent(null, token.getTextureId(), Instant.now());
+        if (inserted > 0) {
+            StatisticsService.addTrackedCapeCount(1);
+        }
+        return this.capeRepository.findByTextureId(token.getTextureId()).orElseThrow();
     }
 
     public Pagination.Page<VanillaCape> getPaginatedCapes(int page) {

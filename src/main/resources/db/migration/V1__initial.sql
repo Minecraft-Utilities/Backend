@@ -59,8 +59,6 @@ CREATE TABLE username_change_events (
 
 CREATE INDEX idx_players_username_lower ON players (LOWER(username) varchar_pattern_ops);
 
-CREATE SEQUENCE skins_seq INCREMENT BY 50;
-CREATE SEQUENCE capes_seq INCREMENT BY 50;
 CREATE SEQUENCE skin_change_events_seq INCREMENT BY 50;
 CREATE SEQUENCE cape_change_events_seq INCREMENT BY 50;
 CREATE SEQUENCE username_change_events_seq INCREMENT BY 50;

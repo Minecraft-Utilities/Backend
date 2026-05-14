@@ -114,15 +114,15 @@ public class SkinService {
         if (optionalSkinRow.isPresent()) {
             return optionalSkinRow.get();
         }
-        SkinRow skinRow = this.skinRepository.save(new SkinRow(
-                token.getTextureId(),
-                token.metadata() == null ? Skin.Model.DEFAULT : Skin.Model.valueOf(token.metadata().model().toUpperCase()),
-                Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), this.webRequest),
-                0,
-                Instant.now()
-        ));
-        StatisticsService.addTrackedSkinCount(1);
-        return skinRow;
+        Skin.Model model = token.metadata() == null
+                ? Skin.Model.DEFAULT
+                : Skin.Model.valueOf(token.metadata().model().toUpperCase());
+        boolean legacy = Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), this.webRequest);
+        int inserted = this.skinRepository.insertIfAbsent(token.getTextureId(), model.name(), legacy, Instant.now());
+        if (inserted > 0) {
+            StatisticsService.addTrackedSkinCount(1);
+        }
+        return this.skinRepository.findByTextureId(token.getTextureId()).orElseThrow();
     }
 
     public Pagination.Page<Skin> getPaginatedSkins(int page) {

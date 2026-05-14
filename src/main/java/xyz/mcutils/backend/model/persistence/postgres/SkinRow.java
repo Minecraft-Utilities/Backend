@@ -13,8 +13,7 @@ import java.time.Instant;
 @NoArgsConstructor
 public class SkinRow {
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "skins_seq")
-    @SequenceGenerator(name = "skins_seq", sequenceName = "skins_seq", allocationSize = 50)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
     @Column(nullable = false, unique = true)

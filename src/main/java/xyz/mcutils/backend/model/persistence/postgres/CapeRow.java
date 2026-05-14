@@ -12,8 +12,7 @@ import java.time.Instant;
 @NoArgsConstructor
 public class CapeRow {
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "capes_seq")
-    @SequenceGenerator(name = "capes_seq", sequenceName = "capes_seq", allocationSize = 50)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
     @Column(unique = true)
