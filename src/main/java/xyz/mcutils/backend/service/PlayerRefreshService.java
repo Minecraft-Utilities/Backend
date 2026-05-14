@@ -2,28 +2,25 @@ package xyz.mcutils.backend.service;
 
 import com.google.common.util.concurrent.RateLimiter;
 import lombok.extern.slf4j.Slf4j;
-import org.bson.Document;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.FutureUtils;
-import xyz.mcutils.backend.common.MongoUtils;
-import xyz.mcutils.backend.model.persistence.mongo.PlayerDocument;
+import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
-import xyz.mcutils.backend.player.PlayerManager;
+import xyz.mcutils.backend.repository.postgres.PlayerRepository;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.Objects;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -31,20 +28,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Service
 @Slf4j
 public class PlayerRefreshService {
-    private static final int REFRESH_CHUNK_SIZE = 50_000;
+    private static final int REFRESH_CHUNK_SIZE = 200;
     
     private final RateLimiter rateLimiter = RateLimiter.create(40);
     private final MojangService mojangService;
-    private final PlayerManager playerManager;
     private final PlayerService playerService;
-    private final MongoTemplate mongoTemplate;
+    private final PlayerRepository playerRepository;
     private final AtomicBoolean running = new AtomicBoolean(true);
 
-    public PlayerRefreshService(MojangService mojangService, PlayerManager playerManager, PlayerService playerService, MongoTemplate mongoTemplate) {
+    public PlayerRefreshService(MojangService mojangService, PlayerService playerService, PlayerRepository playerRepository) {
         this.mojangService = mojangService;
-        this.playerManager = playerManager;
         this.playerService = playerService;
-        this.mongoTemplate = mongoTemplate;
+        this.playerRepository = playerRepository;
     }
 
     @EventListener(ContextClosedEvent.class)
@@ -57,38 +52,27 @@ public class PlayerRefreshService {
         Main.EXECUTOR.submit(() -> {
             while (running.get()) {
                 try {
-                    List<UUID> ids = findRefreshChunkIds();
-                    if (ids.isEmpty()) {
+                    Instant cutoff = Instant.now().minus(1, ChronoUnit.WEEKS);
+                    Page<PlayerRow> playerRows = this.playerRepository.findAllByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, Pageable.ofSize(REFRESH_CHUNK_SIZE));
+                    if (playerRows.isEmpty()) {
                         Thread.sleep(Duration.ofSeconds(10));
                         continue;
                     }
-                    Instant batchTime = Instant.now();
-                    Map<UUID, PlayerDocument> playerMap = this.playerManager.getByUuids(ids);
-                    List<Future<?>> futures = new ArrayList<>();
-                    for (UUID playerId : ids) {
+                    List<Future<PlayerService.PlayerUpdate>> futures = new ArrayList<>();
+                    for (PlayerRow playerRow : playerRows) {
                         rateLimiter.acquire();
                         futures.add(Main.EXECUTOR.submit(() -> {
-                            if (!running.get()) {
-                                return;
-                            }
-                            PlayerDocument playerDocument = playerMap.get(playerId);
-                            if (playerDocument == null) {
-                                return;
-                            }
-                            // Skip players refreshed recently (e.g. via an API lookup) since the batch query ran
-                            if (playerDocument.getLastUpdated() != null && playerDocument.getLastUpdated().isAfter(batchTime.minus(PlayerService.PLAYER_UPDATE_INTERVAL))) {
-                                return;
-                            }
-                            MojangProfileToken token = this.mojangService.getProfile(playerDocument.getId().toString());
-                            if (token == null) {
-                                return;
-                            }
-                            UUID skinId = playerDocument.getSkinId();
-                            UUID capeId = playerDocument.getCapeId();
-                            this.playerService.applyProfileToPlayer(playerDocument.getId(), skinId, capeId, token, playerDocument, batchTime);
+                            if (!running.get()) return null;
+                            MojangProfileToken token = this.mojangService.getProfile(playerRow.getId().toString());
+                            if (token == null) return null;
+                            return new PlayerService.PlayerUpdate(playerRow, token);
                         }));
                     }
-                    FutureUtils.awaitAll(futures, "player refresh");
+                    List<PlayerService.PlayerUpdate> playerUpdates = FutureUtils.awaitAll(futures, "player refresh")
+                        .stream()
+                        .filter(Objects::nonNull)
+                        .toList();
+                    this.playerService.updatePlayers(playerUpdates);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
@@ -96,28 +80,4 @@ public class PlayerRefreshService {
             }
         });
     }
-
-    /**
-     * Returns player ids whose lastUpdated is older than the update interval, ordered oldest first.
-     * Projection is _id only; use manager to load full documents.
-     */
-    private List<UUID> findRefreshChunkIds() {
-        Instant cutoff = Instant.now().minus(PlayerService.PLAYER_UPDATE_INTERVAL);
-        Query query = new Query(Criteria.where("lastUpdated").lt(cutoff))
-                .with(Sort.by(Sort.Direction.ASC, "lastUpdated"))
-                .limit(PlayerRefreshService.REFRESH_CHUNK_SIZE);
-        List<Document> found = MongoUtils.findWithFields(mongoTemplate, query, PlayerDocument.class, "_id");
-        return found.stream()
-                .map(doc -> doc.get("_id"))
-                .filter(id -> {
-                    if (!(id instanceof UUID)) {
-                        log.warn("Unexpected non-UUID _id in players collection: {} ({})", id, id == null ? "null" : id.getClass().getName());
-                        return false;
-                    }
-                    return true;
-                })
-                .map(UUID.class::cast)
-                .toList();
-    }
-
 }

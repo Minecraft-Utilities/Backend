@@ -6,16 +6,27 @@ server:
 
 # Spring Configuration
 spring:
-  # Use virtual threads
   threads:
     virtual:
       enabled: true
 
-  # Don't serialize null values by default with Jackson
-  jackson:
-    default-property-inclusion: non_null
-    mapper:
-      sort-properties-alphabetically: false
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 200
+        order_inserts: true
+        order_updates: true
+  datasource:
+    url: jdbc:postgresql://localhost:5432/mcutils
+    username: mcutils
+    password: mcutils
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
 
 logging:
   pattern:

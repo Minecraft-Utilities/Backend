@@ -14,18 +14,12 @@ import java.time.Instant;
 @EqualsAndHashCode(callSuper = false)
 public class SkinHistory extends Skin {
     /**
-     * The date this skin was first seen on the player.
-     */
-    private Instant firstSeen;
-
-    /**
      * The date this skin was last seen on the player.
      */
     private Instant lastUsed;
 
-    public SkinHistory(Skin skin, Instant firstSeen, Instant lastUsed) {
-        super(skin.getUuid(), skin.getTextureId(), skin.getModel(), skin.isLegacy());
-        this.firstSeen = firstSeen;
+    public SkinHistory(Skin skin, Instant lastUsed) {
+        super(skin.getId(), skin.getTextureId(), skin.getModel(), skin.getUniqueOwners(), skin.isLegacy());
         this.lastUsed = lastUsed;
     }
 }

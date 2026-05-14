@@ -9,11 +9,15 @@ import xyz.mcutils.backend.model.domain.player.history.CapeHistory;
 import xyz.mcutils.backend.model.domain.player.history.SkinHistory;
 import xyz.mcutils.backend.model.domain.player.history.UsernameHistory;
 import xyz.mcutils.backend.model.domain.skin.Skin;
+import xyz.mcutils.backend.model.persistence.postgres.CapeRow;
+import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
+import xyz.mcutils.backend.service.PlayerService;
 
 import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 
+@AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Setter
@@ -54,15 +58,15 @@ public class Player {
     private Skin skin;
 
     /**
-     * The skins this player has previously equipped (including current).
-     */
-    private Set<SkinHistory> skinHistory;
-
-    /**
      * The Cape for the player.
      */
     @Nullable
     private VanillaCape cape;
+
+    /**
+     * The skins this player has previously equipped (including current).
+     */
+    private Set<SkinHistory> skinHistory;
 
     /**
      * The capes this player has previously equipped (including current).
@@ -86,17 +90,20 @@ public class Player {
      */
     private Instant firstSeen;
 
-    public Player(UUID uniqueId, String username, boolean legacyAccount, long submittedUuids, Skin skin, Set<SkinHistory> skinHistory, @Nullable VanillaCape cape, @Nullable Set<CapeHistory> capeHistory, Set<UsernameHistory> usernameHistory, Instant lastUpdated, Instant firstSeen) {
-        this.uniqueId = uniqueId;
-        this.username = username;
-        this.legacyAccount = legacyAccount;
-        this.submittedUuids = submittedUuids;
-        this.skin = skin;
-        this.skinHistory = skinHistory;
-        this.cape = cape;
-        this.capeHistory = capeHistory;
-        this.usernameHistory = usernameHistory;
-        this.lastUpdated = lastUpdated;
-        this.firstSeen = firstSeen;
+    public static Player fromRow(PlayerRow playerRow, PlayerService playerService) {
+        CapeRow cape = playerRow.getCape();
+        return new Player(
+                playerRow.getId(),
+                playerRow.getUsername(),
+                playerRow.isLegacyAccount(),
+                playerRow.getSubmittedUuids(),
+                Skin.fromRow(playerRow.getSkin()),
+                cape != null ? VanillaCape.fromRow(cape) : null,
+                playerService.getSkinHistory(playerRow),
+                playerService.getCapeHistory(playerRow),
+                playerService.getUsernameHistory(playerRow),
+                playerRow.getLastUpdated(),
+                playerRow.getFirstSeen()
+        );
     }
 }

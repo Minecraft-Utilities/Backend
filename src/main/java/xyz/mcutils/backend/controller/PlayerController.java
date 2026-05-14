@@ -10,7 +10,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import xyz.mcutils.backend.model.domain.player.Player;
 import xyz.mcutils.backend.model.dto.request.SubmitPlayersRequest;
-import xyz.mcutils.backend.model.dto.response.PlayerSearchEntry;
 import xyz.mcutils.backend.model.dto.response.SubmitPlayersResponse;
 import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.PlayerSubmitService;
@@ -32,8 +31,8 @@ public class PlayerController {
     }
 
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<PlayerSearchEntry>> searchPlayers(@Parameter(description = "The query to search for (username prefix, case-insensitive)", example = "ImFascinated") @RequestParam String query) {
-        List<PlayerSearchEntry> entries = this.playerService.searchPlayers(query);
+    public ResponseEntity<List<Player>> searchPlayers(@Parameter(description = "The query to search for (username prefix, case-insensitive)", example = "ImFascinated") @RequestParam String query) {
+        List<Player> entries = this.playerService.searchPlayers(query);
         return ResponseEntity.ok().body(entries);
     }
 

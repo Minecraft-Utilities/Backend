@@ -4,6 +4,9 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.model.dto.response.StatisticsResponse;
+import xyz.mcutils.backend.repository.postgres.CapeRepository;
+import xyz.mcutils.backend.repository.postgres.PlayerRepository;
+import xyz.mcutils.backend.repository.postgres.SkinRepository;
 import xyz.mcutils.backend.websocket.WebSocketManager;
 import xyz.mcutils.backend.websocket.impl.StatisticsWebSocket;
 
@@ -12,17 +15,19 @@ import xyz.mcutils.backend.websocket.impl.StatisticsWebSocket;
 public class StatisticsService {
 
     public static StatisticsService INSTANCE;
-    private final PlayerService playerService;
-    private final SkinService skinService;
-    private final CapeService capeService;
+
+    private final PlayerRepository playerRepository;
+    private final SkinRepository skinRepository;
+    private final CapeRepository capeRepository;
+
     private long trackedPlayerCount;
     private long trackedSkinCount;
     private long trackedCapeCount;
 
-    public StatisticsService(PlayerService playerService, SkinService skinService, CapeService capeService) {
-        this.playerService = playerService;
-        this.skinService = skinService;
-        this.capeService = capeService;
+    public StatisticsService(PlayerRepository playerRepository, SkinRepository skinRepository, CapeRepository capeRepository) {
+        this.playerRepository = playerRepository;
+        this.skinRepository = skinRepository;
+        this.capeRepository = capeRepository;
         INSTANCE = this;
     }
 
@@ -62,9 +67,9 @@ public class StatisticsService {
 
     @PostConstruct
     public void init() {
-        this.trackedPlayerCount = playerService.getTrackedPlayerCount();
-        this.trackedSkinCount = skinService.getTrackedSkinCount();
-        this.trackedCapeCount = capeService.getTrackedCapeCount();
+        this.trackedPlayerCount = this.playerRepository.count();
+        this.trackedSkinCount = this.skinRepository.count();
+        this.trackedCapeCount = this.capeRepository.count();
     }
 
     /**

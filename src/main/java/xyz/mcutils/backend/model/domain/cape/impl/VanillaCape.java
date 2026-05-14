@@ -1,7 +1,6 @@
 package xyz.mcutils.backend.model.domain.cape.impl;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -13,6 +12,7 @@ import xyz.mcutils.backend.common.renderer.Renderer;
 import xyz.mcutils.backend.common.renderer.impl.cape.VanillaCapeRenderer;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.domain.cape.Cape;
+import xyz.mcutils.backend.model.persistence.postgres.CapeRow;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
@@ -26,10 +26,9 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
     private static final String CDN_URL = "https://textures.minecraft.net/texture/%s";
 
     /**
-     * The UUID of this cape.
+     * The id of this cape.
      */
-    @JsonProperty("id")
-    private UUID uuid;
+    private long id;
 
     /**
      * The accounts currently owning this cape (only set on detail responses).
@@ -53,8 +52,7 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
     /**
      * The number of accounts that have this cape owned.
      */
-    @Setter
-    private long accountsOwned;
+    private long uniqueOwners;
 
     /**
      * The date this cape was first seen.
@@ -62,11 +60,11 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
     @Setter
     private Instant firstSeen;
 
-    public VanillaCape(UUID uuid, String name, long accountsOwned, String textureId) {
+    public VanillaCape(long id, String name, String textureId, long uniqueOwners) {
         super(textureId, CDN_URL.formatted(textureId), AppConfig.INSTANCE.getWebPublicUrl() + "/capes/%s/texture.png".formatted(textureId), buildParts(textureId));
-        this.uuid = uuid;
+        this.id = id;
         this.name = name;
-        this.accountsOwned = accountsOwned;
+        this.uniqueOwners = uniqueOwners;
     }
 
     /**
@@ -120,5 +118,9 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
         Part(Renderer<VanillaCape> renderer) {
             this.renderer = renderer;
         }
+    }
+
+    public static VanillaCape fromRow(CapeRow capeRow) {
+        return new VanillaCape(capeRow.getId(), capeRow.getName(), capeRow.getTextureId(), capeRow.getUniqueOwners());
     }
 }

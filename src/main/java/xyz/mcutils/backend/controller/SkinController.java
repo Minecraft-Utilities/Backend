@@ -13,7 +13,6 @@ import xyz.mcutils.backend.common.Pagination;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.service.SkinService;
 
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @RestController
@@ -34,20 +33,20 @@ public class SkinController {
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Skin> getSkin(@Parameter(description = "The UUID of the skin") @PathVariable UUID id) {
-        return ResponseEntity.ok().body(skinService.getSkin(id));
+    public ResponseEntity<Skin> getSkin(@Parameter(description = "The UUID of the skin") @PathVariable Long id) {
+        return ResponseEntity.ok().body(skinService.getSkinById(id));
     }
 
     @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getPlayerSkinTexture(@Parameter(description = "The UUID or Username of the player or the skin's texture id", example = "ImFascinated") @PathVariable String query, @Parameter(description = "Whether to upgrade the skin to the modern format", example = "true") @RequestParam(required = false, defaultValue = "true") boolean upgrade) {
-        Skin skin = this.skinService.getSkinFromTextureIdOrPlayer(query);
+        Skin skin = Skin.fromRow(this.skinService.getSkinByTextureIdOrPlayer(query));
         byte[] texture = skinService.getSkinTexture(skin.getTextureId(), skin.getRawTextureUrl(), upgrade);
         return ResponseEntity.ok().cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic()).contentType(MediaType.IMAGE_PNG).body(texture);
     }
 
     @GetMapping(value = "/{query}/{type}.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getPlayerSkin(@Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String query, @Parameter(description = "The part of the skin", schema = @Schema(implementation = Skin.SkinPart.class)) @PathVariable String type, @Parameter(description = "The size of the image (height; width derived per part)", example = "768") @RequestParam(required = false, defaultValue = "768") int size, @Parameter(description = "Whether to render the skin overlay (skin layers)", example = "true") @RequestParam(required = false, defaultValue = "true") boolean overlays) {
-        Skin skin = this.skinService.getSkinFromTextureIdOrPlayer(query);
+        Skin skin = Skin.fromRow(this.skinService.getSkinByTextureIdOrPlayer(query));
         byte[] bytes = skinService.renderSkin(skin, type, overlays, size);
         return ResponseEntity.ok().cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic()).contentType(MediaType.IMAGE_PNG).body(bytes);
     }

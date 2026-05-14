@@ -1,7 +1,6 @@
 package xyz.mcutils.backend.model.domain.skin;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.ImageUtils;
@@ -17,6 +16,7 @@ import xyz.mcutils.backend.common.renderer.impl.skin.isometric.FullBodyIsoRender
 import xyz.mcutils.backend.common.renderer.impl.skin.isometric.HeadIsoRenderer;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.domain.Texture;
+import xyz.mcutils.backend.model.persistence.postgres.SkinRow;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
@@ -31,16 +31,14 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
     public static final String CDN_URL = "https://textures.minecraft.net/texture/%s";
 
     /**
-     * The UUID of this skin.
+     * The id of this skin.
      */
-    @JsonProperty("id")
-    private UUID uuid;
+    private long id;
 
     /**
      * The number of accounts that have used this skin.
      */
-    @Setter
-    private long accountsUsed;
+    private long uniqueOwners;
 
     /**
      * The date this skin was first seen.
@@ -79,10 +77,11 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
     @Setter
     private Map<String, String> parts;
 
-    public Skin(UUID uuid, String textureId, Model model, boolean legacy) {
+    public Skin(long id, String textureId, Model model, long uniqueOwners, boolean legacy) {
         super(AppConfig.INSTANCE.getWebPublicUrl() + "/skins/%s/texture.png".formatted(textureId), textureId, CDN_URL.formatted(textureId));
-        this.uuid = uuid;
+        this.id = id;
         this.model = model;
+        this.uniqueOwners = uniqueOwners;
         this.legacy = legacy;
 
         this.parts = new HashMap<>();
@@ -137,6 +136,9 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
         SkinPart(SkinRenderer renderer) {
             this.renderer = renderer;
         }
+    }
 
+    public static Skin fromRow(SkinRow skinRow) {
+        return new Skin(skinRow.getId(), skinRow.getTextureId(), skinRow.getModel(), skinRow.getUniqueOwners(), skinRow.isLegacy());
     }
 }

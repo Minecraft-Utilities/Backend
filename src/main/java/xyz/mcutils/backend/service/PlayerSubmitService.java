@@ -19,12 +19,10 @@ import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.player.PlayerSubmitOutcomesMetric;
 import xyz.mcutils.backend.metric.impl.player.PlayerSubmitProcessingMetric;
-import xyz.mcutils.backend.model.dto.PlayerCreateSubmission;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -37,19 +35,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Service
 @Slf4j
 public class PlayerSubmitService {
-    
-    private static final int BATCH_SIZE = 5_000;
+
+    private static final int BATCH_SIZE = 1_000;
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
-    
+
     private final RateLimiter rateLimiter = RateLimiter.create(250);
     private final RedisTemplate<String, String> redis;
     private final PlayerService playerService;
     private final MojangService mojangService;
     private final AtomicBoolean running = new AtomicBoolean(true);
 
-    public PlayerSubmitService(@Qualifier("queueRedisTemplate") RedisTemplate<String, String> redis, @Lazy PlayerService playerService, @Lazy MojangService mojangService) {
+    public PlayerSubmitService(
+            @Qualifier("queueRedisTemplate") RedisTemplate<String, String> redis,
+            @Lazy PlayerService playerService,
+            @Lazy MojangService mojangService) {
         this.redis = redis;
         this.playerService = playerService;
         this.mojangService = mojangService;
@@ -62,129 +63,135 @@ public class PlayerSubmitService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void startSubmitConsumer() {
+        Main.EXECUTOR.submit(this::runConsumerLoop);
+    }
+
+    private void runConsumerLoop() {
         ListOperations<String, String> listOps = redis.opsForList();
         SetOperations<String, String> setOps = redis.opsForSet();
-        Main.EXECUTOR.submit(() -> {
-            while (running.get()) {
-                try {
-                    // Block until at least one item arrives, then drain the rest of the batch.
-                    String first = listOps.leftPop(REDIS_QUEUE_KEY, EMPTY_QUEUE_BLOCK_SECONDS, TimeUnit.SECONDS);
-                    if (first == null) {
-                        continue;
-                    }
-                    List<String> batch = new ArrayList<>(BATCH_SIZE);
-                    batch.add(first);
-                    batch.addAll(takeBatchFromQueue(BATCH_SIZE - 1));
-                    processBatch(batch, listOps, setOps);
-                } catch (Exception e) {
-                    if (!running.get()) {
-                        break;
-                    }
-                    log.error("Submit queue consumer error, continuing", e);
+        while (running.get()) {
+            try {
+                String first = listOps.leftPop(REDIS_QUEUE_KEY, EMPTY_QUEUE_BLOCK_SECONDS, TimeUnit.SECONDS);
+                if (first == null) {
+                    continue;
                 }
+                List<String> batch = new ArrayList<>(BATCH_SIZE);
+                batch.add(first);
+                batch.addAll(takeBatchFromQueue(BATCH_SIZE - 1));
+                processBatch(batch, listOps, setOps);
+            } catch (Exception e) {
+                if (!running.get()) {
+                    break;
+                }
+                log.error("Submit queue consumer error, continuing", e);
             }
-        });
+        }
     }
 
-    @SuppressWarnings("unchecked")
     private List<String> takeBatchFromQueue(int batchSize) {
-        List<Object> results = redis.execute(new SessionCallback<>() {
-            @Override
-            public List<Object> execute(@NonNull RedisOperations operations) {
-                operations.multi();
-                operations.opsForList().range(REDIS_QUEUE_KEY, 0, batchSize - 1);
-                operations.opsForList().trim(REDIS_QUEUE_KEY, batchSize, -1);
-                return operations.exec();
-            }
-        });
-        if (results == null || results.isEmpty()) {
-            return List.of();
-        }
-        Object first = results.getFirst();
-        if (!(first instanceof List<?> list)) {
-            return List.of();
-        }
-        List<String> out = new ArrayList<>();
-        for (Object elem : list) {
-            if (elem instanceof String s) {
-                out.add(s);
-            }
-        }
-        return out;
+        List<String> result = redis.opsForList().leftPop(REDIS_QUEUE_KEY, batchSize);
+        return result != null ? result : List.of();
     }
 
-    /**
-     * Processes a batch of items from the submit queue.
-     *
-     * @param batch   the list of raw entry strings
-     * @param listOps the list operations
-     * @param setOps  the set operations
-     */
     private void processBatch(List<String> batch, ListOperations<String, String> listOps, SetOperations<String, String> setOps) {
-        List<QueueEntry> entries = batch.stream().map(QueueEntry::fromRedisValue).filter(Optional::isPresent).map(Optional::get).toList();
+        List<QueueEntry> entries = parseEntries(batch);
         if (entries.isEmpty()) {
             return;
         }
+        List<QueueEntry> toProcess = filterExisting(entries, setOps);
+        Map<UUID, Long> submitterCounts = processEntries(toProcess, listOps, setOps);
+        submitterCounts.forEach(playerService::incrementSubmittedUuids);
+    }
 
-        // Belt-and-braces: also checked in submitPlayers before enqueue, but entries may have been
-        // created before the player existed or the player may have been created via another path.
+    private List<QueueEntry> parseEntries(List<String> batch) {
+        return batch.stream()
+                .map(QueueEntry::fromRedisValue)
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .toList();
+    }
+
+    private List<QueueEntry> filterExisting(List<QueueEntry> entries, SetOperations<String, String> setOps) {
         Set<UUID> existingIds = playerService.getExistingPlayerIds(entries.stream().map(QueueEntry::playerId).toList());
-        List<String> duplicateIdsToRemove = entries.stream().filter(e -> existingIds.contains(e.playerId())).map(e -> e.playerId().toString()).toList();
-        List<QueueEntry> toProcess = entries.stream().filter(e -> !existingIds.contains(e.playerId())).toList();
-        if (!duplicateIdsToRemove.isEmpty()) {
-            setOps.remove(REDIS_QUEUE_SET_KEY, (Object[]) duplicateIdsToRemove.toArray(new String[0]));
+        if (!existingIds.isEmpty()) {
+            List<String> duplicateIds = entries.stream()
+                    .filter(e -> existingIds.contains(e.playerId()))
+                    .map(e -> e.playerId().toString())
+                    .toList();
+            removeFromQueueSet(setOps, duplicateIds);
         }
+        return entries.stream().filter(e -> !existingIds.contains(e.playerId())).toList();
+    }
 
+    private Map<UUID, Long> processEntries(List<QueueEntry> toProcess, ListOperations<String, String> listOps, SetOperations<String, String> setOps) {
         Set<String> idsToRemoveFromQueue = ConcurrentHashMap.newKeySet();
-        Queue<PlayerCreateSubmission> created = new ConcurrentLinkedQueue<>();
-        List<Future<?>> futures = new ArrayList<>();
+        Map<UUID, Long> submitterCounts = new ConcurrentHashMap<>();
+        List<Future<Void>> futures = new ArrayList<>();
+
         for (QueueEntry entry : toProcess) {
             rateLimiter.acquire();
-            Future<?> future = Main.EXECUTOR.submit(() -> {
-                boolean requeued = false;
-                long processStart = System.currentTimeMillis();
-                try {
-                    MojangProfileToken token = mojangService.getProfile(entry.playerId().toString());
-                    if (token == null) {
-                        log.warn("Player with uuid '{}' was not found", entry.playerId());
-                        MetricService.getMetric(PlayerSubmitProcessingMetric.class).record(
-                                PlayerSubmitProcessingMetric.Outcome.NOT_FOUND, System.currentTimeMillis() - processStart);
-                        return;
-                    }
-                    created.add(new PlayerCreateSubmission(token, entry.submittedBy()));
-                    MetricService.getMetric(PlayerSubmitProcessingMetric.class).record(
-                            PlayerSubmitProcessingMetric.Outcome.CREATED, System.currentTimeMillis() - processStart);
-                } catch (NotFoundException e) {
-                    log.debug("Player {} not found on Mojang, removing from queue", entry.playerId(), e);
-                    MetricService.getMetric(PlayerSubmitProcessingMetric.class).record(
-                            PlayerSubmitProcessingMetric.Outcome.NOT_FOUND, System.currentTimeMillis() - processStart);
-                } catch (MojangAPIRateLimitException e) {
-                    listOps.rightPush(REDIS_QUEUE_KEY, entry.toRedisValue());
-                    requeued = true;
-                    MetricService.getMetric(PlayerSubmitProcessingMetric.class).record(
-                            PlayerSubmitProcessingMetric.Outcome.RATE_LIMITED, System.currentTimeMillis() - processStart);
-                } finally {
-                    if (!requeued) {
-                        idsToRemoveFromQueue.add(entry.playerId().toString());
-                    }
-                }
-            });
-            futures.add(future);
+            futures.add(Main.EXECUTOR.submit(() -> {
+                processEntry(entry, listOps, idsToRemoveFromQueue, submitterCounts);
+                return null;
+            }));
         }
 
         FutureUtils.awaitAll(futures, "submit");
-        if (!idsToRemoveFromQueue.isEmpty()) {
-            setOps.remove(REDIS_QUEUE_SET_KEY, (Object[]) idsToRemoveFromQueue.toArray(new String[0]));
+        removeFromQueueSet(setOps, idsToRemoveFromQueue);
+        return submitterCounts;
+    }
+
+    private void processEntry(QueueEntry entry, ListOperations<String, String> listOps, Set<String> idsToRemove, Map<UUID, Long> submitterCounts) {
+        boolean requeued = false;
+        long processStart = System.currentTimeMillis();
+        try {
+            MojangProfileToken token = mojangService.getProfile(entry.playerId().toString());
+            if (token == null) {
+                log.warn("Player with uuid '{}' was not found", entry.playerId());
+                recordOutcome(PlayerSubmitProcessingMetric.Outcome.NOT_FOUND, processStart);
+                return;
+            }
+            playerService.createPlayer(token);
+            if (entry.submittedBy() != null) {
+                submitterCounts.merge(entry.submittedBy(), 1L, Long::sum);
+            }
+            recordOutcome(PlayerSubmitProcessingMetric.Outcome.CREATED, processStart);
+        } catch (NotFoundException e) {
+            log.debug("Player {} not found on Mojang, removing from queue", entry.playerId(), e);
+            recordOutcome(PlayerSubmitProcessingMetric.Outcome.NOT_FOUND, processStart);
+        } catch (MojangAPIRateLimitException e) {
+            listOps.rightPush(REDIS_QUEUE_KEY, entry.toRedisValue());
+            requeued = true;
+            recordOutcome(PlayerSubmitProcessingMetric.Outcome.RATE_LIMITED, processStart);
+        } finally {
+            if (!requeued) {
+                idsToRemove.add(entry.playerId().toString());
+            }
         }
-        playerService.createPlayers(new ArrayList<>(created));
+    }
+
+    private void recordOutcome(PlayerSubmitProcessingMetric.Outcome outcome, long startMs) {
+        MetricService.getMetric(PlayerSubmitProcessingMetric.class).record(outcome, System.currentTimeMillis() - startMs);
+    }
+
+    private void removeFromQueueSet(SetOperations<String, String> setOps, Collection<String> ids) {
+        if (!ids.isEmpty()) {
+            setOps.remove(REDIS_QUEUE_SET_KEY, ids.toArray(new String[0]));
+        }
     }
 
     public int submitPlayers(List<String> players, String submittedBy) {
         UUID by = (submittedBy != null && !submittedBy.isBlank()) ? UUIDUtils.parseUuid(submittedBy.trim()) : null;
-        List<UUID> toEnqueue = players.stream().filter(id -> id != null && !id.isBlank()).map(id -> UUIDUtils.parseUuid(id.trim())).filter(Objects::nonNull).distinct().toList();
+        List<UUID> toEnqueue = players.stream()
+                .filter(id -> id != null && !id.isBlank())
+                .map(id -> UUIDUtils.parseUuid(id.trim()))
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
         if (toEnqueue.isEmpty()) {
             return 0;
         }
+
         Set<UUID> existingInDb = playerService.getExistingPlayerIds(toEnqueue);
         if (!existingInDb.isEmpty()) {
             MetricService.getMetric(PlayerSubmitOutcomesMetric.class).inc(PlayerSubmitOutcomesMetric.Outcome.ALREADY_TRACKED, existingInDb.size());
@@ -219,18 +226,12 @@ public class PlayerSubmitService {
         listOps.rightPushAll(REDIS_QUEUE_KEY, entryStrings);
         setOps.add(REDIS_QUEUE_SET_KEY, playerIdStrings.toArray(new String[0]));
         Long size = listOps.size(REDIS_QUEUE_KEY);
-        log.info("Submitted {} players to submit queue (total queued: {}, submittedBy: {})", entryStrings.size(), size != null ? size : 0, submittedBy);
+        log.info("Submitted {} players to submit queue (total queued: {}, submittedBy: {})",
+                entryStrings.size(), size != null ? size : 0, submittedBy);
         MetricService.getMetric(PlayerSubmitOutcomesMetric.class).inc(PlayerSubmitOutcomesMetric.Outcome.ENQUEUED, entryStrings.size());
         return entryStrings.size();
     }
 
-    /**
-     * Checks which of the given UUIDs are already present in the submit queue set.
-     * Uses a raw Redis connection to perform an atomic {@code SMISMEMBER} command.
-     *
-     * @param uuids the UUIDs to check
-     * @return a list of booleans parallel to {@code uuids}; {@code true} means already queued
-     */
     @SuppressWarnings("unchecked")
     private List<Boolean> isAlreadyQueued(List<UUID> uuids) {
         RedisSerializer<String> keySer = (RedisSerializer<String>) redis.getKeySerializer();
@@ -240,7 +241,8 @@ public class PlayerSubmitService {
         for (int i = 0; i < uuids.size(); i++) {
             memberBytes[i] = valueSer.serialize(uuids.get(i).toString());
         }
-        List<Boolean> result = redis.execute((RedisConnection connection) -> connection.setCommands().sMIsMember(keyBytes, memberBytes));
+        List<Boolean> result = redis.execute((RedisConnection connection) ->
+                connection.setCommands().sMIsMember(keyBytes, memberBytes));
         return result != null ? result : List.of();
     }
 
@@ -248,7 +250,6 @@ public class PlayerSubmitService {
         Long size = redis.opsForList().size(REDIS_QUEUE_KEY);
         return size != null ? size : 0L;
     }
-
 
     private record QueueEntry(UUID playerId, UUID submittedBy) {
         String toRedisValue() {

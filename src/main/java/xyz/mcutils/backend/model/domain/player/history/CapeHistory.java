@@ -11,19 +11,14 @@ import java.time.Instant;
 @Getter
 @Slf4j
 public class CapeHistory extends VanillaCape {
-    /**
-     * The date this cape was first seen on the player.
-     */
-    private Instant firstSeen;
 
     /**
      * The date this cape was last seen on the player.
      */
     private Instant lastUsed;
 
-    public CapeHistory(VanillaCape cape, Instant firstSeen, Instant lastUsed) {
-        super(cape.getUuid(), cape.getName(), cape.getAccountsOwned(), cape.getTextureId());
-        this.firstSeen = firstSeen;
+    public CapeHistory(VanillaCape cape, Instant lastUsed) {
+        super(cape.getId(), cape.getName(), cape.getTextureId(), cape.getUniqueOwners());
         this.lastUsed = lastUsed;
     }
 }
