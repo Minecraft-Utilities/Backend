@@ -2,7 +2,7 @@ package xyz.mcutils.backend.metric.impl.player;
 
 import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import xyz.mcutils.backend.metric.Metric;
-import xyz.mcutils.backend.model.domain.player.FullPlayer;
+import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
 import xyz.mcutils.backend.service.MetricService;
 import xyz.mcutils.backend.service.PlayerService;
 
@@ -19,7 +19,7 @@ public class TopSubmittedPlayersMetric extends Metric<TopSubmittedPlayersMetric.
                         .help("Submitted UUID count for the top 10 players by submission count")
                         .labelNames("username")
                         .callback(callback -> {
-                            for (FullPlayer player : playerService.getTopSubmittedPlayers(10)) {
+                            for (PlayerRow player : playerService.getTopSubmittedPlayers(10)) {
                                 callback.call(player.getSubmittedUuids(), player.getUsername());
                             }
                         })

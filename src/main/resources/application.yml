@@ -30,7 +30,7 @@ spring:
     username: mcutils
     password: mcutils
     hikari:
-      maximum-pool-size: 50
+      maximum-pool-size: 200
       minimum-idle: 10
       connection-timeout: 30000
       idle-timeout: 600000

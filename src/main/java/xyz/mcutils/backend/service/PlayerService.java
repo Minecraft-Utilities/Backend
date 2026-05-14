@@ -306,9 +306,8 @@ public class PlayerService {
                 .map(playerRow -> FullPlayer.fromRow(playerRow, this)).toList();
     }
 
-    public List<FullPlayer> getTopSubmittedPlayers(int amount) {
-        return this.playerRepository.findTopByOrderBySubmittedUuidsDesc(PageRequest.of(0, amount)).stream()
-                .map(playerRow -> FullPlayer.fromRow(playerRow, this)).toList();
+    public List<PlayerRow> getTopSubmittedPlayers(int amount) {
+        return this.playerRepository.findTopByOrderBySubmittedUuidsDesc(PageRequest.of(0, amount)).stream().toList();
     }
 
     public Set<UUID> getExistingPlayerIds(List<UUID> ids) {
