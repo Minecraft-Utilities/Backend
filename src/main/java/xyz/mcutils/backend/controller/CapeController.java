@@ -38,14 +38,14 @@ public class CapeController {
 
     @GetMapping(value = "/{query}/texture.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getCapeTexture(@Parameter(description = "The UUID or Username of the player or the capes's texture id", example = "dbc21e222528e30dc88445314f7be6ff12d3aeebc3c192054fba7e3b3f8c77b1") @PathVariable String query) {
-        Cape<?> cape = VanillaCape.fromRow(this.capeService.getCapeByTextureIdOrPlayer(query));
+        Cape<?> cape = VanillaCape.fromRow(this.capeService.getCapeByQuery(query));
         byte[] bytes = this.capeService.getCapeTexture(cape);
         return ResponseEntity.ok().cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic()).body(bytes);
     }
 
     @GetMapping(value = "/{query}/{part}.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getCapePart(@Parameter(description = "The UUID or Username of the player or the cape's texture id", example = "dbc21e222528e30dc88445314f7be6ff12d3aeebc3c192054fba7e3b3f8c77b1") @PathVariable String query, @Parameter(description = "The part of the cape", schema = @Schema(example = "front")) @PathVariable String part, @Parameter(description = "The size of the image (height; width derived per part)", example = "768") @RequestParam(required = false, defaultValue = "768") int size) {
-        Cape<?> cape = VanillaCape.fromRow(this.capeService.getCapeByTextureIdOrPlayer(query));
+        Cape<?> cape = VanillaCape.fromRow(this.capeService.getCapeByQuery(query));
         byte[] bytes = this.capeService.renderCape(cape, part, size);
         return ResponseEntity.ok().cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic()).contentType(MediaType.IMAGE_PNG).body(bytes);
     }

@@ -20,4 +20,24 @@ public final class CapeModelCoordinates {
             this.coordinates = coordinates;
         }
     }
+
+    /**
+     * 3D model box definition for the cape. UV anchor follows the standard Minecraft cape
+     * texture layout (64×32): front at (1,1), back at (12,1), sides at (0,1)/(11,1),
+     * top strip at (1,0). Depth is 1 pixel.
+     * UV values are {@code {x, y, sizeX, sizeY, sizeZ}} passed to {@link xyz.mcutils.backend.common.renderer.model.ModelUtils#uvFrom}.
+     */
+    public enum ModelBox {
+        CAPE(1, 1, 10, 16, 1);
+
+        private final int[] uv;
+
+        ModelBox(int x, int y, int sizeX, int sizeY, int sizeZ) {
+            this.uv = new int[]{x, y, sizeX, sizeY, sizeZ};
+        }
+
+        public int[] getUv() {
+            return uv;
+        }
+    }
 }

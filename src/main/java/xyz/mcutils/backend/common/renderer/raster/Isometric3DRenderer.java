@@ -8,6 +8,7 @@ import xyz.mcutils.backend.common.renderer.IsometricLighting;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -69,7 +70,7 @@ public class Isometric3DRenderer {
                 double depth = (p0[2] + p1[2] + p2[2] + p3[2]) / 4.0;
 
                 double x0 = p0[0], y0 = p0[1], x1 = p1[0], y1 = p1[1], x2 = p2[0], y2 = p2[1], x3 = p3[0], y3 = p3[1];
-                projected.add(new ProjectedFaceWithTexture(x0, y0, x1, y1, x2, y2, x3, y3, depth, face.u0(), face.v0_(), face.u1(), face.v1_(), brightness, batchIndex, texW, texH, faceIndex++));
+                projected.add(new ProjectedFaceWithTexture(x0, y0, x1, y1, x2, y2, x3, y3, depth, p0[2], p1[2], p2[2], face.u0(), face.v0_(), face.u1(), face.v1_(), brightness, batchIndex, texW, texH, faceIndex++));
                 minX = Math.min(minX, Math.min(Math.min(x0, x1), Math.min(x2, x3)));
                 maxX = Math.max(maxX, Math.max(Math.max(x0, x1), Math.max(x2, x3)));
                 minY = Math.min(minY, Math.min(Math.min(y0, y1), Math.min(y2, y3)));
@@ -77,8 +78,10 @@ public class Isometric3DRenderer {
             }
         }
 
-        // Stable sort: depth back-to-front, then by face index so coplanar faces (e.g. head/body seam) draw consistently
-        projected.sort(Comparator.comparingDouble((ProjectedFaceWithTexture p) -> p.depth).reversed().thenComparingInt(p -> p.faceIndex));
+        // Back-to-front (painter's) sort: depths are negative (viewZ = -(fwd·(world-eye))), so ascending
+        // order puts the most-negative (farthest) faces first. thenComparingInt keeps coplanar faces stable
+        // (base layer drawn before overlay) so alpha compositing works correctly.
+        projected.sort(Comparator.comparingDouble((ProjectedFaceWithTexture p) -> p.depth).thenComparingInt(p -> p.faceIndex));
         double modelW = maxX - minX;
         double modelH = maxY - minY;
         if (modelW < 1) {
@@ -93,6 +96,10 @@ public class Isometric3DRenderer {
 
         BufferedImage result = new BufferedImage(width, size, BufferedImage.TYPE_INT_ARGB);
         int[] outPixels = ((DataBufferInt) result.getRaster().getDataBuffer()).getData();
+        // Per-pixel depth buffer. Depths are negative (viewZ = -(fwd·(world-eye))), so objects closer to
+        // the camera have a LARGER (less-negative) depth value. Initialise to -∞ so any real depth wins.
+        float[] zBuffer = new float[width * size];
+        Arrays.fill(zBuffer, Float.NEGATIVE_INFINITY);
 
         // Preload texture pixels per batch (avoids repeated getRGB in loop)
         int[][] batchTexPixels = new int[batches.size()][];
@@ -127,7 +134,7 @@ public class Isometric3DRenderer {
                 continue;
             }
 
-            QuadRasterizer.rasterizeQuad(outPixels, width, size, dx0, dy0, dx1, dy1, dx2, dy2, sx1, sy1, tw, th, texPixels, texW, texH, (float) p.brightness());
+            QuadRasterizer.rasterizeQuad(outPixels, zBuffer, width, size, dx0, dy0, dx1, dy1, dx2, dy2, p.pd0(), p.pd1(), p.pd2(), sx1, sy1, tw, th, texPixels, texW, texH, (float) p.brightness());
         }
         return result;
     }
@@ -157,6 +164,7 @@ public class Isometric3DRenderer {
     public record TexturedFaces(BufferedImage texture, List<Face> faces) {}
 
     private record ProjectedFaceWithTexture(double x0, double y0, double x1, double y1, double x2, double y2, double x3,
-                                            double y3, double depth, double u0, double v0_, double u1, double v1_,
+                                            double y3, double depth, double pd0, double pd1, double pd2,
+                                            double u0, double v0_, double u1, double v1_,
                                             double brightness, int textureIndex, int texW, int texH, int faceIndex) {}
 }

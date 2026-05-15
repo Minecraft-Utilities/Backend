@@ -15,9 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.*;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
+import xyz.mcutils.backend.common.renderer.impl.skin.isometric.FullBodyIsoRendererBase;
+import xyz.mcutils.backend.common.renderer.impl.skin.isometric.FullBodyIsoRendererBase.Side;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.skin.SkinRenderMetric;
+import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.BasicPlayer;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
@@ -98,13 +101,22 @@ public class SkinService {
         return skin;
     }
 
-    public SkinRow getSkinByTextureIdOrPlayer(String query) {
-        // By player
+    public SkinRow getSkinByQuery(String query) {
+        // By numeric ID
+        if (!query.isEmpty() && query.chars().allMatch(Character::isDigit)) {
+            Optional<SkinRow> optionalSkinRow = this.skinRepository.findById(Long.parseLong(query));
+            if (optionalSkinRow.isEmpty()) {
+                throw new NotFoundException("Skin not found");
+            }
+            return optionalSkinRow.get();
+        }
+        // By player (name or UUID)
         if (query.length() <= 36) {
             BasicPlayer player = this.playerService.getPlayer(query);
             Skin skin = player.getSkin();
             return new SkinRow(skin.getTextureId(), skin.getModel(), skin.isLegacy(), skin.getUniqueOwners(), skin.getFirstSeen());
         }
+        // By texture ID
         Optional<SkinRow> optionalSkinRow = this.skinRepository.findByTextureId(query);
         if (optionalSkinRow.isEmpty()) {
             throw new NotFoundException("Skin not found");
@@ -221,149 +233,52 @@ public class SkinService {
         return ImageUtils.imageToBytes(ImageUtils.resizeToHeight(image, size), 1);
     }
 
-//    /**
-//     * Gets a paginated list of skins.
-//     *
-//     * @param page the page to get
-//     * @return the paginated list of skins
-//     */
-//    public Pagination.Page<Skin> getPaginatedSkins(int page) {
-//        Pagination<Skin> pagination = new Pagination<Skin>().setItemsPerPage(SKINS_PER_PAGE).setTotalItems(this.getTrackedSkinCount());
-//        return pagination.getPage(page, (pageCallback) -> {
-//            Query q = new Query().with(PageRequest.of(page - 1, pageCallback.limit())).with(Sort.by(Sort.Order.desc("accountsUsed"), Sort.Order.asc("_id")));
-//            List<Document> idDocs = MongoUtils.findWithFields(mongoTemplate, q, SkinDocument.class, "_id");
-//            List<UUID> ids = idDocs.stream().map(doc -> doc.get("_id", UUID.class)).toList();
-//            Map<UUID, SkinDocument> byId = skinManager.getByIds(ids);
-//            return ids.stream().map(byId::get).filter(Objects::nonNull).map(this::fromDocument).toList();
-//        });
-//    }
-//
-//    /**
-//     * Gets the DTO for the given skin.
-//     *
-//     * @param id the UUID of the skin
-//     * @return the skin DTO
-//     */
-//    public Skin getSkin(UUID id) {
-//        SkinDocument skinDocument = this.skinManager.getById(id).orElseThrow(() -> new NotFoundException("Skin with id '%s' not found".formatted(id)));
-//        String firstSeenUsing = null;
-//        if (skinDocument.getFirstPlayerSeenUsing() != null) {
-//            Query firstQuery = Query.query(Criteria.where("_id").is(skinDocument.getFirstPlayerSeenUsing())).limit(1);
-//            List<Document> firstDoc = MongoUtils.findWithFields(mongoTemplate, firstQuery, PlayerDocument.class, "_id", "username");
-//            if (!firstDoc.isEmpty()) {
-//                firstSeenUsing = firstDoc.getFirst().getString("username");
-//            }
-//        }
-//
-//        Query query = Query.query(Criteria.where("skin").is(skinDocument.getId())).with(PageRequest.of(0, 500)).withHint("skin");
-//        List<String> accountsSeenUsing = MongoUtils.findWithFields(mongoTemplate, query, PlayerDocument.class, "_id", "username").stream().map(doc -> doc.getString("username")).toList();
-//
-//        Skin skin = fromDocument(skinDocument);
-//        skin.setFirstSeenUsing(firstSeenUsing);
-//        skin.setAccountsSeenUsing(accountsSeenUsing);
-//        return skin;
-//    }
-//
-//    /**
-//     * Gets a skin using its texture id (cache or repository).
-//     *
-//     * @param textureId the skin to get
-//     * @return the skin, or null if not found
-//     */
-//    public Skin getSkinByTextureId(String textureId) {
-//        return this.skinManager.getByTextureId(textureId).map(this::fromDocument).orElse(null);
-//    }
-//
-//    /**
-//     * Gets a skin by its id (cache or repository).
-//     *
-//     * @param id the skin document id
-//     * @return the skin, or null if not found
-//     */
-//    public Skin getSkinById(UUID id) {
-//        if (id == null) {
-//            return null;
-//        }
-//        return this.skinManager.getById(id).map(this::fromDocument).orElse(null);
-//    }
-//
-//    /**
-//     * Gets or creates the skin using its {@link SkinTextureToken}.
-//     *
-//     * @param token      the texture token for the skin
-//     * @param playerUuid the player's uuid who was seen wearing this skin
-//     * @return the skin
-//     */
-//    public Skin getOrCreateSkinByTextureId(SkinTextureToken token, UUID playerUuid) {
-//        return fromDocument(skinManager.getOrCreateByTextureId(token, playerUuid));
-//    }
-//
-//    /**
-//     * Gets a Skin from the texture id or the player's name / uuid.
-//     *
-//     * @param query the query to search for
-//     * @return the skin, or null
-//     */
-//    public Skin getSkinFromTextureIdOrPlayer(String query) {
-//        Skin skin;
-//        // I really have no idea how long their sha-1 string length is
-//        // a player name can't be more than 16 chars, so just assume it's a texture id
-//        if (query.length() > 16 && query.length() != 32 && query.length() != 36) {
-//            skin = this.getSkinByTextureId(query);
-//        }
-//        else {
-//            Player player = this.playerService.getPlayer(query);
-//            skin = player.getSkin();
-//        }
-//
-//        if (skin == null) {
-//            throw new NotFoundException("Skin for query '%s' not found".formatted(query));
-//        }
-//
-//        return skin;
-//    }
-//
-//    /**
-//     * Creates a new skin (or returns existing) and inserts into the database if needed.
-//     *
-//     * @param token      the token for the skin from the {@link MojangProfileToken}
-//     * @param playerUuid the player's uuid who was seen wearing this skin
-//     * @return the created or existing skin
-//     */
-//    public Skin createSkin(SkinTextureToken token, UUID playerUuid) {
-//        return fromDocument(skinManager.getOrCreateByTextureId(token, playerUuid));
-//    }
-//
-//    /**
-//     * Increments accountsUsed in memory for the given skin.
-//     *
-//     * @param skinId the skin document id
-//     */
-//    public void incrementAccountsUsed(UUID skinId) {
-//        skinManager.incrementAccountsUsed(skinId, 1);
-//    }
-//
-//
-//    /**
-//     * Converts a {@link SkinDocument} to a {@link Skin}.
-//     *
-//     * @param document the document to convert
-//     * @return the converted skin
-//     */
-//    public Skin fromDocument(SkinDocument document) {
-//        if (document == null) {
-//            return null;
-//        }
-//        Skin skin = new Skin(document.getId(), document.getTextureId(), document.getModel(), document.isLegacy());
-//        skin.setAccountsUsed(document.getAccountsUsed());
-//        skin.setFirstSeen(document.getFirstSeen());
-//        return skin;
-//    }
-//
-//    /**
-//     * Returns an estimated count of tracked skins for fast statistics.
-//     */
-//    public long getTrackedSkinCount() {
-//        return this.mongoTemplate.estimatedCount(SkinDocument.class);
-//    }
+    /**
+     * Renders a full-body isometric skin part with a cape overlaid.
+     * Only {@code FULLBODY_ISO_FRONT} and {@code FULLBODY_ISO_BACK} parts support cape rendering.
+     *
+     * @param skin          the skin to render
+     * @param typeName      the name of the part (must be a full-body iso part)
+     * @param renderOverlay whether to render the skin overlay layers
+     * @param size          the output height in pixels
+     * @param cape          the cape to render alongside the skin
+     * @return the rendered image as PNG bytes
+     */
+    public byte[] renderSkinWithCape(Skin skin, String typeName, boolean renderOverlay, int size, VanillaCape cape) {
+        if (!renderingEnabled) {
+            throw new BadRequestException("Skin rendering is currently disabled");
+        }
+        if (size < minPartSize || size > maxPartSize) {
+            throw new BadRequestException("Invalid skin part size. Must be between " + minPartSize + " and " + maxPartSize);
+        }
+
+        Skin.SkinPart part = EnumUtils.getEnumConstant(Skin.SkinPart.class, typeName);
+        if (part != Skin.SkinPart.FULLBODY_ISO_FRONT && part != Skin.SkinPart.FULLBODY_ISO_BACK) {
+            throw new BadRequestException("Cape rendering is only supported for full-body isometric parts");
+        }
+
+        String canonicalKey = "%s-%s-%s-%s.png".formatted(skin.getTextureId(), part.name(), renderOverlay, cape.getTextureId());
+        byte[] canonicalBytes = cacheEnabled ? this.renderedSkinCache.getIfPresent(canonicalKey) : null;
+
+        if (canonicalBytes == null) {
+            long renderStart = System.currentTimeMillis();
+            FullBodyIsoRendererBase.Side side = (part == Skin.SkinPart.FULLBODY_ISO_BACK) ? FullBodyIsoRendererBase.Side.BACK : FullBodyIsoRendererBase.Side.FRONT;
+            BufferedImage img = FullBodyIsoRendererBase.INSTANCE.render(skin, cape, side, renderOverlay, maxPartSize);
+            byte[] bytes = ImageUtils.imageToBytes(img, 1);
+            if (cacheEnabled) {
+                this.renderedSkinCache.put(canonicalKey, bytes);
+            }
+            MetricService.getMetric(SkinRenderMetric.class).recordMiss(System.currentTimeMillis() - renderStart);
+            canonicalBytes = bytes;
+        } else {
+            MetricService.getMetric(SkinRenderMetric.class).recordHit();
+        }
+
+        if (size == maxPartSize) {
+            return canonicalBytes;
+        }
+
+        BufferedImage capeImage = ImageUtils.decodeImage(canonicalBytes);
+        return ImageUtils.imageToBytes(ImageUtils.resizeToHeight(capeImage, size), 1);
+    }
 }

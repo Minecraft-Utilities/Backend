@@ -99,8 +99,16 @@ public class CapeService {
         return cape;
     }
 
-    public CapeRow getCapeByTextureIdOrPlayer(String query) {
-        // By player
+    public CapeRow getCapeByQuery(String query) {
+        // By numeric ID
+        if (!query.isEmpty() && query.chars().allMatch(Character::isDigit)) {
+            Optional<CapeRow> optionalCapeRow = this.capeRepository.findById(Long.parseLong(query));
+            if (optionalCapeRow.isEmpty()) {
+                throw new NotFoundException("Cape not found");
+            }
+            return optionalCapeRow.get();
+        }
+        // By player (name or UUID)
         if (query.length() <= 36) {
             BasicPlayer player = this.playerService.getPlayer(query);
             VanillaCape cape = player.getCape();
@@ -109,11 +117,12 @@ public class CapeService {
             }
             return new CapeRow(cape.getName(), cape.getTextureId(), cape.getUniqueOwners(), cape.getFirstSeen());
         }
-        Optional<CapeRow> optionalSkinRow = this.capeRepository.findByTextureId(query);
-        if (optionalSkinRow.isEmpty()) {
-            throw new NotFoundException("Skin not found");
+        // By texture ID
+        Optional<CapeRow> optionalCapeRow = this.capeRepository.findByTextureId(query);
+        if (optionalCapeRow.isEmpty()) {
+            throw new NotFoundException("Cape not found");
         }
-        return optionalSkinRow.get();
+        return optionalCapeRow.get();
     }
 
     @Cacheable(value = "capeByTextureId", key = "#token.textureId")

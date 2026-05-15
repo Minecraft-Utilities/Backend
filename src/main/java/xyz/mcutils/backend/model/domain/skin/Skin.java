@@ -78,7 +78,7 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
     private Map<String, String> parts;
 
     public Skin(long id, String textureId, Model model, long uniqueOwners, boolean legacy, Instant firstSeen) {
-        super(AppConfig.INSTANCE.getWebPublicUrl() + "/skins/%s/texture.png".formatted(textureId), textureId, CDN_URL.formatted(textureId));
+        super(AppConfig.INSTANCE.getWebPublicUrl() + "/skins/%s/texture.png".formatted(id), textureId, CDN_URL.formatted(textureId));
         this.id = id;
         this.model = model;
         this.uniqueOwners = uniqueOwners;
@@ -87,7 +87,7 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
 
         this.parts = new HashMap<>();
         for (SkinPart part : SkinPart.values()) {
-            this.parts.put(part.name(), "%s/skins/%s/%s.png".formatted(AppConfig.INSTANCE.getWebPublicUrl(), textureId, part.name().toLowerCase()));
+            this.parts.put(part.name(), "%s/skins/%s/%s.png".formatted(AppConfig.INSTANCE.getWebPublicUrl(), id, part.name().toLowerCase()));
         }
     }
 

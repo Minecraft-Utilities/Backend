@@ -61,7 +61,7 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
     private Instant firstSeen;
 
     public VanillaCape(long id, String name, String textureId, long uniqueOwners, Instant firstSeen) {
-        super(textureId, CDN_URL.formatted(textureId), AppConfig.INSTANCE.getWebPublicUrl() + "/capes/%s/texture.png".formatted(textureId), buildParts(textureId));
+        super(textureId, CDN_URL.formatted(textureId), AppConfig.INSTANCE.getWebPublicUrl() + "/capes/%s/texture.png".formatted(id), buildParts(id));
         this.id = id;
         this.name = name;
         this.uniqueOwners = uniqueOwners;
@@ -71,7 +71,7 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
     /**
      * Builds the parts map (render type name -> URL) for this cape id.
      */
-    public static Map<String, String> buildParts(String capeId) {
+    public static Map<String, String> buildParts(long capeId) {
         Map<String, String> parts = new HashMap<>();
         String base = "%s/capes/%s".formatted(AppConfig.INSTANCE.getWebPublicUrl(), capeId);
         for (Part p : Part.values()) {

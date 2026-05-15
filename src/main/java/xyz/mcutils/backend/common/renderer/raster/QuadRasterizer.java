@@ -12,9 +12,16 @@ public final class QuadRasterizer {
     /**
      * Rasterize a parallelogram like Graphics2D.drawImage( subimage, AffineTransform ).
      * Parallelogram: (dx0,dy0)=texture(texX0,texY0), (dx1,dy1)=texture(texX0+tw,texY0), (dx2,dy2)=texture(texX0,texY0+th).
-     * Scanline: for each y, intersect with edges to get left/right x and (u,v), then interpolate along the span.
+     * Scanline: for each y, intersect with edges to get left/right x and (u,v,depth), then interpolate along the span.
+     * Per-pixel z-buffer test: only writes a pixel when its interpolated depth is strictly closer than zBuffer[pixel].
+     * Opaque pixels update the z-buffer; semi-transparent pixels do not, so layers behind can still composite.
+     *
+     * @param zBuffer  shared float[] depth buffer (same length as outPixels), initialised to Float.MAX_VALUE
+     * @param d0       projected depth at vertex (dx0,dy0)
+     * @param d1       projected depth at vertex (dx1,dy1)
+     * @param d2       projected depth at vertex (dx2,dy2)
      */
-    public static void rasterizeQuad(int[] outPixels, int outW, int outH, double dx0, double dy0, double dx1, double dy1, double dx2, double dy2, int texX0, int texY0, int tw, int th, int[] texPixels, int texW, int texH, float brightness) {
+    public static void rasterizeQuad(int[] outPixels, float[] zBuffer, int outW, int outH, double dx0, double dy0, double dx1, double dy1, double dx2, double dy2, double d0, double d1, double d2, int texX0, int texY0, int tw, int th, int[] texPixels, int texW, int texH, float brightness) {
 
         if (tw <= 0 || th <= 0) {
             return;
@@ -22,11 +29,13 @@ public final class QuadRasterizer {
 
         double dx3 = dx1 + dx2 - dx0;
         double dy3 = dy1 + dy2 - dy0;
+        double d3 = d1 + d2 - d0;
         // Vertices 0,1,2,3 with subimage coords (0,0), (tw,0), (0,th), (tw,th)
         double[] ex = {dx0, dx1, dx3, dx2};
         double[] ey = {dy0, dy1, dy3, dy2};
         double[] eu = {0, tw, tw, 0};
         double[] ev = {0, 0, th, th};
+        double[] ed = {d0, d1, d3, d2};
 
         int yMin = (int) Math.ceil(Math.min(Math.min(ey[0], ey[1]), Math.min(ey[2], ey[3])) - 0.5);
         int yMax = (int) Math.floor(Math.max(Math.max(ey[0], ey[1]), Math.max(ey[2], ey[3])) - 0.5);
@@ -42,6 +51,7 @@ public final class QuadRasterizer {
             double xMin = Double.POSITIVE_INFINITY;
             double xMax = Double.NEGATIVE_INFINITY;
             double uLeft = 0, vLeft = 0, uRight = 0, vRight = 0;
+            double zLeft = 0, zRight = 0;
 
             for (int e = 0; e < 4; e++) {
                 int e1 = (e + 1) % 4;
@@ -57,16 +67,19 @@ public final class QuadRasterizer {
                 double x = ex[e] + t * (ex[e1] - ex[e]);
                 double u = eu[e] + t * (eu[e1] - eu[e]);
                 double v = ev[e] + t * (ev[e1] - ev[e]);
+                double z = ed[e] + t * (ed[e1] - ed[e]);
 
                 if (x < xMin) {
                     xMin = x;
                     uLeft = u;
                     vLeft = v;
+                    zLeft = z;
                 }
                 if (x > xMax) {
                     xMax = x;
                     uRight = u;
                     vRight = v;
+                    zRight = z;
                 }
             }
 
@@ -90,11 +103,25 @@ public final class QuadRasterizer {
             double dx = xMax - xMin;
             double du = (dx > 1e-9) ? (uRight - uLeft) / dx : 0;
             double dv = (dx > 1e-9) ? (vRight - vLeft) / dx : 0;
+            double dz = (dx > 1e-9) ? (zRight - zLeft) / dx : 0;
             double u = uLeft + (xStart - xMin + 0.5) * du;
             double v = vLeft + (xStart - xMin + 0.5) * dv;
+            double z = zLeft + (xStart - xMin + 0.5) * dz;
 
             int rowOffset = y * outW;
             for (int x = xStart; x <= xEnd; x++) {
+                int dstIdx = rowOffset + x;
+
+                // Per-pixel z-buffer test: depths are negative, so larger (less-negative) = closer.
+                // Skip if a closer pixel (>= current depth) has already been drawn here.
+                float pixelDepth = (float) z;
+                if (pixelDepth <= zBuffer[dstIdx]) {
+                    u += du;
+                    v += dv;
+                    z += dz;
+                    continue;
+                }
+
                 int texX = texX0 + (int) Math.floor(u);
                 int texY = texY0 + (int) Math.floor(v);
                 texX = Math.max(0, Math.min(texX, texW - 1));
@@ -105,6 +132,7 @@ public final class QuadRasterizer {
                 if (a_ == 0) {
                     u += du;
                     v += dv;
+                    z += dz;
                     continue;
                 }
 
@@ -121,10 +149,10 @@ public final class QuadRasterizer {
                     b = Math.min(255, Math.max(0, b));
                 }
 
-                int dstIdx = rowOffset + x;
                 int dst = outPixels[dstIdx];
                 if (a_ >= 254) {
                     outPixels[dstIdx] = (a_ << 24) | (r << 16) | (g << 8) | b;
+                    zBuffer[dstIdx] = pixelDepth;
                 }
                 else {
                     int da = (dst >> 24) & 0xFF;
@@ -137,10 +165,13 @@ public final class QuadRasterizer {
                     b = (b * a_ + db * invSa) / 255;
                     a_ = a_ + (255 - a_) * da / 255;
                     outPixels[dstIdx] = (Math.min(255, a_) << 24) | (Math.min(255, r) << 16) | (Math.min(255, g) << 8) | Math.min(255, b);
+                    // Semi-transparent pixels (overlays) do not own the depth: leave zBuffer unchanged
+                    // so that opaque geometry at the same location can still composite behind them.
                 }
 
                 u += du;
                 v += dv;
+                z += dz;
             }
         }
     }
