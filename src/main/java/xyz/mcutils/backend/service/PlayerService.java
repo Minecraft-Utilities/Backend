@@ -246,7 +246,9 @@ public class PlayerService {
         if (!Objects.equals(oldCapeTextureId, newCapeTextureId)) {
             CapeRow newCape = capeToken != null ? this.capeService.getOrCreateCapeCached(capeToken) : null;
             playerRow.setCape(newCape);
-            capeChangeEventRow = new CapeChangeEventRow(playerRow.getId(), newCape, Instant.now());
+            if (newCape != null) {
+                capeChangeEventRow = new CapeChangeEventRow(playerRow.getId(), newCape, Instant.now());
+            }
         }
 
         String previousUsername = playerRow.getUsername();
