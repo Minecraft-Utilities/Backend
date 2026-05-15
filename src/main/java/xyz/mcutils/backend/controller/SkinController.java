@@ -53,7 +53,7 @@ public class SkinController {
     @GetMapping(value = "/{query}/{type}.png", produces = MediaType.IMAGE_PNG_VALUE)
     public ResponseEntity<byte[]> getPlayerSkin(@Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String query, @Parameter(description = "The part of the skin", schema = @Schema(implementation = Skin.SkinPart.class)) @PathVariable String type, @Parameter(description = "The size of the image (height; width derived per part)", example = "768") @RequestParam(required = false, defaultValue = "768") int size, @Parameter(description = "Whether to render the skin overlay (skin layers)", example = "true") @RequestParam(required = false, defaultValue = "true") boolean overlays, @Parameter(description = "The texture ID of a cape to render alongside the skin (only applies to full-body isometric parts)") @RequestParam(required = false) @Nullable String capeId) {
         Skin skin = Skin.fromRow(this.skinService.getSkinByQuery(query));
-        VanillaCape cape = (capeId != null) ? VanillaCape.fromRow(this.capeService.getCapeByQuery(capeId)) : null;
+        VanillaCape cape = (capeId != null && !capeId.trim().isEmpty()) ? VanillaCape.fromRow(this.capeService.getCapeByQuery(capeId)) : null;
         RenderOptions options = new RenderOptions(overlays, cape);
         byte[] bytes = skinService.renderSkin(skin, type, options, size);
         return ResponseEntity.ok().cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic()).contentType(MediaType.IMAGE_PNG).body(bytes);
