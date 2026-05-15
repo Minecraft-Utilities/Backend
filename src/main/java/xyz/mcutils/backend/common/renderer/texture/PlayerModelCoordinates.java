@@ -16,7 +16,7 @@ public final class PlayerModelCoordinates {
         HEAD_OVERLAY_TOP(new Coordinates(40, 0, 8, 8)), HEAD_OVERLAY_FACE(new Coordinates(40, 8, 8, 8)), HEAD_OVERLAY_LEFT(new Coordinates(32, 8, 8, 8)), HEAD_OVERLAY_RIGHT(new Coordinates(48, 8, 8, 8)), HEAD_OVERLAY_BACK(new Coordinates(56, 8, 8, 8)), HEAD_OVERLAY_BOTTOM(new Coordinates(48, 0, 8, 8)),
 
         // Body overlays
-        BODY_OVERLAY_FRONT(new Coordinates(20, 36, 8, 12)), BODY_OVERLAY_TOP(new Coordinates(20, 32, 8, 4)), BODY_OVERLAY_LEFT(new Coordinates(36, 36, 4, 12)), BODY_OVERLAY_RIGHT(new Coordinates(28, 36, 4, 12)), BODY_OVERLAY_BACK(new Coordinates(44, 36, 8, 12)),
+        BODY_OVERLAY_FRONT(new Coordinates(20, 36, 8, 12)), BODY_OVERLAY_TOP(new Coordinates(20, 32, 8, 4)), BODY_OVERLAY_LEFT(new Coordinates(36, 36, 4, 12)), BODY_OVERLAY_RIGHT(new Coordinates(28, 36, 4, 12)), BODY_OVERLAY_BACK(new Coordinates(32, 36, 8, 12)),
 
         // Arm overlays
         LEFT_ARM_OVERLAY_FRONT(new Coordinates(52, 52, 4, 12)), LEFT_ARM_OVERLAY_BACK(new Coordinates(60, 52, 4, 12)), LEFT_ARM_OVERLAY_TOP(new Coordinates(52, 48, 4, 4)), RIGHT_ARM_OVERLAY_FRONT(new Coordinates(44, 36, 4, 12)), RIGHT_ARM_OVERLAY_BACK(new Coordinates(52, 36, 4, 12)), RIGHT_ARM_OVERLAY_TOP(new Coordinates(44, 48, 4, 4)),
