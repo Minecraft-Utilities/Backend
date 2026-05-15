@@ -221,6 +221,7 @@ public class PlayerService {
         this.capeChangeEventRepository.saveAll(capeChangeEvents);
         this.usernameChangeEventRepository.saveAll(usernameChangeEvents);
         MetricService.getMetric(AccountsUpdatedMetric.class).inc(playerRows.size());
+        StatisticsService.addNameChangesCount(usernameChangeEvents.size());
     }
 
     @Transactional

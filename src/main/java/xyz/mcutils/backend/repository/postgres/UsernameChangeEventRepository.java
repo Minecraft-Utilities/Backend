@@ -11,6 +11,9 @@ import java.util.UUID;
 public interface UsernameChangeEventRepository extends JpaRepository<UsernameChangeEventRow, Long> {
     List<UsernameChangeEventRow> findByPlayerIdOrderByTimestampDesc(UUID playerId);
 
+    @Query("SELECT COUNT(e) FROM UsernameChangeEventRow e WHERE e.previousUsername IS NOT NULL")
+    long countNameChanges();
+
     @Query("SELECT e FROM UsernameChangeEventRow e WHERE e.previousUsername IS NOT NULL ORDER BY e.timestamp DESC")
     List<UsernameChangeEventRow> findRecentNameChanges(Pageable pageable);
 }
