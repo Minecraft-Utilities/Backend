@@ -1,6 +1,8 @@
 package xyz.mcutils.backend.service;
 
-import com.google.common.util.concurrent.RateLimiter;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Semaphore;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -33,7 +35,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Dedicated submit queue for tracking new players.
  * Queue entries are stored as strings: {@code playerUuid,submitterUuid} (or {@code playerUuid} when no submitter).
  */
-@SuppressWarnings("UnstableApiUsage")
 @Service
 @Slf4j
 public class PlayerSubmitService {
@@ -42,8 +43,10 @@ public class PlayerSubmitService {
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
+    private static final int RATE_LIMIT = 250;
 
-    private final RateLimiter rateLimiter = RateLimiter.create(250);
+    private final Semaphore tokens = new Semaphore(RATE_LIMIT);
+    private final ScheduledExecutorService refiller = Executors.newSingleThreadScheduledExecutor();
     private final RedisTemplate<String, String> redis;
     private final PlayerService playerService;
     private final MojangService mojangService;
@@ -61,10 +64,17 @@ public class PlayerSubmitService {
     @EventListener(ContextClosedEvent.class)
     public void onContextClosed() {
         running.set(false);
+        refiller.shutdownNow();
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void startSubmitConsumer() {
+        refiller.scheduleAtFixedRate(() -> {
+            int deficit = RATE_LIMIT - tokens.availablePermits();
+            if (deficit > 0) {
+                tokens.release(deficit);
+            }
+        }, 0, 1, TimeUnit.SECONDS);
         Main.EXECUTOR.submit(this::runConsumerLoop);
     }
 
@@ -130,7 +140,7 @@ public class PlayerSubmitService {
         List<Future<Void>> futures = new ArrayList<>();
 
         for (QueueEntry entry : toProcess) {
-            rateLimiter.acquire();
+            tokens.acquire();
             futures.add(Main.EXECUTOR.submit(() -> {
                 fetchResults.add(fetchProfile(entry));
                 return null;

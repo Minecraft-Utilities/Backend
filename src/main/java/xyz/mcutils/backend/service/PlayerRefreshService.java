@@ -1,6 +1,9 @@
 package xyz.mcutils.backend.service;
 
-import com.google.common.util.concurrent.RateLimiter;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.ContextClosedEvent;
@@ -23,13 +26,14 @@ import java.util.Objects;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-@SuppressWarnings("UnstableApiUsage")
 @Service
 @Slf4j
 public class PlayerRefreshService {
     private static final int REFRESH_CHUNK_SIZE = 200;
-    
-    private final RateLimiter rateLimiter = RateLimiter.create(40);
+    private static final int RATE_LIMIT = 40;
+
+    private final Semaphore tokens = new Semaphore(RATE_LIMIT);
+    private final ScheduledExecutorService refiller = Executors.newSingleThreadScheduledExecutor();
     private final MojangService mojangService;
     private final PlayerService playerService;
     private final PlayerRepository playerRepository;
@@ -44,10 +48,17 @@ public class PlayerRefreshService {
     @EventListener(ContextClosedEvent.class)
     public void onContextClosed() {
         running.set(false);
+        refiller.shutdownNow();
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void startRefreshTask() {
+        refiller.scheduleAtFixedRate(() -> {
+            int deficit = RATE_LIMIT - tokens.availablePermits();
+            if (deficit > 0) {
+                tokens.release(deficit);
+            }
+        }, 0, 1, TimeUnit.SECONDS);
         Main.EXECUTOR.submit(() -> {
             while (running.get()) {
                 try {
@@ -59,7 +70,7 @@ public class PlayerRefreshService {
                     }
                     List<Future<PlayerService.PlayerUpdate>> futures = new ArrayList<>();
                     for (PlayerRow playerRow : playerRows) {
-                        rateLimiter.acquire();
+                        tokens.acquire();
                         futures.add(Main.EXECUTOR.submit(() -> {
                             if (!running.get()) return null;
                             MojangProfileToken token = this.mojangService.getProfile(playerRow.getId().toString());
