@@ -4,8 +4,6 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.jetbrains.annotations.Nullable;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
-import xyz.mcutils.backend.model.domain.player.history.CapeHistory;
-import xyz.mcutils.backend.model.domain.player.history.SkinHistory;
 import xyz.mcutils.backend.model.domain.player.history.UsernameHistory;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.persistence.postgres.CapeRow;
@@ -39,13 +37,13 @@ public class FullPlayer extends BasicPlayer {
     /**
      * The skins this player has previously equipped (including current).
      */
-    private Set<SkinHistory> skinHistory;
+    private Set<Skin> skinHistory;
 
     /**
      * The capes this player has previously equipped (including current).
      */
     @Nullable
-    private Set<CapeHistory> capeHistory;
+    private Set<VanillaCape> capeHistory;
 
     /**
      * The username history of the player.

@@ -57,6 +57,7 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
     /**
      * The date this cape was first seen.
      */
+    @Setter
     private Instant firstSeen;
 
     public VanillaCape(long id, String name, String textureId, long uniqueOwners, Instant firstSeen) {

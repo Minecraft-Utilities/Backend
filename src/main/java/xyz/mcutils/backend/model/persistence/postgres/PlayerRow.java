@@ -6,6 +6,8 @@ import lombok.*;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.jetbrains.annotations.Nullable;
+
 @Entity
 @Table(name = "players")
 @Getter
@@ -32,6 +34,7 @@ public class PlayerRow {
 
     @ManyToOne
     @JoinColumn(name = "cape_id")
+    @Nullable
     private CapeRow cape;
 
     @Column(nullable = false)

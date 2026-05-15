@@ -13,8 +13,6 @@ import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.FullPlayer;
-import xyz.mcutils.backend.model.domain.player.history.CapeHistory;
-import xyz.mcutils.backend.model.domain.player.history.SkinHistory;
 import xyz.mcutils.backend.model.domain.player.history.UsernameHistory;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.persistence.postgres.*;
@@ -243,8 +241,10 @@ public class PlayerService {
             playerRow.setSkin(newSkin);
             skinChangeEventRow = new SkinChangeEventRow(playerRow.getId(), newSkin, Instant.now());
         }
-        if (!playerRow.getCape().getTextureId().equals(capeToken.getTextureId())) {
-            CapeRow newCape = this.capeService.getOrCreateCapeCached(capeToken);
+        String oldCapeTextureId = playerRow.getCape() != null ? playerRow.getCape().getTextureId() : null;
+        String newCapeTextureId = capeToken != null ? capeToken.getTextureId() : null;
+        if (!Objects.equals(oldCapeTextureId, newCapeTextureId)) {
+            CapeRow newCape = capeToken != null ? this.capeService.getOrCreateCapeCached(capeToken) : null;
             playerRow.setCape(newCape);
             capeChangeEventRow = new CapeChangeEventRow(playerRow.getId(), newCape, Instant.now());
         }
@@ -269,7 +269,7 @@ public class PlayerService {
                 new UsernameHistory(row.getNewUsername(), row.getPreviousUsername(), row.getTimestamp())).collect(Collectors.toSet());
     }
 
-    public Set<SkinHistory> getSkinHistory(PlayerRow player) {
+    public Set<Skin> getSkinHistory(PlayerRow player) {
         List<SkinChangeEventRow> events = this.skinChangeEventRepository.findByPlayerId(player.getId());
         if (events.isEmpty()) {
             return Collections.emptySet();
@@ -280,13 +280,12 @@ public class PlayerService {
                 .collect(Collectors.toMap(row -> (Long) row[0], row -> (Instant) row[1]));
         return events.stream().map(row -> {
             Skin skin = Skin.fromRow(row.getSkin());
-            SkinHistory skinHistory = new SkinHistory(skin, row.getTimestamp());
-            skinHistory.setFirstSeen(firstSeenBySkinId.get(skin.getId()));
-            return skinHistory;
+            skin.setFirstSeen(firstSeenBySkinId.get(skin.getId()));
+            return skin;
         }).collect(Collectors.toSet());
     }
 
-    public Set<CapeHistory> getCapeHistory(PlayerRow player) {
+    public Set<VanillaCape> getCapeHistory(PlayerRow player) {
         List<CapeChangeEventRow> events = this.capeChangeEventRepository.findByPlayerId(player.getId());
         if (events.isEmpty()) {
             return Collections.emptySet();
@@ -297,7 +296,8 @@ public class PlayerService {
                 .collect(Collectors.toMap(row -> (Long) row[0], row -> (Instant) row[1]));
         return events.stream().map(row -> {
             VanillaCape cape = VanillaCape.fromRow(row.getCape());
-            return new CapeHistory(cape, row.getTimestamp(), firstSeenByCapeId.get(cape.getId()));
+            cape.setFirstSeen(firstSeenByCapeId.get(cape.getId()));
+            return cape;
         }).collect(Collectors.toSet());
     }
 
