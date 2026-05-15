@@ -33,15 +33,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Dedicated submit queue for tracking new players.
  * Queue entries are stored as strings: {@code playerUuid,submitterUuid} (or {@code playerUuid} when no submitter).
  */
+@SuppressWarnings("UnstableApiUsage")
 @Service
 @Slf4j
 public class PlayerSubmitService {
 
     private static final int BATCH_SIZE = 1_000;
+    private static final int RATE_LIMIT = 75;
     private static final String REDIS_QUEUE_KEY = "player-submit-queue";
     private static final String REDIS_QUEUE_SET_KEY = "player-submit-queue-ids";
     private static final long EMPTY_QUEUE_BLOCK_SECONDS = 2;
-    private static final int RATE_LIMIT = 250;
 
     private final RateLimiter rateLimiter = RateLimiter.create(RATE_LIMIT);
     private final RedisTemplate<String, String> redis;

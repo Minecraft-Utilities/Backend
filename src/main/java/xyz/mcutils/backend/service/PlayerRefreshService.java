@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+@SuppressWarnings("UnstableApiUsage")
 @Service
 @Slf4j
 public class PlayerRefreshService {
