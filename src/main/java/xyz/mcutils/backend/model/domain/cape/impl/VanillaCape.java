@@ -6,9 +6,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import xyz.mcutils.backend.common.EnumUtils;
-import xyz.mcutils.backend.common.WebRequest;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.common.renderer.Renderer;
+import xyz.mcutils.backend.common.renderer.impl.cape.VanillaCapeIsoRenderer;
 import xyz.mcutils.backend.common.renderer.impl.cape.VanillaCapeRenderer;
 import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.model.domain.cape.Cape;
@@ -17,7 +17,6 @@ import xyz.mcutils.backend.model.persistence.postgres.CapeRow;
 import java.awt.image.BufferedImage;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 
 @Getter
 @Slf4j
@@ -80,24 +79,9 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
         return parts;
     }
 
-    /**
-     * Checks if a Vanilla cape exists for the given player
-     *
-     * @param textureId  the player's name to check for
-     * @param webRequest the HTTP client
-     * @return a future that returns true or false
-     */
-    public static CompletableFuture<Boolean> capeExists(String textureId, WebRequest webRequest) {
-        return CompletableFuture.supplyAsync(() -> {
-            log.debug("Checking if Vanilla cape exists for player {}", textureId);
-            String cdnUrl = CDN_URL.formatted(textureId);
-            return webRequest.checkExists(cdnUrl);
-        });
-    }
-
     @Override
     public Set<Part> getSupportedParts() {
-        return EnumSet.of(Part.FRONT);
+        return EnumSet.of(Part.FRONT, Part.ISO);
     }
 
     @Override
@@ -112,7 +96,8 @@ public class VanillaCape extends Cape<VanillaCape.Part> {
 
     @Getter
     public enum Part {
-        FRONT(VanillaCapeRenderer.INSTANCE);
+        FRONT(VanillaCapeRenderer.INSTANCE),
+        ISO(VanillaCapeIsoRenderer.INSTANCE);
 
         private final Renderer<VanillaCape> renderer;
 
