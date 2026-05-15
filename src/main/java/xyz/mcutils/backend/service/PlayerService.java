@@ -91,7 +91,7 @@ public class PlayerService {
             }
 
             PlayerRow playerRow = optionalPlayerRow.get();
-            if (playerRow.getLastUpdated().isAfter(Instant.now().plus(PLAYER_UPDATE_INTERVAL))) {
+            if (playerRow.getLastUpdated().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
                 MojangProfileToken token = this.mojangService.getProfile(playerRow.getId().toString());
                 if (token == null) {
                     throw new NotFoundException("Player '%s' was not found".formatted(query));
