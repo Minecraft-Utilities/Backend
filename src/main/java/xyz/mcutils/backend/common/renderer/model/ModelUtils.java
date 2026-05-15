@@ -47,7 +47,7 @@ public final class ModelUtils {
 
         faces.add(new Face(new Vector3(x1, y1, pz), new Vector3(px, y1, pz), new Vector3(x1, y1, z1), new Vector3(px, y1, z1), uvs[4][0], uvs[4][1], uvs[4][2], uvs[4][3], new Vector3(0, 1, 0)));
 
-        faces.add(new Face(new Vector3(px, py, pz), new Vector3(x1, py, pz), new Vector3(px, py, z1), new Vector3(x1, py, z1), uvs[5][2], uvs[5][1], uvs[5][0], uvs[5][3], new Vector3(0, -1, 0)));
+        faces.add(new Face(new Vector3(x1, py, pz), new Vector3(px, py, pz), new Vector3(x1, py, z1), new Vector3(px, py, z1), uvs[5][0], uvs[5][1], uvs[5][2], uvs[5][3], new Vector3(0, -1, 0)));
 
         faces.add(new Face(new Vector3(px, y1, z1), new Vector3(px, y1, pz), new Vector3(px, py, z1), new Vector3(px, py, pz), uvs[3][0], uvs[3][1], uvs[3][2], uvs[3][3], new Vector3(-1, 0, 0)));
 

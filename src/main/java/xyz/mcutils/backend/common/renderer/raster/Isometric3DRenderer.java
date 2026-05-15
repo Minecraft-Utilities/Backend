@@ -35,8 +35,8 @@ public class Isometric3DRenderer {
         Vector3 eye = view.eye();
         Vector3 target = view.target();
         Vector3 fwd = Vector3Utils.normalize(target.subtract(eye));
-        Vector3 right = Vector3Utils.normalize(Vector3Utils.cross(fwd, new Vector3(0, 1, 0)));
-        Vector3 up = Vector3Utils.normalize(Vector3Utils.cross(right, fwd));
+        Vector3 right = Vector3Utils.normalize(Vector3Utils.cross(new Vector3(0, 1, 0), fwd));
+        Vector3 up = Vector3Utils.normalize(Vector3Utils.cross(fwd, right));
 
         double yaw = view.yawDeg();
         double pitch = view.pitchDeg();

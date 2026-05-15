@@ -35,21 +35,8 @@ public class FullBodyIsoRendererBase {
     private static final Vector3 TARGET = new Vector3(0, 16.5, 0);
 
     @SneakyThrows
-    public BufferedImage render(Skin skin, Side side, boolean renderOverlays, int size) {
-        return render(skin, null, side, renderOverlays, size, YAW_DEG, PITCH_DEG);
-    }
-
-    @SneakyThrows
     public BufferedImage render(Skin skin, @Nullable VanillaCape cape, Side side, boolean renderOverlays, int size) {
         return render(skin, cape, side, renderOverlays, size, YAW_DEG, PITCH_DEG);
-    }
-
-    /**
-     * Renders the full body with custom view angles.
-     */
-    @SneakyThrows
-    public BufferedImage render(Skin skin, Side side, boolean renderOverlays, int size, double yawDeg, double pitchDeg) {
-        return render(skin, null, side, renderOverlays, size, yawDeg, pitchDeg);
     }
 
     /**
@@ -61,7 +48,7 @@ public class FullBodyIsoRendererBase {
         BufferedImage skinImage = ImageUtils.decodeImage(skinBytes);
         List<Face> skinFaces = PlayerModel.buildFaces(skin, renderOverlays);
 
-        double yaw = yawDeg + (side == Side.BACK ? 45.0 : 145.0);
+        double yaw = yawDeg + (side == Side.BACK ? 45.0 : 225);
         ViewParams view = new ViewParams(EYE, TARGET, yaw, pitchDeg, ASPECT_RATIO);
 
         if (cape != null) {
