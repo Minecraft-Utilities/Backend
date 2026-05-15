@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "cape_change_events")
-@SQLInsert(sql = "INSERT INTO cape_change_events (player_id, cape_id, timestamp, id) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING")
+@SQLInsert(sql = "INSERT INTO cape_change_events (cape_id, player_id, timestamp, id) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING")
 @Getter
 @NoArgsConstructor
 public class CapeChangeEventRow {

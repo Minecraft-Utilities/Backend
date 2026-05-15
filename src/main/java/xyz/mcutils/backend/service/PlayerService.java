@@ -14,6 +14,7 @@ import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.player.AccountsUpdatedMetric;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.FullPlayer;
+import xyz.mcutils.backend.model.domain.player.history.RecentUsernameChange;
 import xyz.mcutils.backend.model.domain.player.history.UsernameHistory;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.persistence.postgres.*;
@@ -271,6 +272,12 @@ public class PlayerService {
     public Set<UsernameHistory> getUsernameHistory(PlayerRow player) {
         return this.usernameChangeEventRepository.findByPlayerIdOrderByTimestampDesc(player.getId()).stream().map((row) ->
                 new UsernameHistory(row.getNewUsername(), row.getPreviousUsername(), row.getTimestamp())).collect(Collectors.toSet());
+    }
+
+    public List<RecentUsernameChange> getRecentNameChanges() {
+        return this.usernameChangeEventRepository.findRecentNameChanges(PageRequest.of(0, 50)).stream()
+                .map(row -> new RecentUsernameChange(row.getPlayerId(), row.getNewUsername(), row.getPreviousUsername(), row.getTimestamp()))
+                .toList();
     }
 
     public Set<Skin> getSkinHistory(PlayerRow player) {
