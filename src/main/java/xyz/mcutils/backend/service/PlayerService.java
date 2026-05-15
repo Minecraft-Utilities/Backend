@@ -11,6 +11,7 @@ import xyz.mcutils.backend.common.CoalescingLoader;
 import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
+import xyz.mcutils.backend.metric.impl.player.AccountsUpdatedMetric;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.FullPlayer;
 import xyz.mcutils.backend.model.domain.player.history.UsernameHistory;
@@ -218,6 +219,7 @@ public class PlayerService {
         this.skinChangeEventRepository.saveAll(skinChangeEvents);
         this.capeChangeEventRepository.saveAll(capeChangeEvents);
         this.usernameChangeEventRepository.saveAll(usernameChangeEvents);
+        MetricService.getMetric(AccountsUpdatedMetric.class).inc(playerRows.size());
     }
 
     @Transactional
