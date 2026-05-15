@@ -18,5 +18,4 @@ public interface CapeChangeEventRepository extends JpaRepository<CapeChangeEvent
 
     @Query("SELECT e.cape.id, MIN(e.timestamp) FROM CapeChangeEventRow e WHERE e.playerId = :playerId AND e.cape.id IN :capeIds GROUP BY e.cape.id")
     List<Object[]> findFirstTimestampsByCapeIds(@Param("playerId") UUID playerId, @Param("capeIds") Collection<Long> capeIds);
-
 }

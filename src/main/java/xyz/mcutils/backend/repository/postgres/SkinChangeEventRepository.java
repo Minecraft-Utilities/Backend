@@ -18,5 +18,4 @@ public interface SkinChangeEventRepository extends JpaRepository<SkinChangeEvent
 
     @Query("SELECT e.skin.id, MIN(e.timestamp) FROM SkinChangeEventRow e WHERE e.playerId = :playerId AND e.skin.id IN :skinIds GROUP BY e.skin.id")
     List<Object[]> findFirstTimestampsBySkinIds(@Param("playerId") UUID playerId, @Param("skinIds") Collection<Long> skinIds);
-
 }
