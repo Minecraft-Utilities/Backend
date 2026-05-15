@@ -5,12 +5,12 @@ import com.google.common.cache.CacheBuilder;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.*;
@@ -45,6 +45,7 @@ public class SkinService {
     private final PlayerRepository playerRepository;
     private final PlayerService playerService;
     private final StorageService storageService;
+    private final StatisticsService statisticsService;
     private final WebRequest webRequest;
     private final Cache<String, byte[]> renderedSkinCache = CacheBuilder.newBuilder().expireAfterAccess(6, TimeUnit.HOURS).maximumSize(2000).build();
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
@@ -61,13 +62,15 @@ public class SkinService {
     @Value("${mc-utils.renderer.skin.limits.max_size}")
     private int maxPartSize;
 
-    public SkinService(SkinRepository skinRepository, SkinChangeEventRepository skinChangeEventRepository, PlayerRepository playerRepository, @Lazy PlayerService playerService, StorageService storageService, WebRequest webRequest) {
+    public SkinService(SkinRepository skinRepository, SkinChangeEventRepository skinChangeEventRepository, PlayerRepository playerRepository,
+                       @Lazy PlayerService playerService, StorageService storageService, WebRequest webRequest,  StatisticsService statisticsService) {
         this.skinRepository = skinRepository;
         this.skinChangeEventRepository = skinChangeEventRepository;
         this.playerRepository = playerRepository;
         this.playerService = playerService;
         this.storageService = storageService;
         this.webRequest = webRequest;
+        this.statisticsService = statisticsService;
     }
 
     @PostConstruct
@@ -133,7 +136,7 @@ public class SkinService {
     }
 
     public Pagination.Page<Skin> getPaginatedSkins(int page) {
-        Pagination<Skin> pagination = new Pagination<Skin>().setItemsPerPage(SKINS_PER_PAGE).setTotalItems(this.skinRepository.count());
+        Pagination<Skin> pagination = new Pagination<Skin>().setItemsPerPage(SKINS_PER_PAGE).setTotalItems(this.statisticsService.getTrackedSkinCount());
         return pagination.getPage(page, (pageCallback) -> {
             Pageable pageable = PageRequest.of(
                     page - 1,

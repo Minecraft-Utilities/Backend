@@ -3,12 +3,12 @@ package xyz.mcutils.backend.service;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.CoalescingLoader;
@@ -44,6 +44,7 @@ public class CapeService {
     
     private final StorageService storageService;
     private final PlayerService playerService;
+    private final StatisticsService statisticsService;
     private final CapeRepository capeRepository;
     private final CapeChangeEventRepository capeChangeEventRepository;
     private final PlayerRepository playerRepository;
@@ -62,9 +63,11 @@ public class CapeService {
     @Value("${mc-utils.renderer.cape.limits.max_size}")
     private int maxPartSize;
 
-    public CapeService(StorageService storageService, @Lazy PlayerService playerService, CapeRepository capeRepository, CapeChangeEventRepository capeChangeEventRepository, PlayerRepository playerRepository, WebRequest webRequest) {
+    public CapeService(StorageService storageService, @Lazy PlayerService playerService, StatisticsService statisticsService, CapeRepository capeRepository,
+                       CapeChangeEventRepository capeChangeEventRepository, PlayerRepository playerRepository, WebRequest webRequest) {
         this.storageService = storageService;
         this.playerService = playerService;
+        this.statisticsService = statisticsService;
         this.capeRepository = capeRepository;
         this.capeChangeEventRepository = capeChangeEventRepository;
         this.playerRepository = playerRepository;
@@ -133,7 +136,7 @@ public class CapeService {
     }
 
     public Pagination.Page<VanillaCape> getPaginatedCapes(int page) {
-        Pagination<VanillaCape> pagination = new Pagination<VanillaCape>().setItemsPerPage(CAPES_PER_PAGE).setTotalItems(this.capeRepository.count());
+        Pagination<VanillaCape> pagination = new Pagination<VanillaCape>().setItemsPerPage(CAPES_PER_PAGE).setTotalItems(this.statisticsService.getTrackedCapeCount());
         return pagination.getPage(page, (pageCallback) -> {
             Pageable pageable = PageRequest.of(
                     page - 1,
