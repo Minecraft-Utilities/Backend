@@ -1,7 +1,7 @@
 package xyz.mcutils.backend.repository.postgres;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -20,7 +20,7 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
     Optional<PlayerRow> findByUsernameIgnoreCase(String username);
     List<PlayerRow> findByUsernameContainingIgnoreCase(String username, Pageable pageable);
     List<PlayerRow> findTopByOrderBySubmittedUuidsDesc(Pageable pageable);
-    Page<PlayerRow> findAllByLastUpdatedBeforeOrderByLastUpdatedAsc(Instant cutoff, Pageable pageable);
+    Slice<PlayerRow> findAllByLastUpdatedBeforeOrderByLastUpdatedAsc(Instant cutoff, Pageable pageable);
 
     @Query("SELECT p FROM PlayerRow p WHERE p.skin.id = :skinId")
     List<PlayerRow> findBySkinId(long skinId, Pageable pageable);
