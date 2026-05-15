@@ -52,7 +52,7 @@ public class PlayerRefreshService {
         Main.EXECUTOR.submit(() -> {
             while (running.get()) {
                 try {
-                    Instant cutoff = Instant.now().minus(1, ChronoUnit.WEEKS);
+                    Instant cutoff = Instant.now().minus(1, ChronoUnit.DAYS);
                     Slice<PlayerRow> playerRows = this.playerRepository.findAllByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, Pageable.ofSize(REFRESH_CHUNK_SIZE));
                     if (playerRows.isEmpty()) {
                         Thread.sleep(Duration.ofSeconds(10));
