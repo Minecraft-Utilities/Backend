@@ -275,7 +275,7 @@ public class PlayerService {
             return Collections.emptySet();
         }
         Set<Long> skinIds = events.stream().map(e -> e.getSkin().getId()).collect(Collectors.toSet());
-        Map<Long, Instant> firstSeenBySkinId = this.skinChangeEventRepository.findFirstTimestampsBySkinIds(skinIds)
+        Map<Long, Instant> firstSeenBySkinId = this.skinChangeEventRepository.findFirstTimestampsBySkinIds(player.getId(), skinIds)
                 .stream()
                 .collect(Collectors.toMap(row -> (Long) row[0], row -> (Instant) row[1]));
         return events.stream().map(row -> {
@@ -292,7 +292,7 @@ public class PlayerService {
             return Collections.emptySet();
         }
         Set<Long> capeIds = events.stream().map(e -> e.getCape().getId()).collect(Collectors.toSet());
-        Map<Long, Instant> firstSeenByCapeId = this.capeChangeEventRepository.findFirstTimestampsByCapeIds(capeIds)
+        Map<Long, Instant> firstSeenByCapeId = this.capeChangeEventRepository.findFirstTimestampsByCapeIds(player.getId(), capeIds)
                 .stream()
                 .collect(Collectors.toMap(row -> (Long) row[0], row -> (Instant) row[1]));
         return events.stream().map(row -> {
