@@ -140,7 +140,12 @@ public class PlayerSubmitService {
         List<Future<Void>> futures = new ArrayList<>();
 
         for (QueueEntry entry : toProcess) {
-            tokens.acquire();
+            try {
+                tokens.acquire();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return Map.of();
+            }
             futures.add(Main.EXECUTOR.submit(() -> {
                 fetchResults.add(fetchProfile(entry));
                 return null;
