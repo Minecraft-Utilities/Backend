@@ -15,8 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.*;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
-import xyz.mcutils.backend.common.renderer.impl.skin.isometric.FullBodyIsoRendererBase;
-import xyz.mcutils.backend.common.renderer.impl.skin.isometric.FullBodyIsoRendererBase.Side;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.skin.SkinRenderMetric;
@@ -187,16 +185,17 @@ public class SkinService {
     }
 
     /**
-     * Renders a skin type from the player's skin.
+     * Renders a skin part, optionally with a cape.
      * Canonical image is stored at max size; smaller requested sizes are produced by downscaling.
+     * Cape rendering is only supported for {@code FULLBODY_ISO_FRONT} and {@code FULLBODY_ISO_BACK} parts.
      *
-     * @param skin          the player to get the skin for
-     * @param typeName      the name of the type
-     * @param renderOverlay whether to render the overlay
-     * @param size          the output size (height; width derived per type)
-     * @return the skin part
+     * @param skin    the skin to render
+     * @param typeName the name of the part
+     * @param options  render options (overlay flag and optional cape)
+     * @param size     the output size (height; width derived per type)
+     * @return the rendered image as PNG bytes
      */
-    public byte[] renderSkin(Skin skin, String typeName, boolean renderOverlay, int size) {
+    public byte[] renderSkin(Skin skin, String typeName, RenderOptions options, int size) {
         if (!renderingEnabled) {
             throw new BadRequestException("Skin rendering is currently disabled");
         }
@@ -209,12 +208,13 @@ public class SkinService {
             throw new BadRequestException("Invalid or unsupported skin part: '%s'".formatted(typeName));
         }
 
-        String canonicalKey = "%s-%s-%s.png".formatted(skin.getTextureId(), part.name(), renderOverlay);
+        String canonicalKeyBase = "%s-%s-%s".formatted(skin.getTextureId(), part.name(), options.renderOverlays());
+        String canonicalKey = options.cape() != null ? canonicalKeyBase + "-" + options.cape().getTextureId() : canonicalKeyBase;
         byte[] canonicalBytes = cacheEnabled ? this.renderedSkinCache.getIfPresent(canonicalKey) : null;
 
         if (canonicalBytes == null) {
             long renderStart = System.currentTimeMillis();
-            BufferedImage img = skin.render(part, maxPartSize, new RenderOptions(renderOverlay));
+            BufferedImage img = skin.render(part, maxPartSize, options);
             byte[] bytes = ImageUtils.imageToBytes(img, 1);
             if (cacheEnabled) {
                 this.renderedSkinCache.put(canonicalKey, bytes);
@@ -231,54 +231,5 @@ public class SkinService {
 
         BufferedImage image = ImageUtils.decodeImage(canonicalBytes);
         return ImageUtils.imageToBytes(ImageUtils.resizeToHeight(image, size), 1);
-    }
-
-    /**
-     * Renders a full-body isometric skin part with a cape overlaid.
-     * Only {@code FULLBODY_ISO_FRONT} and {@code FULLBODY_ISO_BACK} parts support cape rendering.
-     *
-     * @param skin          the skin to render
-     * @param typeName      the name of the part (must be a full-body iso part)
-     * @param renderOverlay whether to render the skin overlay layers
-     * @param size          the output height in pixels
-     * @param cape          the cape to render alongside the skin
-     * @return the rendered image as PNG bytes
-     */
-    public byte[] renderSkinWithCape(Skin skin, String typeName, boolean renderOverlay, int size, VanillaCape cape) {
-        if (!renderingEnabled) {
-            throw new BadRequestException("Skin rendering is currently disabled");
-        }
-        if (size < minPartSize || size > maxPartSize) {
-            throw new BadRequestException("Invalid skin part size. Must be between " + minPartSize + " and " + maxPartSize);
-        }
-
-        Skin.SkinPart part = EnumUtils.getEnumConstant(Skin.SkinPart.class, typeName);
-        if (part != Skin.SkinPart.FULLBODY_ISO_FRONT && part != Skin.SkinPart.FULLBODY_ISO_BACK) {
-            throw new BadRequestException("Cape rendering is only supported for full-body isometric parts");
-        }
-
-        String canonicalKey = "%s-%s-%s-%s.png".formatted(skin.getTextureId(), part.name(), renderOverlay, cape.getTextureId());
-        byte[] canonicalBytes = cacheEnabled ? this.renderedSkinCache.getIfPresent(canonicalKey) : null;
-
-        if (canonicalBytes == null) {
-            long renderStart = System.currentTimeMillis();
-            FullBodyIsoRendererBase.Side side = (part == Skin.SkinPart.FULLBODY_ISO_BACK) ? FullBodyIsoRendererBase.Side.BACK : FullBodyIsoRendererBase.Side.FRONT;
-            BufferedImage img = FullBodyIsoRendererBase.INSTANCE.render(skin, cape, side, renderOverlay, maxPartSize);
-            byte[] bytes = ImageUtils.imageToBytes(img, 1);
-            if (cacheEnabled) {
-                this.renderedSkinCache.put(canonicalKey, bytes);
-            }
-            MetricService.getMetric(SkinRenderMetric.class).recordMiss(System.currentTimeMillis() - renderStart);
-            canonicalBytes = bytes;
-        } else {
-            MetricService.getMetric(SkinRenderMetric.class).recordHit();
-        }
-
-        if (size == maxPartSize) {
-            return canonicalBytes;
-        }
-
-        BufferedImage capeImage = ImageUtils.decodeImage(canonicalBytes);
-        return ImageUtils.imageToBytes(ImageUtils.resizeToHeight(capeImage, size), 1);
     }
 }

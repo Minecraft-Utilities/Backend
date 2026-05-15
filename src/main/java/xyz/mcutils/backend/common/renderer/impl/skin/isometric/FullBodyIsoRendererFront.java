@@ -14,6 +14,6 @@ public class FullBodyIsoRendererFront extends SkinRenderer {
     @Override
     @SneakyThrows
     public BufferedImage render(Skin skin, int size, RenderOptions options) {
-        return FullBodyIsoRendererBase.INSTANCE.render(skin, Side.FRONT, options.renderOverlays(), size);
+        return FullBodyIsoRendererBase.INSTANCE.render(skin, options.cape(), Side.FRONT, options.renderOverlays(), size);
     }
 }
