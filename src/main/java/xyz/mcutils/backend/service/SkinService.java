@@ -18,7 +18,6 @@ import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.skin.SkinRenderMetric;
-import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.BasicPlayer;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
@@ -213,13 +212,16 @@ public class SkinService {
         byte[] canonicalBytes = cacheEnabled ? this.renderedSkinCache.getIfPresent(canonicalKey) : null;
 
         if (canonicalBytes == null) {
+            log.debug("Rendering skin part {} for skin {}", part.name(), skin.getTextureId());
             long renderStart = System.currentTimeMillis();
             BufferedImage img = skin.render(part, maxPartSize, options);
             byte[] bytes = ImageUtils.imageToBytes(img, 1);
             if (cacheEnabled) {
                 this.renderedSkinCache.put(canonicalKey, bytes);
             }
-            MetricService.getMetric(SkinRenderMetric.class).recordMiss(System.currentTimeMillis() - renderStart);
+            long elapsed = System.currentTimeMillis() - renderStart;
+            log.debug("Rendered skin part {} for skin {} in {}ms", part.name(), skin.getTextureId(), elapsed);
+            MetricService.getMetric(SkinRenderMetric.class).recordMiss(elapsed);
             canonicalBytes = bytes;
         } else {
             MetricService.getMetric(SkinRenderMetric.class).recordHit();

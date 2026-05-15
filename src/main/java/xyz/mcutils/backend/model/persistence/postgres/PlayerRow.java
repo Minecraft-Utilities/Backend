@@ -2,11 +2,10 @@ package xyz.mcutils.backend.model.persistence.postgres;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.UUID;
-
-import org.jetbrains.annotations.Nullable;
 
 @Entity
 @Table(name = "players")

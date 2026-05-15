@@ -8,7 +8,7 @@ import xyz.mcutils.backend.common.renderer.texture.PlayerModelCoordinates;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.service.SkinService;
 
-import java.awt.Graphics2D;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 
 /**

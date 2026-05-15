@@ -10,11 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
 
 import java.time.Instant;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
     Optional<PlayerRow> findByUsernameIgnoreCase(String username);

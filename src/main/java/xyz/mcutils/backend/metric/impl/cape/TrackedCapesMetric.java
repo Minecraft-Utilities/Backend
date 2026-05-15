@@ -2,7 +2,6 @@ package xyz.mcutils.backend.metric.impl.cape;
 
 import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import xyz.mcutils.backend.metric.GaugeWithCallbackMetric;
-import xyz.mcutils.backend.service.CapeService;
 import xyz.mcutils.backend.service.MetricService;
 import xyz.mcutils.backend.service.StatisticsService;
 
