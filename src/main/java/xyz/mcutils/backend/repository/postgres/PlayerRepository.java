@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
+import xyz.mcutils.backend.model.persistence.postgres.SkinRow;
 
 import java.time.Instant;
 import java.util.*;
@@ -26,6 +27,12 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
 
     @Query("SELECT p.id FROM PlayerRow p WHERE p.id IN :ids")
     Set<UUID> findExistingIds(@Param("ids") Collection<UUID> ids);
+
+    @Query("SELECT p.skin FROM PlayerRow p WHERE p.id = :id")
+    Optional<SkinRow> findSkinById(@Param("id") UUID id);
+
+    @Query("SELECT p.skin FROM PlayerRow p WHERE LOWER(p.username) = LOWER(:username)")
+    Optional<SkinRow> findSkinByUsernameIgnoreCase(@Param("username") String username);
 
     @Modifying
     @Transactional

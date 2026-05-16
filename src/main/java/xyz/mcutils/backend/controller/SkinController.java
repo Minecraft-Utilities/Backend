@@ -14,6 +14,7 @@ import xyz.mcutils.backend.common.Pagination;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.skin.Skin;
+import xyz.mcutils.backend.model.domain.skin.SkinLookupSort;
 import xyz.mcutils.backend.service.CapeService;
 import xyz.mcutils.backend.service.SkinService;
 
@@ -34,8 +35,10 @@ public class SkinController {
     }
 
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Pagination.Page<Skin>> getSkins(@Parameter(description = "The page of skins to get", example = "1") @RequestParam(required = false, defaultValue = "1") int page) {
-        return ResponseEntity.ok().body(skinService.getPaginatedSkins(page));
+    public ResponseEntity<Pagination.Page<Skin>> getSkins(
+            @Parameter(description = "The page of skins to get", example = "1") @RequestParam(required = false, defaultValue = "1") int page,
+            @Parameter(description = "The sort order", schema = @Schema(implementation = SkinLookupSort.class)) @RequestParam(required = false, defaultValue = "TRENDING") SkinLookupSort sort) {
+        return ResponseEntity.ok().body(skinService.getPaginatedSkins(page, sort));
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)

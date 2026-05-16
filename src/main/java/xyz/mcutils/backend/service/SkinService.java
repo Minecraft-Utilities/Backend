@@ -9,7 +9,9 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.mcutils.backend.Main;
@@ -18,8 +20,8 @@ import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.skin.SkinRenderMetric;
-import xyz.mcutils.backend.model.domain.player.BasicPlayer;
 import xyz.mcutils.backend.model.domain.skin.Skin;
+import xyz.mcutils.backend.model.domain.skin.SkinLookupSort;
 import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
 import xyz.mcutils.backend.model.persistence.postgres.SkinChangeEventRow;
 import xyz.mcutils.backend.model.persistence.postgres.SkinRow;
@@ -78,6 +80,13 @@ public class SkinService {
         INSTANCE = this;
     }
 
+    @Scheduled(cron = "0 0 * * * *") // Every hour
+    public void updateTrendingHeat() {
+        long before = System.currentTimeMillis();
+        this.skinRepository.updateTrendingHeat();
+        log.info("Updated trending heat for skins in {}ms", System.currentTimeMillis() - before);
+    }
+
     public Skin getSkinById(long id) {
         Optional<SkinRow> optionalSkinRow = this.skinRepository.findById(id);
         if (optionalSkinRow.isEmpty()) {
@@ -109,14 +118,23 @@ public class SkinService {
         }
         // By player (name or UUID)
         if (query.length() <= 36) {
-            BasicPlayer player = this.playerService.getPlayer(query);
-            Skin skin = player.getSkin();
-            return new SkinRow(skin.getTextureId(), skin.getModel(), skin.isLegacy(), skin.getUniqueOwners(), skin.getFirstSeen());
+            return this.getPlayerSkinRow(query);
         }
         // By texture ID
         Optional<SkinRow> optionalSkinRow = this.skinRepository.findByTextureId(query);
         if (optionalSkinRow.isEmpty()) {
             throw new NotFoundException("Skin not found");
+        }
+        return optionalSkinRow.get();
+    }
+
+    public SkinRow getPlayerSkinRow(String playerQuery) {
+        boolean isUsername = playerQuery.length() <= 16;
+        Optional<SkinRow> optionalSkinRow = isUsername
+                ? this.playerRepository.findSkinByUsernameIgnoreCase(playerQuery)
+                : this.playerRepository.findSkinById(UUIDUtils.parseUuid(playerQuery));
+        if (optionalSkinRow.isEmpty()) {
+            throw new NotFoundException("Skin not found for player '%s'".formatted(playerQuery));
         }
         return optionalSkinRow.get();
     }
@@ -144,14 +162,12 @@ public class SkinService {
         return this.skinRepository.findByTextureId(token.getTextureId()).orElseThrow();
     }
 
-    public Pagination.Page<Skin> getPaginatedSkins(int page) {
+    public Pagination.Page<Skin> getPaginatedSkins(int page, SkinLookupSort sort) {
         Pagination<Skin> pagination = new Pagination<Skin>().setItemsPerPage(SKINS_PER_PAGE).setTotalItems(this.statisticsService.getTrackedSkinCount());
         return pagination.getPage(page, (pageCallback) -> {
-            Pageable pageable = PageRequest.of(
-                    page - 1,
-                    pageCallback.limit()
-            );
-            return this.skinRepository.findAllOrderByUniqueOwnersDescIdAsc(pageable).map(Skin::fromRow).stream().toList();
+            Sort pageSort = Sort.by(Sort.Direction.DESC, sort.getFieldName()).and(Sort.by(Sort.Direction.ASC, "id"));
+            Pageable pageable = PageRequest.of(page - 1, pageCallback.limit(), pageSort);
+            return this.skinRepository.findAllSkins(pageable).map(Skin::fromRow).stream().toList();
         });
     }
 
