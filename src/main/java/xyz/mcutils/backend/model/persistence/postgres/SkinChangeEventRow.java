@@ -23,7 +23,7 @@ public class SkinChangeEventRow {
     private UUID playerId;
 
     @ManyToOne
-    @JoinColumn(nullable = false, name = "from_skin_id")
+    @JoinColumn(name = "from_skin_id")
     private SkinRow fromSkin;
 
     @ManyToOne
