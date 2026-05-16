@@ -10,7 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "skin_change_events")
-@SQLInsert(sql = "INSERT INTO skin_change_events (id, player_id, from_skin_id, timestamp, skin_id) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING")
+@SQLInsert(sql = "INSERT INTO skin_change_events (player_id, from_skin_id, skin_id, timestamp, id) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING")
 @Getter
 @NoArgsConstructor
 public class SkinChangeEventRow {
@@ -22,9 +22,8 @@ public class SkinChangeEventRow {
     @Column(nullable = false, name = "player_id")
     private UUID playerId;
 
-    @ManyToOne
-    @JoinColumn(name = "from_skin_id")
-    private SkinRow fromSkin;
+    @Column(name = "from_skin_id")
+    private Long fromSkinId;
 
     @ManyToOne
     @JoinColumn(nullable = false, name = "skin_id")
@@ -33,9 +32,9 @@ public class SkinChangeEventRow {
     @Column(nullable = false)
     private Instant timestamp;
 
-    public SkinChangeEventRow(UUID playerId, SkinRow fromSkin, SkinRow skin, Instant timestamp) {
+    public SkinChangeEventRow(UUID playerId, Long fromSkinId, SkinRow skin, Instant timestamp) {
         this.playerId = playerId;
-        this.fromSkin = fromSkin;
+        this.fromSkinId = fromSkinId;
         this.skin = skin;
         this.timestamp = timestamp;
     }
