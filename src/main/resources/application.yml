@@ -134,3 +134,6 @@ mc-utils:
   # The Bearer token used for authenticating the "/metrics" route.
   # Leave blank to disable auth.
   metrics-token:
+
+  webhooks:
+    new_cape_discovered: webhook_url_here

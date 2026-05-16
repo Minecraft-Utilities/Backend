@@ -11,11 +11,9 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.mcutils.backend.Main;
-import xyz.mcutils.backend.common.CoalescingLoader;
-import xyz.mcutils.backend.common.ImageUtils;
-import xyz.mcutils.backend.common.Pagination;
-import xyz.mcutils.backend.common.WebRequest;
+import xyz.mcutils.backend.common.*;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
+import xyz.mcutils.backend.config.AppConfig;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.cape.CapeRenderMetric;
@@ -31,6 +29,7 @@ import xyz.mcutils.backend.repository.postgres.CapeRepository;
 import xyz.mcutils.backend.repository.postgres.PlayerRepository;
 
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -62,6 +61,9 @@ public class CapeService {
     
     @Value("${mc-utils.renderer.cape.limits.max_size}")
     private int maxPartSize;
+
+    @Value("${mc-utils.webhooks.new_cape_discovered}")
+    private String newCapeDiscoveredWebhook;
 
     public CapeService(StorageService storageService, @Lazy PlayerService playerService, StatisticsService statisticsService, CapeRepository capeRepository,
                        CapeChangeEventRepository capeChangeEventRepository, PlayerRepository playerRepository, WebRequest webRequest) {
@@ -137,9 +139,23 @@ public class CapeService {
         if (optionalCapeRow.isPresent()) {
             return optionalCapeRow.get();
         }
-        int inserted = this.capeRepository.insertIfAbsent(null, token.getTextureId(), Instant.now());
-        if (inserted > 0) {
+        Optional<CapeRow> inserted = this.capeRepository.insertIfAbsent(null, token.getTextureId(), Instant.now());
+        if (inserted.isPresent()) {
+            CapeRow newCape = inserted.get();
             StatisticsService.addTrackedCapeCount(1);
+            try {
+                DiscordWebhook discordWebhook = new DiscordWebhook(newCapeDiscoveredWebhook);
+                discordWebhook.setUsername("New Cape Discovered");
+                discordWebhook.addEmbed(new DiscordWebhook.EmbedObject()
+                        .addField("Texture ID", token.getTextureId(), true)
+                        .addField("Cape ID", String.valueOf(newCape.getId()), true)
+                );
+                discordWebhook.setContent("A new cape has been discovered! Check it out: %s/capes/%d".formatted(AppConfig.INSTANCE.getWebPublicUrl(), newCape.getId()));
+                discordWebhook.execute();
+            } catch (IOException ex) {
+                log.warn(ex.getMessage());
+            }
+            return newCape;
         }
         return this.capeRepository.findByTextureId(token.getTextureId()).orElseThrow();
     }
