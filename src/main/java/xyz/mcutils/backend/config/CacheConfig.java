@@ -19,8 +19,8 @@ public class CacheConfig {
     public CacheManager cacheManager() {
         SimpleCacheManager manager = new SimpleCacheManager();
         manager.setCaches(List.of(
-            buildCache("geoLookup", 30, TimeUnit.MINUTES, 5_000),
-            buildCache("skinByTextureId", 12, TimeUnit.HOURS, 500_000),
+            buildCache("geoLookup", 30, TimeUnit.MINUTES, 10_000),
+            buildCache("skinByTextureId", 2, TimeUnit.DAYS, 1_000_000),
             buildCache("capeByTextureId", 12, TimeUnit.HOURS, 5_000)
         ));
         return manager;
