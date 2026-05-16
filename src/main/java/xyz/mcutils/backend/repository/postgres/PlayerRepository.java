@@ -15,7 +15,7 @@ import java.util.*;
 
 public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
     Optional<PlayerRow> findByUsernameIgnoreCase(String username);
-    List<PlayerRow> findByUsernameContainingIgnoreCase(String username, Pageable pageable);
+    List<PlayerRow> findByUsernameStartingWithIgnoreCase(String username, Pageable pageable);
     List<PlayerRow> findTopByOrderBySubmittedUuidsDesc(Pageable pageable);
     Slice<PlayerRow> findAllByLastUpdatedBeforeOrderByLastUpdatedAsc(Instant cutoff, Pageable pageable);
 

@@ -314,7 +314,7 @@ public class PlayerService {
     }
 
     public List<FullPlayer> searchPlayers(String query) {
-        return this.playerRepository.findByUsernameContainingIgnoreCase(query, Pageable.ofSize(MAX_PLAYER_SEARCH_RESULTS)).stream()
+        return this.playerRepository.findByUsernameStartingWithIgnoreCase(query, Pageable.ofSize(MAX_PLAYER_SEARCH_RESULTS)).stream()
                 .map(playerRow -> FullPlayer.fromRow(playerRow, this)).toList();
     }
 
