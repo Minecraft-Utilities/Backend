@@ -9,11 +9,6 @@ ALTER TABLE capes ALTER COLUMN texture_id TYPE VARCHAR(64);
 CREATE TYPE skin_model AS ENUM ('DEFAULT', 'SLIM');
 ALTER TABLE skins ALTER COLUMN model TYPE skin_model USING model::skin_model;
 
--- 3. Fix username lengths: Minecraft's hard limit is 16 characters
-ALTER TABLE players ALTER COLUMN username TYPE VARCHAR(16);
-ALTER TABLE username_change_events ALTER COLUMN new_username TYPE VARCHAR(16);
-ALTER TABLE username_change_events ALTER COLUMN previous_username TYPE VARCHAR(16);
-
 -- 4. Add missing FK constraints on player_id in all three event tables
 --    (player_id was previously an unbound UUID column with no referential integrity)
 ALTER TABLE skin_change_events
