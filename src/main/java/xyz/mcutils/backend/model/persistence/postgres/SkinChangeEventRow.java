@@ -22,8 +22,9 @@ public class SkinChangeEventRow {
     @Column(nullable = false, name = "player_id")
     private UUID playerId;
 
-    @Column(name = "from_skin_id")
-    private Long fromSkinId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "from_skin_id")
+    private SkinRow fromSkin;
 
     @ManyToOne
     @JoinColumn(nullable = false, name = "skin_id")
@@ -32,9 +33,9 @@ public class SkinChangeEventRow {
     @Column(nullable = false)
     private Instant timestamp;
 
-    public SkinChangeEventRow(UUID playerId, Long fromSkinId, SkinRow skin, Instant timestamp) {
+    public SkinChangeEventRow(UUID playerId, SkinRow fromSkin, SkinRow skin, Instant timestamp) {
         this.playerId = playerId;
-        this.fromSkinId = fromSkinId;
+        this.fromSkin = fromSkin;
         this.skin = skin;
         this.timestamp = timestamp;
     }
