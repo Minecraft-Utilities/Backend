@@ -128,11 +128,9 @@ public class ImageUtils {
         int w = Math.max(1, (int) (sw * scale)), h = Math.max(1, (int) (sh * scale));
         boolean flipX = dx1 > dx2, flipY = dy1 > dy2;
 
-        // Extract source region once
         int[] srcPixels = img.getRGB(sox, soy, w, h, null, 0, w);
         int[] destPixels = new int[w * h];
 
-        // Apply flips in memory
         for (int dy = 0; dy < h; dy++) {
             for (int dx = 0; dx < w; dx++) {
                 int srcIdx = (flipY ? h - 1 - dy : dy) * w + (flipX ? w - 1 - dx : dx);
@@ -140,7 +138,6 @@ public class ImageUtils {
             }
         }
 
-        // Write back once
         img.setRGB(dox, doy, w, h, destPixels, 0, w);
     }
 
@@ -167,7 +164,7 @@ public class ImageUtils {
         for (int pixel : pixels) {
             int alpha = (pixel >> 24) & 0xFF;
             if (alpha >= 128 && (pixel & 0x00_FFFFFF) != 0) {
-                return; // has visible non-black content; treat as intentional overlay
+                return;
             }
         }
         Arrays.fill(pixels, 0);
@@ -190,10 +187,8 @@ public class ImageUtils {
         int yMin = (int) (Math.min(y1, y2) * scale), yMax = (int) (Math.max(y1, y2) * scale);
         int w = xMax - xMin, h = yMax - yMin;
 
-        // Get pixels once
         int[] pixels = img.getRGB(xMin, yMin, w, h, null, 0, w);
 
-        // Check for transparency
         boolean hasTransparency = false;
         for (int pixel : pixels) {
             if (((pixel >> 24) & 0xFF) < 128) {
@@ -203,12 +198,32 @@ public class ImageUtils {
         }
 
         if (!hasTransparency) {
-            // Make transparent
             for (int i = 0; i < pixels.length; i++) {
                 pixels[i] &= 0x00_FFFFFF;
             }
             img.setRGB(xMin, yMin, w, h, pixels, 0, w);
         }
+    }
+
+    /**
+     * Returns {@code true} if every pixel in the given rectangle has an alpha value of zero
+     * (i.e. the region is fully transparent with no visible content).
+     *
+     * @param image the image to test
+     * @param x     the x coordinate of the rectangle
+     * @param y     the y coordinate of the rectangle
+     * @param w     the width of the rectangle
+     * @param h     the height of the rectangle
+     * @return {@code true} if all pixels in the region are fully transparent
+     */
+    public static boolean isRegionFullyTransparent(BufferedImage image, int x, int y, int w, int h) {
+        int[] pixels = image.getRGB(x, y, w, h, null, 0, w);
+        for (int pixel : pixels) {
+            if (((pixel >> 24) & 0xFF) != 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -221,13 +236,7 @@ public class ImageUtils {
     public static boolean isFullyTransparent(BufferedImage image) {
         int w = image.getWidth();
         int h = image.getHeight();
-        int[] pixels = image.getRGB(0, 0, w, h, null, 0, w);
-        for (int pixel : pixels) {
-            if (((pixel >> 24) & 0xFF) != 0) {
-                return false;
-            }
-        }
-        return true;
+        return isRegionFullyTransparent(image, 0, 0, w, h);
     }
 
     /**
@@ -279,7 +288,6 @@ public class ImageUtils {
     @SneakyThrows
     public static BufferedImage base64ToImage(String base64) {
         String favicon = base64.contains("data:image/png;base64,") ? base64.split(",", 2)[1] : base64;
-        // Strip whitespace (newlines, spaces) - some Minecraft servers send favicon with line breaks
         favicon = favicon.replaceAll("\\s+", "");
 
         try {

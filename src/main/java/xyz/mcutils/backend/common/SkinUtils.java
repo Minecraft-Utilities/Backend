@@ -58,12 +58,10 @@ public class SkinUtils {
         g.drawImage(image, 0, 0, null);
         g.dispose();
 
-        // Clear only empty overlay regions (transparent/black) so they don't render black; preserve drawn overlays
         for (int[] rect : PlayerModelCoordinates.LegacyUpgrade.CLEAR_RECTS) {
             ImageUtils.fillTransparentIfEmpty(upgraded, rect[0], rect[1], rect[2], rect[3], scale);
         }
 
-        // Create missing left leg and left arm (mirror from legacy right leg/arm)
         for (int[] rect : PlayerModelCoordinates.LegacyUpgrade.LEFT_LEG_COPIES) {
             ImageUtils.copyRect(upgraded, rect[0], rect[1], rect[2], rect[3], rect[4], rect[5], rect[6], rect[7], scale);
         }
@@ -75,8 +73,8 @@ public class SkinUtils {
     }
 
     /**
-     * If the given skin texture is fully transparent (no visible pixels), fills all base-layer
-     * skin regions with opaque black so renders produce a visible silhouette rather than nothing.
+     * If any base-layer skin region is fully transparent, fills that region with opaque black
+     * so renders produce a visible silhouette rather than nothing.
      * Overlay regions are left untouched.
      *
      * @param skinBytes the raw PNG bytes of the skin texture
@@ -84,30 +82,42 @@ public class SkinUtils {
      */
     public static byte[] fixTransparentSkin(byte[] skinBytes) {
         BufferedImage skinImage = ImageUtils.decodeImage(skinBytes);
-        if (!ImageUtils.isFullyTransparent(skinImage)) {
+        if (!fillMissingBaseLayerRegions(skinImage)) {
             return skinBytes;
         }
-        fillBaseLayerBlack(skinImage);
         return ImageUtils.imageToBytes(skinImage);
     }
 
     /**
-     * Fills every base-layer skin region (head, body, arms, legs — not overlays) with fully
-     * opaque black. Overlay regions are not modified.
+     * Fills any base-layer skin region (head, body, arms, legs — not overlays) that is fully
+     * transparent with opaque black. Overlay regions are not modified.
      *
      * @param skinImage the 64×64 skin image to modify in-place
+     * @return true if any region was modified, false if all regions already had visible pixels
      */
-    private static void fillBaseLayerBlack(BufferedImage skinImage) {
+    private static boolean fillMissingBaseLayerRegions(BufferedImage skinImage) {
+        boolean modified = false;
         for (PlayerModelCoordinates.ModelBox box : PlayerModelCoordinates.ModelBox.values()) {
             int[] uv = box.getBaseUv(false);
             int x = uv[0], y = uv[1], sizeX = uv[2], sizeY = uv[3], sizeZ = uv[4];
-            fillRect(skinImage, x,                    y,        sizeX,  sizeY);  // front
-            fillRect(skinImage, x + sizeX + sizeZ,    y,        sizeX,  sizeY);  // back
-            fillRect(skinImage, x - sizeZ,            y,        sizeZ,  sizeY);  // side A
-            fillRect(skinImage, x + sizeX,            y,        sizeZ,  sizeY);  // side B
-            fillRect(skinImage, x,                    y - sizeZ, sizeX, sizeZ);  // top
-            fillRect(skinImage, x + sizeX,            y - sizeZ, sizeX, sizeZ);  // bottom
+
+            int[][] faces = {
+                    {x,                 y,          sizeX, sizeY},  // front
+                    {x + sizeX + sizeZ, y,          sizeX, sizeY},  // back
+                    {x - sizeZ,         y,          sizeZ, sizeY},  // side A
+                    {x + sizeX,         y,          sizeZ, sizeY},  // side B
+                    {x,                 y - sizeZ,  sizeX, sizeZ},  // top
+                    {x + sizeX,         y - sizeZ,  sizeX, sizeZ},  // bottom
+            };
+
+            for (int[] face : faces) {
+                if (ImageUtils.isRegionFullyTransparent(skinImage, face[0], face[1], face[2], face[3])) {
+                    fillRect(skinImage, face[0], face[1], face[2], face[3]);
+                    modified = true;
+                }
+            }
         }
+        return modified;
     }
 
     private static void fillRect(BufferedImage image, int x, int y, int w, int h) {
