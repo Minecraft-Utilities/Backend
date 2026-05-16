@@ -244,7 +244,7 @@ public class PlayerService {
         CapeTextureToken capeToken = skinAndCape.right();
         if (!playerRow.getSkin().getTextureId().equals(skinToken.getTextureId())) {
             SkinRow newSkin = this.skinService.getOrCreateSkinCached(skinToken);
-            skinChangeEventRow = new SkinChangeEventRow(playerRow.getId(), playerRow.getSkin().getId() /* their old skin */, newSkin, Instant.now());
+            skinChangeEventRow = new SkinChangeEventRow(playerRow.getId(), playerRow.getSkin() /* their old skin */, newSkin, Instant.now());
             playerRow.setSkin(newSkin);
         }
         String oldCapeTextureId = playerRow.getCape() != null ? playerRow.getCape().getTextureId() : null;
