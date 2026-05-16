@@ -105,9 +105,9 @@ public class PlayerService {
     @Transactional
     public FullPlayer createPlayer(MojangProfileToken token) {
         UUID id = UUIDUtils.parseUuid(token.getId());
-        SkinRow skin = this.skinService.getOrCreateSkinCached(token.getSkinAndCape().left());
+        SkinRow skin = this.skinService.getOrCreateSkin(token.getSkinAndCape().left());
         CapeTextureToken capeToken = token.getSkinAndCape().right();
-        CapeRow cape = capeToken != null ? this.capeService.getOrCreateCapeCached(capeToken) : null;
+        CapeRow cape = capeToken != null ? this.capeService.getOrCreateCape(capeToken) : null;
 
         this.skinChangeEventRepository.save(new SkinChangeEventRow(id, skin, Instant.now()));
         if (cape != null) {
