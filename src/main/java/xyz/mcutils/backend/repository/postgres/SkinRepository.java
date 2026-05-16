@@ -33,21 +33,20 @@ public interface SkinRepository extends JpaRepository<SkinRow, Long> {
 
     @Modifying
     @Transactional
+    @Query(nativeQuery = true, value = "UPDATE skins SET trending_heat = 0 WHERE trending_heat > 0")
+    void resetTrendingHeat();
+
+    @Modifying
+    @Transactional
     @Query(nativeQuery = true, value = """
         UPDATE skins
-        SET trending_heat = COALESCE(subquery.trending_heat, 0)
+        SET trending_heat = subquery.trending_heat
         FROM (
-            SELECT s.id AS skin_id, COUNT(DISTINCT sce.player_id) AS trending_heat
-            FROM skins s
-            LEFT JOIN skin_change_events sce ON s.id = sce.skin_id
-                AND sce.timestamp >= NOW() - INTERVAL '7 days'
-                AND EXISTS (
-                    SELECT 1
-                    FROM skin_change_events prev
-                    WHERE prev.player_id = sce.player_id
-                      AND prev.timestamp < sce.timestamp
-                )
-            GROUP BY s.id
+            SELECT sce.skin_id, COUNT(DISTINCT sce.player_id) AS trending_heat
+            FROM skin_change_events sce
+            WHERE sce.timestamp >= NOW() - INTERVAL '7 days'
+              AND sce.from_skin_id IS NOT NULL
+            GROUP BY sce.skin_id
         ) AS subquery
         WHERE skins.id = subquery.skin_id
         """)

@@ -83,6 +83,7 @@ public class SkinService {
     @Scheduled(cron = "0 0 * * * *") // Every hour
     public void updateTrendingHeat() {
         long before = System.currentTimeMillis();
+        this.skinRepository.resetTrendingHeat();
         this.skinRepository.updateTrendingHeat();
         log.info("Updated trending heat for skins in {}ms", System.currentTimeMillis() - before);
     }
