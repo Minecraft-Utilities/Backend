@@ -37,8 +37,8 @@ public class SkinController {
     @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Pagination.Page<Skin>> getSkins(
             @Parameter(description = "The page of skins to get", example = "1") @RequestParam(required = false, defaultValue = "1") int page,
-            @Parameter(description = "The sort order", schema = @Schema(implementation = SkinLookupSort.class)) @RequestParam(required = false, defaultValue = "TRENDING") SkinLookupSort sort) {
-        return ResponseEntity.ok().body(skinService.getPaginatedSkins(page, sort));
+            @Parameter(description = "The sort order", schema = @Schema(implementation = SkinLookupSort.class)) @RequestParam(required = false, defaultValue = "TRENDING") String sort) {
+        return ResponseEntity.ok().body(skinService.getPaginatedSkins(page, SkinLookupSort.valueOf(sort.toUpperCase())));
     }
 
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
