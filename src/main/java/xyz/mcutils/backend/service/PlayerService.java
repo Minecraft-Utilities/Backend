@@ -118,7 +118,7 @@ public class PlayerService {
                 Instant.now()
         ));
 
-        this.skinChangeEventRepository.save(new SkinChangeEventRow(id, skin, Instant.now()));
+        this.skinChangeEventRepository.save(new SkinChangeEventRow(id, null, skin, Instant.now()));
         if (cape != null) {
             this.capeChangeEventRepository.save(new CapeChangeEventRow(id, cape, Instant.now()));
         }
@@ -169,7 +169,7 @@ public class PlayerService {
             CapeTextureToken capeToken = token.getSkinAndCape().right();
             CapeRow cape = capeToken != null ? capesByTextureId.get(capeToken.getTextureId()) : null;
 
-            skinChangeEvents.add(new SkinChangeEventRow(id, skin, Instant.now()));
+            skinChangeEvents.add(new SkinChangeEventRow(id, null, skin, Instant.now()));
             if (cape != null) {
                 capeChangeEvents.add(new CapeChangeEventRow(id, cape, Instant.now()));
             }
@@ -244,8 +244,8 @@ public class PlayerService {
         CapeTextureToken capeToken = skinAndCape.right();
         if (!playerRow.getSkin().getTextureId().equals(skinToken.getTextureId())) {
             SkinRow newSkin = this.skinService.getOrCreateSkinCached(skinToken);
+            skinChangeEventRow = new SkinChangeEventRow(playerRow.getId(), playerRow.getSkin() /* their old skin */, newSkin, Instant.now());
             playerRow.setSkin(newSkin);
-            skinChangeEventRow = new SkinChangeEventRow(playerRow.getId(), newSkin, Instant.now());
         }
         String oldCapeTextureId = playerRow.getCape() != null ? playerRow.getCape().getTextureId() : null;
         String newCapeTextureId = capeToken != null ? capeToken.getTextureId() : null;
