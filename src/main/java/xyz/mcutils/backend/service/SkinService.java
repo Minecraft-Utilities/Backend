@@ -45,7 +45,6 @@ public class SkinService {
     private final SkinRepository skinRepository;
     private final SkinChangeEventRepository skinChangeEventRepository;
     private final PlayerRepository playerRepository;
-    private final PlayerService playerService;
     private final StorageService storageService;
     private final StatisticsService statisticsService;
     private final WebRequest webRequest;
@@ -65,11 +64,10 @@ public class SkinService {
     private int maxPartSize;
 
     public SkinService(SkinRepository skinRepository, SkinChangeEventRepository skinChangeEventRepository, PlayerRepository playerRepository,
-                       @Lazy PlayerService playerService, StorageService storageService, WebRequest webRequest,  StatisticsService statisticsService) {
+                       StorageService storageService, WebRequest webRequest,  StatisticsService statisticsService) {
         this.skinRepository = skinRepository;
         this.skinChangeEventRepository = skinChangeEventRepository;
         this.playerRepository = playerRepository;
-        this.playerService = playerService;
         this.storageService = storageService;
         this.webRequest = webRequest;
         this.statisticsService = statisticsService;
@@ -164,12 +162,21 @@ public class SkinService {
     }
 
     public Pagination.Page<Skin> getPaginatedSkins(int page, SkinLookupSort sort) {
+        Sort pageSort = Sort.by(Sort.Direction.DESC, sort.getFieldName()).and(Sort.by(Sort.Direction.ASC, "id"));
+        Pageable pageable = PageRequest.of(page - 1, SKINS_PER_PAGE, pageSort);
+
+        if (sort == SkinLookupSort.TRENDING) {
+            long total = this.skinRepository.countByTrendingHeatGreaterThan(0);
+            Pagination<Skin> pagination = new Pagination<Skin>().setItemsPerPage(SKINS_PER_PAGE).setTotalItems(total);
+            return pagination.getPage(page, (pageCallback) ->
+                this.skinRepository.findTrendingSkins(pageable).map(Skin::fromRow).stream().toList()
+            );
+        }
+
         Pagination<Skin> pagination = new Pagination<Skin>().setItemsPerPage(SKINS_PER_PAGE).setTotalItems(this.statisticsService.getTrackedSkinCount());
-        return pagination.getPage(page, (pageCallback) -> {
-            Sort pageSort = Sort.by(Sort.Direction.DESC, sort.getFieldName()).and(Sort.by(Sort.Direction.ASC, "id"));
-            Pageable pageable = PageRequest.of(page - 1, pageCallback.limit(), pageSort);
-            return this.skinRepository.findAllSkins(pageable).map(Skin::fromRow).stream().toList();
-        });
+        return pagination.getPage(page, (pageCallback) ->
+            this.skinRepository.findAllSkins(pageable).map(Skin::fromRow).stream().toList()
+        );
     }
 
     /**

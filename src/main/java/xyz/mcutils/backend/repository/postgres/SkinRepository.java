@@ -18,6 +18,11 @@ public interface SkinRepository extends JpaRepository<SkinRow, Long> {
     @Query("SELECT s FROM SkinRow s")
     Slice<SkinRow> findAllSkins(Pageable pageable);
 
+    @Query("SELECT s FROM SkinRow s WHERE s.trendingHeat > 0")
+    Slice<SkinRow> findTrendingSkins(Pageable pageable);
+
+    long countByTrendingHeatGreaterThan(int trendingHeat);
+
     @Modifying
     @Transactional
     @Query(nativeQuery = true, value = """
