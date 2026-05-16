@@ -31,7 +31,7 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
     @Query("SELECT p.skin FROM PlayerRow p WHERE p.id = :id")
     Optional<SkinRow> findSkinById(@Param("id") UUID id);
 
-    @Query("SELECT p.skin FROM PlayerRow p WHERE LOWER(p.username) = LOWER(:username)")
+    @Query("SELECT p.skin FROM PlayerRow p WHERE UPPER(p.username) = UPPER(:username)")
     Optional<SkinRow> findSkinByUsernameIgnoreCase(@Param("username") String username);
 
     @Modifying
