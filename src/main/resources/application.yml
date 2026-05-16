@@ -63,12 +63,6 @@ mc-utils:
     socket-timeout-ms: 10000
     connection-time-to-live-seconds: 60
 
-  # MongoDB - Used for cape storage etc.
-  mongo:
-    uri: "mongodb://localhost:27017/mcutils" # With auth: mongodb://username:password@host:27017/mcutils
-    max-connection-pool-size: 250
-    min-connection-pool-size: 25
-
   # Redis - This is used for caching
   redis:
     host: "127.0.0.1"
