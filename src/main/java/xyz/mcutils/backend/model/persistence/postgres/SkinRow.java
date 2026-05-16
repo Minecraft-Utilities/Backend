@@ -3,6 +3,8 @@ package xyz.mcutils.backend.model.persistence.postgres;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 
 import java.time.Instant;
@@ -16,11 +18,12 @@ public class SkinRow {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 64)
     private String textureId;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
     private Skin.Model model;
 
     @Column(nullable = false)

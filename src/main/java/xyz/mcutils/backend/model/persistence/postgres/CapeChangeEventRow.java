@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.SQLInsert;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -23,7 +24,8 @@ public class CapeChangeEventRow {
     private UUID playerId;
 
     @ManyToOne
-    @JoinColumn(nullable = false, name = "cape_id")
+    @JoinColumn(name = "cape_id")
+    @Nullable
     private CapeRow cape;
 
     @Column(nullable = false)

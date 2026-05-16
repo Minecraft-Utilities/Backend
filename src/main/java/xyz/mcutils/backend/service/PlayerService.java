@@ -109,20 +109,22 @@ public class PlayerService {
         CapeTextureToken capeToken = token.getSkinAndCape().right();
         CapeRow cape = capeToken != null ? this.capeService.getOrCreateCape(capeToken) : null;
 
-        this.skinChangeEventRepository.save(new SkinChangeEventRow(id, skin, Instant.now()));
-        if (cape != null) {
-            this.capeChangeEventRepository.save(new CapeChangeEventRow(id, cape, Instant.now()));
-        }
-        this.usernameChangeEventRepository.save(new UsernameChangeEventRow(id, token.getName(), null, Instant.now()));
-
-        FullPlayer fullPlayer = FullPlayer.fromRow(this.playerRepository.save(new PlayerRow(
+        PlayerRow playerRow = this.playerRepository.save(new PlayerRow(
                 id,
                 token.getName(),
                 token.getLegacy() != null && token.getLegacy(),
                 0, skin, cape,
                 Instant.now(),
                 Instant.now()
-        )), this);
+        ));
+
+        this.skinChangeEventRepository.save(new SkinChangeEventRow(id, skin, Instant.now()));
+        if (cape != null) {
+            this.capeChangeEventRepository.save(new CapeChangeEventRow(id, cape, Instant.now()));
+        }
+        this.usernameChangeEventRepository.save(new UsernameChangeEventRow(id, token.getName(), null, Instant.now()));
+
+        FullPlayer fullPlayer = FullPlayer.fromRow(playerRow, this);
         StatisticsService.addTrackedPlayerCount(1);
         return fullPlayer;
     }
@@ -250,9 +252,7 @@ public class PlayerService {
         if (!Objects.equals(oldCapeTextureId, newCapeTextureId)) {
             CapeRow newCape = capeToken != null ? this.capeService.getOrCreateCapeCached(capeToken) : null;
             playerRow.setCape(newCape);
-            if (newCape != null) {
-                capeChangeEventRow = new CapeChangeEventRow(playerRow.getId(), newCape, Instant.now());
-            }
+            capeChangeEventRow = new CapeChangeEventRow(playerRow.getId(), newCape, Instant.now());
         }
 
         String previousUsername = playerRow.getUsername();
@@ -302,11 +302,11 @@ public class PlayerService {
         if (events.isEmpty()) {
             return Collections.emptySet();
         }
-        Set<Long> capeIds = events.stream().map(e -> e.getCape().getId()).collect(Collectors.toSet());
+        Set<Long> capeIds = events.stream().filter(e -> e.getCape() != null).map(e -> e.getCape().getId()).collect(Collectors.toSet());
         Map<Long, Instant> firstSeenByCapeId = this.capeChangeEventRepository.findFirstTimestampsByCapeIds(player.getId(), capeIds)
                 .stream()
                 .collect(Collectors.toMap(row -> (Long) row[0], row -> (Instant) row[1]));
-        return events.stream().map(row -> {
+        return events.stream().filter(row -> row.getCape() != null).map(row -> {
             VanillaCape cape = VanillaCape.fromRow(row.getCape());
             cape.setFirstSeen(firstSeenByCapeId.get(cape.getId()));
             return cape;

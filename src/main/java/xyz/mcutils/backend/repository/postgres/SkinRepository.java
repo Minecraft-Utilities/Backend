@@ -22,7 +22,7 @@ public interface SkinRepository extends JpaRepository<SkinRow, Long> {
     @Transactional
     @Query(nativeQuery = true, value = """
         INSERT INTO skins (texture_id, model, legacy, unique_owners, first_seen)
-        VALUES (:textureId, CAST(:model AS varchar), :legacy, 0, :firstSeen)
+        VALUES (:textureId, CAST(:model AS skin_model), :legacy, 0, :firstSeen)
         ON CONFLICT (texture_id) DO NOTHING
         """)
     int insertIfAbsent(@Param("textureId") String textureId,

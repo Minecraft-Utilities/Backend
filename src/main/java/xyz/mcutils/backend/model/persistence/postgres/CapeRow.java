@@ -18,7 +18,7 @@ public class CapeRow {
     @Column(unique = true)
     private String name;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 64)
     private String textureId;
 
     @Column(nullable = false, name = "unique_owners")
