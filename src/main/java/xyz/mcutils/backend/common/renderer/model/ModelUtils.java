@@ -41,9 +41,9 @@ public final class ModelUtils {
         double z1 = pz + d;
 
         // north (front at -Z), south (back at +Z), up, down, west (-X), east (+X)
-        faces.add(new Face(new Vector3(x1, y1, pz), new Vector3(px, y1, pz), new Vector3(x1, py, pz), new Vector3(px, py, pz), uvs[1][0], uvs[1][1], uvs[1][2], uvs[1][3], new Vector3(0, 0, -1)));
+        faces.add(new Face(new Vector3(px, y1, pz), new Vector3(x1, y1, pz), new Vector3(px, py, pz), new Vector3(x1, py, pz), uvs[1][0], uvs[1][1], uvs[1][2], uvs[1][3], new Vector3(0, 0, -1)));
 
-        faces.add(new Face(new Vector3(x1, y1, z1), new Vector3(px, y1, z1), new Vector3(x1, py, z1), new Vector3(px, py, z1), uvs[0][0], uvs[0][1], uvs[0][2], uvs[0][3], new Vector3(0, 0, 1)));
+        faces.add(new Face(new Vector3(px, y1, z1), new Vector3(x1, y1, z1), new Vector3(px, py, z1), new Vector3(x1, py, z1), uvs[0][0], uvs[0][1], uvs[0][2], uvs[0][3], new Vector3(0, 0, 1)));
 
         faces.add(new Face(new Vector3(x1, y1, pz), new Vector3(px, y1, pz), new Vector3(x1, y1, z1), new Vector3(px, y1, z1), uvs[4][0], uvs[4][1], uvs[4][2], uvs[4][3], new Vector3(0, 1, 0)));
 
