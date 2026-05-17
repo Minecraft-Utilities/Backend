@@ -70,6 +70,7 @@ public class PlayerService {
         INSTANCE = this;
     }
 
+    @Transactional
     public FullPlayer getPlayer(String query) {
         return playerLoader.get(query, () -> {
             boolean isUsername = query.length() <= 16;
@@ -196,6 +197,7 @@ public class PlayerService {
         ).join();
     }
 
+    @Transactional
     public void updatePlayers(List<PlayerUpdate> playerUpdates) {
         List<PlayerRow> playerRows = new ArrayList<>();
         List<SkinChangeEventRow> skinChangeEvents = new ArrayList<>();
