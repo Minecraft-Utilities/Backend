@@ -263,7 +263,7 @@ public class PlayerService {
         if (!previousUsername.equals(token.getName())) {
             playerRow.setUsername(token.getName());
             usernameChangeEventRow = new UsernameChangeEventRow(playerRow.getId(), token.getName(), previousUsername, now);
-            WebSocketManager.getWebsocket(NameChangeWebSocket.class).sendMessageToAll(new UsernameHistory(token.getName(), previousUsername, now));
+            WebSocketManager.getWebsocket(NameChangeWebSocket.class).sendMessageToAll(new RecentUsernameChange(playerRow.getId(), token.getName(), previousUsername, now));
         }
 
         playerRow.setLastUpdated(now);
