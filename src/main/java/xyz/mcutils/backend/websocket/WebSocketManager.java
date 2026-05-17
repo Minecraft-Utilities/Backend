@@ -1,11 +1,14 @@
 package xyz.mcutils.backend.websocket;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import xyz.mcutils.backend.websocket.impl.NameChangeWebSocket;
 import xyz.mcutils.backend.websocket.impl.StatisticsWebSocket;
@@ -16,8 +19,11 @@ import java.util.List;
 @Configuration
 @EnableWebSocket
 @Slf4j
+@RequiredArgsConstructor
 public class WebSocketManager implements WebSocketConfigurer {
     private static final List<WebSocket> WEB_SOCKETS = new ArrayList<>();
+
+    private final ObjectMapper objectMapper;
 
     /**
      * Gets a WebSocket by its class.
@@ -51,6 +57,7 @@ public class WebSocketManager implements WebSocketConfigurer {
      * @param webSocket the WebSocket to register
      */
     private void registerWebSocket(WebSocketHandlerRegistry registry, WebSocket webSocket) {
+        webSocket.setObjectMapper(objectMapper);
         registry.addHandler(webSocket, webSocket.getPath()).setAllowedOrigins("*");
         WEB_SOCKETS.add(webSocket);
         log.info("Registered WebSocket at path {}", webSocket.getPath());

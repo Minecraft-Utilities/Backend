@@ -2,6 +2,7 @@ package xyz.mcutils.backend.websocket;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -9,6 +10,9 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import xyz.mcutils.backend.Constants;
 
 import java.util.ArrayList;
@@ -31,6 +35,9 @@ public abstract class WebSocket extends TextWebSocketHandler {
      */
     private final List<WebSocketSession> sessions = new ArrayList<>();
 
+    @Setter
+    private ObjectMapper objectMapper;
+
     /**
      * Sends a message to the client.
      *
@@ -39,7 +46,7 @@ public abstract class WebSocket extends TextWebSocketHandler {
      */
     @SneakyThrows
     public void sendMessage(WebSocketSession session, Object message) {
-        session.sendMessage(new TextMessage(message instanceof String ? (String) message : Constants.GSON.toJson(message)));
+        session.sendMessage(new TextMessage(message instanceof String ? (String) message : this.objectMapper.writeValueAsString(message)));
     }
 
     /**
