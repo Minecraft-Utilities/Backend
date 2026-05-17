@@ -1,0 +1,1 @@
+CREATE INDEX idx_players_monthly_views_full ON players (monthly_views);
