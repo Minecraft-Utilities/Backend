@@ -62,9 +62,13 @@ public class PlayerRefreshService {
                     for (PlayerRow playerRow : playerRows) {
                         rateLimiter.acquire();
                         futures.add(Main.EXECUTOR.submit(() -> {
-                            if (!running.get()) return null;
+                            if (!running.get()) {
+                                return null;
+                            }
                             MojangProfileToken token = this.mojangService.getProfile(playerRow.getId().toString());
-                            if (token == null) return null;
+                            if (token == null) {
+                                return null;
+                            }
                             return new PlayerService.PlayerUpdate(playerRow, token);
                         }));
                     }

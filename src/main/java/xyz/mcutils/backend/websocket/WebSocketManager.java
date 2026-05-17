@@ -25,6 +25,12 @@ public class WebSocketManager implements WebSocketConfigurer {
 
     private final JsonMapper jsonMapper;
 
+    @Override
+    public void registerWebSocketHandlers(@NotNull WebSocketHandlerRegistry registry) {
+        this.registerWebSocket(registry, new StatisticsWebSocket());
+        this.registerWebSocket(registry, new NameChangeWebSocket());
+    }
+
     /**
      * Gets a WebSocket by its class.
      *
@@ -42,12 +48,6 @@ public class WebSocketManager implements WebSocketConfigurer {
      */
     public static int getTotalConnections() {
         return WEB_SOCKETS.stream().mapToInt(webSocket -> webSocket.getSessions().size()).sum();
-    }
-
-    @Override
-    public void registerWebSocketHandlers(@NotNull WebSocketHandlerRegistry registry) {
-        this.registerWebSocket(registry, new StatisticsWebSocket());
-        this.registerWebSocket(registry, new NameChangeWebSocket());
     }
 
     /**

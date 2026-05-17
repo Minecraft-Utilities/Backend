@@ -27,11 +27,8 @@ public abstract class WebSocket extends TextWebSocketHandler {
      * </p>
      */
     public final String path;
-    /**
-     * The sessions that are connected to the WebSocket.
-     */
-    private final List<WebSocketSession> sessions = new ArrayList<>();
 
+    private final List<WebSocketSession> sessions = new ArrayList<>();
     @Setter
     private JsonMapper jsonMapper;
 
@@ -67,13 +64,13 @@ public abstract class WebSocket extends TextWebSocketHandler {
     @Override
     public final void afterConnectionEstablished(@NotNull WebSocketSession session) {
         this.sessions.add(session);
-        log.info("Connection established: {}", session.getId());
+        log.info("Connection established on {} ({})", this.getPath(), session.getId());
         this.onSessionConnect(session);
     }
 
     @Override
     public final void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) {
         this.sessions.remove(session);
-        log.info("Connection closed: {}", session.getId());
+        log.info("Connection closed on {} ({})", this.getPath(), session.getId());
     }
 }
