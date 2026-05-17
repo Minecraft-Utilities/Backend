@@ -30,7 +30,13 @@ public class FutureUtils {
                     results.add(result);
                 }
             } catch (ExecutionException e) {
-                log.warn("{} task failed", context, e.getCause());
+                Throwable cause = e.getCause();
+                if (cause == null) {
+                    log.warn("{} task failed", context);
+                } else {
+                    log.warn("{} task failed: {}", context, cause.toString());
+                    log.debug("{} task failed details", context, cause);
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
