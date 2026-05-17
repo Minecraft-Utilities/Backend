@@ -95,8 +95,8 @@ public class CapeService {
             firstPlayer.ifPresent(p -> cape.setFirstSeenUsing(p.getUsername()));
         }
 
-        List<PlayerRow> usersOwning = this.playerRepository.findByCapeId(capeRow.getId(), PageRequest.of(0, 100));
-        cape.setAccountsSeenOwning(usersOwning.stream().map(PlayerRow::getUsername).toList());
+        List<String> usersOwning = this.playerRepository.findUsernamesByCapeId(capeRow.getId(), PageRequest.of(0, 250));
+        cape.setAccountsSeenOwning(usersOwning);
 
         return cape;
     }

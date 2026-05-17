@@ -101,8 +101,8 @@ public class SkinService {
             firstPlayer.ifPresent(p -> skin.setFirstSeenUsing(p.getUsername()));
         }
 
-        List<PlayerRow> usersUsing = this.playerRepository.findBySkinId(skinRow.getId(), PageRequest.of(0, 100));
-        skin.setAccountsSeenUsing(usersUsing.stream().map(PlayerRow::getUsername).toList());
+        List<String> usersUsing = this.playerRepository.findUsernamesBySkinId(skinRow.getId(), PageRequest.of(0, 250));
+        skin.setAccountsSeenUsing(usersUsing);
 
         return skin;
     }
