@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+
+import xyz.mcutils.backend.websocket.impl.NameChangeWebSocket;
 import xyz.mcutils.backend.websocket.impl.StatisticsWebSocket;
 
 import java.util.ArrayList;
@@ -39,6 +41,7 @@ public class WebSocketManager implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(@NotNull WebSocketHandlerRegistry registry) {
         this.registerWebSocket(registry, new StatisticsWebSocket());
+        this.registerWebSocket(registry, new NameChangeWebSocket());
     }
 
     /**

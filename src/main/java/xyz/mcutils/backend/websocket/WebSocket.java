@@ -58,7 +58,7 @@ public abstract class WebSocket extends TextWebSocketHandler {
      *
      * @param session the session that connected
      */
-    abstract public void onSessionConnect(WebSocketSession session);
+    public void onSessionConnect(WebSocketSession session) {}
 
     @Override
     public final void afterConnectionEstablished(@NotNull WebSocketSession session) {

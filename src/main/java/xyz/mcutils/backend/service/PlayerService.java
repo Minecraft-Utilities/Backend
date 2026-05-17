@@ -26,6 +26,8 @@ import xyz.mcutils.backend.repository.postgres.CapeChangeEventRepository;
 import xyz.mcutils.backend.repository.postgres.PlayerRepository;
 import xyz.mcutils.backend.repository.postgres.SkinChangeEventRepository;
 import xyz.mcutils.backend.repository.postgres.UsernameChangeEventRepository;
+import xyz.mcutils.backend.websocket.WebSocketManager;
+import xyz.mcutils.backend.websocket.impl.NameChangeWebSocket;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -239,12 +241,14 @@ public class PlayerService {
             playerRow.setLegacyAccount(token.isLegacy());
         }
 
+        Instant now = Instant.now();
+
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
         SkinTextureToken skinToken = skinAndCape.left();
         CapeTextureToken capeToken = skinAndCape.right();
         if (!playerRow.getSkin().getTextureId().equals(skinToken.getTextureId())) {
             SkinRow newSkin = this.skinService.getOrCreateSkinCached(skinToken);
-            skinChangeEventRow = new SkinChangeEventRow(playerRow.getId(), playerRow.getSkin() /* their old skin */, newSkin, Instant.now());
+            skinChangeEventRow = new SkinChangeEventRow(playerRow.getId(), playerRow.getSkin() /* their old skin */, newSkin, now);
             playerRow.setSkin(newSkin);
         }
         String oldCapeTextureId = playerRow.getCape() != null ? playerRow.getCape().getTextureId() : null;
@@ -252,16 +256,17 @@ public class PlayerService {
         if (!Objects.equals(oldCapeTextureId, newCapeTextureId)) {
             CapeRow newCape = capeToken != null ? this.capeService.getOrCreateCapeCached(capeToken) : null;
             playerRow.setCape(newCape);
-            capeChangeEventRow = new CapeChangeEventRow(playerRow.getId(), newCape, Instant.now());
+            capeChangeEventRow = new CapeChangeEventRow(playerRow.getId(), newCape, now);
         }
 
         String previousUsername = playerRow.getUsername();
         if (!previousUsername.equals(token.getName())) {
             playerRow.setUsername(token.getName());
-            usernameChangeEventRow = new UsernameChangeEventRow(playerRow.getId(), token.getName(), previousUsername, Instant.now());
+            usernameChangeEventRow = new UsernameChangeEventRow(playerRow.getId(), token.getName(), previousUsername, now);
+            WebSocketManager.getWebsocket(NameChangeWebSocket.class).sendMessageToAll(new UsernameHistory(token.getName(), previousUsername, now));
         }
 
-        playerRow.setLastUpdated(Instant.now());
+        playerRow.setLastUpdated(now);
         return new UpdatePlayerResult(
                 playerRow,
                 skinChangeEventRow,
