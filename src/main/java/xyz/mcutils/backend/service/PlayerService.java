@@ -135,16 +135,14 @@ public class PlayerService {
         if (cape != null) {
             this.capeChangeEventRepository.save(new CapeChangeEventRow(id, cape, Instant.now()));
         }
-        this.usernameChangeEventRepository.save(new UsernameChangeEventRow(id, token.getName(), null, Instant.now()));
 
         StatisticsService.addTrackedPlayerCount(1);
         return playerRow;
     }
 
     public PlayerRow updatePlayer(PlayerRow playerRow, MojangProfileToken token) {
-        PlayerUpdate update = new PlayerUpdate(playerRow, token);
-        this.updatePlayers(Collections.singletonList(update));
-        return update.playerRow();
+        this.updatePlayers(Collections.singletonList(new PlayerUpdate(playerRow, token)));
+        return this.playerRepository.findById(playerRow.getId()).orElseThrow();
     }
 
     public void savePlayers(List<MojangProfileToken> tokens) {
@@ -170,22 +168,27 @@ public class PlayerService {
         Map<String, CapeRow> capesByTextureId = capeFutures.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().join()));
 
+        List<UUID> ids = tokens.stream().map(t -> UUIDUtils.parseUuid(t.getId())).toList();
+        Set<UUID> existingIds = this.playerRepository.findExistingIds(ids);
+
         List<PlayerRow> playerRows = new ArrayList<>();
         List<SkinChangeEventRow> skinChangeEvents = new ArrayList<>();
         List<CapeChangeEventRow> capeChangeEvents = new ArrayList<>();
-        List<UsernameChangeEventRow> usernameChangeEvents = new ArrayList<>();
 
+        Instant now = Instant.now();
         for (MojangProfileToken token : tokens) {
             UUID id = UUIDUtils.parseUuid(token.getId());
+            if (existingIds.contains(id)) {
+                continue;
+            }
             SkinRow skin = skinsByTextureId.get(token.getSkinAndCape().left().getTextureId());
             CapeTextureToken capeToken = token.getSkinAndCape().right();
             CapeRow cape = capeToken != null ? capesByTextureId.get(capeToken.getTextureId()) : null;
 
-            skinChangeEvents.add(new SkinChangeEventRow(id, null, skin, Instant.now()));
+            skinChangeEvents.add(new SkinChangeEventRow(id, null, skin, now));
             if (cape != null) {
-                capeChangeEvents.add(new CapeChangeEventRow(id, cape, Instant.now()));
+                capeChangeEvents.add(new CapeChangeEventRow(id, cape, now));
             }
-            usernameChangeEvents.add(new UsernameChangeEventRow(id, token.getName(), null, Instant.now()));
             playerRows.add(new PlayerRow(
                     id,
                     token.getName(),
@@ -197,9 +200,13 @@ public class PlayerService {
                     0,
                     0,
                     null,
-                    Instant.now(),
-                    Instant.now()
+                    now,
+                    now
             ));
+        }
+
+        if (playerRows.isEmpty()) {
+            return;
         }
 
         this.playerRepository.saveAll(playerRows);
@@ -207,8 +214,7 @@ public class PlayerService {
 
         CompletableFuture.allOf(
                 CompletableFuture.runAsync(() -> this.skinChangeEventRepository.saveAll(skinChangeEvents), Main.EXECUTOR),
-                CompletableFuture.runAsync(() -> this.capeChangeEventRepository.saveAll(capeChangeEvents), Main.EXECUTOR),
-                CompletableFuture.runAsync(() -> this.usernameChangeEventRepository.saveAll(usernameChangeEvents), Main.EXECUTOR)
+                CompletableFuture.runAsync(() -> this.capeChangeEventRepository.saveAll(capeChangeEvents), Main.EXECUTOR)
         ).join();
     }
 
@@ -219,9 +225,13 @@ public class PlayerService {
         List<CapeChangeEventRow> capeChangeEvents = new ArrayList<>();
         List<UsernameChangeEventRow> usernameChangeEvents = new ArrayList<>();
 
+        List<PlayerUpdate> sortedUpdates = playerUpdates.stream()
+                .sorted(Comparator.comparing(u -> u.playerRow().getId()))
+                .toList();
+
         List<UpdatePlayerResult> updatePlayerResults = new ArrayList<>();
-        for (PlayerUpdate playerUpdate : playerUpdates) {
-            updatePlayerResults.add(this.updatePlayer(playerUpdate));
+        for (PlayerUpdate playerUpdate : sortedUpdates) {
+            updatePlayerResults.add(this.applyPlayerUpdate(playerUpdate));
         }
 
         for (UpdatePlayerResult update : updatePlayerResults) {
@@ -255,9 +265,9 @@ public class PlayerService {
         }
     }
 
-    @Transactional
-    public UpdatePlayerResult updatePlayer(PlayerUpdate playerUpdate) {
-        PlayerRow playerRow = playerUpdate.playerRow();
+    private UpdatePlayerResult applyPlayerUpdate(PlayerUpdate playerUpdate) {
+        PlayerRow playerRow = this.playerRepository.findByIdForUpdate(playerUpdate.playerRow().getId())
+                .orElseThrow(() -> new NotFoundException("Player '%s' was not found".formatted(playerUpdate.playerRow().getId())));
         MojangProfileToken token = playerUpdate.token();
 
         SkinChangeEventRow skinChangeEventRow = null;
@@ -335,8 +345,22 @@ public class PlayerService {
     }
 
     public Set<UsernameHistory> getUsernameHistory(PlayerRow player) {
-        return this.usernameChangeEventRepository.findByPlayerIdOrderByTimestampDesc(player.getId()).stream().map((row) ->
-                new UsernameHistory(row.getNewUsername(), row.getPreviousUsername(), row.getTimestamp())).collect(Collectors.toSet());
+        List<UsernameChangeEventRow> events = this.usernameChangeEventRepository
+                .findByPlayerIdOrderByTimestampDesc(player.getId())
+                .stream()
+                .filter(row -> row.getPreviousUsername() != null)
+                .toList();
+
+        Set<UsernameHistory> history = events.stream()
+                .map(row -> new UsernameHistory(row.getNewUsername(), row.getPreviousUsername(), row.getTimestamp()))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        String initialUsername = events.isEmpty()
+                ? player.getUsername()
+                : events.getLast().getPreviousUsername();
+        history.add(new UsernameHistory(initialUsername, null, player.getFirstSeen()));
+
+        return history;
     }
 
     public List<RecentUsernameChange> getRecentNameChanges() {

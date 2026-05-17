@@ -1,7 +1,9 @@
 package xyz.mcutils.backend.repository.postgres;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -25,6 +27,10 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
 
     @Query("SELECT p.id FROM PlayerRow p WHERE p.id IN :ids")
     Set<UUID> findExistingIds(@Param("ids") Collection<UUID> ids);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT p FROM PlayerRow p WHERE p.id = :id")
+    Optional<PlayerRow> findByIdForUpdate(@Param("id") UUID id);
 
     @Query("SELECT p.skin FROM PlayerRow p WHERE p.id = :id")
     Optional<SkinRow> findSkinById(@Param("id") UUID id);

@@ -3,14 +3,12 @@ package xyz.mcutils.backend.model.persistence.postgres;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.SQLInsert;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Entity
 @Table(name = "username_change_events")
-@SQLInsert(sql = "INSERT INTO username_change_events (new_username, player_id, previous_username, timestamp, id) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING")
 @Getter
 @NoArgsConstructor
 public class UsernameChangeEventRow {

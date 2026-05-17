@@ -3,7 +3,6 @@ package xyz.mcutils.backend.model.persistence.postgres;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.SQLInsert;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
@@ -11,7 +10,6 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "cape_change_events")
-@SQLInsert(sql = "INSERT INTO cape_change_events (cape_id, player_id, timestamp, id) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING")
 @Getter
 @NoArgsConstructor
 public class CapeChangeEventRow {
