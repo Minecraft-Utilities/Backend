@@ -65,7 +65,7 @@ public class MojangService {
         long start = System.currentTimeMillis();
         boolean success = false;
         try {
-            MojangProfileToken result = webRequest.request(SESSION_SERVER_ENDPOINT + "/session/minecraft/profile/" + id).as(MojangProfileToken.class);
+            MojangProfileToken result = webRequest.request(SESSION_SERVER_ENDPOINT + "/session/minecraft/profile/" + id).useProxy().as(MojangProfileToken.class);
             success = result != null;
             return result;
         } finally {
@@ -84,7 +84,7 @@ public class MojangService {
         long start = System.currentTimeMillis();
         boolean success = false;
         try {
-            MojangUsernameToUuidToken result = webRequest.request(API_ENDPOINT + "/users/profiles/minecraft/" + id).as(MojangUsernameToUuidToken.class);
+            MojangUsernameToUuidToken result = webRequest.request(API_ENDPOINT + "/users/profiles/minecraft/" + id).useProxy().as(MojangUsernameToUuidToken.class);
             success = result != null;
             return result;
         } finally {

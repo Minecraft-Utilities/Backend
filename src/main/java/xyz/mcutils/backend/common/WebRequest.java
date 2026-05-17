@@ -137,27 +137,26 @@ public class WebRequest {
             return this;
         }
 
-        // --- terminal methods ---
-
         public <T> T as(Class<T> clazz) {
             String requestUrl = resolveUrl();
-            return client.method(toHttpMethod()).uri(requestUrl)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .exchange((req, response) -> {
-                        HttpStatusCode status = response.getStatusCode();
-                        if (status.isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
-                            throw new RateLimitException("Rate limit was reached");
-                        }
-                        if (status.isError() || status.isSameCodeAs(HttpStatus.NO_CONTENT)) {
-                            return null;
-                        }
-                        MediaType ct = response.getHeaders().getContentType();
-                        if (ct == null || !ct.isCompatibleWith(MediaType.APPLICATION_JSON)) {
-                            return null;
-                        }
-                        return response.bodyTo(clazz);
-                    });
+            var spec = client.method(toHttpMethod()).uri(requestUrl).accept(MediaType.APPLICATION_JSON);
+            if (body != null) {
+                spec.body(body);
+            }
+            return spec.exchange((req, response) -> {
+                HttpStatusCode status = response.getStatusCode();
+                if (status.isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
+                    throw new RateLimitException("Rate limit was reached");
+                }
+                if (status.isError() || status.isSameCodeAs(HttpStatus.NO_CONTENT)) {
+                    return null;
+                }
+                MediaType ct = response.getHeaders().getContentType();
+                if (ct == null || !ct.isCompatibleWith(MediaType.APPLICATION_JSON)) {
+                    return null;
+                }
+                return response.bodyTo(clazz);
+            });
         }
 
         public <T> ResponseEntity<T> asResponse(Class<T> clazz) {
