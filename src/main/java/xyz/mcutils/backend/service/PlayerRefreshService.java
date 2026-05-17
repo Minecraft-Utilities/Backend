@@ -55,13 +55,7 @@ public class PlayerRefreshService {
                 try {
                     Instant now = Instant.now();
                     Instant cutoff = now.minus(PlayerService.PLAYER_UPDATE_INTERVAL);
-                    List<PlayerRow> playerRows = this.playerRepository.findPlayersForRefresh(
-                            cutoff,
-                            POPULARITY_WEIGHT,
-                            VELOCITY_WEIGHT,
-                            URGENCY_WEIGHT,
-                            REFRESH_CHUNK_SIZE
-                    );
+                    List<PlayerRow> playerRows = this.playerRepository.findPlayersForRefresh(cutoff, REFRESH_CHUNK_SIZE);
                     if (playerRows.isEmpty()) {
                         Thread.sleep(Duration.ofSeconds(30));
                         continue;
