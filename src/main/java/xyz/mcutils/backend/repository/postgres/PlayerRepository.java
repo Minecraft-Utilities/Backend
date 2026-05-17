@@ -41,21 +41,30 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
 
     @Modifying
     @Transactional
-    @Query(nativeQuery = true, value = "UPDATE players SET monthly_views = 0")
+    @Query(nativeQuery = true, value = """
+        UPDATE players
+        SET monthly_views = 0
+        WHERE monthly_views > 0
+        AND id NOT IN (
+            SELECT DISTINCT player_id FROM player_view_events
+            WHERE viewed_at >= NOW() - INTERVAL '30 days'
+        );
+    """)
     void resetMonthlyViews();
 
     @Modifying
     @Transactional
     @Query(nativeQuery = true, value = """
         UPDATE players
-        SET monthly_views = subquery.monthly_views
-        FROM (
-            SELECT pve.player_id, COUNT(*) AS monthly_views
-            FROM player_view_events pve
-            WHERE pve.viewed_at >= NOW() - INTERVAL '30 days'
-            GROUP BY pve.player_id
-        ) AS subquery
-        WHERE players.id = subquery.player_id
+         SET monthly_views = subquery.monthly_views
+         FROM (
+             SELECT player_id, COUNT(*) AS monthly_views
+             FROM player_view_events
+             WHERE viewed_at >= NOW() - INTERVAL '30 days'
+             GROUP BY player_id
+         ) AS subquery
+         WHERE players.id = subquery.player_id
+         AND players.monthly_views != subquery.monthly_views;
     """)
     void updateMonthlyViews();
 }
