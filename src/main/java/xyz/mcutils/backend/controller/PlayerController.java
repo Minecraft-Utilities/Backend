@@ -52,7 +52,7 @@ public class PlayerController {
     public ResponseEntity<BasicPlayer> getPlayer(
             @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String id,
             @Parameter(description = "The type of player data to return", example = "basic") @RequestParam(defaultValue = "BASIC") PlayerType type) {
-        FullPlayer player = this.playerService.getPlayer(id);
+        FullPlayer player = FullPlayer.fromRow(this.playerService.getPlayer(id), this.playerService);
         BasicPlayer result = type == PlayerType.FULL ? player : BasicPlayer.from(player);
         return ResponseEntity.ok().cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic()).body(result);
     }

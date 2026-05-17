@@ -6,8 +6,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.IPUtils;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
-import xyz.mcutils.backend.model.domain.player.FullPlayer;
 import xyz.mcutils.backend.model.dto.request.PlayerViewRequest;
+import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
 import xyz.mcutils.backend.model.persistence.postgres.PlayerViewEventRow;
 import xyz.mcutils.backend.model.token.turnstile.TurnstileResponse;
 import xyz.mcutils.backend.repository.postgres.PlayerRepository;
@@ -57,12 +57,13 @@ public class PlayerViewService {
         if (!turnstileResponse.isSuccess()) {
             throw new BadRequestException("Invalid Turnstile Token");
         }
-        FullPlayer player = this.playerService.getPlayer(request.playerQuery());
-        boolean alreadyViewed = playerViewEventRepository.existsByPlayerIdAndIpAddressAndViewedAtAfter(
-                player.getUniqueId(), ipHash, Instant.now().minus(30, ChronoUnit.DAYS)
-        );
+        PlayerRow player = this.playerService.getPlayer(request.playerQuery());
+        boolean alreadyViewed = playerViewEventRepository.existsByPlayerIdAndIpAddressAndViewedAtAfter(player.getId(), ipHash,
+                Instant.now().minus(30, ChronoUnit.DAYS));
         if (!alreadyViewed) {
-            playerViewEventRepository.save(new PlayerViewEventRow(player.getUniqueId(), ipHash, Instant.now()));
+            this.playerViewEventRepository.save(new PlayerViewEventRow(player.getId(), ipHash, Instant.now()));
+            this.playerService.updatePriorityScore(player, player.getMonthlyViews() + 1);
+            this.playerRepository.save(player);
         }
     }
 }

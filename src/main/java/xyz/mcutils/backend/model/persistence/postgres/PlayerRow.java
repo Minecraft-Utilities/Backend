@@ -61,12 +61,13 @@ public class PlayerRow {
      */
     public static double computeRefreshPriorityScore(
             PlayerRow player,
+            long monthlyViews,
             Instant now,
             double popularityWeight,
             double velocityWeight,
             double urgencyWeight
     ) {
-        double popularity = Math.log(Math.max(player.monthlyViews, 1)) * popularityWeight;
+        double popularity = Math.log(Math.max(monthlyViews, 1)) * popularityWeight;
         double velocity = player.changeScore * velocityWeight;
         double minutesOverdue = Duration.between(player.lastUpdated, now).toSeconds() / 60.0;
         double urgency = Math.log(1 + minutesOverdue) * urgencyWeight;

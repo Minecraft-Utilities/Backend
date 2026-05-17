@@ -55,7 +55,7 @@ public class PlayerService {
     private final SkinChangeEventRepository skinChangeEventRepository;
     private final CapeChangeEventRepository capeChangeEventRepository;
 
-    private final CoalescingLoader<String, FullPlayer> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
+    private final CoalescingLoader<String, PlayerRow> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerRepository playerRepository,
                          UsernameChangeEventRepository usernameChangeEventRepository, SkinChangeEventRepository skinChangeEventRepository,
@@ -75,7 +75,7 @@ public class PlayerService {
     }
 
     @Transactional
-    public FullPlayer getPlayer(String query) {
+    public PlayerRow getPlayer(String query) {
         return playerLoader.get(query, () -> {
             boolean isUsername = query.length() <= 16;
             Optional<PlayerRow> optionalPlayerRow = isUsername ? this.playerRepository.findByUsernameIgnoreCase(query) : this.playerRepository.findById(UUIDUtils.parseUuid(query));
@@ -105,12 +105,12 @@ public class PlayerService {
                 }
                 playerRow = this.updatePlayer(playerRow, token);
             }
-            return FullPlayer.fromRow(playerRow, this);
+            return playerRow;
         });
     }
 
     @Transactional
-    public FullPlayer createPlayer(MojangProfileToken token) {
+    public PlayerRow createPlayer(MojangProfileToken token) {
         UUID id = UUIDUtils.parseUuid(token.getId());
         SkinRow skin = this.skinService.getOrCreateSkin(token.getSkinAndCape().left());
         CapeTextureToken capeToken = token.getSkinAndCape().right();
@@ -137,9 +137,8 @@ public class PlayerService {
         }
         this.usernameChangeEventRepository.save(new UsernameChangeEventRow(id, token.getName(), null, Instant.now()));
 
-        FullPlayer fullPlayer = FullPlayer.fromRow(playerRow, this);
         StatisticsService.addTrackedPlayerCount(1);
-        return fullPlayer;
+        return playerRow;
     }
 
     public PlayerRow updatePlayer(PlayerRow playerRow, MojangProfileToken token) {
@@ -321,9 +320,14 @@ public class PlayerService {
             playerRow.setChangeScore(decayed + 1.0d);
         }
         playerRow.setLastChanged(now);
+        this.updatePriorityScore(playerRow, playerRow.getMonthlyViews());
+    }
+
+    public void updatePriorityScore(PlayerRow playerRow, long monthlyViews) {
         playerRow.setPriorityScore(PlayerRow.computeRefreshPriorityScore(
                 playerRow,
-                now,
+                monthlyViews,
+                Instant.now(),
                 POPULARITY_WEIGHT,
                 VELOCITY_WEIGHT,
                 URGENCY_WEIGHT

@@ -69,7 +69,8 @@ public class PlayerRefreshService {
                     PlayerRefreshPriorityScoreMetric priorityScoreMetric = MetricService.getMetric(PlayerRefreshPriorityScoreMetric.class);
                     for (PlayerRow playerRow : playerRows) {
                         priorityScoreMetric.observe(PlayerRow.computeRefreshPriorityScore(
-                            playerRow, 
+                            playerRow,
+                            playerRow.getMonthlyViews(),
                             now, 
                             POPULARITY_WEIGHT, 
                             VELOCITY_WEIGHT, 
