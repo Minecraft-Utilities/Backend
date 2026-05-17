@@ -226,6 +226,15 @@ public class PlayerService {
         this.usernameChangeEventRepository.saveAll(usernameChangeEvents);
         MetricService.getMetric(AccountsUpdatedMetric.class).inc(playerRows.size());
         StatisticsService.addNameChangesCount(usernameChangeEvents.size());
+
+        for (UsernameChangeEventRow usernameChangeEvent : usernameChangeEvents) {
+            WebSocketManager.getWebsocket(NameChangeWebSocket.class).sendMessageToAll(new RecentUsernameChange(
+                    usernameChangeEvent.getPlayerId(),
+                    usernameChangeEvent.getNewUsername(),
+                    usernameChangeEvent.getPreviousUsername(),
+                    usernameChangeEvent.getTimestamp()
+            ));
+        }
     }
 
     @Transactional
@@ -263,7 +272,6 @@ public class PlayerService {
         if (!previousUsername.equals(token.getName())) {
             playerRow.setUsername(token.getName());
             usernameChangeEventRow = new UsernameChangeEventRow(playerRow.getId(), token.getName(), previousUsername, now);
-            WebSocketManager.getWebsocket(NameChangeWebSocket.class).sendMessageToAll(new RecentUsernameChange(playerRow.getId(), token.getName(), previousUsername, now));
         }
 
         playerRow.setLastUpdated(now);
