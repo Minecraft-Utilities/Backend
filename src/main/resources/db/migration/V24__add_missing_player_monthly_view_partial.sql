@@ -1,0 +1,1 @@
+CREATE INDEX idx_players_monthly_views ON players (monthly_views) WHERE monthly_views > 0;
