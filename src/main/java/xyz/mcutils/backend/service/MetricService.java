@@ -54,6 +54,8 @@ public class MetricService {
         // Player
         this.registerMetric(new TrackedPlayersMetric(statisticsService));
         this.registerMetric(new AccountsUpdatedMetric());
+        this.registerMetric(new PlayerChangesDetectedMetric());
+        this.registerMetric(new PlayerRefreshPriorityScoreMetric());
         this.registerMetric(new NameChangesMetric(statisticsService));
         this.registerMetric(new SubmissionQueueSizeMetric(playerSubmitService));
         this.registerMetric(new PlayerSubmitOutcomesMetric());

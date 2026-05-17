@@ -12,6 +12,7 @@ import xyz.mcutils.backend.common.Tuple;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.player.AccountsUpdatedMetric;
+import xyz.mcutils.backend.metric.impl.player.PlayerChangesDetectedMetric;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.FullPlayer;
 import xyz.mcutils.backend.model.domain.player.history.RecentUsernameChange;
@@ -41,6 +42,7 @@ import java.util.stream.Stream;
 public class PlayerService {
     static final Duration PLAYER_UPDATE_INTERVAL = Duration.ofHours(3);
     private static final int MAX_PLAYER_SEARCH_RESULTS = 5;
+    private static final double CHANGE_DECAY_RATE = 0.01; // exponential decay rate for change score; lower = slower decay (half-life ~70h)
 
     public static PlayerService INSTANCE;
     private final MojangService mojangService;
@@ -120,6 +122,8 @@ public class PlayerService {
                 0,
                 skin,
                 cape,
+                0,
+                null,
                 Instant.now(),
                 Instant.now()
         ));
@@ -188,6 +192,8 @@ public class PlayerService {
                     0,
                     skin,
                     cape,
+                    0,
+                    null,
                     Instant.now(),
                     Instant.now()
             ));
@@ -233,6 +239,7 @@ public class PlayerService {
         this.capeChangeEventRepository.saveAll(capeChangeEvents);
         this.usernameChangeEventRepository.saveAll(usernameChangeEvents);
         MetricService.getMetric(AccountsUpdatedMetric.class).inc(playerRows.size());
+        MetricService.getMetric(PlayerChangesDetectedMetric.class).inc(skinChangeEvents.size() + capeChangeEvents.size() + usernameChangeEvents.size());
         StatisticsService.addNameChangesCount(usernameChangeEvents.size());
 
         for (UsernameChangeEventRow usernameChangeEvent : usernameChangeEvents) {
@@ -260,6 +267,8 @@ public class PlayerService {
 
         Instant now = Instant.now();
 
+        boolean didChange = false;
+
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
         SkinTextureToken skinToken = skinAndCape.left();
         CapeTextureToken capeToken = skinAndCape.right();
@@ -267,6 +276,7 @@ public class PlayerService {
             SkinRow newSkin = this.skinService.getOrCreateSkinCached(skinToken);
             skinChangeEventRow = new SkinChangeEventRow(playerRow.getId(), playerRow.getSkin() /* their old skin */, newSkin, now);
             playerRow.setSkin(newSkin);
+            didChange = true;
         }
         String oldCapeTextureId = playerRow.getCape() != null ? playerRow.getCape().getTextureId() : null;
         String newCapeTextureId = capeToken != null ? capeToken.getTextureId() : null;
@@ -274,14 +284,19 @@ public class PlayerService {
             CapeRow newCape = capeToken != null ? this.capeService.getOrCreateCapeCached(capeToken) : null;
             playerRow.setCape(newCape);
             capeChangeEventRow = new CapeChangeEventRow(playerRow.getId(), newCape, now);
+            didChange = true;
         }
 
         String previousUsername = playerRow.getUsername();
         if (!previousUsername.equals(token.getName())) {
             playerRow.setUsername(token.getName());
             usernameChangeEventRow = new UsernameChangeEventRow(playerRow.getId(), token.getName(), previousUsername, now);
+            didChange = true;
         }
 
+        if (didChange) {
+            this.applyChangeDecay(playerRow);
+        }
         playerRow.setLastUpdated(now);
         return new UpdatePlayerResult(
                 playerRow,
@@ -289,6 +304,18 @@ public class PlayerService {
                 capeChangeEventRow,
                 usernameChangeEventRow
         );
+    }
+
+    private void applyChangeDecay(PlayerRow playerRow) {
+        Instant lastChange = playerRow.getLastChanged();
+        if (lastChange == null) {
+            playerRow.setChangeScore(1.0d);
+        } else {
+            double hoursSince = Duration.between(lastChange, Instant.now()).toMinutes() / 60.0;
+            double decayed = playerRow.getChangeScore() * Math.exp(-CHANGE_DECAY_RATE * hoursSince);
+            playerRow.setChangeScore(decayed + 1.0d);
+        }
+        playerRow.setLastChanged(Instant.now());
     }
 
     public Set<UsernameHistory> getUsernameHistory(PlayerRow player) {

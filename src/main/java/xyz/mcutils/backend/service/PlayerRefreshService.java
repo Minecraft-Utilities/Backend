@@ -5,18 +5,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.FutureUtils;
+import xyz.mcutils.backend.metric.impl.player.PlayerRefreshPriorityScoreMetric;
 import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.repository.postgres.PlayerRepository;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -29,6 +27,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class PlayerRefreshService {
     private static final int REFRESH_CHUNK_SIZE = 500;
     private static final int RATE_LIMIT = 150;
+    private static final double POPULARITY_WEIGHT = 1.5;  // log-scaled monthly views influence on refresh priority
+    private static final double VELOCITY_WEIGHT   = 3.0;  // change score influence; higher = frequent changers refreshed sooner
+    private static final double URGENCY_WEIGHT    = 0.5;  // overdue time influence; prevents stale players from being starved
 
     private final RateLimiter rateLimiter = RateLimiter.create(RATE_LIMIT);
     private final MojangService mojangService;
@@ -52,11 +53,28 @@ public class PlayerRefreshService {
         Main.EXECUTOR.submit(() -> {
             while (running.get()) {
                 try {
-                    Instant cutoff = Instant.now().minus(3, ChronoUnit.HOURS);
-                    Slice<PlayerRow> playerRows = this.playerRepository.findAllByLastUpdatedBeforeOrderByLastUpdatedAsc(cutoff, Pageable.ofSize(REFRESH_CHUNK_SIZE));
+                    Instant now = Instant.now();
+                    Instant cutoff = now.minus(PlayerService.PLAYER_UPDATE_INTERVAL);
+                    List<PlayerRow> playerRows = this.playerRepository.findPlayersForRefresh(
+                            cutoff,
+                            POPULARITY_WEIGHT,
+                            VELOCITY_WEIGHT,
+                            URGENCY_WEIGHT,
+                            REFRESH_CHUNK_SIZE
+                    );
                     if (playerRows.isEmpty()) {
-                        Thread.sleep(Duration.ofSeconds(10));
+                        Thread.sleep(Duration.ofSeconds(30));
                         continue;
+                    }
+                    PlayerRefreshPriorityScoreMetric priorityScoreMetric = MetricService.getMetric(PlayerRefreshPriorityScoreMetric.class);
+                    for (PlayerRow playerRow : playerRows) {
+                        priorityScoreMetric.observe(PlayerRow.computeRefreshPriorityScore(
+                            playerRow, 
+                            now, 
+                            POPULARITY_WEIGHT, 
+                            VELOCITY_WEIGHT, 
+                            URGENCY_WEIGHT
+                        ));
                     }
                     List<Future<PlayerService.PlayerUpdate>> futures = new ArrayList<>();
                     for (PlayerRow playerRow : playerRows) {

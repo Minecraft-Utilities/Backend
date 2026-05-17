@@ -17,7 +17,6 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
     Optional<PlayerRow> findByUsernameIgnoreCase(String username);
     List<PlayerRow> findByUsernameStartingWithIgnoreCase(String username, Pageable pageable);
     List<PlayerRow> findTopByOrderBySubmittedUuidsDesc(Pageable pageable);
-    Slice<PlayerRow> findAllByLastUpdatedBeforeOrderByLastUpdatedAsc(Instant cutoff, Pageable pageable);
 
     @Query("SELECT p.username FROM PlayerRow p WHERE p.skin.id = :skinId")
     List<String> findUsernamesBySkinId(long skinId, Pageable pageable);
@@ -67,4 +66,27 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
          AND players.monthly_views != subquery.monthly_views;
     """)
     void updateMonthlyViews();
+
+    @Query(value = """
+    SELECT * FROM players
+    WHERE last_updated < :cutoff
+    ORDER BY (
+        -- Popularity component (log-scaled so 1M views isn't absurdly dominant)
+        (LN(GREATEST(monthly_views, 1)) * :popularityWeight)
+        +
+        -- Change velocity component
+        (change_score * :velocityWeight)
+        +
+        -- Time pressure: minutes overdue, log-scaled to prevent runaway
+        (LN(1 + EXTRACT(EPOCH FROM (NOW() - last_updated)) / 60) * :urgencyWeight)
+    ) DESC
+    LIMIT :limit
+    """, nativeQuery = true)
+    List<PlayerRow> findPlayersForRefresh(
+            @Param("cutoff") Instant cutoff,
+            @Param("popularityWeight") double popularityWeight,
+            @Param("velocityWeight") double velocityWeight,
+            @Param("urgencyWeight") double urgencyWeight,
+            @Param("limit") int limit
+    );
 }
