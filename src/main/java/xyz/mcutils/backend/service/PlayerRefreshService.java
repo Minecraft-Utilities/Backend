@@ -27,8 +27,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Service
 @Slf4j
 public class PlayerRefreshService {
-    private static final int REFRESH_CHUNK_SIZE = 200;
-    private static final int RATE_LIMIT = 50;
+    private static final int REFRESH_CHUNK_SIZE = 500;
+    private static final int RATE_LIMIT = 100;
 
     private final RateLimiter rateLimiter = RateLimiter.create(RATE_LIMIT);
     private final MojangService mojangService;
