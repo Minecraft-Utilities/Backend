@@ -1,7 +1,6 @@
 package xyz.mcutils.backend.repository.postgres;
 
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -68,19 +67,14 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
     void updateMonthlyViews();
 
     @Query(value = """
-    SELECT * FROM players
-    WHERE last_updated < :cutoff
-    ORDER BY (
-        -- Popularity component (log-scaled so 1M views isn't absurdly dominant)
-        (LN(GREATEST(monthly_views, 1)) * :popularityWeight)
-        +
-        -- Change velocity component
-        (change_score * :velocityWeight)
-        +
-        -- Time pressure: minutes overdue, log-scaled to prevent runaway
-        (LN(1 + EXTRACT(EPOCH FROM (NOW() - last_updated)) / 60) * :urgencyWeight)
-    ) DESC
-    LIMIT :limit
+        SELECT * FROM players
+        WHERE last_updated < :cutoff
+        ORDER BY (
+            (LN(GREATEST(monthly_views, 1)) * :popularityWeight)
+            + (change_score * :velocityWeight)
+            + (LN(1 + EXTRACT(EPOCH FROM (NOW() - last_updated)) / 60) * :urgencyWeight)
+        ) DESC
+        LIMIT :limit
     """, nativeQuery = true)
     List<PlayerRow> findPlayersForRefresh(
             @Param("cutoff") Instant cutoff,
