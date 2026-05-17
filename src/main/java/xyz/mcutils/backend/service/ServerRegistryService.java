@@ -89,7 +89,7 @@ public class ServerRegistryService {
      * @return the bytes of the zipped repo
      */
     private byte[] downloadZip() {
-        byte[] bytes = webRequest.getAsByteArray(REGISTRY_REPOSITORY);
+        byte[] bytes = webRequest.request(REGISTRY_REPOSITORY).asBytes();
         if (bytes == null) {
             log.error("Server registry download failed.");
             return null;

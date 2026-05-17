@@ -186,7 +186,7 @@ public class CapeService {
                 return stored;
             }
             log.debug("Downloading cape image for cape {}", cape.getTextureId());
-            byte[] bytes = webRequest.getAsByteArray(cape.getRawTextureUrl());
+            byte[] bytes = webRequest.request(cape.getRawTextureUrl()).asBytes();
             if (bytes == null) {
                 throw new IllegalStateException("Cape image for cape '%s' was not found".formatted(cape.getTextureId()));
             }

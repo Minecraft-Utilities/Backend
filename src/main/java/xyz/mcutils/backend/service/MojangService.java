@@ -65,7 +65,7 @@ public class MojangService {
         long start = System.currentTimeMillis();
         boolean success = false;
         try {
-            MojangProfileToken result = webRequest.getAsEntity(SESSION_SERVER_ENDPOINT + "/session/minecraft/profile/" + id, MojangProfileToken.class, true);
+            MojangProfileToken result = webRequest.request(SESSION_SERVER_ENDPOINT + "/session/minecraft/profile/" + id).as(MojangProfileToken.class);
             success = result != null;
             return result;
         } finally {
@@ -84,7 +84,7 @@ public class MojangService {
         long start = System.currentTimeMillis();
         boolean success = false;
         try {
-            MojangUsernameToUuidToken result = webRequest.getAsEntity(API_ENDPOINT + "/users/profiles/minecraft/" + id, MojangUsernameToUuidToken.class, true);
+            MojangUsernameToUuidToken result = webRequest.request(API_ENDPOINT + "/users/profiles/minecraft/" + id).as(MojangUsernameToUuidToken.class);
             success = result != null;
             return result;
         } finally {
@@ -162,7 +162,7 @@ public class MojangService {
     @Scheduled(cron = "0 0 0 * * *")
     private void updateBlockedServers() {
         log.info("Fetching blocked servers from Mojang");
-        byte[] bytes = webRequest.getAsByteArray(FETCH_BLOCKED_SERVERS, true);
+        byte[] bytes = webRequest.request(FETCH_BLOCKED_SERVERS).asBytes();
         if (bytes == null) {
             log.error("Failed to fetch blocked servers from Mojang");
             return;

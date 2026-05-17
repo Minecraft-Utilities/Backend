@@ -6,7 +6,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -195,9 +194,9 @@ public class SkinService {
             byte[] skinBytes = this.storageService.get(StorageService.Bucket.SKINS, textureId + ".png");
             if (skinBytes == null) {
                 log.debug("Downloading skin image for skin {}", textureId);
-                byte[] bytes = webRequest.getAsByteArray(textureUrl);
+                byte[] bytes = webRequest.request(textureUrl).asBytes();
                 if (bytes == null) {
-                    bytes = webRequest.getAsByteArray("https://textures.minecraft.net/texture/%s".formatted(DEFAULT_SKIN));
+                    bytes = webRequest.request("https://textures.minecraft.net/texture/%s".formatted(DEFAULT_SKIN)).asBytes();
                     log.info("Skin not found for the texture {}, using fallback skin", textureId);
                     if (bytes == null) {
                         throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(textureId));

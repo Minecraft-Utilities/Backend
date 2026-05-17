@@ -99,7 +99,7 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
      */
     public static boolean isLegacySkin(String textureUrl, WebRequest webRequest) {
         try {
-            BufferedImage image = ImageUtils.decodeImage(webRequest.getAsByteArray(textureUrl));
+            BufferedImage image = ImageUtils.decodeImage(webRequest.request(textureUrl).asBytes());
             return image.getWidth() == 64 && image.getHeight() == 32;
         } catch (IllegalStateException e) {
             log.debug("Failed to determine legacy skin status for texture URL: {}", textureUrl, e);
