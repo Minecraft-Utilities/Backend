@@ -10,10 +10,7 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import xyz.mcutils.backend.Constants;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +33,7 @@ public abstract class WebSocket extends TextWebSocketHandler {
     private final List<WebSocketSession> sessions = new ArrayList<>();
 
     @Setter
-    private ObjectMapper objectMapper;
+    private JsonMapper jsonMapper;
 
     /**
      * Sends a message to the client.
@@ -46,7 +43,7 @@ public abstract class WebSocket extends TextWebSocketHandler {
      */
     @SneakyThrows
     public void sendMessage(WebSocketSession session, Object message) {
-        session.sendMessage(new TextMessage(message instanceof String ? (String) message : this.objectMapper.writeValueAsString(message)));
+        session.sendMessage(new TextMessage(message instanceof String ? (String) message : this.jsonMapper.writeValueAsString(message)));
     }
 
     /**
