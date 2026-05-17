@@ -29,7 +29,7 @@ public class PlayerRefreshService {
     private static final int RATE_LIMIT = 150;
     private static final double POPULARITY_WEIGHT = 1.5;  // log-scaled monthly views influence on refresh priority
     private static final double VELOCITY_WEIGHT   = 3.0;  // change score influence; higher = frequent changers refreshed sooner
-    private static final double URGENCY_WEIGHT    = 0.5;  // overdue time influence; prevents stale players from being starved
+    private static final double URGENCY_WEIGHT    = 0.1;  // overdue time influence; prevents stale players from being starved
 
     private final RateLimiter rateLimiter = RateLimiter.create(RATE_LIMIT);
     private final MojangService mojangService;
