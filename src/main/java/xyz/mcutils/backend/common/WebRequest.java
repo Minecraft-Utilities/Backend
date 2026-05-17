@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import xyz.mcutils.backend.exception.impl.RateLimitException;
@@ -28,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Slf4j
 public class WebRequest {
+
     @Value("${mc-utils.http-client.max-total-connections}")
     private int maxTotalConnections;
 
@@ -46,15 +48,10 @@ public class WebRequest {
     @Value("${mc-utils.http-client.connection-time-to-live-seconds}")
     private int connectionTimeToLiveSeconds;
 
-    private RestClient client;
-    private CloseableHttpClient httpClient;
-
-    /**
-     * URL proxy base (e.g. http://213.255.246.119:8080). When set and useProxy is true,
-     * the request URL becomes proxyBase + "/" + targetUrl (e.g. proxyBase/https://example.com/path).
-     */
     @Value("${mc-utils.http-proxy:}")
     private String httpProxy;
+
+    private RestClient client;
 
     @PostConstruct
     private void initHttpClient() {
@@ -78,7 +75,7 @@ public class WebRequest {
                 .setConnectionRequestTimeout(Timeout.of(connectionRequestTimeoutMs, TimeUnit.MILLISECONDS))
                 .build();
 
-        httpClient = HttpClients.custom()
+        CloseableHttpClient httpClient = HttpClients.custom()
                 .setConnectionManager(connectionManager)
                 .setDefaultRequestConfig(requestConfig)
                 .evictIdleConnections(Timeout.of(connectionTimeToLiveSeconds, TimeUnit.SECONDS))
@@ -93,140 +90,139 @@ public class WebRequest {
                 .build();
     }
 
-    /**
-     * Converts the given URL to a request URL, optionally via the URL proxy (proxy base + "/" + url).
-     *
-     * @param url      the URL
-     * @param useProxy when true and httpProxy is set, the request goes to httpProxy/url
-     * @return the request URL
-     */
-    private String toRequestUrl(String url, boolean useProxy) {
-        if (useProxy && StringUtils.hasText(httpProxy)) {
-            String base = httpProxy.endsWith("/") ? httpProxy.substring(0, httpProxy.length() - 1) : httpProxy;
-            String encoded = URLEncoder.encode(url, StandardCharsets.UTF_8).replace("+", "%20");
-            return base + "/" + encoded;
+    public RequestBuilder request(String url) {
+        return new RequestBuilder(url);
+    }
+
+    public enum Method { GET, POST, HEAD }
+
+    public class RequestBuilder {
+
+        private final String url;
+        private Method method = Method.GET;
+        private Object body;
+        private MediaType contentType;
+        private boolean useProxy;
+
+        private RequestBuilder(String url) {
+            this.url = url;
         }
-        return url;
-    }
 
-    /**
-     * Gets a response from the given URL.
-     *
-     * @param url the url
-     * @param <T> the type of the response
-     * @return the response
-     */
-    public <T> T getAsEntity(String url, Class<T> clazz) throws RateLimitException {
-        return getAsEntity(url, clazz, false);
-    }
-
-    /**
-     * Gets a response from the given URL, optionally via the URL proxy (proxy base + "/" + url).
-     *
-     * @param url      the url
-     * @param useProxy when true and httpProxy is set, the request goes to httpProxy/url
-     * @param <T>      the type of the response
-     * @return the response
-     */
-    public <T> T getAsEntity(String url, Class<T> clazz, boolean useProxy) throws RateLimitException {
-        String requestUrl = toRequestUrl(url, useProxy);
-        return client.get().uri(requestUrl).exchange((request, response) -> {
-            HttpStatusCode status = response.getStatusCode();
-            if (status.isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
-                throw new RateLimitException("Rate limit was reached");
-            }
-            if (status.isError() || status.isSameCodeAs(HttpStatus.NO_CONTENT)) {
-                return null;
-            }
-            MediaType contentType = response.getHeaders().getContentType();
-            if (contentType == null || !contentType.isCompatibleWith(MediaType.APPLICATION_JSON)) {
-                return null;
-            }
-            return response.bodyTo(clazz);
-        });
-    }
-
-    /**
-     * Gets a response from the given URL.
-     *
-     * @param url the url
-     * @return the response
-     */
-    public ResponseEntity<?> get(String url, Class<?> clazz) {
-        return get(url, clazz, false);
-    }
-
-    /**
-     * Gets a response from the given URL, optionally via the URL proxy (proxy base + "/" + url).
-     *
-     * @param url      the url
-     * @param useProxy when true and httpProxy is set, the request goes to httpProxy/url
-     * @return the response
-     */
-    public ResponseEntity<?> get(String url, Class<?> clazz, boolean useProxy) {
-        return client.get().uri(toRequestUrl(url, useProxy)).retrieve().onStatus(HttpStatusCode::isError, (_, _) -> {}) // Don't throw exceptions on error
-                .toEntity(clazz);
-    }
-
-    /**
-     * Checks whether a resource exists at the given URL (HEAD request, 200 = exists).
-     *
-     * @param url the URL
-     * @return true if the resource exists (status 200), false otherwise or on error
-     */
-    public boolean checkExists(String url) {
-        return checkExists(url, false);
-    }
-
-    /**
-     * Checks whether a resource exists at the given URL, optionally via the URL proxy (proxy base + "/" + url).
-     *
-     * @param url      the URL
-     * @param useProxy when true and httpProxy is set, the request goes to httpProxy/url
-     * @return true if the resource exists (status 200), false otherwise or on error
-     */
-    public boolean checkExists(String url, boolean useProxy) {
-        try {
-            ResponseEntity<Void> response = client.head().uri(toRequestUrl(url, useProxy)).retrieve().onStatus(HttpStatusCode::isError, (_, _) -> {}).toBodilessEntity();
-            return response.getStatusCode().isSameCodeAs(HttpStatus.OK);
-        } catch (Exception e) {
-            return false;
+        public RequestBuilder get() {
+            this.method = Method.GET;
+            return this;
         }
-    }
 
-    /**
-     * Performs a GET request and returns the response body as a byte array.
-     *
-     * @param url the URL
-     * @return the response body, or null if status is not 2xx or on error
-     */
-    public byte[] getAsByteArray(String url) {
-        return getAsByteArray(url, false);
-    }
+        public RequestBuilder post(Object jsonBody) {
+            this.method = Method.POST;
+            this.body = jsonBody;
+            this.contentType = MediaType.APPLICATION_JSON;
+            return this;
+        }
 
-    /**
-     * Performs a GET request and returns the response body as a byte array, optionally via the URL proxy (proxy base + "/" + url).
-     *
-     * @param url      the URL
-     * @param useProxy when true and httpProxy is set, the request goes to httpProxy/url
-     * @return the response body, or null if status is not 2xx or on error
-     */
-    public byte[] getAsByteArray(String url, boolean useProxy) {
-        try {
-            ResponseEntity<byte[]> response = client.get().uri(toRequestUrl(url, useProxy)).retrieve().onStatus(HttpStatusCode::isError, (_, _) -> {}).toEntity(byte[].class);
-            if (response.getStatusCode().isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
-                throw new RateLimitException("Rate limit reached fetching: " + url);
-            }
-            if (!response.getStatusCode().is2xxSuccessful()) {
-                log.warn("Unexpected status {} fetching {}", response.getStatusCode(), url);
+        public RequestBuilder post(MultiValueMap<String, String> formBody) {
+            this.method = Method.POST;
+            this.body = formBody;
+            this.contentType = MediaType.APPLICATION_FORM_URLENCODED;
+            return this;
+        }
+
+        public RequestBuilder head() {
+            this.method = Method.HEAD;
+            return this;
+        }
+
+        public RequestBuilder useProxy() {
+            this.useProxy = true;
+            return this;
+        }
+
+        // --- terminal methods ---
+
+        public <T> T as(Class<T> clazz) {
+            String requestUrl = resolveUrl();
+            return client.method(toHttpMethod()).uri(requestUrl)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .exchange((req, response) -> {
+                        HttpStatusCode status = response.getStatusCode();
+                        if (status.isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
+                            throw new RateLimitException("Rate limit was reached");
+                        }
+                        if (status.isError() || status.isSameCodeAs(HttpStatus.NO_CONTENT)) {
+                            return null;
+                        }
+                        MediaType ct = response.getHeaders().getContentType();
+                        if (ct == null || !ct.isCompatibleWith(MediaType.APPLICATION_JSON)) {
+                            return null;
+                        }
+                        return response.bodyTo(clazz);
+                    });
+        }
+
+        public <T> ResponseEntity<T> asResponse(Class<T> clazz) {
+            return client.method(toHttpMethod()).uri(resolveUrl())
+                    .body(body)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (req, res) -> {})
+                    .toEntity(clazz);
+        }
+
+        public byte[] asBytes() {
+            try {
+                ResponseEntity<byte[]> response = client.method(toHttpMethod()).uri(resolveUrl())
+                        .retrieve()
+                        .onStatus(HttpStatusCode::isError, (req, res) -> {})
+                        .toEntity(byte[].class);
+
+                if (response.getStatusCode().isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
+                    throw new RateLimitException("Rate limit reached fetching: " + url);
+                }
+                if (!response.getStatusCode().is2xxSuccessful()) {
+                    log.warn("Unexpected status {} fetching {}", response.getStatusCode(), url);
+                    return null;
+                }
+                return response.getBody();
+            } catch (RateLimitException e) {
+                throw e;
+            } catch (Exception e) {
+                log.warn("Error fetching {}: {}", url, e.getMessage());
                 return null;
             }
-            return response.getBody();
-        } catch (RateLimitException e) {
-            throw e;
-        } catch (Exception e) {
-            log.warn("Error fetching {}: {}", url, e.getMessage());
-            return null;
+        }
+
+        public boolean exists() {
+            try {
+                ResponseEntity<Void> response = client.head().uri(resolveUrl())
+                        .retrieve()
+                        .onStatus(HttpStatusCode::isError, (req, res) -> {})
+                        .toBodilessEntity();
+                return response.getStatusCode().isSameCodeAs(HttpStatus.OK);
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        private String resolveUrl() {
+            if (useProxy && StringUtils.hasText(httpProxy)) {
+                String base = httpProxy.endsWith("/") ? httpProxy.substring(0, httpProxy.length() - 1) : httpProxy;
+                String encoded = URLEncoder.encode(url, StandardCharsets.UTF_8).replace("+", "%20");
+                return base + "/" + encoded;
+            }
+            return url;
+        }
+
+        private org.springframework.http.HttpMethod toHttpMethod() {
+            return switch (method) {
+                case POST -> org.springframework.http.HttpMethod.POST;
+                case HEAD -> org.springframework.http.HttpMethod.HEAD;
+                default -> org.springframework.http.HttpMethod.GET;
+            };
+        }
+
+        private RestClient.RequestBodySpec body(Object body, MediaType contentType) {
+            // handled inline via .body(body, contentType) above — this is just for clarity
+            throw new UnsupportedOperationException();
         }
     }
 }

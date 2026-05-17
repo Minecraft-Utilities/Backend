@@ -129,5 +129,10 @@ mc-utils:
   # Leave blank to disable auth.
   metrics-token:
 
+  # Player monthly views
+  turnstile-key: set_me
+  player-views:
+    auth-token: set_me
+
   webhooks:
     new_cape_discovered: webhook_url_here

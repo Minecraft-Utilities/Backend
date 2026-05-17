@@ -1,9 +1,9 @@
 package xyz.mcutils.backend.controller;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -12,10 +12,12 @@ import xyz.mcutils.backend.model.domain.player.BasicPlayer;
 import xyz.mcutils.backend.model.domain.player.FullPlayer;
 import xyz.mcutils.backend.model.domain.player.PlayerType;
 import xyz.mcutils.backend.model.domain.player.history.RecentUsernameChange;
+import xyz.mcutils.backend.model.dto.request.PlayerViewRequest;
 import xyz.mcutils.backend.model.dto.request.SubmitPlayersRequest;
 import xyz.mcutils.backend.model.dto.response.SubmitPlayersResponse;
 import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.PlayerSubmitService;
+import xyz.mcutils.backend.service.PlayerViewService;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -25,11 +27,12 @@ import java.util.concurrent.TimeUnit;
 @Tag(name = "Player Controller", description = "The Player Controller is used to get information about a player.")
 public class PlayerController {
     private final PlayerService playerService;
+    private final PlayerViewService playerViewService;
     private final PlayerSubmitService playerSubmitService;
 
-    @Autowired
-    public PlayerController(PlayerService playerManagerService, PlayerSubmitService playerSubmitService) {
-        this.playerService = playerManagerService;
+    public PlayerController(PlayerService playerService, PlayerViewService playerViewService, PlayerSubmitService playerSubmitService) {
+        this.playerService = playerService;
+        this.playerViewService = playerViewService;
         this.playerSubmitService = playerSubmitService;
     }
 
@@ -61,7 +64,14 @@ public class PlayerController {
 
     @PostMapping(value = "/submit", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<SubmitPlayersResponse> submitPlayers(@Parameter(description = "List of player UUIDs") @Valid @RequestBody SubmitPlayersRequest request) {
-        int enqueued = playerSubmitService.submitPlayers(request.uuids(), request.submittedBy());
+        int enqueued = this.playerSubmitService.submitPlayers(request.uuids(), request.submittedBy());
         return ResponseEntity.accepted().body(new SubmitPlayersResponse(enqueued));
+    }
+
+    @Hidden // no need for this to be public
+    @PostMapping(value = "/count-view", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> countPlayerView(@Valid @RequestBody PlayerViewRequest request) {
+        this.playerViewService.countView(request);
+        return ResponseEntity.ok().build();
     }
 }
