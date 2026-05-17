@@ -3,11 +3,13 @@ package xyz.mcutils.backend.controller;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import xyz.mcutils.backend.common.IPUtils;
 import xyz.mcutils.backend.model.domain.player.BasicPlayer;
 import xyz.mcutils.backend.model.domain.player.FullPlayer;
 import xyz.mcutils.backend.model.domain.player.PlayerType;
@@ -70,8 +72,8 @@ public class PlayerController {
 
     @Hidden // no need for this to be public
     @PostMapping(value = "/count-view", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> countPlayerView(@Valid @RequestBody PlayerViewRequest request) {
-        this.playerViewService.countView(request);
+    public ResponseEntity<?> countPlayerView(@Valid @RequestBody PlayerViewRequest request, HttpServletRequest httpRequest) {
+        this.playerViewService.countView(request, IPUtils.getRealIp(httpRequest));
         return ResponseEntity.ok().build();
     }
 }

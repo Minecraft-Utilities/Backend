@@ -27,20 +27,17 @@ public class PlayerViewService {
         this.playerViewEventRepository = playerViewEventRepository;
     }
 
-    public void countView(PlayerViewRequest request) {
+    public void countView(PlayerViewRequest request, String ip) {
         if (authToken == null) {
             throw new IllegalStateException("Player view auth token has not been set");
         }
 
-        if (!request.authToken().equals(this.authToken)) {
-            throw new BadRequestException("Invalid auth token");
-        }
-
-        TurnstileResponse turnstileResponse = this.turnstileService.validateToken(request.turnstileToken(), request.remoteIp());
+        TurnstileResponse turnstileResponse = this.turnstileService.validateToken(request.turnstileToken(), ip);
         if (!turnstileResponse.isSuccess()) {
             throw new BadRequestException("Invalid Turnstile Token");
         }
+        // todo: only count an ip once per 30d
         FullPlayer player = this.playerService.getPlayer(request.playerQuery());
-        this.playerViewEventRepository.save(new PlayerViewEventRow(player.getUniqueId(), request.remoteIp(), Instant.now()));
+        this.playerViewEventRepository.save(new PlayerViewEventRow(player.getUniqueId(), ip, Instant.now()));
     }
 }
