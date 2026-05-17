@@ -19,7 +19,6 @@ import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.cape.CapeRenderMetric;
 import xyz.mcutils.backend.model.domain.cape.Cape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
-import xyz.mcutils.backend.model.domain.player.BasicPlayer;
 import xyz.mcutils.backend.model.persistence.postgres.CapeChangeEventRow;
 import xyz.mcutils.backend.model.persistence.postgres.CapeRow;
 import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
@@ -112,12 +111,7 @@ public class CapeService {
         }
         // By player (name or UUID)
         if (query.length() <= 36) {
-            BasicPlayer player = this.playerService.getPlayer(query);
-            VanillaCape cape = player.getCape();
-            if (cape == null) {
-                return null;
-            }
-            return new CapeRow(cape.getName(), cape.getTextureId(), cape.getUniqueOwners(), cape.getFirstSeen());
+            return this.playerService.getPlayer(query).getCape();
         }
         // By texture ID
         Optional<CapeRow> optionalCapeRow = this.capeRepository.findByTextureId(query);
