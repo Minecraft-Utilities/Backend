@@ -43,6 +43,9 @@ public class PlayerRow {
     @Column(nullable = false, name = "change_score")
     private double changeScore;
 
+    @Column(nullable = false, name = "priority_score")
+    private double priorityScore;
+
     @Column(name = "last_changed")
     @Nullable
     private Instant lastChanged;

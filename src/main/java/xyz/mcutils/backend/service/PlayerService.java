@@ -37,6 +37,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static xyz.mcutils.backend.service.PlayerRefreshService.*;
+
 @Service
 @Slf4j
 public class PlayerService {
@@ -123,6 +125,7 @@ public class PlayerService {
                 skin,
                 cape,
                 0,
+                0,
                 null,
                 Instant.now(),
                 Instant.now()
@@ -192,6 +195,7 @@ public class PlayerService {
                     0,
                     skin,
                     cape,
+                    0,
                     0,
                     null,
                     Instant.now(),
@@ -308,14 +312,22 @@ public class PlayerService {
 
     private void applyChangeDecay(PlayerRow playerRow) {
         Instant lastChange = playerRow.getLastChanged();
+        Instant now = Instant.now();
         if (lastChange == null) {
             playerRow.setChangeScore(1.0d);
         } else {
-            double hoursSince = Duration.between(lastChange, Instant.now()).toMinutes() / 60.0;
+            double hoursSince = Duration.between(lastChange, now).toMinutes() / 60.0;
             double decayed = playerRow.getChangeScore() * Math.exp(-CHANGE_DECAY_RATE * hoursSince);
             playerRow.setChangeScore(decayed + 1.0d);
         }
-        playerRow.setLastChanged(Instant.now());
+        playerRow.setLastChanged(now);
+        playerRow.setPriorityScore(PlayerRow.computeRefreshPriorityScore(
+                playerRow,
+                now,
+                POPULARITY_WEIGHT,
+                VELOCITY_WEIGHT,
+                URGENCY_WEIGHT
+        ));
     }
 
     public Set<UsernameHistory> getUsernameHistory(PlayerRow player) {
