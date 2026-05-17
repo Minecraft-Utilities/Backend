@@ -10,6 +10,7 @@ import xyz.mcutils.backend.model.token.turnstile.TurnstileResponse;
 import xyz.mcutils.backend.repository.postgres.PlayerViewEventRepository;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 @Service
 public class PlayerViewService {
@@ -36,8 +37,12 @@ public class PlayerViewService {
         if (!turnstileResponse.isSuccess()) {
             throw new BadRequestException("Invalid Turnstile Token");
         }
-        // todo: only count an ip once per 30d
         FullPlayer player = this.playerService.getPlayer(request.playerQuery());
-        this.playerViewEventRepository.save(new PlayerViewEventRow(player.getUniqueId(), ip, Instant.now()));
+        boolean alreadyViewed = playerViewEventRepository.existsByPlayerIdAndIpAddressAndViewedAtAfter(
+                player.getUniqueId(), ip, Instant.now().minus(30, ChronoUnit.DAYS)
+        );
+        if (!alreadyViewed) {
+            playerViewEventRepository.save(new PlayerViewEventRow(player.getUniqueId(), ip, Instant.now()));
+        }
     }
 }

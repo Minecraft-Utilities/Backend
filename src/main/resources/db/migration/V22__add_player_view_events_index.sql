@@ -1,0 +1,1 @@
+CREATE INDEX idx_player_view_events_lookup ON player_view_events (player_id, ip_address, viewed_at);
