@@ -39,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 @Slf4j
 public class SkinService {
+    public static final String DEFAULT_SKIN = "31f477eb1a7beee631c2ca64d06f8f68fa93a3386d04452ab27f43acdf1b60cb"; // Steve
     public static final int SKINS_PER_PAGE = 25;
     public static SkinService INSTANCE;
 
@@ -168,13 +169,13 @@ public class SkinService {
         if (sort == SkinLookupSort.TRENDING) {
             long total = this.skinRepository.countByTrendingHeatGreaterThan(0);
             Pagination<Skin> pagination = new Pagination<Skin>().setItemsPerPage(SKINS_PER_PAGE).setTotalItems(total);
-            return pagination.getPage(page, (pageCallback) ->
+            return pagination.getPage(page, (_) ->
                 this.skinRepository.findTrendingSkins(pageable).map(Skin::fromRow).stream().toList()
             );
         }
 
         Pagination<Skin> pagination = new Pagination<Skin>().setItemsPerPage(SKINS_PER_PAGE).setTotalItems(this.statisticsService.getTrackedSkinCount());
-        return pagination.getPage(page, (pageCallback) ->
+        return pagination.getPage(page, (_) ->
             this.skinRepository.findAllSkins(pageable).map(Skin::fromRow).stream().toList()
         );
     }
@@ -196,7 +197,11 @@ public class SkinService {
                 log.debug("Downloading skin image for skin {}", textureId);
                 byte[] bytes = webRequest.getAsByteArray(textureUrl);
                 if (bytes == null) {
-                    throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(textureId));
+                    bytes = webRequest.getAsByteArray("https://textures.minecraft.net/texture/%s".formatted(DEFAULT_SKIN));
+                    log.info("Skin not found for the texture {}, using fallback skin", textureId);
+                    if (bytes == null) {
+                        throw new IllegalStateException("Skin image for skin '%s' was not found".formatted(textureId));
+                    }
                 }
                 log.debug("Downloaded skin image for skin {} in {}ms", textureId, System.currentTimeMillis() - start);
                 this.storageService.upload(StorageService.Bucket.SKINS, textureId + ".png", MediaType.IMAGE_PNG_VALUE, bytes);

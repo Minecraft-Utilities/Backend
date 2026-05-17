@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS idx_skins_unique_owners_id_covering;
