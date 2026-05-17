@@ -2,6 +2,7 @@ package xyz.mcutils.backend.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import xyz.mcutils.backend.common.IPUtils;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.model.domain.player.FullPlayer;
 import xyz.mcutils.backend.model.dto.request.PlayerViewRequest;
@@ -18,6 +19,9 @@ public class PlayerViewService {
     @Value("${mc-utils.player-views.auth-token}")
     public String authToken;
 
+    @Value("${mc-utils.player-views.ip-salt}")
+    public String ipSalt;
+
     private final PlayerService playerService;
     private final TurnstileService turnstileService;
     private final PlayerViewEventRepository playerViewEventRepository;
@@ -33,16 +37,17 @@ public class PlayerViewService {
             throw new IllegalStateException("Player view auth token has not been set");
         }
 
+        String ipHash = IPUtils.hashIp(ip, ipSalt);
         TurnstileResponse turnstileResponse = this.turnstileService.validateToken(request.turnstileToken(), ip);
         if (!turnstileResponse.isSuccess()) {
             throw new BadRequestException("Invalid Turnstile Token");
         }
         FullPlayer player = this.playerService.getPlayer(request.playerQuery());
         boolean alreadyViewed = playerViewEventRepository.existsByPlayerIdAndIpAddressAndViewedAtAfter(
-                player.getUniqueId(), ip, Instant.now().minus(30, ChronoUnit.DAYS)
+                player.getUniqueId(), ipHash, Instant.now().minus(30, ChronoUnit.DAYS)
         );
         if (!alreadyViewed) {
-            playerViewEventRepository.save(new PlayerViewEventRow(player.getUniqueId(), ip, Instant.now()));
+            playerViewEventRepository.save(new PlayerViewEventRow(player.getUniqueId(), ipHash, Instant.now()));
         }
     }
 }

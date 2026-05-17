@@ -132,6 +132,7 @@ mc-utils:
   # Player monthly views
   turnstile-key: set_me
   player-views:
+    ip-salt: set_me
     auth-token: set_me
 
   webhooks:

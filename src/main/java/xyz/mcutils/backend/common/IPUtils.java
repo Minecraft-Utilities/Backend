@@ -3,6 +3,11 @@ package xyz.mcutils.backend.common;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.experimental.UtilityClass;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+
 @UtilityClass
 public class IPUtils {
     /**
@@ -31,5 +36,15 @@ public class IPUtils {
             ip = header.split(",")[0].trim();
         }
         return ip;
+    }
+
+    public static String hashIp(String ip, String salt) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest((salt + ip).getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
