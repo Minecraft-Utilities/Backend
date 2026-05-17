@@ -5,7 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.CoalescingLoader;
 import xyz.mcutils.backend.common.Tuple;
@@ -54,12 +56,13 @@ public class PlayerService {
     private final UsernameChangeEventRepository usernameChangeEventRepository;
     private final SkinChangeEventRepository skinChangeEventRepository;
     private final CapeChangeEventRepository capeChangeEventRepository;
+    private final TransactionTemplate transactionTemplate;
 
     private final CoalescingLoader<String, PlayerRow> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerRepository playerRepository,
                          UsernameChangeEventRepository usernameChangeEventRepository, SkinChangeEventRepository skinChangeEventRepository,
-                         CapeChangeEventRepository capeChangeEventRepository) {
+                         CapeChangeEventRepository capeChangeEventRepository, PlatformTransactionManager transactionManager) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
@@ -67,6 +70,7 @@ public class PlayerService {
         this.usernameChangeEventRepository = usernameChangeEventRepository;
         this.skinChangeEventRepository = skinChangeEventRepository;
         this.capeChangeEventRepository = capeChangeEventRepository;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     @PostConstruct
@@ -218,56 +222,57 @@ public class PlayerService {
         ).join();
     }
 
-    @Transactional
     public void updatePlayers(List<PlayerUpdate> playerUpdates) {
-        List<PlayerRow> playerRows = new ArrayList<>();
-        List<SkinChangeEventRow> skinChangeEvents = new ArrayList<>();
-        List<CapeChangeEventRow> capeChangeEvents = new ArrayList<>();
-        List<UsernameChangeEventRow> usernameChangeEvents = new ArrayList<>();
+        this.transactionTemplate.executeWithoutResult(_ -> {
+            List<PlayerRow> playerRows = new ArrayList<>();
+            List<SkinChangeEventRow> skinChangeEvents = new ArrayList<>();
+            List<CapeChangeEventRow> capeChangeEvents = new ArrayList<>();
+            List<UsernameChangeEventRow> usernameChangeEvents = new ArrayList<>();
 
-        List<PlayerUpdate> sortedUpdates = playerUpdates.stream()
-                .sorted(Comparator.comparing(u -> u.playerRow().getId()))
-                .toList();
+            List<PlayerUpdate> sortedUpdates = playerUpdates.stream()
+                    .sorted(Comparator.comparing(u -> u.playerRow().getId()))
+                    .toList();
 
-        List<UpdatePlayerResult> updatePlayerResults = new ArrayList<>();
-        for (PlayerUpdate playerUpdate : sortedUpdates) {
-            updatePlayerResults.add(this.applyPlayerUpdate(playerUpdate));
-        }
-
-        for (UpdatePlayerResult update : updatePlayerResults) {
-            playerRows.add(update.playerRow());
-            if (update.skinChangeEventRow() != null) {
-                skinChangeEvents.add(update.skinChangeEventRow());
+            List<UpdatePlayerResult> updatePlayerResults = new ArrayList<>();
+            for (PlayerUpdate playerUpdate : sortedUpdates) {
+                updatePlayerResults.add(this.applyPlayerUpdate(playerUpdate));
             }
-            if (update.capeChangeEventRow() != null) {
-                capeChangeEvents.add(update.capeChangeEventRow());
-            }
-            if (update.usernameChangeEventRow() != null) {
-                usernameChangeEvents.add(update.usernameChangeEventRow());
-            }
-        }
 
-        this.playerRepository.saveAll(playerRows);
-        this.skinChangeEventRepository.saveAll(skinChangeEvents);
-        this.capeChangeEventRepository.saveAll(capeChangeEvents);
-        this.usernameChangeEventRepository.saveAll(usernameChangeEvents);
-        MetricService.getMetric(AccountsUpdatedMetric.class).inc(playerRows.size());
-        MetricService.getMetric(PlayerChangesDetectedMetric.class).inc(skinChangeEvents.size() + capeChangeEvents.size() + usernameChangeEvents.size());
-        StatisticsService.addNameChangesCount(usernameChangeEvents.size());
+            for (UpdatePlayerResult update : updatePlayerResults) {
+                playerRows.add(update.playerRow());
+                if (update.skinChangeEventRow() != null) {
+                    skinChangeEvents.add(update.skinChangeEventRow());
+                }
+                if (update.capeChangeEventRow() != null) {
+                    capeChangeEvents.add(update.capeChangeEventRow());
+                }
+                if (update.usernameChangeEventRow() != null) {
+                    usernameChangeEvents.add(update.usernameChangeEventRow());
+                }
+            }
 
-        for (UsernameChangeEventRow usernameChangeEvent : usernameChangeEvents) {
-            WebSocketManager.getWebsocket(NameChangeWebSocket.class).sendMessageToAll(new RecentUsernameChange(
-                    usernameChangeEvent.getPlayerId(),
-                    usernameChangeEvent.getNewUsername(),
-                    usernameChangeEvent.getPreviousUsername(),
-                    usernameChangeEvent.getTimestamp()
-            ));
-        }
+            this.playerRepository.saveAll(playerRows);
+            this.skinChangeEventRepository.saveAll(skinChangeEvents);
+            this.capeChangeEventRepository.saveAll(capeChangeEvents);
+            this.usernameChangeEventRepository.saveAll(usernameChangeEvents);
+            MetricService.getMetric(AccountsUpdatedMetric.class).inc(playerRows.size());
+            MetricService.getMetric(PlayerChangesDetectedMetric.class).inc(skinChangeEvents.size() + capeChangeEvents.size() + usernameChangeEvents.size());
+            StatisticsService.addNameChangesCount(usernameChangeEvents.size());
+
+            for (UsernameChangeEventRow usernameChangeEvent : usernameChangeEvents) {
+                WebSocketManager.getWebsocket(NameChangeWebSocket.class).sendMessageToAll(new RecentUsernameChange(
+                        usernameChangeEvent.getPlayerId(),
+                        usernameChangeEvent.getNewUsername(),
+                        usernameChangeEvent.getPreviousUsername(),
+                        usernameChangeEvent.getTimestamp()
+                ));
+            }
+        });
     }
 
     private UpdatePlayerResult applyPlayerUpdate(PlayerUpdate playerUpdate) {
-        PlayerRow playerRow = this.playerRepository.findByIdForUpdate(playerUpdate.playerRow().getId())
-                .orElseThrow(() -> new NotFoundException("Player '%s' was not found".formatted(playerUpdate.playerRow().getId())));
+        PlayerRow playerRow = this.playerRepository.findByIdForUpdate(playerUpdate.playerRow().getId()).orElseThrow(() -> 
+                new NotFoundException("Player '%s' was not found".formatted(playerUpdate.playerRow().getId())));
         MojangProfileToken token = playerUpdate.token();
 
         SkinChangeEventRow skinChangeEventRow = null;
