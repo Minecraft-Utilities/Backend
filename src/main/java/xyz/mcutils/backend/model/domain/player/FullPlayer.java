@@ -34,26 +34,12 @@ public class FullPlayer extends BasicPlayer {
      */
     private long submittedUuids;
 
-    /**
-     * The skins this player has previously equipped (including current).
-     */
+    private long monthlyViews;
     private Set<Skin> skinHistory;
-
-    /**
-     * The capes this player has previously equipped (including current).
-     */
     @Nullable
     private Set<VanillaCape> capeHistory;
-
-    /**
-     * The username history of the player.
-     */
     @Nullable
     private Set<UsernameHistory> usernameHistory;
-
-    /**
-     * The time this account was last updated.
-     */
     private Instant lastUpdated;
 
     public static FullPlayer fromRow(PlayerRow playerRow, PlayerService playerService) {
@@ -66,6 +52,7 @@ public class FullPlayer extends BasicPlayer {
                 .firstSeen(playerRow.getFirstSeen())
                 .legacyAccount(playerRow.isLegacyAccount())
                 .submittedUuids(playerRow.getSubmittedUuids())
+                .monthlyViews(playerRow.getMonthlyViews())
                 .skinHistory(playerService.getSkinHistory(playerRow))
                 .capeHistory(playerService.getCapeHistory(playerRow))
                 .usernameHistory(playerService.getUsernameHistory(playerRow))

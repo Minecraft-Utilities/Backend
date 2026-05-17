@@ -1,6 +1,8 @@
 package xyz.mcutils.backend.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.IPUtils;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
@@ -8,12 +10,14 @@ import xyz.mcutils.backend.model.domain.player.FullPlayer;
 import xyz.mcutils.backend.model.dto.request.PlayerViewRequest;
 import xyz.mcutils.backend.model.persistence.postgres.PlayerViewEventRow;
 import xyz.mcutils.backend.model.token.turnstile.TurnstileResponse;
+import xyz.mcutils.backend.repository.postgres.PlayerRepository;
 import xyz.mcutils.backend.repository.postgres.PlayerViewEventRepository;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
 @Service
+@Slf4j
 public class PlayerViewService {
 
     @Value("${mc-utils.player-views.auth-token}")
@@ -24,12 +28,23 @@ public class PlayerViewService {
 
     private final PlayerService playerService;
     private final TurnstileService turnstileService;
+    private final PlayerRepository playerRepository;
     private final PlayerViewEventRepository playerViewEventRepository;
 
-    public PlayerViewService(PlayerService playerService, TurnstileService turnstileService, PlayerViewEventRepository playerViewEventRepository) {
+    public PlayerViewService(PlayerService playerService, TurnstileService turnstileService, PlayerRepository playerRepository,
+                             PlayerViewEventRepository playerViewEventRepository) {
         this.playerService = playerService;
         this.turnstileService = turnstileService;
+        this.playerRepository = playerRepository;
         this.playerViewEventRepository = playerViewEventRepository;
+    }
+
+    @Scheduled(cron = "0 0 * * * *") // Every hour
+    public void updateTrendingHeat() {
+        long before = System.currentTimeMillis();
+        this.playerRepository.resetMonthlyViews();
+        this.playerRepository.updateMonthlyViews();
+        log.info("Updated monthly views for players in {}ms", System.currentTimeMillis() - before);
     }
 
     public void countView(PlayerViewRequest request, String ip) {

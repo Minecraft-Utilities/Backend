@@ -116,7 +116,10 @@ public class PlayerService {
                 id,
                 token.getName(),
                 token.getLegacy() != null && token.getLegacy(),
-                0, skin, cape,
+                0,
+                0,
+                skin,
+                cape,
                 Instant.now(),
                 Instant.now()
         ));
@@ -181,7 +184,10 @@ public class PlayerService {
                     id,
                     token.getName(),
                     token.getLegacy() != null && token.getLegacy(),
-                    0, skin, cape,
+                    0,
+                    0,
+                    skin,
+                    cape,
                     Instant.now(),
                     Instant.now()
             ));

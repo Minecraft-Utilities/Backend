@@ -27,6 +27,9 @@ public class PlayerRow {
     @Column(nullable = false, name = "submitted_uuids")
     private long submittedUuids;
 
+    @Column(nullable = false, name = "monthly_views")
+    private long monthlyViews;
+
     @ManyToOne
     @JoinColumn(nullable = false, name = "skin_id")
     private SkinRow skin;
