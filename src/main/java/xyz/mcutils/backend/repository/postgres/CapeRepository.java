@@ -9,6 +9,7 @@ import xyz.mcutils.backend.model.persistence.postgres.CapeRow;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface CapeRepository extends JpaRepository<CapeRow, Long> {
     Optional<CapeRow> findByTextureId(String textureId);
@@ -17,12 +18,13 @@ public interface CapeRepository extends JpaRepository<CapeRow, Long> {
     Slice<CapeRow> findAllOrderByUniqueOwnersDescIdAsc(Pageable pageable);
 
     @Query(nativeQuery = true, value = """
-        INSERT INTO capes (name, texture_id, unique_owners, first_seen)
-        VALUES (:name, :textureId, 0, :firstSeen)
+        INSERT INTO capes (name, texture_id, unique_owners, first_seen, first_seen_using_player_id)
+        VALUES (:name, :textureId, 0, :firstSeen, :firstSeenUsingPlayerId)
         ON CONFLICT (texture_id) DO NOTHING
         RETURNING *
         """)
     Optional<CapeRow> insertIfAbsent(@Param("name") String name,
                                      @Param("textureId") String textureId,
-                                     @Param("firstSeen") Instant firstSeen);
+                                     @Param("firstSeen") Instant firstSeen,
+                                     @Param("firstSeenUsingPlayerId") UUID firstSeenUsingPlayerId);
 }

@@ -11,6 +11,7 @@ import xyz.mcutils.backend.model.persistence.postgres.SkinRow;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface SkinRepository extends JpaRepository<SkinRow, Long> {
     Optional<SkinRow> findByTextureId(String textureId);
@@ -26,15 +27,15 @@ public interface SkinRepository extends JpaRepository<SkinRow, Long> {
     @Modifying
     @Transactional
     @Query(nativeQuery = true, value = """
-        INSERT INTO skins (texture_id, model, legacy, unique_owners, first_seen)
-        VALUES (:textureId, CAST(:model AS skin_model), :legacy, 0, :firstSeen)
+        INSERT INTO skins (texture_id, model, legacy, unique_owners, first_seen, first_seen_using_player_id)
+        VALUES (:textureId, CAST(:model AS skin_model), :legacy, 0, :firstSeen, :firstSeenUsingPlayerId)
         ON CONFLICT (texture_id) DO NOTHING
         """)
     int insertIfAbsent(@Param("textureId") String textureId,
                        @Param("model") String model,
                        @Param("legacy") boolean legacy,
-                       @Param("firstSeen") Instant firstSeen
-    );
+                       @Param("firstSeen") Instant firstSeen,
+                       @Param("firstSeenUsingPlayerId") UUID firstSeenUsingPlayerId);
 
     @Modifying
     @Transactional
@@ -47,11 +48,10 @@ public interface SkinRepository extends JpaRepository<SkinRow, Long> {
         UPDATE skins
         SET trending_heat = subquery.trending_heat
         FROM (
-            SELECT sce.skin_id, COUNT(DISTINCT sce.player_id) AS trending_heat
-            FROM skin_change_events sce
-            WHERE sce.timestamp >= NOW() - INTERVAL '7 days'
-              AND sce.from_skin_id IS NOT NULL
-            GROUP BY sce.skin_id
+            SELECT psa.skin_id, COUNT(DISTINCT psa.player_id) AS trending_heat
+            FROM player_skin_adoptions psa
+            WHERE psa.last_equipped_at >= NOW() - INTERVAL '7 days'
+            GROUP BY psa.skin_id
         ) AS subquery
         WHERE skins.id = subquery.skin_id
         """)

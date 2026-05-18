@@ -21,18 +21,16 @@ import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.skin.SkinRenderMetric;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.domain.skin.SkinLookupSort;
-import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
-import xyz.mcutils.backend.model.persistence.postgres.SkinChangeEventRow;
 import xyz.mcutils.backend.model.persistence.postgres.SkinRow;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.repository.postgres.PlayerRepository;
-import xyz.mcutils.backend.repository.postgres.SkinChangeEventRepository;
 import xyz.mcutils.backend.repository.postgres.SkinRepository;
 
 import java.awt.image.BufferedImage;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -43,7 +41,6 @@ public class SkinService {
     public static SkinService INSTANCE;
 
     private final SkinRepository skinRepository;
-    private final SkinChangeEventRepository skinChangeEventRepository;
     private final PlayerRepository playerRepository;
     private final StorageService storageService;
     private final StatisticsService statisticsService;
@@ -63,10 +60,9 @@ public class SkinService {
     @Value("${mc-utils.renderer.skin.limits.max_size}")
     private int maxPartSize;
 
-    public SkinService(SkinRepository skinRepository, SkinChangeEventRepository skinChangeEventRepository, PlayerRepository playerRepository,
-                       StorageService storageService, WebRequest webRequest,  StatisticsService statisticsService) {
+    public SkinService(SkinRepository skinRepository, PlayerRepository playerRepository,
+                       StorageService storageService, WebRequest webRequest, StatisticsService statisticsService) {
         this.skinRepository = skinRepository;
-        this.skinChangeEventRepository = skinChangeEventRepository;
         this.playerRepository = playerRepository;
         this.storageService = storageService;
         this.webRequest = webRequest;
@@ -94,10 +90,9 @@ public class SkinService {
         SkinRow skinRow = optionalSkinRow.get();
         Skin skin = Skin.fromRow(skinRow);
 
-        Optional<SkinChangeEventRow> firstEvent = this.skinChangeEventRepository.findFirstBySkinId(skinRow.getId());
-        if (firstEvent.isPresent()) {
-            Optional<PlayerRow> firstPlayer = this.playerRepository.findById(firstEvent.get().getPlayerId());
-            firstPlayer.ifPresent(p -> skin.setFirstSeenUsing(p.getUsername()));
+        if (skinRow.getFirstSeenUsingPlayerId() != null) {
+            this.playerRepository.findById(skinRow.getFirstSeenUsingPlayerId())
+                    .ifPresent(p -> skin.setFirstSeenUsing(p.getUsername()));
         }
 
         List<String> usersUsing = this.playerRepository.findUsernamesBySkinId(skinRow.getId(), PageRequest.of(0, 250));
@@ -138,14 +133,18 @@ public class SkinService {
         return optionalSkinRow.get();
     }
 
+    /**
+     * Cached variant of {@link #getOrCreateSkin(SkinTextureToken, UUID)}.
+     * Cache key is the texture ID only; {@code playerId} is only relevant on first insert.
+     */
     @Cacheable(value = "skinByTextureId", key = "#token.textureId")
     @Transactional
-    public SkinRow getOrCreateSkinCached(SkinTextureToken token) {
-        return getOrCreateSkin(token);
+    public SkinRow getOrCreateSkinCached(SkinTextureToken token, UUID playerId) {
+        return getOrCreateSkin(token, playerId);
     }
 
     @Transactional
-    public SkinRow getOrCreateSkin(SkinTextureToken token) {
+    public SkinRow getOrCreateSkin(SkinTextureToken token, UUID playerId) {
         Optional<SkinRow> optionalSkinRow = this.skinRepository.findByTextureId(token.getTextureId());
         if (optionalSkinRow.isPresent()) {
             return optionalSkinRow.get();
@@ -154,7 +153,7 @@ public class SkinService {
                 ? Skin.Model.DEFAULT
                 : Skin.Model.valueOf(token.metadata().model().toUpperCase());
         boolean legacy = Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), this.webRequest);
-        int inserted = this.skinRepository.insertIfAbsent(token.getTextureId(), model.name(), legacy, Instant.now());
+        int inserted = this.skinRepository.insertIfAbsent(token.getTextureId(), model.name(), legacy, Instant.now(), playerId);
         if (inserted > 0) {
             StatisticsService.addTrackedSkinCount(1);
         }
@@ -216,7 +215,7 @@ public class SkinService {
      * Canonical image is stored at max size; smaller requested sizes are produced by downscaling.
      * Cape rendering is only supported for {@code FULLBODY_ISO_FRONT} and {@code FULLBODY_ISO_BACK} parts.
      *
-     * @param skin    the skin to render
+     * @param skin     the skin to render
      * @param typeName the name of the part
      * @param options  render options (overlay flag and optional cape)
      * @param size     the output size (height; width derived per type)

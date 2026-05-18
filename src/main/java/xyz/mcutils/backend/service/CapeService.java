@@ -19,11 +19,8 @@ import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.cape.CapeRenderMetric;
 import xyz.mcutils.backend.model.domain.cape.Cape;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
-import xyz.mcutils.backend.model.persistence.postgres.CapeChangeEventRow;
 import xyz.mcutils.backend.model.persistence.postgres.CapeRow;
-import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
 import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
-import xyz.mcutils.backend.repository.postgres.CapeChangeEventRepository;
 import xyz.mcutils.backend.repository.postgres.CapeRepository;
 import xyz.mcutils.backend.repository.postgres.PlayerRepository;
 
@@ -32,6 +29,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @Service
@@ -39,38 +37,36 @@ import java.util.concurrent.CompletableFuture;
 public class CapeService {
     public static final int CAPES_PER_PAGE = 50;
     public static CapeService INSTANCE;
-    
+
     private final StorageService storageService;
     private final PlayerService playerService;
     private final StatisticsService statisticsService;
     private final CapeRepository capeRepository;
-    private final CapeChangeEventRepository capeChangeEventRepository;
     private final PlayerRepository playerRepository;
     private final WebRequest webRequest;
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
-    
+
     @Value("${mc-utils.renderer.cape.cache}")
     private boolean cacheEnabled;
-    
+
     @Value("${mc-utils.renderer.cape.enabled}")
     private boolean renderingEnabled;
-    
+
     @Value("${mc-utils.renderer.cape.limits.min_size}")
     private int minPartSize;
-    
+
     @Value("${mc-utils.renderer.cape.limits.max_size}")
     private int maxPartSize;
 
     @Value("${mc-utils.webhooks.new_cape_discovered}")
     private String newCapeDiscoveredWebhook;
 
-    public CapeService(StorageService storageService, @Lazy PlayerService playerService, StatisticsService statisticsService, CapeRepository capeRepository,
-                       CapeChangeEventRepository capeChangeEventRepository, PlayerRepository playerRepository, WebRequest webRequest) {
+    public CapeService(StorageService storageService, @Lazy PlayerService playerService, StatisticsService statisticsService,
+                       CapeRepository capeRepository, PlayerRepository playerRepository, WebRequest webRequest) {
         this.storageService = storageService;
         this.playerService = playerService;
         this.statisticsService = statisticsService;
         this.capeRepository = capeRepository;
-        this.capeChangeEventRepository = capeChangeEventRepository;
         this.playerRepository = playerRepository;
         this.webRequest = webRequest;
     }
@@ -83,15 +79,14 @@ public class CapeService {
     public VanillaCape getCapeById(long id) {
         Optional<CapeRow> optionalCapeRow = this.capeRepository.findById(id);
         if (optionalCapeRow.isEmpty()) {
-            throw new NotFoundException("Skin not found");
+            throw new NotFoundException("Cape not found");
         }
         CapeRow capeRow = optionalCapeRow.get();
         VanillaCape cape = VanillaCape.fromRow(capeRow);
 
-        Optional<CapeChangeEventRow> firstEvent = this.capeChangeEventRepository.findFirstByCapeId(capeRow.getId());
-        if (firstEvent.isPresent()) {
-            Optional<PlayerRow> firstPlayer = this.playerRepository.findById(firstEvent.get().getPlayerId());
-            firstPlayer.ifPresent(p -> cape.setFirstSeenUsing(p.getUsername()));
+        if (capeRow.getFirstSeenUsingPlayerId() != null) {
+            this.playerRepository.findById(capeRow.getFirstSeenUsingPlayerId())
+                    .ifPresent(p -> cape.setFirstSeenUsing(p.getUsername()));
         }
 
         List<String> usersOwning = this.playerRepository.findUsernamesByCapeId(capeRow.getId(), PageRequest.of(0, 250));
@@ -121,19 +116,23 @@ public class CapeService {
         return optionalCapeRow.get();
     }
 
+    /**
+     * Cached variant of {@link #getOrCreateCape(CapeTextureToken, UUID)}.
+     * Cache key is the texture ID only; {@code playerId} is only relevant on first insert.
+     */
     @Cacheable(value = "capeByTextureId", key = "#token.textureId")
     @Transactional
-    public CapeRow getOrCreateCapeCached(CapeTextureToken token) {
-        return getOrCreateCape(token);
+    public CapeRow getOrCreateCapeCached(CapeTextureToken token, UUID playerId) {
+        return getOrCreateCape(token, playerId);
     }
 
     @Transactional
-    public CapeRow getOrCreateCape(CapeTextureToken token) {
+    public CapeRow getOrCreateCape(CapeTextureToken token, UUID playerId) {
         Optional<CapeRow> optionalCapeRow = this.capeRepository.findByTextureId(token.getTextureId());
         if (optionalCapeRow.isPresent()) {
             return optionalCapeRow.get();
         }
-        Optional<CapeRow> inserted = this.capeRepository.insertIfAbsent(null, token.getTextureId(), Instant.now());
+        Optional<CapeRow> inserted = this.capeRepository.insertIfAbsent(null, token.getTextureId(), Instant.now(), playerId);
         if (inserted.isPresent()) {
             CapeRow newCape = inserted.get();
             StatisticsService.addTrackedCapeCount(1);
@@ -157,10 +156,7 @@ public class CapeService {
     public Pagination.Page<VanillaCape> getPaginatedCapes(int page) {
         Pagination<VanillaCape> pagination = new Pagination<VanillaCape>().setItemsPerPage(CAPES_PER_PAGE).setTotalItems(this.statisticsService.getTrackedCapeCount());
         return pagination.getPage(page, (pageCallback) -> {
-            Pageable pageable = PageRequest.of(
-                    page - 1,
-                    pageCallback.limit()
-            );
+            Pageable pageable = PageRequest.of(page - 1, pageCallback.limit());
             return this.capeRepository.findAllOrderByUniqueOwnersDescIdAsc(pageable).map(VanillaCape::fromRow).stream().toList();
         });
     }
@@ -235,8 +231,7 @@ public class CapeService {
                     return null;
                 });
             }
-        }
-        else {
+        } else {
             log.debug("Got cape part for cape {} from cache in {}ms", cape.getTextureId(), System.currentTimeMillis() - cacheStart);
             MetricService.getMetric(CapeRenderMetric.class).recordHit();
         }
@@ -248,149 +243,4 @@ public class CapeService {
         BufferedImage image = canonicalImage != null ? canonicalImage : ImageUtils.decodeImage(canonicalBytes);
         return ImageUtils.imageToBytes(ImageUtils.resizeToHeight(image, size), 1);
     }
-
-//    /**
-//     * Gets a paginated list of capes.
-//     *
-//     * @param page the page to get
-//     * @return the paginated list of capes
-//     */
-//    public Pagination.Page<VanillaCape> getPaginatedCapes(int page) {
-//        Pagination<VanillaCape> pagination = new Pagination<VanillaCape>().setItemsPerPage(CAPES_PER_PAGE).setTotalItems(this.getTrackedCapeCount());
-//        return pagination.getPage(page, (pageCallback) -> {
-//            Query q = new Query().with(PageRequest.of(page - 1, pageCallback.limit())).with(Sort.by(Sort.Order.desc("accountsOwned"), Sort.Order.asc("_id")));
-//            List<Document> idDocs = MongoUtils.findWithFields(mongoTemplate, q, CapeDocument.class, "_id");
-//            List<UUID> ids = idDocs.stream().map(doc -> doc.get("_id", UUID.class)).toList();
-//            Map<UUID, CapeDocument> byId = capeManager.getByIds(ids);
-//            return ids.stream().map(byId::get).filter(Objects::nonNull).map(this::fromDocument).toList();
-//        });
-//    }
-//
-//    /**
-//     * Gets the DTO for the given cape.
-//     *
-//     * @param id the UUID of the cape
-//     * @return the cape DTO
-//     */
-//    public VanillaCape getCape(UUID id) {
-//        CapeDocument capeDocument = this.capeManager.getById(id).orElseThrow(() -> new NotFoundException("Cape with id '%s' not found".formatted(id)));
-//        String firstSeenUsing = null;
-//        if (capeDocument.getFirstPlayerSeenUsing() != null) {
-//            Query firstQuery = Query.query(Criteria.where("_id").is(capeDocument.getFirstPlayerSeenUsing())).limit(1);
-//            List<Document> firstDoc = MongoUtils.findWithFields(mongoTemplate, firstQuery, PlayerDocument.class, "_id", "username");
-//            if (!firstDoc.isEmpty()) {
-//                firstSeenUsing = firstDoc.getFirst().getString("username");
-//            }
-//        }
-//        Query query = Query.query(Criteria.where("cape").is(capeDocument.getId())).with(PageRequest.of(0, 500));
-//        List<String> accountsSeenOwning = MongoUtils.findWithFields(mongoTemplate, query, PlayerDocument.class, "_id", "username").stream().map(doc -> doc.getString("username")).toList();
-//        VanillaCape cape = fromDocument(capeDocument);
-//        cape.setFirstSeenUsing(firstSeenUsing);
-//        cape.setAccountsSeenOwning(accountsSeenOwning);
-//        return cape;
-//    }
-//
-//    /**
-//     * Gets all the known capes sorted by accounts owned.
-//     * Queries DB for cape IDs only, then resolves each via cache/manager.
-//     *
-//     * @return the known capes
-//     */
-//    public Map<String, VanillaCape> getCapes() {
-//        Map<String, VanillaCape> capes = new LinkedHashMap<>();
-//        Query q = new Query().with(Sort.by(Sort.Order.desc("accountsOwned"), Sort.Order.asc("_id")));
-//        List<Document> idDocs = MongoUtils.findWithFields(mongoTemplate, q, CapeDocument.class, "_id");
-//        List<UUID> ids = idDocs.stream().map(doc -> doc.get("_id", UUID.class)).toList();
-//        Map<UUID, CapeDocument> byId = capeManager.getByIds(ids);
-//        for (UUID id : ids) {
-//            CapeDocument cd = byId.get(id);
-//            if (cd != null) {
-//                VanillaCape c = fromDocument(cd);
-//                capes.put(c.getTextureId(), c);
-//            }
-//        }
-//        return capes;
-//    }
-//
-//    /**
-//     * Gets a cape by its id (cache or repository).
-//     *
-//     * @param id the cape document id
-//     * @return the cape, or null if not found
-//     */
-//    public VanillaCape getCapeById(UUID id) {
-//        if (id == null) {
-//            return null;
-//        }
-//        return this.capeManager.getById(id).map(this::fromDocument).orElse(null);
-//    }
-//
-//    /**
-//     * Gets a cape by texture id (creates if valid and missing).
-//     *
-//     * @param textureId the cape to get
-//     * @return the cape
-//     * @throws NotFoundException if the cape does not exist and could not be created
-//     */
-//    public VanillaCape getCapeByTextureId(String textureId) {
-//        if (textureId == null || textureId.isBlank()) {
-//            return null;
-//        }
-//        return capeManager.getByTextureId(textureId).map(this::fromDocument).orElseGet(() -> fromDocument(capeManager.getOrCreateByTextureId(textureId, null)));
-//    }
-//
-//    /**
-//     * Gets a Cape from the texture id or the player's name / uuid.
-//     *
-//     * @param query the query to search for
-//     * @return the cape, or null
-//     */
-//    public Cape<?> getCapeFromTextureIdOrPlayer(String query) {
-//        Cape<?> cape;
-//        // I really have no idea how long their sha-1 string length is
-//        // a player name can't be more than 16 chars, so just assume it's a texture id
-//        if (query.length() > 16) {
-//            cape = this.getCapeByTextureId(query);
-//        }
-//        else {
-//            Player player = this.playerService.getPlayer(query);
-//            cape = player.getCape();
-//            if (cape == null) {
-//                throw new NotFoundException("Player '%s' does not have a cape equipped".formatted(player.getUsername()));
-//            }
-//        }
-//        return cape;
-//    }
-//
-//    /**
-//     * Increments accountsOwned in memory for the given cape.
-//     *
-//     * @param capeId the cape document id
-//     */
-//    public void incrementAccountsOwned(UUID capeId) {
-//        capeManager.incrementAccountsOwned(capeId, 1);
-//    }
-//
-//
-//    /**
-//     * Converts a {@link CapeDocument} to a {@link VanillaCape}.
-//     *
-//     * @param document the document to convert
-//     * @return the converted cape
-//     */
-//    public VanillaCape fromDocument(CapeDocument document) {
-//        if (document == null) {
-//            return null;
-//        }
-//        VanillaCape cape = new VanillaCape(document.getId(), document.getName(), document.getAccountsOwned(), document.getTextureId());
-//        cape.setFirstSeen(document.getFirstSeen());
-//        return cape;
-//    }
-//
-//    /**
-//     * Returns an estimated count of tracked capes for fast statistics.
-//     */
-//    public long getTrackedCapeCount() {
-//        return this.mongoTemplate.estimatedCount(CapeDocument.class);
-//    }
 }

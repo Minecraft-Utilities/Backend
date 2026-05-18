@@ -25,9 +25,9 @@ import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
-import xyz.mcutils.backend.repository.postgres.CapeChangeEventRepository;
+import xyz.mcutils.backend.repository.postgres.PlayerCapeAdoptionRepository;
 import xyz.mcutils.backend.repository.postgres.PlayerRepository;
-import xyz.mcutils.backend.repository.postgres.SkinChangeEventRepository;
+import xyz.mcutils.backend.repository.postgres.PlayerSkinAdoptionRepository;
 import xyz.mcutils.backend.repository.postgres.UsernameChangeEventRepository;
 import xyz.mcutils.backend.websocket.WebSocketManager;
 import xyz.mcutils.backend.websocket.impl.NameChangeWebSocket;
@@ -51,22 +51,24 @@ public class PlayerService {
     private final CapeService capeService;
     private final PlayerRepository playerRepository;
     private final UsernameChangeEventRepository usernameChangeEventRepository;
-    private final SkinChangeEventRepository skinChangeEventRepository;
-    private final CapeChangeEventRepository capeChangeEventRepository;
+    private final PlayerSkinAdoptionRepository playerSkinAdoptionRepository;
+    private final PlayerCapeAdoptionRepository playerCapeAdoptionRepository;
     private final TransactionTemplate transactionTemplate;
 
     private final CoalescingLoader<String, PlayerRow> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
-    public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService, PlayerRepository playerRepository,
-                         UsernameChangeEventRepository usernameChangeEventRepository, SkinChangeEventRepository skinChangeEventRepository,
-                         CapeChangeEventRepository capeChangeEventRepository, PlatformTransactionManager transactionManager) {
+    public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService,
+                         PlayerRepository playerRepository, UsernameChangeEventRepository usernameChangeEventRepository,
+                         PlayerSkinAdoptionRepository playerSkinAdoptionRepository,
+                         PlayerCapeAdoptionRepository playerCapeAdoptionRepository,
+                         PlatformTransactionManager transactionManager) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
         this.playerRepository = playerRepository;
         this.usernameChangeEventRepository = usernameChangeEventRepository;
-        this.skinChangeEventRepository = skinChangeEventRepository;
-        this.capeChangeEventRepository = capeChangeEventRepository;
+        this.playerSkinAdoptionRepository = playerSkinAdoptionRepository;
+        this.playerCapeAdoptionRepository = playerCapeAdoptionRepository;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
@@ -113,9 +115,11 @@ public class PlayerService {
     @Transactional
     public PlayerRow createPlayer(MojangProfileToken token) {
         UUID id = UUIDUtils.parseUuid(token.getId());
-        SkinRow skin = this.skinService.getOrCreateSkin(token.getSkinAndCape().left());
+        Instant now = Instant.now();
+
+        SkinRow skin = this.skinService.getOrCreateSkin(token.getSkinAndCape().left(), id);
         CapeTextureToken capeToken = token.getSkinAndCape().right();
-        CapeRow cape = capeToken != null ? this.capeService.getOrCreateCape(capeToken) : null;
+        CapeRow cape = capeToken != null ? this.capeService.getOrCreateCape(capeToken, id) : null;
 
         PlayerRow playerRow = this.playerRepository.save(new PlayerRow(
                 id,
@@ -125,13 +129,13 @@ public class PlayerService {
                 0,
                 skin,
                 cape,
-                Instant.now(),
-                Instant.now()
+                now,
+                now
         ));
 
-        this.skinChangeEventRepository.save(new SkinChangeEventRow(id, null, skin, Instant.now()));
+        this.playerSkinAdoptionRepository.upsert(id, skin.getId(), now);
         if (cape != null) {
-            this.capeChangeEventRepository.save(new CapeChangeEventRow(id, cape, Instant.now()));
+            this.playerCapeAdoptionRepository.upsert(id, cape.getId(), now);
         }
 
         StatisticsService.addTrackedPlayerCount(1);
@@ -148,14 +152,24 @@ public class PlayerService {
                 .map(t -> t.getSkinAndCape().left())
                 .collect(Collectors.toMap(
                         SkinTextureToken::getTextureId,
-                        t -> CompletableFuture.supplyAsync(() -> this.skinService.getOrCreateSkinCached(t), Main.EXECUTOR),
+                        t -> CompletableFuture.supplyAsync(() -> {
+                            UUID firstPlayerId = UUIDUtils.parseUuid(tokens.stream()
+                                    .filter(tok -> tok.getSkinAndCape().left().getTextureId().equals(t.getTextureId()))
+                                    .findFirst().orElseThrow().getId());
+                            return this.skinService.getOrCreateSkinCached(t, firstPlayerId);
+                        }, Main.EXECUTOR),
                         (a, b) -> a));
         Map<String, CompletableFuture<CapeRow>> capeFutures = tokens.stream()
                 .map(t -> t.getSkinAndCape().right())
                 .filter(Objects::nonNull)
                 .collect(Collectors.toMap(
                         CapeTextureToken::getTextureId,
-                        t -> CompletableFuture.supplyAsync(() -> this.capeService.getOrCreateCapeCached(t), Main.EXECUTOR),
+                        t -> CompletableFuture.supplyAsync(() -> {
+                            UUID firstPlayerId = UUIDUtils.parseUuid(tokens.stream()
+                                    .filter(tok -> tok.getSkinAndCape().right() != null && tok.getSkinAndCape().right().getTextureId().equals(t.getTextureId()))
+                                    .findFirst().orElseThrow().getId());
+                            return this.capeService.getOrCreateCapeCached(t, firstPlayerId);
+                        }, Main.EXECUTOR),
                         (a, b) -> a));
 
         CompletableFuture.allOf(Stream.concat(skinFutures.values().stream(), capeFutures.values().stream())
@@ -170,8 +184,11 @@ public class PlayerService {
         Set<UUID> existingIds = this.playerRepository.findExistingIds(ids);
 
         List<PlayerRow> playerRows = new ArrayList<>();
-        List<SkinChangeEventRow> skinChangeEvents = new ArrayList<>();
-        List<CapeChangeEventRow> capeChangeEvents = new ArrayList<>();
+        // Pending adoption data collected per-player (not per unique texture).
+        record SkinAdoption(UUID playerId, long skinId) {}
+        record CapeAdoption(UUID playerId, long capeId) {}
+        List<SkinAdoption> skinAdoptions = new ArrayList<>();
+        List<CapeAdoption> capeAdoptions = new ArrayList<>();
 
         Instant now = Instant.now();
         for (MojangProfileToken token : tokens) {
@@ -183,9 +200,9 @@ public class PlayerService {
             CapeTextureToken capeToken = token.getSkinAndCape().right();
             CapeRow cape = capeToken != null ? capesByTextureId.get(capeToken.getTextureId()) : null;
 
-            skinChangeEvents.add(new SkinChangeEventRow(id, null, skin, now));
+            skinAdoptions.add(new SkinAdoption(id, skin.getId()));
             if (cape != null) {
-                capeChangeEvents.add(new CapeChangeEventRow(id, cape, now));
+                capeAdoptions.add(new CapeAdoption(id, cape.getId()));
             }
             playerRows.add(new PlayerRow(
                     id,
@@ -208,17 +225,25 @@ public class PlayerService {
         StatisticsService.addTrackedPlayerCount(playerRows.size());
 
         CompletableFuture.allOf(
-                CompletableFuture.runAsync(() -> this.skinChangeEventRepository.saveAll(skinChangeEvents), Main.EXECUTOR),
-                CompletableFuture.runAsync(() -> this.capeChangeEventRepository.saveAll(capeChangeEvents), Main.EXECUTOR)
+                CompletableFuture.runAsync(() -> {
+                    for (SkinAdoption a : skinAdoptions) {
+                        this.playerSkinAdoptionRepository.upsert(a.playerId(), a.skinId(), now);
+                    }
+                }, Main.EXECUTOR),
+                CompletableFuture.runAsync(() -> {
+                    for (CapeAdoption a : capeAdoptions) {
+                        this.playerCapeAdoptionRepository.upsert(a.playerId(), a.capeId(), now);
+                    }
+                }, Main.EXECUTOR)
         ).join();
     }
 
     public void updatePlayers(List<PlayerUpdate> playerUpdates) {
         this.transactionTemplate.executeWithoutResult(_ -> {
             List<PlayerRow> playerRows = new ArrayList<>();
-            List<SkinChangeEventRow> skinChangeEvents = new ArrayList<>();
-            List<CapeChangeEventRow> capeChangeEvents = new ArrayList<>();
             List<UsernameChangeEventRow> usernameChangeEvents = new ArrayList<>();
+            int skinChangeCount = 0;
+            int capeChangeCount = 0;
 
             List<PlayerUpdate> sortedUpdates = playerUpdates.stream()
                     .sorted(Comparator.comparing(u -> u.playerRow().getId()))
@@ -231,11 +256,11 @@ public class PlayerService {
 
             for (UpdatePlayerResult update : updatePlayerResults) {
                 playerRows.add(update.playerRow());
-                if (update.skinChangeEventRow() != null) {
-                    skinChangeEvents.add(update.skinChangeEventRow());
+                if (update.skinChanged()) {
+                    skinChangeCount++;
                 }
-                if (update.capeChangeEventRow() != null) {
-                    capeChangeEvents.add(update.capeChangeEventRow());
+                if (update.capeChanged()) {
+                    capeChangeCount++;
                 }
                 if (update.usernameChangeEventRow() != null) {
                     usernameChangeEvents.add(update.usernameChangeEventRow());
@@ -243,11 +268,9 @@ public class PlayerService {
             }
 
             this.playerRepository.saveAll(playerRows);
-            this.skinChangeEventRepository.saveAll(skinChangeEvents);
-            this.capeChangeEventRepository.saveAll(capeChangeEvents);
             this.usernameChangeEventRepository.saveAll(usernameChangeEvents);
             MetricService.getMetric(AccountsUpdatedMetric.class).inc(playerRows.size());
-            MetricService.getMetric(PlayerChangesDetectedMetric.class).inc(skinChangeEvents.size() + capeChangeEvents.size() + usernameChangeEvents.size());
+            MetricService.getMetric(PlayerChangesDetectedMetric.class).inc(skinChangeCount + capeChangeCount + usernameChangeEvents.size());
             StatisticsService.addNameChangesCount(usernameChangeEvents.size());
 
             for (UsernameChangeEventRow usernameChangeEvent : usernameChangeEvents) {
@@ -262,12 +285,12 @@ public class PlayerService {
     }
 
     private UpdatePlayerResult applyPlayerUpdate(PlayerUpdate playerUpdate) {
-        PlayerRow playerRow = this.playerRepository.findByIdForUpdate(playerUpdate.playerRow().getId()).orElseThrow(() -> 
+        PlayerRow playerRow = this.playerRepository.findByIdForUpdate(playerUpdate.playerRow().getId()).orElseThrow(() ->
                 new NotFoundException("Player '%s' was not found".formatted(playerUpdate.playerRow().getId())));
         MojangProfileToken token = playerUpdate.token();
 
-        SkinChangeEventRow skinChangeEventRow = null;
-        CapeChangeEventRow capeChangeEventRow = null;
+        boolean skinChanged = false;
+        boolean capeChanged = false;
         UsernameChangeEventRow usernameChangeEventRow = null;
 
         if (playerRow.isLegacyAccount() != token.isLegacy()) {
@@ -279,17 +302,23 @@ public class PlayerService {
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
         SkinTextureToken skinToken = skinAndCape.left();
         CapeTextureToken capeToken = skinAndCape.right();
+
         if (!playerRow.getSkin().getTextureId().equals(skinToken.getTextureId())) {
-            SkinRow newSkin = this.skinService.getOrCreateSkinCached(skinToken);
-            skinChangeEventRow = new SkinChangeEventRow(playerRow.getId(), playerRow.getSkin() /* their old skin */, newSkin, now);
+            SkinRow newSkin = this.skinService.getOrCreateSkinCached(skinToken, playerRow.getId());
             playerRow.setSkin(newSkin);
+            this.playerSkinAdoptionRepository.upsert(playerRow.getId(), newSkin.getId(), now);
+            skinChanged = true;
         }
+
         String oldCapeTextureId = playerRow.getCape() != null ? playerRow.getCape().getTextureId() : null;
         String newCapeTextureId = capeToken != null ? capeToken.getTextureId() : null;
         if (!Objects.equals(oldCapeTextureId, newCapeTextureId)) {
-            CapeRow newCape = capeToken != null ? this.capeService.getOrCreateCapeCached(capeToken) : null;
+            CapeRow newCape = capeToken != null ? this.capeService.getOrCreateCapeCached(capeToken, playerRow.getId()) : null;
             playerRow.setCape(newCape);
-            capeChangeEventRow = new CapeChangeEventRow(playerRow.getId(), newCape, now);
+            if (newCape != null) {
+                this.playerCapeAdoptionRepository.upsert(playerRow.getId(), newCape.getId(), now);
+            }
+            capeChanged = true;
         }
 
         String previousUsername = playerRow.getUsername();
@@ -299,12 +328,7 @@ public class PlayerService {
         }
 
         playerRow.setLastUpdated(now);
-        return new UpdatePlayerResult(
-                playerRow,
-                skinChangeEventRow,
-                capeChangeEventRow,
-                usernameChangeEventRow
-        );
+        return new UpdatePlayerResult(playerRow, skinChanged, capeChanged, usernameChangeEventRow);
     }
 
     public Set<UsernameHistory> getUsernameHistory(PlayerRow player) {
@@ -333,35 +357,21 @@ public class PlayerService {
     }
 
     public Set<Skin> getSkinHistory(PlayerRow player) {
-        List<SkinChangeEventRow> events = this.skinChangeEventRepository.findByPlayerId(player.getId());
-        if (events.isEmpty()) {
-            return Collections.emptySet();
-        }
-        Set<Long> skinIds = events.stream().map(e -> e.getSkin().getId()).collect(Collectors.toSet());
-        Map<Long, Instant> firstSeenBySkinId = this.skinChangeEventRepository.findFirstTimestampsBySkinIds(player.getId(), skinIds)
-                .stream()
-                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Instant) row[1]));
-        return events.stream().map(row -> {
-            Skin skin = Skin.fromRow(row.getSkin());
-            skin.setFirstSeen(firstSeenBySkinId.get(skin.getId()));
+        List<PlayerSkinAdoptionRow> adoptions = this.playerSkinAdoptionRepository.findByPlayerIdOrderByFirstSeenAsc(player.getId());
+        return adoptions.stream().map(adoption -> {
+            Skin skin = Skin.fromRow(adoption.getSkin());
+            skin.setFirstSeen(adoption.getFirstSeen());
             return skin;
-        }).collect(Collectors.toSet());
+        }).collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     public Set<VanillaCape> getCapeHistory(PlayerRow player) {
-        List<CapeChangeEventRow> events = this.capeChangeEventRepository.findByPlayerId(player.getId());
-        if (events.isEmpty()) {
-            return Collections.emptySet();
-        }
-        Set<Long> capeIds = events.stream().filter(e -> e.getCape() != null).map(e -> e.getCape().getId()).collect(Collectors.toSet());
-        Map<Long, Instant> firstSeenByCapeId = this.capeChangeEventRepository.findFirstTimestampsByCapeIds(player.getId(), capeIds)
-                .stream()
-                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Instant) row[1]));
-        return events.stream().filter(row -> row.getCape() != null).map(row -> {
-            VanillaCape cape = VanillaCape.fromRow(row.getCape());
-            cape.setFirstSeen(firstSeenByCapeId.get(cape.getId()));
+        List<PlayerCapeAdoptionRow> adoptions = this.playerCapeAdoptionRepository.findByPlayerIdOrderByFirstSeenAsc(player.getId());
+        return adoptions.stream().map(adoption -> {
+            VanillaCape cape = VanillaCape.fromRow(adoption.getCape());
+            cape.setFirstSeen(adoption.getFirstSeen());
             return cape;
-        }).collect(Collectors.toSet());
+        }).collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     public List<FullPlayer> searchPlayers(String query) {
@@ -382,6 +392,7 @@ public class PlayerService {
     }
 
     public record PlayerUpdate(PlayerRow playerRow, MojangProfileToken token) {}
-    public record UpdatePlayerResult(PlayerRow playerRow, SkinChangeEventRow skinChangeEventRow, CapeChangeEventRow capeChangeEventRow,
+
+    public record UpdatePlayerResult(PlayerRow playerRow, boolean skinChanged, boolean capeChanged,
                                      UsernameChangeEventRow usernameChangeEventRow) {}
 }

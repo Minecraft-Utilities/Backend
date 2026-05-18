@@ -8,6 +8,7 @@ import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "skins")
@@ -37,6 +38,9 @@ public class SkinRow {
 
     @Column(nullable = false, name = "first_seen")
     private Instant firstSeen;
+
+    @Column(name = "first_seen_using_player_id")
+    private UUID firstSeenUsingPlayerId;
 
     public SkinRow(String textureId, Skin.Model model, boolean legacy, long uniqueOwners, int trendingHeat, Instant firstSeen) {
         this.textureId = textureId;
