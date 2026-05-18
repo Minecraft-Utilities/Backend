@@ -60,7 +60,8 @@ public interface SkinRepository extends JpaRepository<SkinRow, Long> {
         FROM (
             SELECT psa.skin_id, COUNT(DISTINCT psa.player_id) AS trending_heat
             FROM player_skin_adoptions psa
-            WHERE psa.last_equipped_at >= NOW() - INTERVAL '7 days'
+            WHERE psa.last_equipped_at IS NOT NULL
+              AND psa.last_equipped_at >= NOW() - INTERVAL '7 days'
             GROUP BY psa.skin_id
         ) AS subquery
         WHERE skins.id = subquery.skin_id

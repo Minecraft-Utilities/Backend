@@ -3,6 +3,7 @@ package xyz.mcutils.backend.model.persistence.postgres;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -31,7 +32,8 @@ public class PlayerCapeAdoptionRow {
     @Column(nullable = false, name = "first_seen")
     private Instant firstSeen;
 
-    @Column(nullable = false, name = "last_equipped_at")
+    @Column(name = "last_equipped_at")
+    @Nullable
     private Instant lastEquippedAt;
 
     public PlayerCapeAdoptionRow(UUID playerId, CapeRow cape, Instant firstSeen, Instant lastEquippedAt) {

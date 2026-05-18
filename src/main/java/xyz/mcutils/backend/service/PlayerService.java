@@ -133,9 +133,9 @@ public class PlayerService {
                 now
         ));
 
-        this.playerSkinAdoptionRepository.upsert(id, skin.getId(), now);
+        this.playerSkinAdoptionRepository.insertFirstAdoption(id, skin.getId(), now);
         if (cape != null) {
-            this.playerCapeAdoptionRepository.upsert(id, cape.getId(), now);
+            this.playerCapeAdoptionRepository.insertFirstAdoption(id, cape.getId(), now);
         }
 
         StatisticsService.addTrackedPlayerCount(1);
@@ -227,12 +227,12 @@ public class PlayerService {
         CompletableFuture.allOf(
                 CompletableFuture.runAsync(() -> {
                     for (SkinAdoption a : skinAdoptions) {
-                        this.playerSkinAdoptionRepository.upsert(a.playerId(), a.skinId(), now);
+                        this.playerSkinAdoptionRepository.insertFirstAdoption(a.playerId(), a.skinId(), now);
                     }
                 }, Main.EXECUTOR),
                 CompletableFuture.runAsync(() -> {
                     for (CapeAdoption a : capeAdoptions) {
-                        this.playerCapeAdoptionRepository.upsert(a.playerId(), a.capeId(), now);
+                        this.playerCapeAdoptionRepository.insertFirstAdoption(a.playerId(), a.capeId(), now);
                     }
                 }, Main.EXECUTOR)
         ).join();
@@ -306,7 +306,7 @@ public class PlayerService {
         if (!playerRow.getSkin().getTextureId().equals(skinToken.getTextureId())) {
             SkinRow newSkin = this.skinService.getOrCreateSkinCached(skinToken, playerRow.getId());
             playerRow.setSkin(newSkin);
-            this.playerSkinAdoptionRepository.upsert(playerRow.getId(), newSkin.getId(), now);
+            this.playerSkinAdoptionRepository.recordEquip(playerRow.getId(), newSkin.getId(), now);
             skinChanged = true;
         }
 
@@ -316,7 +316,7 @@ public class PlayerService {
             CapeRow newCape = capeToken != null ? this.capeService.getOrCreateCapeCached(capeToken, playerRow.getId()) : null;
             playerRow.setCape(newCape);
             if (newCape != null) {
-                this.playerCapeAdoptionRepository.upsert(playerRow.getId(), newCape.getId(), now);
+                this.playerCapeAdoptionRepository.recordEquip(playerRow.getId(), newCape.getId(), now);
             }
             capeChanged = true;
         }

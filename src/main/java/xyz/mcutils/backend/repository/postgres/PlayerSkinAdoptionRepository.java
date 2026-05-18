@@ -16,9 +16,23 @@ public interface PlayerSkinAdoptionRepository extends JpaRepository<PlayerSkinAd
     List<PlayerSkinAdoptionRow> findByPlayerIdOrderByFirstSeenAsc(UUID playerId);
 
     /**
-     * Insert or update an adoption row.
-     * On first equip: sets both first_seen and last_equipped_at.
-     * On re-equip: updates only last_equipped_at; first_seen is preserved.
+     * Records that a player was first tracked with this skin.
+     * Does not set {@code last_equipped_at}, so it does not affect trending heat.
+     */
+    @Modifying
+    @Transactional
+    @Query(nativeQuery = true, value = """
+        INSERT INTO player_skin_adoptions (player_id, skin_id, first_seen, last_equipped_at)
+        VALUES (:playerId, :skinId, :timestamp, NULL)
+        ON CONFLICT (player_id, skin_id) DO NOTHING
+        """)
+    void insertFirstAdoption(@Param("playerId") UUID playerId,
+                             @Param("skinId") long skinId,
+                             @Param("timestamp") Instant timestamp);
+
+    /**
+     * Records that a player equipped this skin via a change (or re-equip after switching away).
+     * Updates {@code last_equipped_at}, which drives trending heat.
      */
     @Modifying
     @Transactional
@@ -28,7 +42,7 @@ public interface PlayerSkinAdoptionRepository extends JpaRepository<PlayerSkinAd
         ON CONFLICT (player_id, skin_id) DO UPDATE
             SET last_equipped_at = EXCLUDED.last_equipped_at
         """)
-    void upsert(@Param("playerId") UUID playerId,
-                @Param("skinId") long skinId,
-                @Param("timestamp") Instant timestamp);
+    void recordEquip(@Param("playerId") UUID playerId,
+                     @Param("skinId") long skinId,
+                     @Param("timestamp") Instant timestamp);
 }
