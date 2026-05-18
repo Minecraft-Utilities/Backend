@@ -34,8 +34,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
 public class PlayerSubmitService {
 
-    private static final int BATCH_SIZE = 1000;
-    private static final int RATE_LIMIT = 400;
+    private static final int BATCH_SIZE = 5000;
+    private static final int RATE_LIMIT = 500;
     private static final String QUEUE_NAME = "player-submit-queue";
     private static final Duration EMPTY_QUEUE_BLOCK = Duration.ofSeconds(2);
 
