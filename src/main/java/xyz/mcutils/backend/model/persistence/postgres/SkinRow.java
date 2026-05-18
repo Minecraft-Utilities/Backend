@@ -3,6 +3,7 @@ package xyz.mcutils.backend.model.persistence.postgres;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 import xyz.mcutils.backend.model.domain.skin.Skin;
@@ -13,6 +14,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "skins")
 @Getter
+@Setter
 @NoArgsConstructor
 public class SkinRow {
     @Id

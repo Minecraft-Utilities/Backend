@@ -5,9 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.CoalescingLoader;
 import xyz.mcutils.backend.common.Tuple;
@@ -25,8 +23,6 @@ import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
-import xyz.mcutils.backend.repository.postgres.PlayerAdoptionBatchWriter;
-import xyz.mcutils.backend.repository.postgres.PlayerAssetAdoption;
 import xyz.mcutils.backend.repository.postgres.PlayerCapeAdoptionRepository;
 import xyz.mcutils.backend.repository.postgres.PlayerRepository;
 import xyz.mcutils.backend.repository.postgres.PlayerSkinAdoptionRepository;
@@ -55,17 +51,12 @@ public class PlayerService {
     private final UsernameChangeEventRepository usernameChangeEventRepository;
     private final PlayerSkinAdoptionRepository playerSkinAdoptionRepository;
     private final PlayerCapeAdoptionRepository playerCapeAdoptionRepository;
-    private final PlayerAdoptionBatchWriter playerAdoptionBatchWriter;
-    private final TransactionTemplate transactionTemplate;
 
     private final CoalescingLoader<String, PlayerRow> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
 
     public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService,
                          PlayerRepository playerRepository, UsernameChangeEventRepository usernameChangeEventRepository,
-                         PlayerSkinAdoptionRepository playerSkinAdoptionRepository,
-                         PlayerCapeAdoptionRepository playerCapeAdoptionRepository,
-                         PlayerAdoptionBatchWriter playerAdoptionBatchWriter,
-                         PlatformTransactionManager transactionManager) {
+                         PlayerSkinAdoptionRepository playerSkinAdoptionRepository, PlayerCapeAdoptionRepository playerCapeAdoptionRepository) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
@@ -73,8 +64,6 @@ public class PlayerService {
         this.usernameChangeEventRepository = usernameChangeEventRepository;
         this.playerSkinAdoptionRepository = playerSkinAdoptionRepository;
         this.playerCapeAdoptionRepository = playerCapeAdoptionRepository;
-        this.playerAdoptionBatchWriter = playerAdoptionBatchWriter;
-        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     @PostConstruct
@@ -138,9 +127,9 @@ public class PlayerService {
                 now
         ));
 
-        this.playerAdoptionBatchWriter.insertFirstSkinAdoptions(List.of(new PlayerAssetAdoption(id, skin.getId())), now);
+        this.playerSkinAdoptionRepository.save(new PlayerSkinAdoptionRow(id, skin.getId(), now, null));
         if (cape != null) {
-            this.playerAdoptionBatchWriter.insertFirstCapeAdoptions(List.of(new PlayerAssetAdoption(id, cape.getId())), now);
+            this.playerCapeAdoptionRepository.save(new PlayerCapeAdoptionRow(id, cape.getId(), now, null));
         }
 
         StatisticsService.addTrackedPlayerCount(1);
@@ -152,18 +141,20 @@ public class PlayerService {
         return this.playerRepository.findById(playerRow.getId()).orElseThrow();
     }
 
-    public void savePlayers(List<MojangProfileToken> tokens) {
+    @Transactional
+    public void createPlayers(List<MojangProfileToken> tokens) {
         Map<String, CompletableFuture<SkinRow>> skinFutures = tokens.stream()
                 .map(t -> t.getSkinAndCape().left())
                 .collect(Collectors.toMap(
                         SkinTextureToken::getTextureId,
                         t -> CompletableFuture.supplyAsync(() -> {
                             UUID firstPlayerId = UUIDUtils.parseUuid(tokens.stream()
-                                    .filter(tok -> tok.getSkinAndCape().left().getTextureId().equals(t.getTextureId()))
+                                    .filter(tok -> Objects.equals(tok.getSkinAndCape().left().getTextureId(), t.getTextureId()))
                                     .findFirst().orElseThrow().getId());
                             return this.skinService.getOrCreateSkinCached(t, firstPlayerId);
                         }, Main.EXECUTOR),
                         (a, b) -> a));
+
         Map<String, CompletableFuture<CapeRow>> capeFutures = tokens.stream()
                 .map(t -> t.getSkinAndCape().right())
                 .filter(Objects::nonNull)
@@ -189,11 +180,8 @@ public class PlayerService {
         Set<UUID> existingIds = this.playerRepository.findExistingIds(ids);
 
         List<PlayerRow> playerRows = new ArrayList<>();
-        // Pending adoption data collected per-player (not per unique texture).
-        record SkinAdoption(UUID playerId, long skinId) {}
-        record CapeAdoption(UUID playerId, long capeId) {}
-        List<SkinAdoption> skinAdoptions = new ArrayList<>();
-        List<CapeAdoption> capeAdoptions = new ArrayList<>();
+        List<PlayerSkinAdoptionRow> skinAdoptions = new ArrayList<>();
+        List<PlayerCapeAdoptionRow> capeAdoptions = new ArrayList<>();
 
         Instant now = Instant.now();
         for (MojangProfileToken token : tokens) {
@@ -205,98 +193,81 @@ public class PlayerService {
             CapeTextureToken capeToken = token.getSkinAndCape().right();
             CapeRow cape = capeToken != null ? capesByTextureId.get(capeToken.getTextureId()) : null;
 
-            skinAdoptions.add(new SkinAdoption(id, skin.getId()));
+            skinAdoptions.add(new PlayerSkinAdoptionRow(id, skin.getId(), now, null));
             if (cape != null) {
-                capeAdoptions.add(new CapeAdoption(id, cape.getId()));
+                capeAdoptions.add(new PlayerCapeAdoptionRow(id, cape.getId(), now, null));
             }
-            playerRows.add(new PlayerRow(
-                    id,
-                    token.getName(),
-                    token.getLegacy() != null && token.getLegacy(),
-                    0,
-                    0,
-                    skin,
-                    cape,
-                    now,
-                    now
-            ));
+            playerRows.add(new PlayerRow(id, token.getName(), token.getLegacy() != null && token.getLegacy(),
+                    0, 0, skin, cape, now, now));
         }
 
         if (playerRows.isEmpty()) {
             return;
         }
 
-        this.transactionTemplate.executeWithoutResult(_ -> {
-            this.playerRepository.saveAll(playerRows);
-            this.playerRepository.flush();
-            this.playerAdoptionBatchWriter.insertFirstSkinAdoptions(
-                    skinAdoptions.stream().map(a -> new PlayerAssetAdoption(a.playerId(), a.skinId())).toList(),
-                    now
-            );
-            this.playerAdoptionBatchWriter.insertFirstCapeAdoptions(
-                    capeAdoptions.stream().map(a -> new PlayerAssetAdoption(a.playerId(), a.capeId())).toList(),
-                    now
-            );
-        });
+        this.playerRepository.saveAll(playerRows);
+        this.playerSkinAdoptionRepository.saveAll(skinAdoptions);
+        if (!capeAdoptions.isEmpty()) {
+            this.playerCapeAdoptionRepository.saveAll(capeAdoptions);
+        }
         StatisticsService.addTrackedPlayerCount(playerRows.size());
     }
 
+    @Transactional
     public void updatePlayers(List<PlayerUpdate> playerUpdates) {
-        this.transactionTemplate.executeWithoutResult(_ -> {
-            Instant now = Instant.now();
-            List<PlayerRow> playerRows = new ArrayList<>();
-            List<UsernameChangeEventRow> usernameChangeEvents = new ArrayList<>();
-            List<PlayerAssetAdoption> skinEquips = new ArrayList<>();
-            List<PlayerAssetAdoption> capeEquips = new ArrayList<>();
-            int skinChangeCount = 0;
-            int capeChangeCount = 0;
+        Instant now = Instant.now();
+        List<PlayerRow> playerRows = new ArrayList<>();
+        List<UsernameChangeEventRow> usernameChangeEvents = new ArrayList<>();
+        List<PlayerSkinAdoptionRow> skinEquips = new ArrayList<>();
+        List<PlayerCapeAdoptionRow> capeEquips = new ArrayList<>();
+        int skinChangeCount = 0;
+        int capeChangeCount = 0;
 
-            List<PlayerUpdate> sortedUpdates = playerUpdates.stream()
-                    .sorted(Comparator.comparing(u -> u.playerRow().getId()))
-                    .toList();
+        List<PlayerUpdate> sortedUpdates = playerUpdates.stream()
+                .sorted(Comparator.comparing(u -> u.playerRow().getId()))
+                .toList();
 
-            List<UpdatePlayerResult> updatePlayerResults = new ArrayList<>();
-            for (PlayerUpdate playerUpdate : sortedUpdates) {
-                updatePlayerResults.add(this.applyPlayerUpdate(playerUpdate, now));
+        List<UpdatePlayerResult> updatePlayerResults = new ArrayList<>();
+        for (PlayerUpdate playerUpdate : sortedUpdates) {
+            updatePlayerResults.add(this.applyPlayerUpdate(playerUpdate, now));
+        }
+
+        for (UpdatePlayerResult update : updatePlayerResults) {
+            playerRows.add(update.playerRow());
+            if (update.skinChanged()) {
+                skinChangeCount++;
             }
-
-            for (UpdatePlayerResult update : updatePlayerResults) {
-                playerRows.add(update.playerRow());
-                if (update.skinChanged()) {
-                    skinChangeCount++;
-                }
-                if (update.capeChanged()) {
-                    capeChangeCount++;
-                }
-                if (update.equippedSkinId() != null) {
-                    skinEquips.add(new PlayerAssetAdoption(update.playerRow().getId(), update.equippedSkinId()));
-                }
-                if (update.equippedCapeId() != null) {
-                    capeEquips.add(new PlayerAssetAdoption(update.playerRow().getId(), update.equippedCapeId()));
-                }
-                if (update.usernameChangeEventRow() != null) {
-                    usernameChangeEvents.add(update.usernameChangeEventRow());
-                }
+            if (update.capeChanged()) {
+                capeChangeCount++;
             }
-
-            this.playerRepository.saveAll(playerRows);
-            this.playerRepository.flush();
-            this.playerAdoptionBatchWriter.recordSkinEquips(skinEquips, now);
-            this.playerAdoptionBatchWriter.recordCapeEquips(capeEquips, now);
-            this.usernameChangeEventRepository.saveAll(usernameChangeEvents);
-            MetricService.getMetric(AccountsUpdatedMetric.class).inc(playerRows.size());
-            MetricService.getMetric(PlayerChangesDetectedMetric.class).inc(skinChangeCount + capeChangeCount + usernameChangeEvents.size());
-            StatisticsService.addNameChangesCount(usernameChangeEvents.size());
-
-            for (UsernameChangeEventRow usernameChangeEvent : usernameChangeEvents) {
-                WebSocketManager.getWebsocket(NameChangeWebSocket.class).sendMessageToAll(new RecentUsernameChange(
-                        usernameChangeEvent.getPlayerId(),
-                        usernameChangeEvent.getNewUsername(),
-                        usernameChangeEvent.getPreviousUsername(),
-                        usernameChangeEvent.getTimestamp()
-                ));
+            if (update.equippedSkinId() != null) {
+                skinEquips.add(new PlayerSkinAdoptionRow(update.playerRow().getId(), update.equippedSkinId(), now, now));
             }
-        });
+            if (update.equippedCapeId() != null) {
+                capeEquips.add(new PlayerCapeAdoptionRow(update.playerRow().getId(), update.equippedCapeId(), now, now));
+            }
+            if (update.usernameChangeEventRow() != null) {
+                usernameChangeEvents.add(update.usernameChangeEventRow());
+            }
+        }
+
+        this.playerRepository.saveAll(playerRows);
+        this.playerRepository.flush();
+        recordSkinEquips(skinEquips, now);
+        recordCapeEquips(capeEquips, now);
+        this.usernameChangeEventRepository.saveAll(usernameChangeEvents);
+        MetricService.getMetric(AccountsUpdatedMetric.class).inc(playerRows.size());
+        MetricService.getMetric(PlayerChangesDetectedMetric.class).inc(skinChangeCount + capeChangeCount + usernameChangeEvents.size());
+        StatisticsService.addNameChangesCount(usernameChangeEvents.size());
+
+        for (UsernameChangeEventRow usernameChangeEvent : usernameChangeEvents) {
+            WebSocketManager.getWebsocket(NameChangeWebSocket.class).sendMessageToAll(new RecentUsernameChange(
+                    usernameChangeEvent.getPlayerId(),
+                    usernameChangeEvent.getNewUsername(),
+                    usernameChangeEvent.getPreviousUsername(),
+                    usernameChangeEvent.getTimestamp()
+            ));
+        }
     }
 
     private UpdatePlayerResult applyPlayerUpdate(PlayerUpdate playerUpdate, Instant now) {
@@ -404,6 +375,52 @@ public class PlayerService {
 
     public void incrementSubmittedUuids(UUID playerId, long count) {
         this.playerRepository.incrementSubmittedUuids(playerId, count);
+    }
+
+    private void recordSkinEquips(List<PlayerSkinAdoptionRow> equips, Instant timestamp) {
+        if (equips.isEmpty()) {
+            return;
+        }
+        Set<PlayerSkinAdoptionId> ids = equips.stream()
+                .map(row -> new PlayerSkinAdoptionId(row.getPlayerId(), row.getSkinId()))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<PlayerSkinAdoptionId, PlayerSkinAdoptionRow> existing = this.playerSkinAdoptionRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(row -> new PlayerSkinAdoptionId(row.getPlayerId(), row.getSkinId()), row -> row));
+        List<PlayerSkinAdoptionRow> toSave = new ArrayList<>();
+        for (PlayerSkinAdoptionRow equip : equips) {
+            PlayerSkinAdoptionId id = new PlayerSkinAdoptionId(equip.getPlayerId(), equip.getSkinId());
+            PlayerSkinAdoptionRow row = existing.get(id);
+            if (row == null) {
+                row = new PlayerSkinAdoptionRow(equip.getPlayerId(), equip.getSkinId(), timestamp, timestamp);
+            } else {
+                row.setLastEquippedAt(timestamp);
+            }
+            toSave.add(row);
+        }
+        this.playerSkinAdoptionRepository.saveAll(toSave);
+    }
+
+    private void recordCapeEquips(List<PlayerCapeAdoptionRow> equips, Instant timestamp) {
+        if (equips.isEmpty()) {
+            return;
+        }
+        Set<PlayerCapeAdoptionId> ids = equips.stream()
+                .map(row -> new PlayerCapeAdoptionId(row.getPlayerId(), row.getCapeId()))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Map<PlayerCapeAdoptionId, PlayerCapeAdoptionRow> existing = this.playerCapeAdoptionRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(row -> new PlayerCapeAdoptionId(row.getPlayerId(), row.getCapeId()), row -> row));
+        List<PlayerCapeAdoptionRow> toSave = new ArrayList<>();
+        for (PlayerCapeAdoptionRow equip : equips) {
+            PlayerCapeAdoptionId id = new PlayerCapeAdoptionId(equip.getPlayerId(), equip.getCapeId());
+            PlayerCapeAdoptionRow row = existing.get(id);
+            if (row == null) {
+                row = new PlayerCapeAdoptionRow(equip.getPlayerId(), equip.getCapeId(), timestamp, timestamp);
+            } else {
+                row.setLastEquippedAt(timestamp);
+            }
+            toSave.add(row);
+        }
+        this.playerCapeAdoptionRepository.saveAll(toSave);
     }
 
     public record PlayerUpdate(PlayerRow playerRow, MojangProfileToken token) {}

@@ -6,6 +6,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -50,6 +51,7 @@ public class SkinService {
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
     private final CoalescingLoader<String, SkinRow> skinCreationLoader = new CoalescingLoader<>(Runnable::run);
     private final TransactionTemplate transactionTemplate;
+    private final LegacySkinCheckService legacySkinCheckService;
 
     @Value("${mc-utils.renderer.skin.cache}")
     private boolean cacheEnabled;
@@ -65,13 +67,15 @@ public class SkinService {
 
     public SkinService(SkinRepository skinRepository, PlayerRepository playerRepository,
                        StorageService storageService, WebRequest webRequest, StatisticsService statisticsService,
-                       PlatformTransactionManager transactionManager) {
+                       PlatformTransactionManager transactionManager,
+                       @Lazy LegacySkinCheckService legacySkinCheckService) {
         this.skinRepository = skinRepository;
         this.playerRepository = playerRepository;
         this.storageService = storageService;
         this.webRequest = webRequest;
         this.statisticsService = statisticsService;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.legacySkinCheckService = legacySkinCheckService;
     }
 
     @PostConstruct
@@ -149,31 +153,21 @@ public class SkinService {
 
     public SkinRow getOrCreateSkin(SkinTextureToken token, UUID playerId) {
         String textureId = token.getTextureId();
-        Optional<SkinRow> existing = this.skinRepository.findByTextureId(textureId);
-        if (existing.isPresent()) {
-            return existing.get();
-        }
-        return this.skinCreationLoader.get(textureId, () -> this.transactionTemplate.execute(_ -> this.insertSkinIfAbsentUnderLock(token, playerId)));
-    }
-
-    private SkinRow insertSkinIfAbsentUnderLock(SkinTextureToken token, UUID playerId) {
-        String textureId = token.getTextureId();
-        this.skinRepository.acquireCreateLock(textureId, SkinRepository.CREATE_LOCK_CLASS);
-
-        Optional<SkinRow> existing = this.skinRepository.findByTextureId(textureId);
-        if (existing.isPresent()) {
-            return existing.get();
-        }
-
-        Skin.Model model = token.metadata() == null
-                ? Skin.Model.DEFAULT
-                : Skin.Model.valueOf(token.metadata().model().toUpperCase());
-        boolean legacy = Skin.isLegacySkin(Skin.CDN_URL.formatted(textureId), this.webRequest);
-        int inserted = this.skinRepository.insertIfAbsent(textureId, model.name(), legacy, Instant.now(), playerId);
-        if (inserted > 0) {
+        return this.skinCreationLoader.get(textureId, () -> this.transactionTemplate.execute(_ -> {
+            Optional<SkinRow> existing = this.skinRepository.findByTextureId(textureId);
+            if (existing.isPresent()) {
+                return existing.get();
+            }
+            Skin.Model model = token.metadata() == null
+                    ? Skin.Model.DEFAULT
+                    : Skin.Model.valueOf(token.metadata().model().toUpperCase());
+            SkinRow row = new SkinRow(textureId, model, false, 0, 0, Instant.now());
+            row.setFirstSeenUsingPlayerId(playerId);
+            SkinRow saved = this.skinRepository.save(row);
             StatisticsService.addTrackedSkinCount(1);
-        }
-        return this.skinRepository.findByTextureId(textureId).orElseThrow();
+            this.legacySkinCheckService.enqueue(textureId);
+            return saved;
+        }));
     }
 
     public Pagination.Page<Skin> getPaginatedSkins(int page, SkinLookupSort sort) {

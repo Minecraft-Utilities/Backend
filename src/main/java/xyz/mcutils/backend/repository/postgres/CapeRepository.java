@@ -4,37 +4,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import xyz.mcutils.backend.model.persistence.postgres.CapeRow;
 
-import java.time.Instant;
 import java.util.Optional;
-import java.util.UUID;
 
 public interface CapeRepository extends JpaRepository<CapeRow, Long> {
-    /** Lock class {@code 2} — capes only (skins use {@code 1}). */
-    int CREATE_LOCK_CLASS = 2;
-
     Optional<CapeRow> findByTextureId(String textureId);
-
-    /**
-     * Serializes create-if-absent for one texture_id within the current transaction.
-     * Released automatically at transaction commit/rollback.
-     */
-    @Query(nativeQuery = true, value = "SELECT pg_advisory_xact_lock(hashtext(CAST(:textureId AS text)), :lockClass)")
-    void acquireCreateLock(@Param("textureId") String textureId, @Param("lockClass") int lockClass);
 
     @Query("SELECT c FROM CapeRow c ORDER BY c.uniqueOwners DESC, c.id ASC")
     Slice<CapeRow> findAllOrderByUniqueOwnersDescIdAsc(Pageable pageable);
 
-    @Query(nativeQuery = true, value = """
-        INSERT INTO capes (name, texture_id, unique_owners, first_seen, first_seen_using_player_id)
-        VALUES (:name, :textureId, 0, :firstSeen, :firstSeenUsingPlayerId)
-        ON CONFLICT (texture_id) DO NOTHING
-        RETURNING *
-        """)
-    Optional<CapeRow> insertIfAbsent(@Param("name") String name,
-                                     @Param("textureId") String textureId,
-                                     @Param("firstSeen") Instant firstSeen,
-                                     @Param("firstSeenUsingPlayerId") UUID firstSeenUsingPlayerId);
 }

@@ -3,6 +3,7 @@ package xyz.mcutils.backend.model.persistence.postgres;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
@@ -12,6 +13,7 @@ import java.util.UUID;
 @Table(name = "player_cape_adoptions")
 @IdClass(PlayerCapeAdoptionId.class)
 @Getter
+@Setter
 @NoArgsConstructor
 public class PlayerCapeAdoptionRow {
     @Id
@@ -40,6 +42,13 @@ public class PlayerCapeAdoptionRow {
         this.playerId = playerId;
         this.capeId = cape.getId();
         this.cape = cape;
+        this.firstSeen = firstSeen;
+        this.lastEquippedAt = lastEquippedAt;
+    }
+
+    public PlayerCapeAdoptionRow(UUID playerId, long capeId, Instant firstSeen, Instant lastEquippedAt) {
+        this.playerId = playerId;
+        this.capeId = capeId;
         this.firstSeen = firstSeen;
         this.lastEquippedAt = lastEquippedAt;
     }

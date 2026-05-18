@@ -48,7 +48,6 @@ public class CapeService {
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
     private final CoalescingLoader<String, CapeRow> capeCreationLoader = new CoalescingLoader<>(Runnable::run);
     private final TransactionTemplate transactionTemplate;
-
     @Value("${mc-utils.renderer.cape.cache}")
     private boolean cacheEnabled;
 
@@ -132,30 +131,18 @@ public class CapeService {
 
     public CapeRow getOrCreateCape(CapeTextureToken token, UUID playerId) {
         String textureId = token.getTextureId();
-        Optional<CapeRow> existing = this.capeRepository.findByTextureId(textureId);
-        if (existing.isPresent()) {
-            return existing.get();
-        }
-        return this.capeCreationLoader.get(textureId, () -> this.transactionTemplate.execute(_ -> this.insertCapeIfAbsentUnderLock(token, playerId)));
-    }
-
-    private CapeRow insertCapeIfAbsentUnderLock(CapeTextureToken token, UUID playerId) {
-        String textureId = token.getTextureId();
-        this.capeRepository.acquireCreateLock(textureId, CapeRepository.CREATE_LOCK_CLASS);
-
-        Optional<CapeRow> existing = this.capeRepository.findByTextureId(textureId);
-        if (existing.isPresent()) {
-            return existing.get();
-        }
-
-        Optional<CapeRow> inserted = this.capeRepository.insertIfAbsent(null, textureId, Instant.now(), playerId);
-        if (inserted.isPresent()) {
-            CapeRow newCape = inserted.get();
+        return this.capeCreationLoader.get(textureId, () -> this.transactionTemplate.execute(_ -> {
+            Optional<CapeRow> existing = this.capeRepository.findByTextureId(textureId);
+            if (existing.isPresent()) {
+                return existing.get();
+            }
+            CapeRow row = new CapeRow(null, textureId, 0, Instant.now());
+            row.setFirstSeenUsingPlayerId(playerId);
+            CapeRow saved = this.capeRepository.save(row);
             StatisticsService.addTrackedCapeCount(1);
-            notifyNewCapeDiscovered(token, newCape);
-            return newCape;
-        }
-        return this.capeRepository.findByTextureId(textureId).orElseThrow();
+            notifyNewCapeDiscovered(token, saved);
+            return saved;
+        }));
     }
 
     private void notifyNewCapeDiscovered(CapeTextureToken token, CapeRow newCape) {

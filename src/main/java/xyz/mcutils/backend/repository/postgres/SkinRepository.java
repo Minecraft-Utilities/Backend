@@ -9,22 +9,10 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.mcutils.backend.model.persistence.postgres.SkinRow;
 
-import java.time.Instant;
 import java.util.Optional;
-import java.util.UUID;
 
 public interface SkinRepository extends JpaRepository<SkinRow, Long> {
-    /** Lock class {@code 1} — skins only (capes use {@code 2}). */
-    int CREATE_LOCK_CLASS = 1;
-
     Optional<SkinRow> findByTextureId(String textureId);
-
-    /**
-     * Serializes create-if-absent for one texture_id within the current transaction.
-     * Released automatically at transaction commit/rollback.
-     */
-    @Query(nativeQuery = true, value = "SELECT pg_advisory_xact_lock(hashtext(CAST(:textureId AS text)), :lockClass)")
-    void acquireCreateLock(@Param("textureId") String textureId, @Param("lockClass") int lockClass);
 
     @Query("SELECT s FROM SkinRow s")
     Slice<SkinRow> findAllSkins(Pageable pageable);
@@ -36,16 +24,8 @@ public interface SkinRepository extends JpaRepository<SkinRow, Long> {
 
     @Modifying
     @Transactional
-    @Query(nativeQuery = true, value = """
-        INSERT INTO skins (texture_id, model, legacy, unique_owners, first_seen, first_seen_using_player_id)
-        VALUES (:textureId, CAST(:model AS skin_model), :legacy, 0, :firstSeen, :firstSeenUsingPlayerId)
-        ON CONFLICT (texture_id) DO NOTHING
-        """)
-    int insertIfAbsent(@Param("textureId") String textureId,
-                       @Param("model") String model,
-                       @Param("legacy") boolean legacy,
-                       @Param("firstSeen") Instant firstSeen,
-                       @Param("firstSeenUsingPlayerId") UUID firstSeenUsingPlayerId);
+    @Query("UPDATE SkinRow s SET s.legacy = :legacy WHERE s.textureId = :textureId")
+    int updateLegacyByTextureId(@Param("textureId") String textureId, @Param("legacy") boolean legacy);
 
     @Modifying
     @Transactional
