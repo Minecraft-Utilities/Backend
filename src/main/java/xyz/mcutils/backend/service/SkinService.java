@@ -12,7 +12,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.*;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
@@ -47,6 +48,8 @@ public class SkinService {
     private final WebRequest webRequest;
     private final Cache<String, byte[]> renderedSkinCache = CacheBuilder.newBuilder().expireAfterAccess(6, TimeUnit.HOURS).maximumSize(2000).build();
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
+    private final CoalescingLoader<String, SkinRow> skinCreationLoader = new CoalescingLoader<>(Runnable::run);
+    private final TransactionTemplate transactionTemplate;
 
     @Value("${mc-utils.renderer.skin.cache}")
     private boolean cacheEnabled;
@@ -61,12 +64,14 @@ public class SkinService {
     private int maxPartSize;
 
     public SkinService(SkinRepository skinRepository, PlayerRepository playerRepository,
-                       StorageService storageService, WebRequest webRequest, StatisticsService statisticsService) {
+                       StorageService storageService, WebRequest webRequest, StatisticsService statisticsService,
+                       PlatformTransactionManager transactionManager) {
         this.skinRepository = skinRepository;
         this.playerRepository = playerRepository;
         this.storageService = storageService;
         this.webRequest = webRequest;
         this.statisticsService = statisticsService;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     @PostConstruct
@@ -138,26 +143,37 @@ public class SkinService {
      * Cache key is the texture ID only; {@code playerId} is only relevant on first insert.
      */
     @Cacheable(value = "skinByTextureId", key = "#token.textureId")
-    @Transactional
     public SkinRow getOrCreateSkinCached(SkinTextureToken token, UUID playerId) {
         return getOrCreateSkin(token, playerId);
     }
 
-    @Transactional
     public SkinRow getOrCreateSkin(SkinTextureToken token, UUID playerId) {
-        Optional<SkinRow> optionalSkinRow = this.skinRepository.findByTextureId(token.getTextureId());
-        if (optionalSkinRow.isPresent()) {
-            return optionalSkinRow.get();
+        String textureId = token.getTextureId();
+        Optional<SkinRow> existing = this.skinRepository.findByTextureId(textureId);
+        if (existing.isPresent()) {
+            return existing.get();
         }
+        return this.skinCreationLoader.get(textureId, () -> this.transactionTemplate.execute(_ -> this.insertSkinIfAbsentUnderLock(token, playerId)));
+    }
+
+    private SkinRow insertSkinIfAbsentUnderLock(SkinTextureToken token, UUID playerId) {
+        String textureId = token.getTextureId();
+        this.skinRepository.acquireCreateLock(textureId, SkinRepository.CREATE_LOCK_CLASS);
+
+        Optional<SkinRow> existing = this.skinRepository.findByTextureId(textureId);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
         Skin.Model model = token.metadata() == null
                 ? Skin.Model.DEFAULT
                 : Skin.Model.valueOf(token.metadata().model().toUpperCase());
-        boolean legacy = Skin.isLegacySkin(Skin.CDN_URL.formatted(token.getTextureId()), this.webRequest);
-        int inserted = this.skinRepository.insertIfAbsent(token.getTextureId(), model.name(), legacy, Instant.now(), playerId);
+        boolean legacy = Skin.isLegacySkin(Skin.CDN_URL.formatted(textureId), this.webRequest);
+        int inserted = this.skinRepository.insertIfAbsent(textureId, model.name(), legacy, Instant.now(), playerId);
         if (inserted > 0) {
             StatisticsService.addTrackedSkinCount(1);
         }
-        return this.skinRepository.findByTextureId(token.getTextureId()).orElseThrow();
+        return this.skinRepository.findByTextureId(textureId).orElseThrow();
     }
 
     public Pagination.Page<Skin> getPaginatedSkins(int page, SkinLookupSort sort) {

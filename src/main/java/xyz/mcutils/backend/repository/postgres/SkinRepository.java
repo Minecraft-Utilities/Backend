@@ -14,7 +14,17 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface SkinRepository extends JpaRepository<SkinRow, Long> {
+    /** Lock class {@code 1} — skins only (capes use {@code 2}). */
+    int CREATE_LOCK_CLASS = 1;
+
     Optional<SkinRow> findByTextureId(String textureId);
+
+    /**
+     * Serializes create-if-absent for one texture_id within the current transaction.
+     * Released automatically at transaction commit/rollback.
+     */
+    @Query(nativeQuery = true, value = "SELECT pg_advisory_xact_lock(hashtext(CAST(:textureId AS text)), :lockClass)")
+    void acquireCreateLock(@Param("textureId") String textureId, @Param("lockClass") int lockClass);
 
     @Query("SELECT s FROM SkinRow s")
     Slice<SkinRow> findAllSkins(Pageable pageable);

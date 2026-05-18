@@ -12,7 +12,17 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface CapeRepository extends JpaRepository<CapeRow, Long> {
+    /** Lock class {@code 2} — capes only (skins use {@code 1}). */
+    int CREATE_LOCK_CLASS = 2;
+
     Optional<CapeRow> findByTextureId(String textureId);
+
+    /**
+     * Serializes create-if-absent for one texture_id within the current transaction.
+     * Released automatically at transaction commit/rollback.
+     */
+    @Query(nativeQuery = true, value = "SELECT pg_advisory_xact_lock(hashtext(CAST(:textureId AS text)), :lockClass)")
+    void acquireCreateLock(@Param("textureId") String textureId, @Param("lockClass") int lockClass);
 
     @Query("SELECT c FROM CapeRow c ORDER BY c.uniqueOwners DESC, c.id ASC")
     Slice<CapeRow> findAllOrderByUniqueOwnersDescIdAsc(Pageable pageable);

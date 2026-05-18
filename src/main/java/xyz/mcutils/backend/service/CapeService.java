@@ -9,7 +9,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.*;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
@@ -45,6 +46,8 @@ public class CapeService {
     private final PlayerRepository playerRepository;
     private final WebRequest webRequest;
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
+    private final CoalescingLoader<String, CapeRow> capeCreationLoader = new CoalescingLoader<>(Runnable::run);
+    private final TransactionTemplate transactionTemplate;
 
     @Value("${mc-utils.renderer.cape.cache}")
     private boolean cacheEnabled;
@@ -62,13 +65,15 @@ public class CapeService {
     private String newCapeDiscoveredWebhook;
 
     public CapeService(StorageService storageService, @Lazy PlayerService playerService, StatisticsService statisticsService,
-                       CapeRepository capeRepository, PlayerRepository playerRepository, WebRequest webRequest) {
+                       CapeRepository capeRepository, PlayerRepository playerRepository, WebRequest webRequest,
+                       PlatformTransactionManager transactionManager) {
         this.storageService = storageService;
         this.playerService = playerService;
         this.statisticsService = statisticsService;
         this.capeRepository = capeRepository;
         this.playerRepository = playerRepository;
         this.webRequest = webRequest;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     @PostConstruct
@@ -121,36 +126,51 @@ public class CapeService {
      * Cache key is the texture ID only; {@code playerId} is only relevant on first insert.
      */
     @Cacheable(value = "capeByTextureId", key = "#token.textureId")
-    @Transactional
     public CapeRow getOrCreateCapeCached(CapeTextureToken token, UUID playerId) {
         return getOrCreateCape(token, playerId);
     }
 
-    @Transactional
     public CapeRow getOrCreateCape(CapeTextureToken token, UUID playerId) {
-        Optional<CapeRow> optionalCapeRow = this.capeRepository.findByTextureId(token.getTextureId());
-        if (optionalCapeRow.isPresent()) {
-            return optionalCapeRow.get();
+        String textureId = token.getTextureId();
+        Optional<CapeRow> existing = this.capeRepository.findByTextureId(textureId);
+        if (existing.isPresent()) {
+            return existing.get();
         }
-        Optional<CapeRow> inserted = this.capeRepository.insertIfAbsent(null, token.getTextureId(), Instant.now(), playerId);
+        return this.capeCreationLoader.get(textureId, () -> this.transactionTemplate.execute(_ -> this.insertCapeIfAbsentUnderLock(token, playerId)));
+    }
+
+    private CapeRow insertCapeIfAbsentUnderLock(CapeTextureToken token, UUID playerId) {
+        String textureId = token.getTextureId();
+        this.capeRepository.acquireCreateLock(textureId, CapeRepository.CREATE_LOCK_CLASS);
+
+        Optional<CapeRow> existing = this.capeRepository.findByTextureId(textureId);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        Optional<CapeRow> inserted = this.capeRepository.insertIfAbsent(null, textureId, Instant.now(), playerId);
         if (inserted.isPresent()) {
             CapeRow newCape = inserted.get();
             StatisticsService.addTrackedCapeCount(1);
-            try {
-                DiscordWebhook discordWebhook = new DiscordWebhook(newCapeDiscoveredWebhook);
-                discordWebhook.setUsername("New Cape Discovered");
-                discordWebhook.addEmbed(new DiscordWebhook.EmbedObject()
-                        .addField("Texture ID", token.getTextureId(), true)
-                        .addField("Cape ID", String.valueOf(newCape.getId()), true)
-                );
-                discordWebhook.setContent("A new cape has been discovered! Check it out: %s/capes/%d".formatted(AppConfig.INSTANCE.getWebPublicUrl(), newCape.getId()));
-                discordWebhook.execute();
-            } catch (IOException ex) {
-                log.warn(ex.getMessage());
-            }
+            notifyNewCapeDiscovered(token, newCape);
             return newCape;
         }
-        return this.capeRepository.findByTextureId(token.getTextureId()).orElseThrow();
+        return this.capeRepository.findByTextureId(textureId).orElseThrow();
+    }
+
+    private void notifyNewCapeDiscovered(CapeTextureToken token, CapeRow newCape) {
+        try {
+            DiscordWebhook discordWebhook = new DiscordWebhook(newCapeDiscoveredWebhook);
+            discordWebhook.setUsername("New Cape Discovered");
+            discordWebhook.addEmbed(new DiscordWebhook.EmbedObject()
+                    .addField("Texture ID", token.getTextureId(), true)
+                    .addField("Cape ID", String.valueOf(newCape.getId()), true)
+            );
+            discordWebhook.setContent("A new cape has been discovered! Check it out: %s/capes/%d".formatted(AppConfig.INSTANCE.getWebPublicUrl(), newCape.getId()));
+            discordWebhook.execute();
+        } catch (IOException ex) {
+            log.warn(ex.getMessage());
+        }
     }
 
     public Pagination.Page<VanillaCape> getPaginatedCapes(int page) {
