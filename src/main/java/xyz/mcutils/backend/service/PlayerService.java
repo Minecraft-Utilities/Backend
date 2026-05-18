@@ -39,14 +39,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static xyz.mcutils.backend.service.PlayerRefreshService.*;
-
 @Service
 @Slf4j
 public class PlayerService {
     static final Duration PLAYER_UPDATE_INTERVAL = Duration.ofHours(3);
     private static final int MAX_PLAYER_SEARCH_RESULTS = 5;
-    private static final double CHANGE_DECAY_RATE = 0.01; // exponential decay rate for change score; lower = slower decay (half-life ~70h)
 
     public static PlayerService INSTANCE;
     private final MojangService mojangService;
@@ -128,9 +125,6 @@ public class PlayerService {
                 0,
                 skin,
                 cape,
-                0,
-                0,
-                null,
                 Instant.now(),
                 Instant.now()
         ));
@@ -201,9 +195,6 @@ public class PlayerService {
                     0,
                     skin,
                     cape,
-                    0,
-                    0,
-                    null,
                     now,
                     now
             ));
@@ -285,8 +276,6 @@ public class PlayerService {
 
         Instant now = Instant.now();
 
-        boolean didChange = false;
-
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
         SkinTextureToken skinToken = skinAndCape.left();
         CapeTextureToken capeToken = skinAndCape.right();
@@ -294,7 +283,6 @@ public class PlayerService {
             SkinRow newSkin = this.skinService.getOrCreateSkinCached(skinToken);
             skinChangeEventRow = new SkinChangeEventRow(playerRow.getId(), playerRow.getSkin() /* their old skin */, newSkin, now);
             playerRow.setSkin(newSkin);
-            didChange = true;
         }
         String oldCapeTextureId = playerRow.getCape() != null ? playerRow.getCape().getTextureId() : null;
         String newCapeTextureId = capeToken != null ? capeToken.getTextureId() : null;
@@ -302,19 +290,14 @@ public class PlayerService {
             CapeRow newCape = capeToken != null ? this.capeService.getOrCreateCapeCached(capeToken) : null;
             playerRow.setCape(newCape);
             capeChangeEventRow = new CapeChangeEventRow(playerRow.getId(), newCape, now);
-            didChange = true;
         }
 
         String previousUsername = playerRow.getUsername();
         if (!previousUsername.equals(token.getName())) {
             playerRow.setUsername(token.getName());
             usernameChangeEventRow = new UsernameChangeEventRow(playerRow.getId(), token.getName(), previousUsername, now);
-            didChange = true;
         }
 
-        if (didChange) {
-            this.applyChangeDecay(playerRow);
-        }
         playerRow.setLastUpdated(now);
         return new UpdatePlayerResult(
                 playerRow,
@@ -322,31 +305,6 @@ public class PlayerService {
                 capeChangeEventRow,
                 usernameChangeEventRow
         );
-    }
-
-    private void applyChangeDecay(PlayerRow playerRow) {
-        Instant lastChange = playerRow.getLastChanged();
-        Instant now = Instant.now();
-        if (lastChange == null) {
-            playerRow.setChangeScore(1.0d);
-        } else {
-            double hoursSince = Duration.between(lastChange, now).toMinutes() / 60.0;
-            double decayed = playerRow.getChangeScore() * Math.exp(-CHANGE_DECAY_RATE * hoursSince);
-            playerRow.setChangeScore(decayed + 1.0d);
-        }
-        playerRow.setLastChanged(now);
-        this.updatePriorityScore(playerRow, playerRow.getMonthlyViews());
-    }
-
-    public void updatePriorityScore(PlayerRow playerRow, long monthlyViews) {
-        playerRow.setPriorityScore(PlayerRow.computeRefreshPriorityScore(
-                playerRow,
-                monthlyViews,
-                Instant.now(),
-                POPULARITY_WEIGHT,
-                VELOCITY_WEIGHT,
-                URGENCY_WEIGHT
-        ));
     }
 
     public Set<UsernameHistory> getUsernameHistory(PlayerRow player) {

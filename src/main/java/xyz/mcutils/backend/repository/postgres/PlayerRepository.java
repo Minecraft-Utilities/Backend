@@ -2,6 +2,7 @@ package xyz.mcutils.backend.repository.postgres;
 
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -18,6 +19,7 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
     Optional<PlayerRow> findByUsernameIgnoreCase(String username);
     List<PlayerRow> findByUsernameStartingWithIgnoreCase(String username, Pageable pageable);
     List<PlayerRow> findTopByOrderBySubmittedUuidsDesc(Pageable pageable);
+    Slice<PlayerRow> findAllByLastUpdatedBeforeOrderByLastUpdatedAsc(Instant cutoff, Pageable pageable);
 
     @Query("SELECT p.username FROM PlayerRow p WHERE p.skin.id = :skinId")
     List<String> findUsernamesBySkinId(long skinId, Pageable pageable);
@@ -71,15 +73,4 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
          AND players.monthly_views != subquery.monthly_views;
     """)
     void updateMonthlyViews();
-
-    @Query(value = """
-    SELECT * FROM players
-    WHERE last_updated < :cutoff
-    ORDER BY priority_score DESC
-    LIMIT :limit
-""", nativeQuery = true)
-    List<PlayerRow> findPlayersForRefresh(
-            @Param("cutoff") Instant cutoff,
-            @Param("limit") int limit
-    );
 }

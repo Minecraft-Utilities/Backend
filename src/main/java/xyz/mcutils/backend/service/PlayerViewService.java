@@ -62,8 +62,6 @@ public class PlayerViewService {
                 Instant.now().minus(30, ChronoUnit.DAYS));
         if (!alreadyViewed) {
             this.playerViewEventRepository.save(new PlayerViewEventRow(player.getId(), ipHash, Instant.now()));
-            this.playerService.updatePriorityScore(player, player.getMonthlyViews() + 1);
-            this.playerRepository.save(player);
         }
     }
 }
