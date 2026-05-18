@@ -228,6 +228,7 @@ public class PlayerService {
 
         this.transactionTemplate.executeWithoutResult(_ -> {
             this.playerRepository.saveAll(playerRows);
+            this.playerRepository.flush();
             this.playerAdoptionBatchWriter.insertFirstSkinAdoptions(
                     skinAdoptions.stream().map(a -> new PlayerAssetAdoption(a.playerId(), a.skinId())).toList(),
                     now
@@ -279,6 +280,7 @@ public class PlayerService {
             }
 
             this.playerRepository.saveAll(playerRows);
+            this.playerRepository.flush();
             this.playerAdoptionBatchWriter.recordSkinEquips(skinEquips, now);
             this.playerAdoptionBatchWriter.recordCapeEquips(capeEquips, now);
             this.usernameChangeEventRepository.saveAll(usernameChangeEvents);

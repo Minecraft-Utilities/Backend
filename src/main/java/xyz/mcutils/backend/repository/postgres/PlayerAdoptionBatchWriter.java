@@ -3,6 +3,7 @@ package xyz.mcutils.backend.repository.postgres;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
@@ -49,22 +50,22 @@ public class PlayerAdoptionBatchWriter {
         this.batchSize = batchSize;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public void insertFirstSkinAdoptions(List<PlayerAssetAdoption> adoptions, Instant timestamp) {
         batch(adoptions, timestamp, INSERT_FIRST_SKIN, false);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public void insertFirstCapeAdoptions(List<PlayerAssetAdoption> adoptions, Instant timestamp) {
         batch(adoptions, timestamp, INSERT_FIRST_CAPE, false);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public void recordSkinEquips(List<PlayerAssetAdoption> adoptions, Instant timestamp) {
         batch(adoptions, timestamp, RECORD_SKIN_EQUIP, true);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public void recordCapeEquips(List<PlayerAssetAdoption> adoptions, Instant timestamp) {
         batch(adoptions, timestamp, RECORD_CAPE_EQUIP, true);
     }
