@@ -52,7 +52,7 @@ public class PlayerService {
     private final PlayerSkinAdoptionRepository playerSkinAdoptionRepository;
     private final PlayerCapeAdoptionRepository playerCapeAdoptionRepository;
 
-    private final CoalescingLoader<String, PlayerRow> playerLoader = new CoalescingLoader<>(Main.EXECUTOR);
+    private final CoalescingLoader<String, PlayerRow> playerLoader = new CoalescingLoader<>(Runnable::run);
 
     public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService,
                          PlayerRepository playerRepository, UsernameChangeEventRepository usernameChangeEventRepository,
@@ -136,6 +136,7 @@ public class PlayerService {
         return playerRow;
     }
 
+    @Transactional
     public PlayerRow updatePlayer(PlayerRow playerRow, MojangProfileToken token) {
         this.updatePlayers(Collections.singletonList(new PlayerUpdate(playerRow, token)));
         return this.playerRepository.findById(playerRow.getId()).orElseThrow();
