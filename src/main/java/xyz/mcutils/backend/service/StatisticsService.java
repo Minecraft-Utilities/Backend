@@ -3,6 +3,7 @@ package xyz.mcutils.backend.service;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import org.springframework.stereotype.Service;
+import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.model.dto.response.StatisticsResponse;
 import xyz.mcutils.backend.repository.postgres.CapeRepository;
 import xyz.mcutils.backend.repository.postgres.PlayerRepository;
@@ -10,6 +11,8 @@ import xyz.mcutils.backend.repository.postgres.SkinRepository;
 import xyz.mcutils.backend.repository.postgres.UsernameChangeEventRepository;
 import xyz.mcutils.backend.websocket.WebSocketManager;
 import xyz.mcutils.backend.websocket.impl.StatisticsWebSocket;
+
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @Getter
@@ -74,10 +77,17 @@ public class StatisticsService {
 
     @PostConstruct
     public void init() {
-        this.trackedPlayerCount = this.playerRepository.count();
-        this.trackedSkinCount = this.skinRepository.count();
-        this.trackedCapeCount = this.capeRepository.count();
-        this.nameChangesCount = this.usernameChangeEventRepository.countNameChanges();
+        CompletableFuture<Long> playersFuture = CompletableFuture.supplyAsync(this.playerRepository::count, Main.EXECUTOR);
+        CompletableFuture<Long> skinsFuture = CompletableFuture.supplyAsync(this.skinRepository::count, Main.EXECUTOR);
+        CompletableFuture<Long> capesFuture = CompletableFuture.supplyAsync(this.capeRepository::count, Main.EXECUTOR);
+        CompletableFuture<Long> nameChangesFuture = CompletableFuture.supplyAsync(this.usernameChangeEventRepository::countNameChanges, Main.EXECUTOR);
+
+        CompletableFuture.allOf(playersFuture, skinsFuture, capesFuture, nameChangesFuture).join();
+
+        this.trackedPlayerCount = playersFuture.join();
+        this.trackedSkinCount = skinsFuture.join();
+        this.trackedCapeCount = capesFuture.join();
+        this.nameChangesCount = nameChangesFuture.join();
     }
 
     /**
