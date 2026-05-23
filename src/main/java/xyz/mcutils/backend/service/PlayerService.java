@@ -343,22 +343,30 @@ public class PlayerService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public Set<Skin> getSkinHistory(PlayerRow player) {
         List<PlayerSkinAdoptionRow> adoptions = this.playerSkinAdoptionRepository.findByPlayerIdOrderByFirstSeenAsc(player.getId());
-        return adoptions.stream().map(adoption -> {
-            Skin skin = Skin.fromRow(adoption.getSkin());
-            skin.setFirstSeen(adoption.getFirstSeen());
-            return skin;
-        }).collect(Collectors.toCollection(LinkedHashSet::new));
+        return adoptions.stream()
+                .filter(adoption -> adoption.getSkin() != null)
+                .map(adoption -> {
+                    Skin skin = Skin.fromRow(adoption.getSkin());
+                    skin.setFirstSeen(adoption.getFirstSeen());
+                    return skin;
+                })
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
+    @Transactional(readOnly = true)
     public Set<VanillaCape> getCapeHistory(PlayerRow player) {
         List<PlayerCapeAdoptionRow> adoptions = this.playerCapeAdoptionRepository.findByPlayerIdOrderByFirstSeenAsc(player.getId());
-        return adoptions.stream().map(adoption -> {
-            VanillaCape cape = VanillaCape.fromRow(adoption.getCape());
-            cape.setFirstSeen(adoption.getFirstSeen());
-            return cape;
-        }).collect(Collectors.toCollection(LinkedHashSet::new));
+        return adoptions.stream()
+                .filter(adoption -> adoption.getCape() != null)
+                .map(adoption -> {
+                    VanillaCape cape = VanillaCape.fromRow(adoption.getCape());
+                    cape.setFirstSeen(adoption.getFirstSeen());
+                    return cape;
+                })
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     public List<FullPlayer> searchPlayers(String query) {
