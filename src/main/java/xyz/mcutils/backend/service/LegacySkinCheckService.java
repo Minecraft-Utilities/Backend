@@ -35,8 +35,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class LegacySkinCheckService {
 
     private static final String QUEUE_NAME = "legacy-skin-check-queue";
-    private static final int BATCH_SIZE = 50;
-    private static final int RATE_LIMIT = 20;
+    private static final int BATCH_SIZE = 500;
+    private static final int RATE_LIMIT = 100;
     private static final Duration EMPTY_QUEUE_BLOCK = Duration.ofSeconds(2);
     private static final String SKIN_TEXTURE_CACHE = "skinByTextureId";
 

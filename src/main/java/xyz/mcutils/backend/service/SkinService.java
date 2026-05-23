@@ -212,7 +212,9 @@ public class SkinService {
                     }
                 }
                 log.debug("Downloaded skin image for skin {} in {}ms", textureId, System.currentTimeMillis() - start);
-                this.storageService.upload(StorageService.Bucket.SKINS, textureId + ".png", MediaType.IMAGE_PNG_VALUE, bytes);
+
+                byte[] finalBytes = bytes;
+                Main.EXECUTOR.submit(() -> this.storageService.upload(StorageService.Bucket.SKINS, textureId + ".png", MediaType.IMAGE_PNG_VALUE, finalBytes));
                 skinBytes = bytes;
             }
             return skinBytes;
