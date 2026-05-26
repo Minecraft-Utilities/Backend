@@ -28,7 +28,7 @@ import java.util.*;
 @Slf4j
 @EqualsAndHashCode(callSuper = false)
 public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart> {
-    public static final String CDN_URL = "http://textures.minecraft.net/texture/%s";
+    public static final String CDN_URL = "https://textures.minecraft.net/texture/%s";
 
     /**
      * The id of this skin.
