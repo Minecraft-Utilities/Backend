@@ -33,7 +33,7 @@ public class MojangService {
     /**
      * The Mojang API endpoints.
      */
-    private static final String SESSION_SERVER_ENDPOINT = "https://sessionserver.mojang.com";
+    private static final String SESSION_SERVER_ENDPOINT = "http://sessionserver.mojang.com";
     private static final String API_ENDPOINT = "https://api.mojang.com";
     private static final String FETCH_BLOCKED_SERVERS = SESSION_SERVER_ENDPOINT + "/blockedservers";
     private static final String API_MOJANG = "mojang";
