@@ -1,5 +1,6 @@
 package xyz.mcutils.backend.common;
 
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.json.JsonMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -75,11 +76,7 @@ public class WebRequest {
 
         public RequestBuilder post(Object jsonBody) {
             this.method = Method.POST;
-            try {
-                this.encodedBody = jsonMapper.writeValueAsString(jsonBody);
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
+            this.encodedBody = jsonMapper.writeValueAsString(jsonBody);
             this.contentType = "application/json";
             return this;
         }
@@ -145,7 +142,7 @@ public class WebRequest {
                 if (raw != null && !raw.isBlank()) {
                     try {
                         body = jsonMapper.readValue(raw, clazz);
-                    } catch (IOException ignored) {
+                    } catch (JacksonException ignored) {
                         // Return null body on deserialisation failure
                     }
                 }
