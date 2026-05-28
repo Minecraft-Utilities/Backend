@@ -28,6 +28,7 @@ public class StatisticsService {
     private long trackedPlayerCount;
     private long trackedSkinCount;
     private long trackedCapeCount;
+    private long trendingSkinCount;
     private long nameChangesCount;
 
     public StatisticsService(PlayerRepository playerRepository, SkinRepository skinRepository, CapeRepository capeRepository, UsernameChangeEventRepository usernameChangeEventRepository) {
@@ -80,14 +81,24 @@ public class StatisticsService {
         CompletableFuture<Long> playersFuture = CompletableFuture.supplyAsync(this.playerRepository::count, Main.EXECUTOR);
         CompletableFuture<Long> skinsFuture = CompletableFuture.supplyAsync(this.skinRepository::count, Main.EXECUTOR);
         CompletableFuture<Long> capesFuture = CompletableFuture.supplyAsync(this.capeRepository::count, Main.EXECUTOR);
+        CompletableFuture<Long> trendingSkinsFuture = CompletableFuture.supplyAsync(() -> this.skinRepository.countByTrendingHeatGreaterThan(0), Main.EXECUTOR);
         CompletableFuture<Long> nameChangesFuture = CompletableFuture.supplyAsync(this.usernameChangeEventRepository::countNameChanges, Main.EXECUTOR);
 
-        CompletableFuture.allOf(playersFuture, skinsFuture, capesFuture, nameChangesFuture).join();
+        CompletableFuture.allOf(playersFuture, skinsFuture, capesFuture, trendingSkinsFuture, nameChangesFuture).join();
 
         this.trackedPlayerCount = playersFuture.join();
         this.trackedSkinCount = skinsFuture.join();
         this.trackedCapeCount = capesFuture.join();
+        this.trendingSkinCount = trendingSkinsFuture.join();
         this.nameChangesCount = nameChangesFuture.join();
+    }
+
+    /**
+     * Refreshes the cached count of skins with {@code trending_heat > 0}.
+     * Called after the hourly trending-heat rebuild; avoids a per-request COUNT over ~90k+ rows.
+     */
+    public void refreshTrendingSkinCount() {
+        this.trendingSkinCount = this.skinRepository.countByTrendingHeatGreaterThan(0);
     }
 
     /**

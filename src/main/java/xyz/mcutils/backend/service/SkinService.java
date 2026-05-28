@@ -86,9 +86,9 @@ public class SkinService {
     @Scheduled(cron = "0 0 * * * *") // Every hour
     public void updateTrendingHeat() {
         long before = System.currentTimeMillis();
-        this.skinRepository.resetTrendingHeat();
-        this.skinRepository.updateTrendingHeat();
-        log.info("Updated trending heat for skins in {}ms", System.currentTimeMillis() - before);
+        this.skinRepository.rebuildTrendingHeat();
+        this.statisticsService.refreshTrendingSkinCount();
+        log.info("Updated trending heat for skins in {}ms ({} trending)", System.currentTimeMillis() - before, this.statisticsService.getTrendingSkinCount());
     }
 
     public Skin getSkinById(long id) {
@@ -175,8 +175,7 @@ public class SkinService {
         Pageable pageable = PageRequest.of(page - 1, SKINS_PER_PAGE, pageSort);
 
         if (sort == SkinLookupSort.TRENDING) {
-            long total = this.skinRepository.countByTrendingHeatGreaterThan(0);
-            Pagination<Skin> pagination = new Pagination<Skin>().setItemsPerPage(SKINS_PER_PAGE).setTotalItems(total);
+            Pagination<Skin> pagination = new Pagination<Skin>().setItemsPerPage(SKINS_PER_PAGE).setTotalItems(this.statisticsService.getTrendingSkinCount());
             return pagination.getPage(page, (_) ->
                 this.skinRepository.findTrendingSkins(pageable).map(Skin::fromRow).stream().toList()
             );

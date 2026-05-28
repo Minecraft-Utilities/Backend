@@ -27,24 +27,31 @@ public interface SkinRepository extends JpaRepository<SkinRow, Long> {
     @Query("UPDATE SkinRow s SET s.legacy = :legacy WHERE s.textureId = :textureId")
     int updateLegacyByTextureId(@Param("textureId") String textureId, @Param("legacy") boolean legacy);
 
-    @Modifying
-    @Transactional
-    @Query(nativeQuery = true, value = "UPDATE skins SET trending_heat = 0 WHERE trending_heat > 0")
-    void resetTrendingHeat();
-
+    /**
+     * Rebuilds {@code trending_heat} from adoptions in the last 7 days.
+     * Single scan of {@code player_skin_adoptions}; skips unchanged scores; clears stale rows.
+     */
     @Modifying
     @Transactional
     @Query(nativeQuery = true, value = """
-        UPDATE skins
-        SET trending_heat = subquery.trending_heat
-        FROM (
-            SELECT psa.skin_id, COUNT(DISTINCT psa.player_id) AS trending_heat
+        WITH agg AS MATERIALIZED (
+            SELECT psa.skin_id, COUNT(*)::int AS trending_heat
             FROM player_skin_adoptions psa
-            WHERE psa.last_equipped_at IS NOT NULL
-              AND psa.last_equipped_at >= NOW() - INTERVAL '7 days'
+            WHERE psa.last_equipped_at >= NOW() - INTERVAL '7 days'
             GROUP BY psa.skin_id
-        ) AS subquery
-        WHERE skins.id = subquery.skin_id
+        ),
+        apply_scores AS (
+            UPDATE skins s
+            SET trending_heat = a.trending_heat
+            FROM agg a
+            WHERE s.id = a.skin_id
+              AND s.trending_heat IS DISTINCT FROM a.trending_heat
+            RETURNING s.id
+        )
+        UPDATE skins s
+        SET trending_heat = 0
+        WHERE s.trending_heat > 0
+          AND NOT EXISTS (SELECT 1 FROM agg a WHERE a.skin_id = s.id)
         """)
-    void updateTrendingHeat();
+    void rebuildTrendingHeat();
 }
