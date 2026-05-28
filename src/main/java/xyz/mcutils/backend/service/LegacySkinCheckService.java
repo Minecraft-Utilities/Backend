@@ -162,8 +162,7 @@ public class LegacySkinCheckService {
             String textureUrl = Skin.CDN_URL.formatted(textureId);
             byte[] bytes = webRequest.request(textureUrl).asBytes();
             if (bytes == null) {
-                log.debug("No response fetching skin texture {}, will retry", textureId);
-                return CheckResult.retry(textureId);
+                log.debug("No response fetching skin texture {}", textureId);
             }
             BufferedImage image = ImageUtils.decodeImage(bytes);
             boolean legacy = image.getWidth() == 64 && image.getHeight() == 32;
@@ -180,13 +179,6 @@ public class LegacySkinCheckService {
         } catch (Exception e) {
             log.warn("Unexpected error checking legacy status for {}", textureId, e);
             return CheckResult.retry(textureId);
-        }
-    }
-
-    private void evictSkinCache(String textureId) {
-        var cache = cacheManager.getCache(SKIN_TEXTURE_CACHE);
-        if (cache != null) {
-            cache.evict(textureId);
         }
     }
 
