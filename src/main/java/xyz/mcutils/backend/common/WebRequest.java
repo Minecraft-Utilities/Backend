@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
+import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.exception.impl.RateLimitException;
 
 import java.io.IOException;
@@ -45,9 +46,13 @@ public class WebRequest {
 
     @PostConstruct
     private void initHttpClient() {
+        // HTTP/1.1 avoids HTTP/2 "too many concurrent streams" when many virtual threads
+        // hit the same host (e.g. sessionserver.mojang.com) at once.
         httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(Duration.ofMillis(connectTimeoutMs))
                 .followRedirects(HttpClient.Redirect.NORMAL)
+                .executor(Main.EXECUTOR)
                 .build();
     }
 
