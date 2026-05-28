@@ -1,31 +1,40 @@
 package xyz.mcutils.backend.metric.impl.player;
 
-import io.prometheus.metrics.core.metrics.GaugeWithCallback;
+import org.jetbrains.annotations.Nullable;
 import xyz.mcutils.backend.metric.Metric;
+import xyz.mcutils.backend.metric.MetricPoint;
 import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
-import xyz.mcutils.backend.service.MetricService;
 import xyz.mcutils.backend.service.PlayerService;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
 /**
- * Exposes the top 10 players by total submitted UUIDs as a gauge, read directly from MongoDB.
- * Use {@code topk(10, top_submitted_players_submitted_uuids)} in Grafana.
+ * Exposes the top 10 players by total submitted UUIDs.
  */
-public class TopSubmittedPlayersMetric extends Metric<TopSubmittedPlayersMetric.Holder> {
+public class TopSubmittedPlayersMetric extends Metric {
+    private final PlayerService playerService;
 
     public TopSubmittedPlayersMetric(PlayerService playerService) {
-        super(new Holder(
-                GaugeWithCallback.builder()
-                        .name("top_submitted_players_submitted_uuids")
-                        .help("Submitted UUID count for the top 10 players by submission count")
-                        .labelNames("username")
-                        .callback(callback -> {
-                            for (PlayerRow player : playerService.getTopSubmittedPlayers(10)) {
-                                callback.call(player.getSubmittedUuids(), player.getUsername());
-                            }
-                        })
-                        .register(MetricService.REGISTRY)
-        ));
+        super(TimeUnit.SECONDS.toMillis(5L));
+        this.playerService = playerService;
     }
 
-    public record Holder(GaugeWithCallback gauge) {}
+    @Override
+    @Nullable
+    public MetricPoint buildPoint() {
+        return null;
+    }
+
+    @Override
+    public List<MetricPoint> buildPoints() {
+        List<MetricPoint> points = new ArrayList<>();
+        for (PlayerRow player : this.playerService.getTopSubmittedPlayers(10)) {
+            points.add(MetricPoint.measurement("top_submitted_players_submitted_uuids")
+                    .addTag("username", player.getUsername())
+                    .addField("value", player.getSubmittedUuids()));
+        }
+        return points;
+    }
 }

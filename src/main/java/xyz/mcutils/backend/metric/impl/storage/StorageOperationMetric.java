@@ -1,16 +1,19 @@
 package xyz.mcutils.backend.metric.impl.storage;
 
-import io.prometheus.metrics.core.metrics.Counter;
-import io.prometheus.metrics.core.metrics.Histogram;
+import org.jetbrains.annotations.Nullable;
 import xyz.mcutils.backend.metric.Metric;
-import xyz.mcutils.backend.service.MetricService;
+import xyz.mcutils.backend.metric.MetricPoint;
+import xyz.mcutils.backend.metric.util.TaggedCounterBuffer;
+import xyz.mcutils.backend.metric.util.TaggedDurationBuffer;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tracks S3/MinIO storage operation outcomes and latency.
- * In-memory cache hits are counted but excluded from the duration histogram.
  */
-public class StorageOperationMetric extends Metric<StorageOperationMetric.Holder> {
-
+public class StorageOperationMetric extends Metric {
     public enum Operation {
         UPLOAD("upload"),
         GET("get");
@@ -42,28 +45,33 @@ public class StorageOperationMetric extends Metric<StorageOperationMetric.Holder
         }
     }
 
+    private final TaggedCounterBuffer counters = new TaggedCounterBuffer("storage_operations_total");
+    private final TaggedDurationBuffer durations = new TaggedDurationBuffer("storage_operation_duration_milliseconds");
+
     public StorageOperationMetric() {
-        super(new Holder(
-                Counter.builder()
-                        .name("storage_operations_total")
-                        .help("Total S3 storage operations by operation type and status")
-                        .labelNames("operation", "status")
-                        .register(MetricService.REGISTRY),
-                Histogram.builder()
-                        .name("storage_operation_duration_milliseconds")
-                        .help("S3 storage operation duration (excludes in-memory cache hits)")
-                        .labelNames("operation")
-                        .classicUpperBounds(5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000)
-                        .register(MetricService.REGISTRY)
-        ));
+        super(TimeUnit.SECONDS.toMillis(1L));
     }
 
     public void record(Operation operation, Status status, long durationMs) {
-        getValue().counter.labelValues(operation.label(), status.label()).inc();
+        this.counters.increment(List.of(operation.label(), status.label()));
         if (status != Status.CACHE_HIT) {
-            getValue().histogram.labelValues(operation.label()).observe(durationMs);
+            this.durations.record(List.of(operation.label()), durationMs);
         }
     }
 
-    public record Holder(Counter counter, Histogram histogram) {}
+    @Override
+    @Nullable
+    public MetricPoint buildPoint() {
+        return null;
+    }
+
+    @Override
+    public List<MetricPoint> buildPoints() {
+        List<MetricPoint> points = new ArrayList<>();
+        points.addAll(this.counters.drain((point, tags) -> point
+                .addTag("operation", tags.get(0))
+                .addTag("status", tags.get(1))));
+        points.addAll(this.durations.drain((point, tags) -> point.addTag("operation", tags.get(0))));
+        return points;
+    }
 }

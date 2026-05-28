@@ -1,14 +1,22 @@
 package xyz.mcutils.backend.metric.impl.skin;
 
-import io.prometheus.metrics.core.metrics.GaugeWithCallback;
-import xyz.mcutils.backend.metric.GaugeWithCallbackMetric;
-import xyz.mcutils.backend.service.MetricService;
+import xyz.mcutils.backend.metric.Metric;
+import xyz.mcutils.backend.metric.MetricPoint;
 import xyz.mcutils.backend.service.StatisticsService;
 
-public class TrackedSkinsMetric extends GaugeWithCallbackMetric {
+import java.util.concurrent.TimeUnit;
+
+public class TrackedSkinsMetric extends Metric {
+    private final StatisticsService statisticsService;
+
     public TrackedSkinsMetric(StatisticsService statisticsService) {
-        super(GaugeWithCallback.builder().name("tracked_skins").callback(callback -> {
-            callback.call(statisticsService.getTrackedSkinCount());
-        }).register(MetricService.REGISTRY));
+        super(TimeUnit.SECONDS.toMillis(5L));
+        this.statisticsService = statisticsService;
+    }
+
+    @Override
+    public MetricPoint buildPoint() {
+        return MetricPoint.measurement("tracked_skins")
+                .addField("value", this.statisticsService.getTrackedSkinCount());
     }
 }

@@ -1,20 +1,17 @@
 package xyz.mcutils.backend.metric.impl.player;
 
-import io.prometheus.metrics.core.metrics.Counter;
+import org.jetbrains.annotations.Nullable;
 import xyz.mcutils.backend.metric.Metric;
-import xyz.mcutils.backend.service.MetricService;
+import xyz.mcutils.backend.metric.MetricPoint;
+import xyz.mcutils.backend.metric.util.TaggedCounterBuffer;
+
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Counts player submission outcomes at enqueue time.
- *
- * <p>Outcomes:
- * <ul>
- *   <li>{@code enqueued} – UUID was newly added to the submit queue</li>
- *   <li>{@code already_tracked} – UUID already exists in MongoDB</li>
- *   <li>{@code already_queued} – UUID already present in the Redis queue set</li>
- * </ul>
  */
-public class PlayerSubmitOutcomesMetric extends Metric<PlayerSubmitOutcomesMetric.Holder> {
+public class PlayerSubmitOutcomesMetric extends Metric {
     public enum Outcome {
         ENQUEUED("enqueued"),
         ALREADY_TRACKED("already_tracked"),
@@ -31,21 +28,26 @@ public class PlayerSubmitOutcomesMetric extends Metric<PlayerSubmitOutcomesMetri
         }
     }
 
+    private final TaggedCounterBuffer counter = new TaggedCounterBuffer("player_submissions_total");
+
     public PlayerSubmitOutcomesMetric() {
-        super(new Holder(
-                Counter.builder()
-                        .name("player_submissions_total")
-                        .help("Total player UUID submissions by outcome at enqueue time")
-                        .labelNames("outcome")
-                        .register(MetricService.REGISTRY)
-        ));
+        super(TimeUnit.SECONDS.toMillis(1L));
     }
 
     public void inc(Outcome outcome, long count) {
-        if (count > 0) {
-            getValue().counter.labelValues(outcome.label()).inc(count);
+        if (count > 0L) {
+            this.counter.increment(count, List.of(outcome.label()));
         }
     }
 
-    public record Holder(Counter counter) {}
+    @Override
+    @Nullable
+    public MetricPoint buildPoint() {
+        return null;
+    }
+
+    @Override
+    public List<MetricPoint> buildPoints() {
+        return this.counter.drain((point, tags) -> point.addTag("outcome", tags.get(0)));
+    }
 }

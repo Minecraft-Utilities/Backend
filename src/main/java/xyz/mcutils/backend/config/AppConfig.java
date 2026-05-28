@@ -14,7 +14,6 @@ import org.springframework.core.env.Environment;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-import xyz.mcutils.backend.filter.MetricsAuthFilter;
 import xyz.mcutils.backend.filter.SecurityHeadersFilter;
 
 @Getter
@@ -29,9 +28,6 @@ public class AppConfig {
     @Value("${mc-utils.public-url}")
     private String webPublicUrl;
 
-    @Value("${mc-utils.metrics-token}")
-    private String metricsToken;
-
     @PostConstruct
     public void onInitialize() {
         INSTANCE = this;
@@ -43,15 +39,6 @@ public class AppConfig {
         bean.addUrlPatterns("/*");
         bean.setOrder(-1); // Run first so headers are on every response
         bean.setName("securityHeadersFilter");
-        return bean;
-    }
-
-    @Bean
-    public FilterRegistrationBean<MetricsAuthFilter> metricsAuthFilter() {
-        FilterRegistrationBean<MetricsAuthFilter> bean = new FilterRegistrationBean<>(new MetricsAuthFilter(metricsToken));
-        bean.addUrlPatterns("/metrics");
-        bean.setOrder(0); // Run before other filters
-        bean.setName("metricsAuthFilter");
         return bean;
     }
 

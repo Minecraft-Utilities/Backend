@@ -1,25 +1,25 @@
 package xyz.mcutils.backend.metric.impl.mojang;
 
-import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import xyz.mcutils.backend.metric.Metric;
-import xyz.mcutils.backend.service.MetricService;
+import xyz.mcutils.backend.metric.MetricPoint;
 import xyz.mcutils.backend.service.MojangService;
 
+import java.util.concurrent.TimeUnit;
+
 /**
- * Exposes the current count of server hashes blocked by Mojang as a gauge.
- * Updated on the daily Mojang fetch schedule.
+ * Exposes the current count of server hashes blocked by Mojang.
  */
-public class MojangBlockedServersMetric extends Metric<MojangBlockedServersMetric.Holder> {
+public class MojangBlockedServersMetric extends Metric {
+    private final MojangService mojangService;
 
     public MojangBlockedServersMetric(MojangService mojangService) {
-        super(new Holder(
-                GaugeWithCallback.builder()
-                        .name("mojang_blocked_servers_count")
-                        .help("Number of server hashes currently blocked by Mojang")
-                        .callback(callback -> callback.call(mojangService.getBlockedServerHashes().size()))
-                        .register(MetricService.REGISTRY)
-        ));
+        super(TimeUnit.SECONDS.toMillis(60L));
+        this.mojangService = mojangService;
     }
 
-    public record Holder(GaugeWithCallback gauge) {}
+    @Override
+    public MetricPoint buildPoint() {
+        return MetricPoint.measurement("mojang_blocked_servers_count")
+                .addField("value", this.mojangService.getBlockedServerHashes().size());
+    }
 }

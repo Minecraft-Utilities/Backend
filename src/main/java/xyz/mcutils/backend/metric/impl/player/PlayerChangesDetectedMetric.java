@@ -1,27 +1,37 @@
 package xyz.mcutils.backend.metric.impl.player;
 
-import io.prometheus.metrics.core.metrics.Counter;
+import org.jetbrains.annotations.Nullable;
 import xyz.mcutils.backend.metric.Metric;
-import xyz.mcutils.backend.service.MetricService;
+import xyz.mcutils.backend.metric.MetricPoint;
+import xyz.mcutils.backend.metric.util.TaggedCounterBuffer;
+
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Counter for skin, cape, and username changes detected during player updates.
- * Compare rate to accounts_updated_total to measure change hit rate under weighted refresh.
  */
-public class PlayerChangesDetectedMetric extends Metric<PlayerChangesDetectedMetric.Holder> {
+public class PlayerChangesDetectedMetric extends Metric {
+    private final TaggedCounterBuffer counter = new TaggedCounterBuffer("player_changes_detected_total");
 
     public PlayerChangesDetectedMetric() {
-        super(new Holder(Counter.builder()
-                .name("player_changes_detected_total")
-                .help("Total skin, cape, and username changes detected during player updates")
-                .register(MetricService.REGISTRY)));
+        super(TimeUnit.SECONDS.toMillis(1L));
     }
 
     public void inc(long n) {
-        if (n > 0) {
-            getValue().counter.inc(n);
+        if (n > 0L) {
+            this.counter.increment(n, List.of());
         }
     }
 
-    public record Holder(Counter counter) {}
+    @Override
+    @Nullable
+    public MetricPoint buildPoint() {
+        return null;
+    }
+
+    @Override
+    public List<MetricPoint> buildPoints() {
+        return this.counter.drain((point, tags) -> { });
+    }
 }

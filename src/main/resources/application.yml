@@ -121,9 +121,14 @@ mc-utils:
     # Leave blank to disable lookups
     license: ""
 
-  # The Bearer token used for authenticating the "/metrics" route.
-  # Leave blank to disable auth.
-  metrics-token:
+  # InfluxDB-compatible metrics (VictoriaMetrics, InfluxDB, etc.)
+  influxdb:
+    enabled: false
+    host: http://127.0.0.1:8428
+    # Leave blank to disable HTTP basic auth
+    username:
+    password:
+    server: backend
 
   # Player monthly views
   turnstile-key: set_me

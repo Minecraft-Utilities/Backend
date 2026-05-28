@@ -1,16 +1,20 @@
 package xyz.mcutils.backend.metric.impl.dns;
 
-import io.prometheus.metrics.core.metrics.Counter;
-import io.prometheus.metrics.core.metrics.Histogram;
+import org.jetbrains.annotations.Nullable;
 import xyz.mcutils.backend.metric.Metric;
-import xyz.mcutils.backend.service.MetricService;
+import xyz.mcutils.backend.metric.MetricPoint;
+import xyz.mcutils.backend.metric.util.TaggedCounterBuffer;
+import xyz.mcutils.backend.metric.util.TaggedDurationBuffer;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tracks DNS SRV and A query outcomes and latency.
  * Cache hits are counted but excluded from the duration histogram.
  */
-public class DnsQueryMetric extends Metric<DnsQueryMetric.Holder> {
-
+public class DnsQueryMetric extends Metric {
     public enum QueryType {
         SRV("srv"),
         A("a");
@@ -42,28 +46,33 @@ public class DnsQueryMetric extends Metric<DnsQueryMetric.Holder> {
         }
     }
 
+    private final TaggedCounterBuffer counters = new TaggedCounterBuffer("dns_queries_total");
+    private final TaggedDurationBuffer durations = new TaggedDurationBuffer("dns_query_duration_milliseconds");
+
     public DnsQueryMetric() {
-        super(new Holder(
-                Counter.builder()
-                        .name("dns_queries_total")
-                        .help("Total DNS queries by query type and result")
-                        .labelNames("type", "result")
-                        .register(MetricService.REGISTRY),
-                Histogram.builder()
-                        .name("dns_query_duration_milliseconds")
-                        .help("DNS query duration (excludes in-memory cache hits)")
-                        .labelNames("type")
-                        .classicUpperBounds(1, 5, 10, 25, 50, 100, 250, 500, 1000)
-                        .register(MetricService.REGISTRY)
-        ));
+        super(TimeUnit.SECONDS.toMillis(1L));
     }
 
     public void record(QueryType type, Result result, long durationMs) {
-        getValue().counter.labelValues(type.label(), result.label()).inc();
+        this.counters.increment(List.of(type.label(), result.label()));
         if (result != Result.CACHE_HIT) {
-            getValue().histogram.labelValues(type.label()).observe(durationMs);
+            this.durations.record(List.of(type.label()), durationMs);
         }
     }
 
-    public record Holder(Counter counter, Histogram histogram) {}
+    @Override
+    @Nullable
+    public MetricPoint buildPoint() {
+        return null;
+    }
+
+    @Override
+    public List<MetricPoint> buildPoints() {
+        List<MetricPoint> points = new ArrayList<>();
+        points.addAll(this.counters.drain((point, tags) -> point
+                .addTag("type", tags.get(0))
+                .addTag("result", tags.get(1))));
+        points.addAll(this.durations.drain((point, tags) -> point.addTag("type", tags.get(0))));
+        return points;
+    }
 }

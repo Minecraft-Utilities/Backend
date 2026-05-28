@@ -1,14 +1,19 @@
 package xyz.mcutils.backend.metric.impl.cape;
 
-import io.prometheus.metrics.core.metrics.Counter;
-import io.prometheus.metrics.core.metrics.Histogram;
+import org.jetbrains.annotations.Nullable;
 import xyz.mcutils.backend.metric.Metric;
-import xyz.mcutils.backend.service.MetricService;
+import xyz.mcutils.backend.metric.MetricPoint;
+import xyz.mcutils.backend.metric.util.TaggedCounterBuffer;
+import xyz.mcutils.backend.metric.util.TaggedDurationBuffer;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tracks cape render storage cache hits/misses and render duration for cache misses.
  */
-public class CapeRenderMetric extends Metric<CapeRenderMetric.Holder> {
+public class CapeRenderMetric extends Metric {
     public enum Result {
         CACHE_HIT("cache_hit"),
         CACHE_MISS("cache_miss");
@@ -24,29 +29,33 @@ public class CapeRenderMetric extends Metric<CapeRenderMetric.Holder> {
         }
     }
 
+    private final TaggedCounterBuffer counter = new TaggedCounterBuffer("cape_render_requests_total");
+    private final TaggedDurationBuffer durations = new TaggedDurationBuffer("cape_render_duration_milliseconds");
+
     public CapeRenderMetric() {
-        super(new Holder(
-                Counter.builder()
-                        .name("cape_render_requests_total")
-                        .help("Total cape render requests by cache result")
-                        .labelNames("result")
-                        .register(MetricService.REGISTRY),
-                Histogram.builder()
-                        .name("cape_render_duration_milliseconds")
-                        .help("Cape render duration for cache misses (actual render time)")
-                        .classicUpperBounds(5, 10, 25, 50, 100, 250, 500, 1000)
-                        .register(MetricService.REGISTRY)
-        ));
+        super(TimeUnit.SECONDS.toMillis(1L));
     }
 
     public void recordHit() {
-        getValue().counter.labelValues(Result.CACHE_HIT.label()).inc();
+        this.counter.increment(List.of(Result.CACHE_HIT.label()));
     }
 
     public void recordMiss(long durationMs) {
-        getValue().counter.labelValues(Result.CACHE_MISS.label()).inc();
-        getValue().histogram.observe(durationMs);
+        this.counter.increment(List.of(Result.CACHE_MISS.label()));
+        this.durations.record(List.of(), durationMs);
     }
 
-    public record Holder(Counter counter, Histogram histogram) {}
+    @Override
+    @Nullable
+    public MetricPoint buildPoint() {
+        return null;
+    }
+
+    @Override
+    public List<MetricPoint> buildPoints() {
+        List<MetricPoint> points = new ArrayList<>();
+        points.addAll(this.counter.drain((point, tags) -> point.addTag("result", tags.get(0))));
+        points.addAll(this.durations.drain((point, tags) -> { }));
+        return points;
+    }
 }

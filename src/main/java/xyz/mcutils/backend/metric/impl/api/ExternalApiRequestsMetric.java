@@ -1,34 +1,48 @@
 package xyz.mcutils.backend.metric.impl.api;
 
-import io.prometheus.metrics.core.metrics.Counter;
-import io.prometheus.metrics.core.metrics.Histogram;
+import org.jetbrains.annotations.Nullable;
 import xyz.mcutils.backend.metric.Metric;
-import xyz.mcutils.backend.service.MetricService;
+import xyz.mcutils.backend.metric.MetricPoint;
+import xyz.mcutils.backend.metric.util.TaggedCounterBuffer;
+import xyz.mcutils.backend.metric.util.TaggedDurationBuffer;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Generic metric for external API requests (e.g. Mojang player lookup, username lookup).
- * Records request count by api, endpoint, and status (success/failure), and request duration.
  */
-public class ExternalApiRequestsMetric extends Metric<ExternalApiRequestsMetric.Holder> {
+public class ExternalApiRequestsMetric extends Metric {
+    private final TaggedCounterBuffer counters = new TaggedCounterBuffer("external_api_requests_total");
+    private final TaggedDurationBuffer durations = new TaggedDurationBuffer("external_api_request_duration_milliseconds");
 
     public ExternalApiRequestsMetric() {
-        super(new Holder(Counter.builder().name("external_api_requests_total").help("Total external API requests by api, endpoint and status").labelNames("api", "endpoint", "status").register(MetricService.REGISTRY), Histogram.builder().name("external_api_request_duration_milliseconds").help("External API request duration in milliseconds").labelNames("api", "endpoint").classicUpperBounds(10, 25, 50, 100, 250, 500, 1000, 2500, 5000).register(MetricService.REGISTRY)));
+        super(TimeUnit.SECONDS.toMillis(1L));
     }
 
-    /**
-     * Records one external API request.
-     *
-     * @param api        API name (e.g. "mojang")
-     * @param endpoint   Endpoint/operation name (e.g. "player_lookup", "username_lookup")
-     * @param success    whether the request succeeded
-     * @param durationMs duration of the request in milliseconds
-     */
     public void record(String api, String endpoint, boolean success, long durationMs) {
-        Holder h = getValue();
         String status = success ? "success" : "failure";
-        h.counter.labelValues(api, endpoint, status).inc();
-        h.histogram.labelValues(api, endpoint).observe(durationMs);
+        this.counters.increment(List.of(api, endpoint, status));
+        this.durations.record(List.of(api, endpoint), durationMs);
     }
 
-    public record Holder(Counter counter, Histogram histogram) {}
+    @Override
+    @Nullable
+    public MetricPoint buildPoint() {
+        return null;
+    }
+
+    @Override
+    public List<MetricPoint> buildPoints() {
+        List<MetricPoint> points = new ArrayList<>();
+        points.addAll(this.counters.drain((point, tags) -> point
+                .addTag("api", tags.get(0))
+                .addTag("endpoint", tags.get(1))
+                .addTag("status", tags.get(2))));
+        points.addAll(this.durations.drain((point, tags) -> point
+                .addTag("api", tags.get(0))
+                .addTag("endpoint", tags.get(1))));
+        return points;
+    }
 }

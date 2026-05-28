@@ -1,25 +1,26 @@
 package xyz.mcutils.backend.metric.impl.jvm;
 
-import io.prometheus.metrics.core.metrics.GaugeWithCallback;
-import xyz.mcutils.backend.metric.GaugeWithCallbackMetric;
-import xyz.mcutils.backend.service.MetricService;
+import xyz.mcutils.backend.Constants;
+import xyz.mcutils.backend.metric.Metric;
+import xyz.mcutils.backend.metric.MetricPoint;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
+import java.util.concurrent.TimeUnit;
 
-public class CpuUsageMetric extends GaugeWithCallbackMetric {
+public class CpuUsageMetric extends Metric {
     public CpuUsageMetric() {
-        super(GaugeWithCallback.builder()
-                .name("process_cpu_usage")
-                .help("Process CPU usage as a fraction (0.0 to 1.0)")
-                .callback(callback -> {
-                    OperatingSystemMXBean raw = ManagementFactory.getOperatingSystemMXBean();
-                    double cpuLoad = -1;
-                    if (raw instanceof com.sun.management.OperatingSystemMXBean osBean) {
-                        cpuLoad = osBean.getProcessCpuLoad();
-                    }
-                    callback.call(cpuLoad < 0 ? 0 : cpuLoad);
-                })
-                .register(MetricService.REGISTRY));
+        super(TimeUnit.SECONDS.toMillis(2L));
+    }
+
+    @Override
+    public MetricPoint buildPoint() {
+        OperatingSystemMXBean raw = ManagementFactory.getOperatingSystemMXBean();
+        double cpuLoad = -1;
+        if (raw instanceof com.sun.management.OperatingSystemMXBean osBean) {
+            cpuLoad = osBean.getProcessCpuLoad();
+        }
+        return MetricPoint.measurement("process_cpu_usage")
+                .addField("value", cpuLoad < 0 ? 0.0 : cpuLoad);
     }
 }

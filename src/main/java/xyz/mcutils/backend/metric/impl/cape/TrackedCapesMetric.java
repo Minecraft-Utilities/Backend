@@ -1,14 +1,22 @@
 package xyz.mcutils.backend.metric.impl.cape;
 
-import io.prometheus.metrics.core.metrics.GaugeWithCallback;
-import xyz.mcutils.backend.metric.GaugeWithCallbackMetric;
-import xyz.mcutils.backend.service.MetricService;
+import xyz.mcutils.backend.metric.Metric;
+import xyz.mcutils.backend.metric.MetricPoint;
 import xyz.mcutils.backend.service.StatisticsService;
 
-public class TrackedCapesMetric extends GaugeWithCallbackMetric {
+import java.util.concurrent.TimeUnit;
+
+public class TrackedCapesMetric extends Metric {
+    private final StatisticsService statisticsService;
+
     public TrackedCapesMetric(StatisticsService statisticsService) {
-        super(GaugeWithCallback.builder().name("tracked_capes").callback(callback -> {
-            callback.call(statisticsService.getTrackedCapeCount());
-        }).register(MetricService.REGISTRY));
+        super(TimeUnit.SECONDS.toMillis(5L));
+        this.statisticsService = statisticsService;
+    }
+
+    @Override
+    public MetricPoint buildPoint() {
+        return MetricPoint.measurement("tracked_capes")
+                .addField("value", this.statisticsService.getTrackedCapeCount());
     }
 }

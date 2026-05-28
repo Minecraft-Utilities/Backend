@@ -1,27 +1,37 @@
 package xyz.mcutils.backend.metric.impl.player;
 
-import io.prometheus.metrics.core.metrics.Counter;
+import org.jetbrains.annotations.Nullable;
 import xyz.mcutils.backend.metric.Metric;
-import xyz.mcutils.backend.service.MetricService;
+import xyz.mcutils.backend.metric.MetricPoint;
+import xyz.mcutils.backend.metric.util.TaggedCounterBuffer;
+
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Counter for tracked player accounts successfully refreshed.
- * Use with rate() for ETA: tracked_players / (rate(accounts_updated_total[1m]) * 60)
  */
-public class AccountsUpdatedMetric extends Metric<AccountsUpdatedMetric.Holder> {
+public class AccountsUpdatedMetric extends Metric {
+    private final TaggedCounterBuffer counter = new TaggedCounterBuffer("accounts_updated_total");
 
     public AccountsUpdatedMetric() {
-        super(new Holder(Counter.builder().name("accounts_updated_total").help("Total number of tracked player accounts successfully refreshed").register(MetricService.REGISTRY)));
+        super(TimeUnit.SECONDS.toMillis(1L));
     }
 
-    /**
-     * Increments the counter by the given number of accounts updated.
-     */
     public void inc(long n) {
-        if (n > 0) {
-            getValue().counter.inc(n);
+        if (n > 0L) {
+            this.counter.increment(n, List.of());
         }
     }
 
-    public record Holder(Counter counter) {}
+    @Override
+    @Nullable
+    public MetricPoint buildPoint() {
+        return null;
+    }
+
+    @Override
+    public List<MetricPoint> buildPoints() {
+        return this.counter.drain((point, tags) -> { });
+    }
 }

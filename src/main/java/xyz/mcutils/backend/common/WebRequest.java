@@ -22,6 +22,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -60,6 +62,12 @@ public class WebRequest {
         return new RequestBuilder(url);
     }
 
+    public record RawResponse(int statusCode, String body) {
+        public boolean isSuccess() {
+            return this.statusCode >= 200 && this.statusCode < 300;
+        }
+    }
+
     public enum Method { GET, POST, HEAD }
 
     public class RequestBuilder {
@@ -69,9 +77,15 @@ public class WebRequest {
         private String encodedBody;
         private String contentType;
         private boolean useProxy;
+        private final Map<String, String> headers = new LinkedHashMap<>();
 
         private RequestBuilder(String url) {
             this.url = url;
+        }
+
+        public RequestBuilder header(String name, String value) {
+            this.headers.put(name, value);
+            return this;
         }
 
         public RequestBuilder get() {
@@ -94,6 +108,13 @@ public class WebRequest {
                             + "=" + URLEncoder.encode(v, StandardCharsets.UTF_8)))
                     .collect(Collectors.joining("&"));
             this.contentType = "application/x-www-form-urlencoded";
+            return this;
+        }
+
+        public RequestBuilder postRaw(String body, String contentType) {
+            this.method = Method.POST;
+            this.encodedBody = body;
+            this.contentType = contentType;
             return this;
         }
 
@@ -184,6 +205,36 @@ public class WebRequest {
             }
         }
 
+        public RawResponse asRaw() {
+            HttpRequest req = buildRequest(null);
+            try {
+                HttpResponse<String> response = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+                return new RawResponse(response.statusCode(), response.body());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return new RawResponse(-1, null);
+            } catch (IOException e) {
+                return new RawResponse(-1, null);
+            }
+        }
+
+        public long pingMillis() {
+            HttpRequest req = buildRequest(null);
+            try {
+                long before = System.currentTimeMillis();
+                HttpResponse<Void> response = httpClient.send(req, HttpResponse.BodyHandlers.discarding());
+                if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                    return -1L;
+                }
+                return System.currentTimeMillis() - before;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return -1L;
+            } catch (IOException e) {
+                return -1L;
+            }
+        }
+
         public boolean exists() {
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(resolveUrl()))
@@ -202,6 +253,9 @@ public class WebRequest {
             HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(URI.create(resolveUrl()))
                     .timeout(Duration.ofMillis(socketTimeoutMs));
+            for (Map.Entry<String, String> header : this.headers.entrySet()) {
+                builder.header(header.getKey(), header.getValue());
+            }
             if (accept != null) {
                 builder.header("Accept", accept);
             }

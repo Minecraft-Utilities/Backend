@@ -1,14 +1,19 @@
 package xyz.mcutils.backend.metric.impl.server;
 
-import io.prometheus.metrics.core.metrics.Counter;
-import io.prometheus.metrics.core.metrics.Histogram;
+import org.jetbrains.annotations.Nullable;
 import xyz.mcutils.backend.metric.Metric;
-import xyz.mcutils.backend.service.MetricService;
+import xyz.mcutils.backend.metric.MetricPoint;
+import xyz.mcutils.backend.metric.util.TaggedCounterBuffer;
+import xyz.mcutils.backend.metric.util.TaggedDurationBuffer;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tracks server lookup cache hits/misses and server ping duration for cache misses.
  */
-public class ServerLookupMetric extends Metric<ServerLookupMetric.Holder> {
+public class ServerLookupMetric extends Metric {
     public enum Result {
         CACHE_HIT("cache_hit"),
         CACHE_MISS("cache_miss");
@@ -24,29 +29,33 @@ public class ServerLookupMetric extends Metric<ServerLookupMetric.Holder> {
         }
     }
 
+    private final TaggedCounterBuffer counter = new TaggedCounterBuffer("server_lookups_total");
+    private final TaggedDurationBuffer durations = new TaggedDurationBuffer("server_ping_duration_milliseconds");
+
     public ServerLookupMetric() {
-        super(new Holder(
-                Counter.builder()
-                        .name("server_lookups_total")
-                        .help("Total server lookups by cache result")
-                        .labelNames("result")
-                        .register(MetricService.REGISTRY),
-                Histogram.builder()
-                        .name("server_ping_duration_milliseconds")
-                        .help("Server ping duration for cache misses")
-                        .classicUpperBounds(50, 100, 250, 500, 1000, 2500, 5000, 10000)
-                        .register(MetricService.REGISTRY)
-        ));
+        super(TimeUnit.SECONDS.toMillis(1L));
     }
 
     public void recordHit() {
-        getValue().counter.labelValues(Result.CACHE_HIT.label()).inc();
+        this.counter.increment(List.of(Result.CACHE_HIT.label()));
     }
 
     public void recordMiss(long pingDurationMs) {
-        getValue().counter.labelValues(Result.CACHE_MISS.label()).inc();
-        getValue().histogram.observe(pingDurationMs);
+        this.counter.increment(List.of(Result.CACHE_MISS.label()));
+        this.durations.record(List.of(), pingDurationMs);
     }
 
-    public record Holder(Counter counter, Histogram histogram) {}
+    @Override
+    @Nullable
+    public MetricPoint buildPoint() {
+        return null;
+    }
+
+    @Override
+    public List<MetricPoint> buildPoints() {
+        List<MetricPoint> points = new ArrayList<>();
+        points.addAll(this.counter.drain((point, tags) -> point.addTag("result", tags.get(0))));
+        points.addAll(this.durations.drain((point, tags) -> { }));
+        return points;
+    }
 }
