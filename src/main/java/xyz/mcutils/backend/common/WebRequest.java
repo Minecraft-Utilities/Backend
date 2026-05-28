@@ -1,92 +1,52 @@
 package xyz.mcutils.backend.common;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.hc.client5.http.config.ConnectionConfig;
-import org.apache.hc.client5.http.config.RequestConfig;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
-import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
-import org.apache.hc.core5.http.io.SocketConfig;
-import org.apache.hc.core5.util.Timeout;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestClient;
 import xyz.mcutils.backend.exception.impl.RateLimitException;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.URI;
 import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class WebRequest {
 
-    @Value("${mc-utils.http-client.max-total-connections}")
-    private int maxTotalConnections;
-
-    @Value("${mc-utils.http-client.max-connections-per-route}")
-    private int maxConnectionsPerRoute;
-
     @Value("${mc-utils.http-client.connect-timeout-ms}")
     private int connectTimeoutMs;
-
-    @Value("${mc-utils.http-client.connection-request-timeout-ms}")
-    private int connectionRequestTimeoutMs;
 
     @Value("${mc-utils.http-client.socket-timeout-ms}")
     private int socketTimeoutMs;
 
-    @Value("${mc-utils.http-client.connection-time-to-live-seconds}")
-    private int connectionTimeToLiveSeconds;
-
     @Value("${mc-utils.http-proxy:}")
     private String httpProxy;
 
-    private RestClient client;
+    private final ObjectMapper objectMapper;
+    private HttpClient httpClient;
+
+    public WebRequest(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @PostConstruct
     private void initHttpClient() {
-        SocketConfig socketConfig = SocketConfig.custom()
-                .setSoTimeout(Timeout.of(socketTimeoutMs, TimeUnit.MILLISECONDS))
-                .build();
-
-        ConnectionConfig connectionConfig = ConnectionConfig.custom()
-                .setConnectTimeout(Timeout.of(connectTimeoutMs, TimeUnit.MILLISECONDS))
-                .build();
-
-        PoolingHttpClientConnectionManager connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
-                .setMaxConnTotal(maxTotalConnections)
-                .setMaxConnPerRoute(maxConnectionsPerRoute)
-                .setDefaultSocketConfig(socketConfig)
-                .setDefaultConnectionConfig(connectionConfig)
-                .build();
-
-        RequestConfig requestConfig = RequestConfig.custom()
-                .setResponseTimeout(Timeout.of(socketTimeoutMs, TimeUnit.MILLISECONDS))
-                .setConnectionRequestTimeout(Timeout.of(connectionRequestTimeoutMs, TimeUnit.MILLISECONDS))
-                .build();
-
-        CloseableHttpClient httpClient = HttpClients.custom()
-                .setConnectionManager(connectionManager)
-                .setDefaultRequestConfig(requestConfig)
-                .evictIdleConnections(Timeout.of(connectionTimeToLiveSeconds, TimeUnit.SECONDS))
-                .evictExpiredConnections()
-                .build();
-
-        HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(httpClient);
-        requestFactory.setConnectionRequestTimeout(connectionRequestTimeoutMs);
-
-        client = RestClient.builder()
-                .requestFactory(requestFactory)
+        httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(connectTimeoutMs))
+                .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
     }
 
@@ -100,8 +60,8 @@ public class WebRequest {
 
         private final String url;
         private Method method = Method.GET;
-        private Object body;
-        private MediaType contentType;
+        private String encodedBody;
+        private String contentType;
         private boolean useProxy;
 
         private RequestBuilder(String url) {
@@ -115,15 +75,23 @@ public class WebRequest {
 
         public RequestBuilder post(Object jsonBody) {
             this.method = Method.POST;
-            this.body = jsonBody;
-            this.contentType = MediaType.APPLICATION_JSON;
+            try {
+                this.encodedBody = objectMapper.writeValueAsString(jsonBody);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+            this.contentType = "application/json";
             return this;
         }
 
         public RequestBuilder post(MultiValueMap<String, String> formBody) {
             this.method = Method.POST;
-            this.body = formBody;
-            this.contentType = MediaType.APPLICATION_FORM_URLENCODED;
+            this.encodedBody = formBody.entrySet().stream()
+                    .flatMap(e -> e.getValue().stream().map(v ->
+                            URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8)
+                            + "=" + URLEncoder.encode(v, StandardCharsets.UTF_8)))
+                    .collect(Collectors.joining("&"));
+            this.contentType = "application/x-www-form-urlencoded";
             return this;
         }
 
@@ -138,68 +106,117 @@ public class WebRequest {
         }
 
         public <T> T as(Class<T> clazz) {
-            String requestUrl = resolveUrl();
-            var spec = client.method(toHttpMethod()).uri(requestUrl).accept(MediaType.APPLICATION_JSON);
-            if (body != null) {
-                spec.body(body);
-            }
-            return spec.exchange((req, response) -> {
-                HttpStatusCode status = response.getStatusCode();
-                if (status.isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
+            HttpRequest req = buildRequest("application/json");
+            try {
+                HttpResponse<String> response = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+                int status = response.statusCode();
+                if (status == 429) {
                     throw new RateLimitException("Rate limit was reached");
                 }
-                if (status.isError() || status.isSameCodeAs(HttpStatus.NO_CONTENT)) {
+                if (status == 204 || status >= 300) {
                     return null;
                 }
-                MediaType ct = response.getHeaders().getContentType();
-                if (ct == null || !ct.isCompatibleWith(MediaType.APPLICATION_JSON)) {
+                String ct = response.headers().firstValue("Content-Type").orElse("");
+                if (!ct.contains("application/json")) {
                     return null;
                 }
-                return response.bodyTo(clazz);
-            });
+                String body = response.body();
+                if (body == null || body.isBlank()) {
+                    return null;
+                }
+                return objectMapper.readValue(body, clazz);
+            } catch (RateLimitException e) {
+                throw e;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
         }
 
         public <T> ResponseEntity<T> asResponse(Class<T> clazz) {
-            return client.method(toHttpMethod()).uri(resolveUrl())
-                    .body(body)
-                    .retrieve()
-                    .onStatus(HttpStatusCode::isError, (req, res) -> {})
-                    .toEntity(clazz);
+            HttpRequest req = buildRequest("application/json");
+            try {
+                HttpResponse<String> response = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+                int status = response.statusCode();
+                T body = null;
+                String raw = response.body();
+                if (raw != null && !raw.isBlank()) {
+                    try {
+                        body = objectMapper.readValue(raw, clazz);
+                    } catch (IOException ignored) {
+                        // Return null body on deserialisation failure
+                    }
+                }
+                return ResponseEntity.status(status).body(body);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
         }
 
         public byte[] asBytes() {
+            HttpRequest req = buildRequest(null);
             try {
-                ResponseEntity<byte[]> response = client.method(toHttpMethod()).uri(resolveUrl())
-                        .retrieve()
-                        .onStatus(HttpStatusCode::isError, (req, res) -> {})
-                        .toEntity(byte[].class);
-
-                if (response.getStatusCode().isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS)) {
+                HttpResponse<byte[]> response = httpClient.send(req, HttpResponse.BodyHandlers.ofByteArray());
+                int status = response.statusCode();
+                if (status == 429) {
                     throw new RateLimitException("Rate limit reached fetching: " + url);
                 }
-                if (!response.getStatusCode().is2xxSuccessful()) {
-                    log.warn("Unexpected status {} fetching {}", response.getStatusCode(), url);
+                if (status < 200 || status >= 300) {
+                    log.warn("Unexpected status {} fetching {}", status, url);
                     return null;
                 }
-                return response.getBody();
+                return response.body();
             } catch (RateLimitException e) {
                 throw e;
-            } catch (Exception e) {
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            } catch (IOException e) {
                 log.warn("Error fetching {}: {}", url, e.getMessage());
                 return null;
             }
         }
 
         public boolean exists() {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(resolveUrl()))
+                    .method("HEAD", HttpRequest.BodyPublishers.noBody())
+                    .timeout(Duration.ofMillis(socketTimeoutMs))
+                    .build();
             try {
-                ResponseEntity<Void> response = client.head().uri(resolveUrl())
-                        .retrieve()
-                        .onStatus(HttpStatusCode::isError, (req, res) -> {})
-                        .toBodilessEntity();
-                return response.getStatusCode().isSameCodeAs(HttpStatus.OK);
+                HttpResponse<Void> response = httpClient.send(req, HttpResponse.BodyHandlers.discarding());
+                return response.statusCode() == 200;
             } catch (Exception e) {
                 return false;
             }
+        }
+
+        private HttpRequest buildRequest(String accept) {
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                    .uri(URI.create(resolveUrl()))
+                    .timeout(Duration.ofMillis(socketTimeoutMs));
+            if (accept != null) {
+                builder.header("Accept", accept);
+            }
+            switch (method) {
+                case POST -> {
+                    HttpRequest.BodyPublisher publisher = encodedBody != null
+                            ? HttpRequest.BodyPublishers.ofString(encodedBody)
+                            : HttpRequest.BodyPublishers.noBody();
+                    builder.POST(publisher);
+                    if (contentType != null) {
+                        builder.header("Content-Type", contentType);
+                    }
+                }
+                case HEAD -> builder.method("HEAD", HttpRequest.BodyPublishers.noBody());
+                default -> builder.GET();
+            }
+            return builder.build();
         }
 
         private String resolveUrl() {
@@ -209,19 +226,6 @@ public class WebRequest {
                 return base + "/" + encoded;
             }
             return url;
-        }
-
-        private org.springframework.http.HttpMethod toHttpMethod() {
-            return switch (method) {
-                case POST -> org.springframework.http.HttpMethod.POST;
-                case HEAD -> org.springframework.http.HttpMethod.HEAD;
-                default -> org.springframework.http.HttpMethod.GET;
-            };
-        }
-
-        private RestClient.RequestBodySpec body(Object body, MediaType contentType) {
-            // handled inline via .body(body, contentType) above — this is just for clarity
-            throw new UnsupportedOperationException();
         }
     }
 }
