@@ -1,6 +1,6 @@
 package xyz.mcutils.backend.common;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,11 +35,11 @@ public class WebRequest {
     @Value("${mc-utils.http-proxy:}")
     private String httpProxy;
 
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
     private HttpClient httpClient;
 
-    public WebRequest(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+    public WebRequest(JsonMapper jsonMapper) {
+        this.jsonMapper = jsonMapper;
     }
 
     @PostConstruct
@@ -76,7 +76,7 @@ public class WebRequest {
         public RequestBuilder post(Object jsonBody) {
             this.method = Method.POST;
             try {
-                this.encodedBody = objectMapper.writeValueAsString(jsonBody);
+                this.encodedBody = jsonMapper.writeValueAsString(jsonBody);
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
@@ -124,7 +124,7 @@ public class WebRequest {
                 if (body == null || body.isBlank()) {
                     return null;
                 }
-                return objectMapper.readValue(body, clazz);
+                return jsonMapper.readValue(body, clazz);
             } catch (RateLimitException e) {
                 throw e;
             } catch (InterruptedException e) {
@@ -144,7 +144,7 @@ public class WebRequest {
                 String raw = response.body();
                 if (raw != null && !raw.isBlank()) {
                     try {
-                        body = objectMapper.readValue(raw, clazz);
+                        body = jsonMapper.readValue(raw, clazz);
                     } catch (IOException ignored) {
                         // Return null body on deserialisation failure
                     }
