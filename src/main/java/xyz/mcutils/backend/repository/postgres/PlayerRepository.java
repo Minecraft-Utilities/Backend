@@ -2,7 +2,6 @@ package xyz.mcutils.backend.repository.postgres;
 
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -19,7 +18,7 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
     Optional<PlayerRow> findByUsernameIgnoreCase(String username);
     List<PlayerRow> findByUsernameStartingWithIgnoreCase(String username, Pageable pageable);
     List<PlayerRow> findTopByOrderBySubmittedUuidsDesc(Pageable pageable);
-    Slice<PlayerRow> findAllByLastUpdatedBeforeOrderByLastUpdatedAsc(Instant cutoff, Pageable pageable);
+    List<PlayerRow> findAllByLastUpdatedBeforeOrderByLastUpdatedAsc(Instant cutoff, Pageable pageable);
 
     @Query("SELECT p.username FROM PlayerRow p WHERE p.skin.id = :skinId")
     List<String> findUsernamesBySkinId(long skinId, Pageable pageable);
@@ -44,6 +43,11 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
     @Transactional
     @Query("UPDATE PlayerRow p SET p.submittedUuids = p.submittedUuids + :count WHERE p.id = :id")
     void incrementSubmittedUuids(@Param("id") UUID id, @Param("count") long count);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE PlayerRow p SET p.lastUpdated = :now WHERE p.id IN :ids")
+    void bumpLastUpdated(@Param("ids") Collection<UUID> ids, @Param("now") Instant now);
 
     @Modifying
     @Transactional
