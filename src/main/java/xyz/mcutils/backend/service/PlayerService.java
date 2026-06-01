@@ -96,11 +96,14 @@ public class PlayerService {
 
             PlayerRow playerRow = optionalPlayerRow.get();
             if (playerRow.getLastUpdated().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
-                MojangProfileToken token = this.mojangService.getProfile(playerRow.getId().toString());
-                if (token == null) {
-                    throw new NotFoundException("Player '%s' was not found".formatted(query));
-                }
-                playerRow = this.updatePlayer(playerRow, token);
+                // Update the player in the background
+                Main.EXECUTOR.execute(() -> {
+                    MojangProfileToken token = this.mojangService.getProfile(playerRow.getId().toString());
+                    if (token == null) {
+                        return;
+                    }
+                    this.updatePlayer(playerRow, token);
+                });
             }
             return playerRow;
         });
@@ -137,9 +140,8 @@ public class PlayerService {
     }
 
     @Transactional
-    public PlayerRow updatePlayer(PlayerRow playerRow, MojangProfileToken token) {
+    public void updatePlayer(PlayerRow playerRow, MojangProfileToken token) {
         this.updatePlayers(Collections.singletonList(new PlayerUpdate(playerRow, token)));
-        return this.playerRepository.findById(playerRow.getId()).orElseThrow();
     }
 
     @Transactional
