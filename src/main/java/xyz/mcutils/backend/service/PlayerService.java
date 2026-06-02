@@ -2,6 +2,7 @@ package xyz.mcutils.backend.service;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -51,12 +52,14 @@ public class PlayerService {
     private final UsernameChangeEventRepository usernameChangeEventRepository;
     private final PlayerSkinAdoptionRepository playerSkinAdoptionRepository;
     private final PlayerCapeAdoptionRepository playerCapeAdoptionRepository;
+    private final PlayerService self;
 
     private final CoalescingLoader<String, PlayerRow> playerLoader = new CoalescingLoader<>(Runnable::run);
 
     public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService,
                          PlayerRepository playerRepository, UsernameChangeEventRepository usernameChangeEventRepository,
-                         PlayerSkinAdoptionRepository playerSkinAdoptionRepository, PlayerCapeAdoptionRepository playerCapeAdoptionRepository) {
+                         PlayerSkinAdoptionRepository playerSkinAdoptionRepository, PlayerCapeAdoptionRepository playerCapeAdoptionRepository,
+                         @Lazy PlayerService self) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
@@ -64,6 +67,7 @@ public class PlayerService {
         this.usernameChangeEventRepository = usernameChangeEventRepository;
         this.playerSkinAdoptionRepository = playerSkinAdoptionRepository;
         this.playerCapeAdoptionRepository = playerCapeAdoptionRepository;
+        this.self = self;
     }
 
     @PostConstruct
@@ -102,7 +106,7 @@ public class PlayerService {
                     if (token == null) {
                         return;
                     }
-                    this.updatePlayer(playerRow, token);
+                    this.self.updatePlayer(playerRow, token);
                 });
             }
             return playerRow;
