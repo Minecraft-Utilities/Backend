@@ -556,7 +556,7 @@
                     "spec": {
                       "editorMode": "code",
                       "exemplar": false,
-                      "expr": "tracked_players{job=\"mc_utils\"} / (rate(accounts_updated_total{job=\"mc_utils\"}[1m]) * 60)",
+                      "expr": "tracked_players{job=\"mc_utils\"} / (rate(accounts_updated_total{job=\"mc_utils\"}[5m]) * 60)",
                       "format": "time_series",
                       "instant": false,
                       "legendFormat": "__auto",

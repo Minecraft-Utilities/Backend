@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.CoalescingLoader;
@@ -143,7 +144,6 @@ public class PlayerService {
         return playerRow;
     }
 
-    @Transactional
     public void updatePlayer(PlayerRow playerRow, MojangProfileToken token) {
         this.updatePlayers(Collections.singletonList(new PlayerUpdate(playerRow, token)));
     }
@@ -220,52 +220,24 @@ public class PlayerService {
         StatisticsService.addTrackedPlayerCount(playerRows.size());
     }
 
-    @Transactional
     public void updatePlayers(List<PlayerUpdate> playerUpdates) {
-        Instant now = Instant.now();
-        List<PlayerRow> playerRows = new ArrayList<>();
-        List<UsernameChangeEventRow> usernameChangeEvents = new ArrayList<>();
-        List<PlayerSkinAdoptionRow> skinEquips = new ArrayList<>();
-        List<PlayerCapeAdoptionRow> capeEquips = new ArrayList<>();
-        int skinChangeCount = 0;
-        int capeChangeCount = 0;
-
         List<PlayerUpdate> sortedUpdates = playerUpdates.stream()
                 .sorted(Comparator.comparing(u -> u.playerRow().getId()))
                 .toList();
 
-        List<UpdatePlayerResult> updatePlayerResults = new ArrayList<>();
+        List<UsernameChangeEventRow> usernameChangeEvents = new ArrayList<>();
         for (PlayerUpdate playerUpdate : sortedUpdates) {
-            updatePlayerResults.add(this.applyPlayerUpdate(playerUpdate, now));
-        }
-
-        for (UpdatePlayerResult update : updatePlayerResults) {
-            playerRows.add(update.playerRow());
-            if (update.skinChanged()) {
-                skinChangeCount++;
-            }
-            if (update.capeChanged()) {
-                capeChangeCount++;
-            }
-            if (update.equippedSkinId() != null) {
-                skinEquips.add(new PlayerSkinAdoptionRow(update.playerRow().getId(), update.equippedSkinId(), now, now));
-            }
-            if (update.equippedCapeId() != null) {
-                capeEquips.add(new PlayerCapeAdoptionRow(update.playerRow().getId(), update.equippedCapeId(), now, now));
-            }
-            if (update.usernameChangeEventRow() != null) {
-                usernameChangeEvents.add(update.usernameChangeEventRow());
+            try {
+                PreparedPlayerUpdate prepared = preparePlayerUpdate(playerUpdate);
+                UsernameChangeEventRow usernameChangeEvent = this.self.persistPlayerUpdate(prepared);
+                if (usernameChangeEvent != null) {
+                    usernameChangeEvents.add(usernameChangeEvent);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to refresh player {}: {}", playerUpdate.playerRow().getId(), e.toString());
+                log.debug("Failed to refresh player {}", playerUpdate.playerRow().getId(), e);
             }
         }
-
-        this.playerRepository.saveAll(playerRows);
-        this.playerRepository.flush();
-        recordSkinEquips(skinEquips, now);
-        recordCapeEquips(capeEquips, now);
-        this.usernameChangeEventRepository.saveAll(usernameChangeEvents);
-        MetricService.getMetric(AccountsUpdatedMetric.class).inc(playerRows.size());
-        MetricService.getMetric(PlayerChangesDetectedMetric.class).inc(skinChangeCount + capeChangeCount + usernameChangeEvents.size());
-        StatisticsService.addNameChangesCount(usernameChangeEvents.size());
 
         for (UsernameChangeEventRow usernameChangeEvent : usernameChangeEvents) {
             WebSocketManager.getWebsocket(NameChangeWebSocket.class).sendMessageToAll(new RecentUsernameChange(
@@ -277,52 +249,103 @@ public class PlayerService {
         }
     }
 
-    private UpdatePlayerResult applyPlayerUpdate(PlayerUpdate playerUpdate, Instant now) {
-        PlayerRow playerRow = this.playerRepository.findByIdForUpdate(playerUpdate.playerRow().getId()).orElseThrow(() ->
-                new NotFoundException("Player '%s' was not found".formatted(playerUpdate.playerRow().getId())));
+    /**
+     * Resolves skin/cape rows without holding a player row lock.
+     */
+    private PreparedPlayerUpdate preparePlayerUpdate(PlayerUpdate playerUpdate) {
+        PlayerRow snapshot = playerUpdate.playerRow();
         MojangProfileToken token = playerUpdate.token();
+        Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
+        SkinTextureToken skinToken = skinAndCape.left();
+        CapeTextureToken capeToken = skinAndCape.right();
 
-        boolean skinChanged = false;
-        boolean capeChanged = false;
+        SkinRow newSkin = null;
+        if (!snapshot.getSkin().getTextureId().equals(skinToken.getTextureId())) {
+            newSkin = this.skinService.getOrCreateSkinCached(skinToken, snapshot.getId());
+        }
+
+        String oldCapeTextureId = snapshot.getCape() != null ? snapshot.getCape().getTextureId() : null;
+        String newCapeTextureId = capeToken != null ? capeToken.getTextureId() : null;
+        boolean capeChanged = !Objects.equals(oldCapeTextureId, newCapeTextureId);
+        CapeRow newCape = null;
+        if (capeChanged && capeToken != null) {
+            newCape = this.capeService.getOrCreateCapeCached(capeToken, snapshot.getId());
+        }
+
+        return new PreparedPlayerUpdate(snapshot.getId(), token, newSkin, newCape, capeChanged);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public UsernameChangeEventRow persistPlayerUpdate(PreparedPlayerUpdate prepared) {
+        Instant now = Instant.now();
+        Optional<PlayerRow> locked = this.playerRepository.findByIdForUpdate(prepared.playerId());
+        if (locked.isEmpty()) {
+            return null;
+        }
+
+        PlayerRow playerRow = locked.get();
+        MojangProfileToken token = prepared.token();
+        int changeCount = 0;
         Long equippedSkinId = null;
         Long equippedCapeId = null;
-        UsernameChangeEventRow usernameChangeEventRow = null;
 
         if (playerRow.isLegacyAccount() != token.isLegacy()) {
             playerRow.setLegacyAccount(token.isLegacy());
         }
 
-        Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
-        SkinTextureToken skinToken = skinAndCape.left();
-        CapeTextureToken capeToken = skinAndCape.right();
-
-        if (!playerRow.getSkin().getTextureId().equals(skinToken.getTextureId())) {
-            SkinRow newSkin = this.skinService.getOrCreateSkinCached(skinToken, playerRow.getId());
-            playerRow.setSkin(newSkin);
-            equippedSkinId = newSkin.getId();
-            skinChanged = true;
+        if (prepared.newSkin() != null && !playerRow.getSkin().getTextureId().equals(prepared.newSkin().getTextureId())) {
+            playerRow.setSkin(prepared.newSkin());
+            equippedSkinId = prepared.newSkin().getId();
+            changeCount++;
         }
 
-        String oldCapeTextureId = playerRow.getCape() != null ? playerRow.getCape().getTextureId() : null;
-        String newCapeTextureId = capeToken != null ? capeToken.getTextureId() : null;
-        if (!Objects.equals(oldCapeTextureId, newCapeTextureId)) {
-            CapeRow newCape = capeToken != null ? this.capeService.getOrCreateCapeCached(capeToken, playerRow.getId()) : null;
-            playerRow.setCape(newCape);
-            if (newCape != null) {
-                equippedCapeId = newCape.getId();
+        if (prepared.capeChanged()) {
+            String currentCapeTextureId = playerRow.getCape() != null ? playerRow.getCape().getTextureId() : null;
+            String targetCapeTextureId = prepared.newCape() != null ? prepared.newCape().getTextureId() : null;
+            if (!Objects.equals(currentCapeTextureId, targetCapeTextureId)) {
+                playerRow.setCape(prepared.newCape());
+                if (prepared.newCape() != null) {
+                    equippedCapeId = prepared.newCape().getId();
+                }
+                changeCount++;
             }
-            capeChanged = true;
         }
 
+        UsernameChangeEventRow usernameChangeEventRow = null;
         String previousUsername = playerRow.getUsername();
         if (!previousUsername.equals(token.getName())) {
             playerRow.setUsername(token.getName());
             usernameChangeEventRow = new UsernameChangeEventRow(playerRow.getId(), token.getName(), previousUsername, now);
+            changeCount++;
         }
 
         playerRow.setLastUpdated(now);
-        return new UpdatePlayerResult(playerRow, skinChanged, capeChanged, equippedSkinId, equippedCapeId, usernameChangeEventRow);
+        this.playerRepository.save(playerRow);
+        if (equippedSkinId != null) {
+            recordSkinEquips(List.of(new PlayerSkinAdoptionRow(playerRow.getId(), equippedSkinId, now, now)), now);
+        }
+        if (equippedCapeId != null) {
+            recordCapeEquips(List.of(new PlayerCapeAdoptionRow(playerRow.getId(), equippedCapeId, now, now)), now);
+        }
+        if (usernameChangeEventRow != null) {
+            this.usernameChangeEventRepository.save(usernameChangeEventRow);
+            StatisticsService.addNameChangesCount(1);
+        }
+
+        MetricService.getMetric(AccountsUpdatedMetric.class).inc(1);
+        if (changeCount > 0) {
+            MetricService.getMetric(PlayerChangesDetectedMetric.class).inc(changeCount);
+        }
+        return usernameChangeEventRow;
     }
+
+    private record PreparedPlayerUpdate(
+            UUID playerId,
+            MojangProfileToken token,
+            SkinRow newSkin,
+            CapeRow newCape,
+            boolean capeChanged
+    ) {}
 
     public Set<UsernameHistory> getUsernameHistory(PlayerRow player) {
         List<UsernameChangeEventRow> events = this.usernameChangeEventRepository
@@ -439,8 +462,4 @@ public class PlayerService {
     }
 
     public record PlayerUpdate(PlayerRow playerRow, MojangProfileToken token) {}
-
-    public record UpdatePlayerResult(PlayerRow playerRow, boolean skinChanged, boolean capeChanged,
-                                     Long equippedSkinId, Long equippedCapeId,
-                                     UsernameChangeEventRow usernameChangeEventRow) {}
 }

@@ -35,6 +35,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class PlayerSubmitService {
 
     private static final int BATCH_SIZE = 1000;
+    /** Must stay at or below http-client.max-connections-per-route to avoid pool queue stalls. */
+    private static final int CONCURRENT_FETCHES = 80;
     private static final int RATE_LIMIT = 400;
     private static final String QUEUE_NAME = "player-submit-queue";
     private static final Duration EMPTY_QUEUE_BLOCK = Duration.ofSeconds(2);
@@ -110,23 +112,28 @@ public class PlayerSubmitService {
 
     private Map<UUID, Long> processEntries(List<QueueEntry> toProcess) {
         Queue<FetchResult> fetchResults = new ConcurrentLinkedQueue<>();
-        List<Future<Void>> futures = new ArrayList<>();
-
-        for (QueueEntry entry : toProcess) {
-            rateLimiter.acquire();
-            futures.add(Main.EXECUTOR.submit(() -> {
-                fetchResults.add(fetchProfile(entry));
-                return null;
-            }));
-        }
-
-        FutureUtils.awaitAll(futures, "submit");
-
         Set<String> idsToRemoveFromQueue = new HashSet<>();
         Map<UUID, Long> submitterCounts = new HashMap<>();
         List<MojangProfileToken> tokensToSave = new ArrayList<>();
         List<FetchResult> successResults = new ArrayList<>();
         List<String> toRequeue = new ArrayList<>();
+
+        for (int offset = 0; offset < toProcess.size(); offset += CONCURRENT_FETCHES) {
+            if (!running.get()) {
+                break;
+            }
+            int end = Math.min(offset + CONCURRENT_FETCHES, toProcess.size());
+            List<QueueEntry> slice = toProcess.subList(offset, end);
+            List<Future<Void>> futures = new ArrayList<>();
+            for (QueueEntry entry : slice) {
+                rateLimiter.acquire();
+                futures.add(Main.EXECUTOR.submit(() -> {
+                    fetchResults.add(fetchProfile(entry));
+                    return null;
+                }));
+            }
+            FutureUtils.awaitAll(futures, "submit");
+        }
 
         for (FetchResult result : fetchResults) {
             if (result.outcome() == PlayerSubmitProcessingMetric.Outcome.RATE_LIMITED

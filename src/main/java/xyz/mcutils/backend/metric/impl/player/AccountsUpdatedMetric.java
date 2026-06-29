@@ -6,7 +6,7 @@ import xyz.mcutils.backend.service.MetricService;
 
 /**
  * Counter for tracked player accounts successfully refreshed.
- * Use with rate() for ETA: tracked_players / (rate(accounts_updated_total[1m]) * 60)
+ * Use with rate() for ETA: tracked_players / (rate(accounts_updated_total[5m]) * 60)
  */
 public class AccountsUpdatedMetric extends Metric<AccountsUpdatedMetric.Holder> {
 

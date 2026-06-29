@@ -54,10 +54,14 @@ mc-utils:
   # Leave empty to disable
   http-proxy:
 
-  # HTTP client timeouts (for outbound requests).
+  # HTTP client timeouts and connection pool (for outbound requests).
   http-client:
+    max-total-connections: 1000
+    max-connections-per-route: 100
     connect-timeout-ms: 2500
+    connection-request-timeout-ms: 60000
     socket-timeout-ms: 10000
+    connection-time-to-live-seconds: 60
 
   # Redis - This is used for caching
   redis:
