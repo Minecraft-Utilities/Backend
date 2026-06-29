@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 import xyz.mcutils.backend.model.persistence.postgres.SkinRow;
 
+import java.util.Collection;
 import java.util.Optional;
 
 public interface SkinRepository extends JpaRepository<SkinRow, Long> {
@@ -17,10 +18,11 @@ public interface SkinRepository extends JpaRepository<SkinRow, Long> {
     @Query("SELECT s FROM SkinRow s")
     Slice<SkinRow> findAllSkins(Pageable pageable);
 
-    @Query("SELECT s FROM SkinRow s WHERE s.trendingHeat > 0")
-    Slice<SkinRow> findTrendingSkins(Pageable pageable);
+    @Query("SELECT s FROM SkinRow s WHERE s.trendingHeat > 0 AND s.textureId NOT IN :vanillaTextureIds")
+    Slice<SkinRow> findTrendingSkins(@Param("vanillaTextureIds") Collection<String> vanillaTextureIds, Pageable pageable);
 
-    long countByTrendingHeatGreaterThan(int trendingHeat);
+    @Query("SELECT COUNT(s) FROM SkinRow s WHERE s.trendingHeat > 0 AND s.textureId NOT IN :vanillaTextureIds")
+    long countTrendingSkins(@Param("vanillaTextureIds") Collection<String> vanillaTextureIds);
 
     @Modifying
     @Transactional
@@ -37,7 +39,9 @@ public interface SkinRepository extends JpaRepository<SkinRow, Long> {
         WITH agg AS MATERIALIZED (
             SELECT psa.skin_id, COUNT(*)::int AS trending_heat
             FROM player_skin_adoptions psa
+            JOIN skins skin ON skin.id = psa.skin_id
             WHERE psa.last_equipped_at >= NOW() - INTERVAL '7 days'
+              AND skin.texture_id NOT IN (:vanillaTextureIds)
             GROUP BY psa.skin_id
         ),
         apply_scores AS (
@@ -53,5 +57,5 @@ public interface SkinRepository extends JpaRepository<SkinRow, Long> {
         WHERE s.trending_heat > 0
           AND NOT EXISTS (SELECT 1 FROM agg a WHERE a.skin_id = s.id)
         """)
-    void rebuildTrendingHeat();
+    void rebuildTrendingHeat(@Param("vanillaTextureIds") Collection<String> vanillaTextureIds);
 }

@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
+import xyz.mcutils.backend.model.domain.skin.VanillaSkinTextureIds;
 import xyz.mcutils.backend.model.dto.response.StatisticsResponse;
 import xyz.mcutils.backend.repository.postgres.CapeRepository;
 import xyz.mcutils.backend.repository.postgres.PlayerRepository;
@@ -81,7 +82,7 @@ public class StatisticsService {
         CompletableFuture<Long> playersFuture = CompletableFuture.supplyAsync(this.playerRepository::count, Main.EXECUTOR);
         CompletableFuture<Long> skinsFuture = CompletableFuture.supplyAsync(this.skinRepository::count, Main.EXECUTOR);
         CompletableFuture<Long> capesFuture = CompletableFuture.supplyAsync(this.capeRepository::count, Main.EXECUTOR);
-        CompletableFuture<Long> trendingSkinsFuture = CompletableFuture.supplyAsync(() -> this.skinRepository.countByTrendingHeatGreaterThan(0), Main.EXECUTOR);
+        CompletableFuture<Long> trendingSkinsFuture = CompletableFuture.supplyAsync(() -> this.skinRepository.countTrendingSkins(VanillaSkinTextureIds.ALL), Main.EXECUTOR);
         CompletableFuture<Long> nameChangesFuture = CompletableFuture.supplyAsync(this.usernameChangeEventRepository::countNameChanges, Main.EXECUTOR);
 
         CompletableFuture.allOf(playersFuture, skinsFuture, capesFuture, trendingSkinsFuture, nameChangesFuture).join();
@@ -98,7 +99,7 @@ public class StatisticsService {
      * Called after the hourly trending-heat rebuild; avoids a per-request COUNT over ~90k+ rows.
      */
     public void refreshTrendingSkinCount() {
-        this.trendingSkinCount = this.skinRepository.countByTrendingHeatGreaterThan(0);
+        this.trendingSkinCount = this.skinRepository.countTrendingSkins(VanillaSkinTextureIds.ALL);
     }
 
     /**

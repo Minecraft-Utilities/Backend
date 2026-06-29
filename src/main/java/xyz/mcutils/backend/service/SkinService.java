@@ -23,6 +23,7 @@ import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.skin.SkinRenderMetric;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.domain.skin.SkinLookupSort;
+import xyz.mcutils.backend.model.domain.skin.VanillaSkinTextureIds;
 import xyz.mcutils.backend.model.persistence.postgres.SkinRow;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.repository.postgres.PlayerRepository;
@@ -86,7 +87,7 @@ public class SkinService {
     @Scheduled(cron = "0 0 * * * *") // Every hour
     public void updateTrendingHeat() {
         long before = System.currentTimeMillis();
-        this.skinRepository.rebuildTrendingHeat();
+        this.skinRepository.rebuildTrendingHeat(VanillaSkinTextureIds.ALL);
         this.statisticsService.refreshTrendingSkinCount();
         log.info("Updated trending heat for skins in {}ms ({} trending)", System.currentTimeMillis() - before, this.statisticsService.getTrendingSkinCount());
     }
@@ -177,7 +178,7 @@ public class SkinService {
         if (sort == SkinLookupSort.TRENDING) {
             Pagination<Skin> pagination = new Pagination<Skin>().setItemsPerPage(SKINS_PER_PAGE).setTotalItems(this.statisticsService.getTrendingSkinCount());
             return pagination.getPage(page, (_) ->
-                this.skinRepository.findTrendingSkins(pageable).map(Skin::fromRow).stream().toList()
+                this.skinRepository.findTrendingSkins(VanillaSkinTextureIds.ALL, pageable).map(Skin::fromRow).stream().toList()
             );
         }
 
