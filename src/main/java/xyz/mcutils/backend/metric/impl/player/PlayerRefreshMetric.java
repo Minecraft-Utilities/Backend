@@ -32,13 +32,13 @@ public class PlayerRefreshMetric extends Metric<PlayerRefreshMetric.Holder> {
                         .name("player_refresh_interval_seconds")
                         .help("Computed adaptive refresh interval after a successful player update")
                         .classicUpperBounds(1200, 3600, 7200, 14400, 28800, 86400)
-                        .register(MetricService.REGISTRY),
-                GaugeWithCallback.builder()
-                        .name("player_refresh_overdue_total")
-                        .help("Players with next_refresh_at in the past, sampled each refresh loop iteration")
-                        .callback(callback -> callback.call(overdueCount.get()))
                         .register(MetricService.REGISTRY)
         ));
+        GaugeWithCallback.builder()
+                .name("player_refresh_overdue_total")
+                .help("Players with next_refresh_at in the past, sampled each refresh loop iteration")
+                .callback(callback -> callback.call(overdueCount.get()))
+                .register(MetricService.REGISTRY);
     }
 
     public void recordMojangLookup() {
@@ -59,5 +59,5 @@ public class PlayerRefreshMetric extends Metric<PlayerRefreshMetric.Holder> {
         overdueCount.set(count);
     }
 
-    public record Holder(Counter mojangLookups, Counter persist, Histogram intervalSeconds, GaugeWithCallback overdueTotal) {}
+    public record Holder(Counter mojangLookups, Counter persist, Histogram intervalSeconds) {}
 }
