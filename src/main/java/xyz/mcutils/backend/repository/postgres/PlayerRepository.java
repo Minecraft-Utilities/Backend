@@ -17,7 +17,7 @@ import java.util.*;
 public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
     Optional<PlayerRow> findByUsernameIgnoreCase(String username);
     List<PlayerRow> findByUsernameStartingWithIgnoreCase(String username, Pageable pageable);
-    List<PlayerRow> findTopByOrderBySubmittedUuidsDesc(Pageable pageable);
+    List<PlayerRow> findAllByOrderBySubmittedUuidsDesc(Pageable pageable);
     List<PlayerRow> findAllByLastUpdatedBeforeOrderByLastUpdatedAsc(Instant cutoff, Pageable pageable);
 
     @Query("SELECT p.username FROM PlayerRow p WHERE p.skin.id = :skinId")

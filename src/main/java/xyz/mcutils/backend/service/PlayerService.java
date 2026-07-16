@@ -404,7 +404,7 @@ public class PlayerService {
     }
 
     public List<PlayerRow> getTopSubmittedPlayers(int amount) {
-        return this.playerRepository.findTopByOrderBySubmittedUuidsDesc(PageRequest.of(0, amount)).stream().toList();
+        return this.playerRepository.findAllByOrderBySubmittedUuidsDesc(PageRequest.of(0, amount)).stream().toList();
     }
 
     public Set<UUID> getExistingPlayerIds(List<UUID> ids) {
