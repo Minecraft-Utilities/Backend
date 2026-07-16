@@ -54,9 +54,12 @@ public class PlayerRefreshService {
         Thread.ofVirtual().name("player-refresh").start(() -> {
             while (running.get()) {
                 try {
-                    Instant cutoff = Instant.now().minus(PlayerService.PLAYER_UPDATE_INTERVAL);
-                    List<PlayerRow> playerRows = this.playerRepository.findAllByLastUpdatedBeforeOrderByLastUpdatedAsc(
-                            cutoff,
+                    Instant now = Instant.now();
+                    MetricService.getMetric(PlayerRefreshMetric.class).recordOverdueCount(
+                            this.playerRepository.countByNextRefreshAtBefore(now)
+                    );
+                    List<PlayerRow> playerRows = this.playerRepository.findDueForRefresh(
+                            now,
                             Pageable.ofSize(REFRESH_CHUNK_SIZE)
                     );
                     if (playerRows.isEmpty()) {
@@ -88,7 +91,7 @@ public class PlayerRefreshService {
             int end = Math.min(offset + CONCURRENT_FETCHES, playerRows.size());
             List<PlayerRow> slice = playerRows.subList(offset, end);
             // Any lookup failure (null profile, 429, connection timeout, etc.) must still
-            // bump lastUpdated. Without this, failed players stay permanently at the front of
+            // bump nextRefreshAt. Without this, failed players stay permanently at the front of
             // the queue and create a retry storm that saturates the connection pool.
             List<UUID> failedIds = Collections.synchronizedList(new ArrayList<>());
             List<Future<PlayerService.PlayerUpdate>> futures = new ArrayList<>();
@@ -98,7 +101,7 @@ public class PlayerRefreshService {
             }
             List<PlayerService.PlayerUpdate> playerUpdates = FutureUtils.awaitAll(futures, "player refresh");
             if (!failedIds.isEmpty()) {
-                this.playerRepository.bumpLastUpdated(failedIds, Instant.now());
+                this.playerService.bumpRefreshFailures(failedIds);
             }
             if (!playerUpdates.isEmpty()) {
                 try {

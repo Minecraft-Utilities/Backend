@@ -15,6 +15,7 @@ import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.player.AccountsUpdatedMetric;
 import xyz.mcutils.backend.metric.impl.player.PlayerChangesDetectedMetric;
+import xyz.mcutils.backend.metric.impl.player.PlayerRefreshMetric;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
 import xyz.mcutils.backend.model.domain.player.FullPlayer;
 import xyz.mcutils.backend.model.domain.player.history.RecentUsernameChange;
@@ -42,7 +43,7 @@ import java.util.stream.Stream;
 @Service
 @Slf4j
 public class PlayerService {
-    static final Duration PLAYER_UPDATE_INTERVAL = Duration.ofHours(3);
+    static final Duration PLAYER_UPDATE_INTERVAL = PlayerRefreshSchedule.BASE_INTERVAL;
     private static final int MAX_PLAYER_SEARCH_RESULTS = 5;
 
     public static PlayerService INSTANCE;
@@ -100,14 +101,18 @@ public class PlayerService {
             }
 
             PlayerRow playerRow = optionalPlayerRow.get();
-            if (playerRow.getLastUpdated().isBefore(Instant.now().minus(PLAYER_UPDATE_INTERVAL))) {
-                // Update the player in the background
+            if (playerRow.getNextRefreshAt().isBefore(Instant.now())) {
                 Main.EXECUTOR.execute(() -> {
-                    MojangProfileToken token = this.mojangService.getProfile(playerRow.getId().toString());
-                    if (token == null) {
-                        return;
+                    try {
+                        MojangProfileToken token = this.mojangService.getProfile(playerRow.getId().toString());
+                        if (token == null) {
+                            this.bumpRefreshFailure(playerRow.getId());
+                            return;
+                        }
+                        this.self.updatePlayer(playerRow, token);
+                    } catch (Exception e) {
+                        this.bumpRefreshFailure(playerRow.getId());
                     }
-                    this.self.updatePlayer(playerRow, token);
                 });
             }
             return playerRow;
@@ -123,6 +128,8 @@ public class PlayerService {
         CapeTextureToken capeToken = token.getSkinAndCape().right();
         CapeRow cape = capeToken != null ? this.capeService.getOrCreateCape(capeToken, id) : null;
 
+        Instant nextRefreshAt = now.plus(PlayerRefreshSchedule.BASE_INTERVAL);
+
         PlayerRow playerRow = this.playerRepository.save(new PlayerRow(
                 id,
                 token.getName(),
@@ -132,7 +139,9 @@ public class PlayerService {
                 skin,
                 cape,
                 now,
-                now
+                now,
+                0,
+                nextRefreshAt
         ));
 
         this.playerSkinAdoptionRepository.save(new PlayerSkinAdoptionRow(id, skin.getId(), now, null));
@@ -205,7 +214,7 @@ public class PlayerService {
                 capeAdoptions.add(new PlayerCapeAdoptionRow(id, cape.getId(), now, null));
             }
             playerRows.add(new PlayerRow(id, token.getName(), token.getLegacy() != null && token.getLegacy(),
-                    0, 0, skin, cape, now, now));
+                    0, 0, skin, cape, now, now, 0, now.plus(PlayerRefreshSchedule.BASE_INTERVAL)));
         }
 
         if (playerRows.isEmpty()) {
@@ -236,6 +245,7 @@ public class PlayerService {
             } catch (Exception e) {
                 log.warn("Failed to refresh player {}: {}", playerUpdate.playerRow().getId(), e.toString());
                 log.debug("Failed to refresh player {}", playerUpdate.playerRow().getId(), e);
+                this.bumpRefreshFailure(playerUpdate.playerRow().getId());
             }
         }
 
@@ -319,8 +329,15 @@ public class PlayerService {
             changeCount++;
         }
 
+        boolean hadChanges = changeCount > 0;
+        double velocity = PlayerRefreshSchedule.updateVelocity(
+                playerRow.getChangeVelocity(), playerRow.getLastUpdated(), now, hadChanges);
+        Duration interval = PlayerRefreshSchedule.intervalFor(velocity, playerRow.getMonthlyViews());
+        playerRow.setChangeVelocity(velocity);
+        playerRow.setNextRefreshAt(now.plus(interval));
         playerRow.setLastUpdated(now);
         this.playerRepository.save(playerRow);
+        MetricService.getMetric(PlayerRefreshMetric.class).recordInterval(interval);
         if (equippedSkinId != null) {
             recordSkinEquips(List.of(new PlayerSkinAdoptionRow(playerRow.getId(), equippedSkinId, now, now)), now);
         }
@@ -413,6 +430,27 @@ public class PlayerService {
 
     public void incrementSubmittedUuids(UUID playerId, long count) {
         this.playerRepository.incrementSubmittedUuids(playerId, count);
+    }
+
+    public void bumpRefreshFailure(UUID playerId) {
+        Instant now = Instant.now();
+        this.playerRepository.bumpRefreshFailure(
+                List.of(playerId),
+                now,
+                now.plus(PlayerRefreshSchedule.FAILURE_BACKOFF)
+        );
+    }
+
+    public void bumpRefreshFailures(Collection<UUID> playerIds) {
+        if (playerIds.isEmpty()) {
+            return;
+        }
+        Instant now = Instant.now();
+        this.playerRepository.bumpRefreshFailure(
+                playerIds,
+                now,
+                now.plus(PlayerRefreshSchedule.FAILURE_BACKOFF)
+        );
     }
 
     private void recordSkinEquips(List<PlayerSkinAdoptionRow> equips, Instant timestamp) {

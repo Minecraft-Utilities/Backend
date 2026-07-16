@@ -44,4 +44,10 @@ public class PlayerRow {
 
     @Column(nullable = false)
     private Instant firstSeen;
+
+    @Column(nullable = false, name = "change_velocity")
+    private double changeVelocity;
+
+    @Column(nullable = false, name = "next_refresh_at")
+    private Instant nextRefreshAt;
 }

@@ -18,7 +18,11 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
     Optional<PlayerRow> findByUsernameIgnoreCase(String username);
     List<PlayerRow> findByUsernameStartingWithIgnoreCase(String username, Pageable pageable);
     List<PlayerRow> findAllByOrderBySubmittedUuidsDesc(Pageable pageable);
-    List<PlayerRow> findAllByLastUpdatedBeforeOrderByLastUpdatedAsc(Instant cutoff, Pageable pageable);
+
+    @Query("SELECT p FROM PlayerRow p WHERE p.nextRefreshAt < :now ORDER BY p.nextRefreshAt ASC, p.id ASC")
+    List<PlayerRow> findDueForRefresh(@Param("now") Instant now, Pageable pageable);
+
+    long countByNextRefreshAtBefore(Instant now);
 
     @Query("SELECT p.username FROM PlayerRow p WHERE p.skin.id = :skinId")
     List<String> findUsernamesBySkinId(long skinId, Pageable pageable);
@@ -46,8 +50,8 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
 
     @Modifying
     @Transactional
-    @Query("UPDATE PlayerRow p SET p.lastUpdated = :now WHERE p.id IN :ids")
-    void bumpLastUpdated(@Param("ids") Collection<UUID> ids, @Param("now") Instant now);
+    @Query("UPDATE PlayerRow p SET p.lastUpdated = :now, p.nextRefreshAt = :nextRefreshAt WHERE p.id IN :ids")
+    void bumpRefreshFailure(@Param("ids") Collection<UUID> ids, @Param("now") Instant now, @Param("nextRefreshAt") Instant nextRefreshAt);
 
     @Modifying
     @Transactional
