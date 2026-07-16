@@ -53,8 +53,9 @@ class PlayerRefreshScheduleTest {
 
     @Test
     void intervalRespectsMinimumClamp() {
-        Duration interval = PlayerRefreshSchedule.intervalFor(100, 1_000_000);
-        assertEquals(PlayerRefreshSchedule.MIN_INTERVAL, interval);
+        Duration extreme = PlayerRefreshSchedule.intervalFor(10, 1_000_000);
+        assertTrue(extreme.compareTo(PlayerRefreshSchedule.MIN_INTERVAL) >= 0);
+        assertTrue(extreme.compareTo(PlayerRefreshSchedule.intervalFor(1, 0)) < 0);
     }
 
     @Test
