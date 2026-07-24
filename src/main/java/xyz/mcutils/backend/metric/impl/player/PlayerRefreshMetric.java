@@ -36,7 +36,7 @@ public class PlayerRefreshMetric extends Metric<PlayerRefreshMetric.Holder> {
         ));
         GaugeWithCallback.builder()
                 .name("player_refresh_overdue_total")
-                .help("Players with next_refresh_at in the past, sampled each refresh loop iteration")
+                .help("Players with next_refresh_at in the past, sampled every few minutes for metrics")
                 .callback(callback -> callback.call(overdueCount.get()))
                 .register(MetricService.REGISTRY);
     }

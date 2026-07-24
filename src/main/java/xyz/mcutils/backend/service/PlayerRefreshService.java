@@ -31,6 +31,8 @@ public class PlayerRefreshService {
     /** Must stay at or below http-client.max-connections-per-route to avoid pool queue stalls. */
     private static final int CONCURRENT_FETCHES = 80;
     private static final int RATE_LIMIT = 200;
+    /** Full-table overdue counts are for metrics only; sampling avoids a ~70s scan every loop iteration. */
+    private static final Duration OVERDUE_COUNT_SAMPLE_INTERVAL = Duration.ofMinutes(5);
 
     private final RateLimiter rateLimiter = RateLimiter.create(RATE_LIMIT);
     private final MojangService mojangService;
@@ -51,13 +53,11 @@ public class PlayerRefreshService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void startRefreshTask() {
+        startOverdueCountSampler();
         Thread.ofVirtual().name("player-refresh").start(() -> {
             while (running.get()) {
                 try {
                     Instant now = Instant.now();
-                    MetricService.getMetric(PlayerRefreshMetric.class).recordOverdueCount(
-                            this.playerRepository.countByNextRefreshAtBefore(now)
-                    );
                     List<PlayerRow> playerRows = this.playerRepository.findDueForRefresh(
                             now,
                             Pageable.ofSize(REFRESH_CHUNK_SIZE)
@@ -78,6 +78,25 @@ public class PlayerRefreshService {
                         Thread.currentThread().interrupt();
                         break;
                     }
+                }
+            }
+        });
+    }
+
+    private void startOverdueCountSampler() {
+        Thread.ofVirtual().name("player-refresh-metrics").start(() -> {
+            while (running.get()) {
+                try {
+                    long overdue = this.playerRepository.countByNextRefreshAtBefore(Instant.now());
+                    MetricService.getMetric(PlayerRefreshMetric.class).recordOverdueCount(overdue);
+                } catch (Exception e) {
+                    log.warn("Failed to sample player refresh overdue count", e);
+                }
+                try {
+                    Thread.sleep(OVERDUE_COUNT_SAMPLE_INTERVAL);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
                 }
             }
         });
