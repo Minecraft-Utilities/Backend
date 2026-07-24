@@ -1,13 +1,11 @@
 package xyz.mcutils.backend.metric.impl.player;
 
 import io.prometheus.metrics.core.metrics.Counter;
-import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import io.prometheus.metrics.core.metrics.Histogram;
 import xyz.mcutils.backend.metric.Metric;
 import xyz.mcutils.backend.service.MetricService;
 
 import java.time.Duration;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Counters for the background player refresh loop.
@@ -15,8 +13,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * stalling before HTTP (low lookups) or after (high lookups, low updates).
  */
 public class PlayerRefreshMetric extends Metric<PlayerRefreshMetric.Holder> {
-
-    private final AtomicLong overdueCount = new AtomicLong();
 
     public PlayerRefreshMetric() {
         super(new Holder(
@@ -34,11 +30,6 @@ public class PlayerRefreshMetric extends Metric<PlayerRefreshMetric.Holder> {
                         .classicUpperBounds(1200, 3600, 7200, 14400, 28800, 86400)
                         .register(MetricService.REGISTRY)
         ));
-        GaugeWithCallback.builder()
-                .name("player_refresh_overdue_total")
-                .help("Players with next_refresh_at in the past, sampled every few minutes for metrics")
-                .callback(callback -> callback.call(overdueCount.get()))
-                .register(MetricService.REGISTRY);
     }
 
     public void recordMojangLookup() {
@@ -53,10 +44,6 @@ public class PlayerRefreshMetric extends Metric<PlayerRefreshMetric.Holder> {
 
     public void recordInterval(Duration interval) {
         getValue().intervalSeconds.observe(interval.toMillis() / 1000.0);
-    }
-
-    public void recordOverdueCount(long count) {
-        overdueCount.set(count);
     }
 
     public record Holder(Counter mojangLookups, Counter persist, Histogram intervalSeconds) {}
