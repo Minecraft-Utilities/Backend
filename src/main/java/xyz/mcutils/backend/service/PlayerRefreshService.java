@@ -8,9 +8,9 @@ import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
-import xyz.mcutils.backend.common.FutureUtils;
 import xyz.mcutils.backend.metric.impl.player.PlayerRefreshMetric;
 import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
+import xyz.mcutils.backend.model.persistence.postgres.UsernameChangeEventRow;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.repository.postgres.PlayerRepository;
 
@@ -20,17 +20,17 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @SuppressWarnings("UnstableApiUsage")
 @Service
 @Slf4j
 public class PlayerRefreshService {
-    private static final int REFRESH_CHUNK_SIZE = 500;
+    private static final int REFRESH_CHUNK_SIZE = 1000;
     /** Must stay at or below http-client.max-connections-per-route to avoid pool queue stalls. */
-    private static final int CONCURRENT_FETCHES = 80;
-    private static final int RATE_LIMIT = 200;
+    private static final int CONCURRENT_FETCHES = 100;
+    private static final int RATE_LIMIT = 400;
 
     private final RateLimiter rateLimiter = RateLimiter.create(RATE_LIMIT);
     private final MojangService mojangService;
@@ -81,33 +81,53 @@ public class PlayerRefreshService {
     }
 
     private void refreshChunk(List<PlayerRow> playerRows) {
+        // Any lookup failure (null profile, 429, connection timeout, etc.) must still
+        // bump nextRefreshAt. Without this, failed players stay permanently at the front of
+        // the queue and create a retry storm that saturates the connection pool.
+        List<UUID> failedIds = Collections.synchronizedList(new ArrayList<>());
+        List<UsernameChangeEventRow> usernameChangeEvents = new ArrayList<>();
+        int persisted = 0;
+
         for (int offset = 0; offset < playerRows.size(); offset += CONCURRENT_FETCHES) {
             if (!running.get()) {
                 return;
             }
             int end = Math.min(offset + CONCURRENT_FETCHES, playerRows.size());
             List<PlayerRow> slice = playerRows.subList(offset, end);
-            // Any lookup failure (null profile, 429, connection timeout, etc.) must still
-            // bump nextRefreshAt. Without this, failed players stay permanently at the front of
-            // the queue and create a retry storm that saturates the connection pool.
-            List<UUID> failedIds = Collections.synchronizedList(new ArrayList<>());
-            List<Future<PlayerService.PlayerUpdate>> futures = new ArrayList<>();
+            List<CompletableFuture<PlayerService.PersistPlayerRefreshResult>> sliceFutures = new ArrayList<>();
+
             for (PlayerRow playerRow : slice) {
                 rateLimiter.acquire();
-                futures.add(Main.EXECUTOR.submit(() -> fetchProfile(playerRow, failedIds)));
+                CompletableFuture<PlayerService.PlayerUpdate> fetchFuture = CompletableFuture.supplyAsync(
+                        () -> fetchProfile(playerRow, failedIds),
+                        Main.EXECUTOR
+                );
+                sliceFutures.add(fetchFuture.thenApplyAsync(update -> {
+                    if (update == null) {
+                        return null;
+                    }
+                    return this.playerService.persistPlayerRefresh(update);
+                }, Main.EXECUTOR));
             }
-            List<PlayerService.PlayerUpdate> playerUpdates = FutureUtils.awaitAll(futures, "player refresh");
-            if (!failedIds.isEmpty()) {
-                this.playerService.bumpRefreshFailures(failedIds);
-            }
-            if (!playerUpdates.isEmpty()) {
-                try {
-                    this.playerService.updatePlayers(playerUpdates);
-                    MetricService.getMetric(PlayerRefreshMetric.class).recordPersist(playerUpdates.size());
-                } catch (Exception e) {
-                    log.error("Failed to persist {} player refresh updates", playerUpdates.size(), e);
+
+            CompletableFuture.allOf(sliceFutures.toArray(CompletableFuture[]::new)).join();
+            for (CompletableFuture<PlayerService.PersistPlayerRefreshResult> future : sliceFutures) {
+                PlayerService.PersistPlayerRefreshResult result = future.join();
+                if (result != null && result.success()) {
+                    persisted++;
+                    if (result.usernameChangeEvent() != null) {
+                        usernameChangeEvents.add(result.usernameChangeEvent());
+                    }
                 }
             }
+        }
+
+        if (!failedIds.isEmpty()) {
+            this.playerService.bumpRefreshFailures(failedIds);
+        }
+        this.playerService.broadcastUsernameChanges(usernameChangeEvents);
+        if (persisted > 0) {
+            MetricService.getMetric(PlayerRefreshMetric.class).recordPersist(persisted);
         }
     }
 

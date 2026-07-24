@@ -37,6 +37,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -45,6 +46,8 @@ import java.util.stream.Stream;
 public class PlayerService {
     static final Duration PLAYER_UPDATE_INTERVAL = PlayerRefreshSchedule.BASE_INTERVAL;
     private static final int MAX_PLAYER_SEARCH_RESULTS = 5;
+    /** Max concurrent per-player refresh transactions (each uses REQUIRES_NEW + row lock). */
+    private static final int CONCURRENT_PERSISTS = 16;
 
     public static PlayerService INSTANCE;
     private final MojangService mojangService;
@@ -57,6 +60,8 @@ public class PlayerService {
     private final PlayerService self;
 
     private final CoalescingLoader<String, PlayerRow> playerLoader = new CoalescingLoader<>(Runnable::run);
+
+    private final Semaphore persistSemaphore = new Semaphore(CONCURRENT_PERSISTS);
 
     public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService,
                          PlayerRepository playerRepository, UsernameChangeEventRepository usernameChangeEventRepository,
@@ -101,7 +106,8 @@ public class PlayerService {
             }
 
             PlayerRow playerRow = optionalPlayerRow.get();
-            if (playerRow.getNextRefreshAt().isBefore(Instant.now())) {
+            // Only refresh on-demand for viewed players; the background loop owns the long tail.
+            if (playerRow.getNextRefreshAt().isBefore(Instant.now()) && playerRow.getMonthlyViews() > 0) {
                 Main.EXECUTOR.execute(() -> {
                     try {
                         MojangProfileToken token = this.mojangService.getProfile(playerRow.getId().toString());
@@ -229,26 +235,60 @@ public class PlayerService {
         StatisticsService.addTrackedPlayerCount(playerRows.size());
     }
 
+    /**
+     * Prepares and persists a single player refresh. Used by the background refresh pipeline.
+     */
+    public PersistPlayerRefreshResult persistPlayerRefresh(PlayerUpdate playerUpdate) {
+        try {
+            PreparedPlayerUpdate prepared = preparePlayerUpdate(playerUpdate);
+            this.persistSemaphore.acquire();
+            try {
+                UsernameChangeEventRow usernameChangeEvent = this.self.persistPlayerUpdate(prepared);
+                return new PersistPlayerRefreshResult(true, usernameChangeEvent);
+            } finally {
+                this.persistSemaphore.release();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Interrupted while refreshing player {}", playerUpdate.playerRow().getId());
+            this.bumpRefreshFailure(playerUpdate.playerRow().getId());
+            return new PersistPlayerRefreshResult(false, null);
+        } catch (Exception e) {
+            log.warn("Failed to refresh player {}: {}", playerUpdate.playerRow().getId(), e.toString());
+            log.debug("Failed to refresh player {}", playerUpdate.playerRow().getId(), e);
+            this.bumpRefreshFailure(playerUpdate.playerRow().getId());
+            return new PersistPlayerRefreshResult(false, null);
+        }
+    }
+
     public void updatePlayers(List<PlayerUpdate> playerUpdates) {
+        if (playerUpdates.isEmpty()) {
+            return;
+        }
+
         List<PlayerUpdate> sortedUpdates = playerUpdates.stream()
                 .sorted(Comparator.comparing(u -> u.playerRow().getId()))
                 .toList();
 
+        List<CompletableFuture<PersistPlayerRefreshResult>> futures = sortedUpdates.stream()
+                .map(playerUpdate -> CompletableFuture.supplyAsync(
+                        () -> this.persistPlayerRefresh(playerUpdate),
+                        Main.EXECUTOR))
+                .toList();
+
+        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+
         List<UsernameChangeEventRow> usernameChangeEvents = new ArrayList<>();
-        for (PlayerUpdate playerUpdate : sortedUpdates) {
-            try {
-                PreparedPlayerUpdate prepared = preparePlayerUpdate(playerUpdate);
-                UsernameChangeEventRow usernameChangeEvent = this.self.persistPlayerUpdate(prepared);
-                if (usernameChangeEvent != null) {
-                    usernameChangeEvents.add(usernameChangeEvent);
-                }
-            } catch (Exception e) {
-                log.warn("Failed to refresh player {}: {}", playerUpdate.playerRow().getId(), e.toString());
-                log.debug("Failed to refresh player {}", playerUpdate.playerRow().getId(), e);
-                this.bumpRefreshFailure(playerUpdate.playerRow().getId());
+        for (CompletableFuture<PersistPlayerRefreshResult> future : futures) {
+            PersistPlayerRefreshResult result = future.join();
+            if (result.success() && result.usernameChangeEvent() != null) {
+                usernameChangeEvents.add(result.usernameChangeEvent());
             }
         }
+        broadcastUsernameChanges(usernameChangeEvents);
+    }
 
+    void broadcastUsernameChanges(List<UsernameChangeEventRow> usernameChangeEvents) {
         for (UsernameChangeEventRow usernameChangeEvent : usernameChangeEvents) {
             WebSocketManager.getWebsocket(NameChangeWebSocket.class).sendMessageToAll(new RecentUsernameChange(
                     usernameChangeEvent.getPlayerId(),
@@ -500,4 +540,6 @@ public class PlayerService {
     }
 
     public record PlayerUpdate(PlayerRow playerRow, MojangProfileToken token) {}
+
+    public record PersistPlayerRefreshResult(boolean success, UsernameChangeEventRow usernameChangeEvent) {}
 }
