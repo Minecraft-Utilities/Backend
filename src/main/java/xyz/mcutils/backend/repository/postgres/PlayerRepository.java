@@ -22,7 +22,6 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
     @Query("SELECT p FROM PlayerRow p WHERE p.nextRefreshAt < :now ORDER BY p.nextRefreshAt ASC, p.id ASC")
     List<PlayerRow> findDueForRefresh(@Param("now") Instant now, Pageable pageable);
 
-    long countByNextRefreshAtBefore(Instant now);
 
     @Query("SELECT p.username FROM PlayerRow p WHERE p.skin.id = :skinId")
     List<String> findUsernamesBySkinId(long skinId, Pageable pageable);
