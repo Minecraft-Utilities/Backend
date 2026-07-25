@@ -2,6 +2,7 @@ package xyz.mcutils.backend.service;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -51,7 +52,7 @@ public class PlayerService {
      * Keep well below {@code spring.datasource.hikari.maximum-pool-size} to leave connections
      * for API traffic, submit queue, and skin/cape resolution during prepare.
      */
-    private static final int CONCURRENT_PERSISTS = 32;
+    private final Semaphore persistSemaphore;
 
     public static PlayerService INSTANCE;
     private final MojangService mojangService;
@@ -65,12 +66,11 @@ public class PlayerService {
 
     private final CoalescingLoader<String, PlayerRow> playerLoader = new CoalescingLoader<>(Runnable::run);
 
-    private final Semaphore persistSemaphore = new Semaphore(CONCURRENT_PERSISTS);
-
     public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService,
                          PlayerRepository playerRepository, UsernameChangeEventRepository usernameChangeEventRepository,
                          PlayerSkinAdoptionRepository playerSkinAdoptionRepository, PlayerCapeAdoptionRepository playerCapeAdoptionRepository,
-                         @Lazy PlayerService self) {
+                         @Lazy PlayerService self,
+                         @Value("${mc-utils.player-refresh.concurrent-persists:64}") int concurrentPersists) {
         this.mojangService = mojangService;
         this.skinService = skinService;
         this.capeService = capeService;
@@ -79,6 +79,7 @@ public class PlayerService {
         this.playerSkinAdoptionRepository = playerSkinAdoptionRepository;
         this.playerCapeAdoptionRepository = playerCapeAdoptionRepository;
         this.self = self;
+        this.persistSemaphore = new Semaphore(concurrentPersists);
     }
 
     @PostConstruct

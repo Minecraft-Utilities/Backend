@@ -57,9 +57,9 @@ public class PlayerRefreshService {
             PlayerService playerService,
             PlayerRepository playerRepository,
             PlatformTransactionManager transactionManager,
-            @Value("${mc-utils.player-refresh.chunk-size:1000}") int refreshChunkSize,
-            @Value("${mc-utils.player-refresh.concurrent-fetches:100}") int concurrentFetches,
-            @Value("${mc-utils.player-refresh.mojang-rate-limit:400}") double mojangRateLimit
+            @Value("${mc-utils.player-refresh.chunk-size:2500}") int refreshChunkSize,
+            @Value("${mc-utils.player-refresh.concurrent-fetches:200}") int concurrentFetches,
+            @Value("${mc-utils.player-refresh.mojang-rate-limit:600}") double mojangRateLimit
     ) {
         this.refreshChunkSize = refreshChunkSize;
         this.concurrentFetches = concurrentFetches;

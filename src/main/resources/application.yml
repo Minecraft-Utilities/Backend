@@ -66,8 +66,8 @@ mc-utils:
   # Dedicated pool for Mojang profile/username lookups (refresh + submit queues).
   mojang-profile:
     http-client:
-      max-total-connections: 150
-      max-connections-per-route: 150
+      max-total-connections: 250
+      max-connections-per-route: 250
 
   # Redis - This is used for caching
   redis:
@@ -175,6 +175,7 @@ mc-utils:
 
   # Background player refresh (Mojang session server profile lookups).
   player-refresh:
-    chunk-size: 1000
-    concurrent-fetches: 100
-    mojang-rate-limit: 400
+    chunk-size: 2500
+    concurrent-fetches: 200
+    mojang-rate-limit: 600
+    concurrent-persists: 64

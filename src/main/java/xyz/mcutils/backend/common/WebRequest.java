@@ -54,10 +54,10 @@ public class WebRequest {
     @Value("${mc-utils.username-discovery.http-client.max-connections-per-route:120}")
     private int discoveryMaxConnectionsPerRoute;
 
-    @Value("${mc-utils.mojang-profile.http-client.max-total-connections:150}")
+    @Value("${mc-utils.mojang-profile.http-client.max-total-connections:250}")
     private int mojangProfileMaxTotalConnections;
 
-    @Value("${mc-utils.mojang-profile.http-client.max-connections-per-route:150}")
+    @Value("${mc-utils.mojang-profile.http-client.max-connections-per-route:250}")
     private int mojangProfileMaxConnectionsPerRoute;
 
     @Value("${mc-utils.http-proxy:}")
