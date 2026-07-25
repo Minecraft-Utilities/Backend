@@ -69,6 +69,7 @@ mc-utils:
     port: 6379
     database: 1
     auth: "" # Leave blank for no auth
+    command-timeout-seconds: 120
 
   # S3 Storage
   s3:

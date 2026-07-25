@@ -34,6 +34,9 @@ public class RedisConfig {
     @Value("${mc-utils.redis.auth}")
     private String auth;
 
+    @Value("${mc-utils.redis.command-timeout-seconds:120}")
+    private int commandTimeoutSeconds;
+
     @Bean
     public RedisTemplate<String, Object> redisTemplate() {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
@@ -70,7 +73,10 @@ public class RedisConfig {
             config.setPassword(auth);
         }
 
-        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder().commandTimeout(Duration.ofSeconds(10)).shutdownTimeout(Duration.ofMillis(100)).build();
+        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
+                .commandTimeout(Duration.ofSeconds(commandTimeoutSeconds))
+                .shutdownTimeout(Duration.ofMillis(100))
+                .build();
 
         return new LettuceConnectionFactory(config, clientConfig);
     }

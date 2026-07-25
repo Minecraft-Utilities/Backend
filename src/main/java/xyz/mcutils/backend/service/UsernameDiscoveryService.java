@@ -148,17 +148,22 @@ public class UsernameDiscoveryService {
         }
         log.info("Starting username discovery (max {} candidates/player, {} consumer threads, {} concurrent lookups, lookup rate: {}/s)",
                 maxCandidatesPerPlayer, this.consumerThreads, this.concurrentBulkLookups, lookupRateLimiter.getRate());
-        if (seenBloomPersistToRedis && seenBloom != null) {
-            Main.EXECUTOR.submit(() -> UsernameDiscoverySeenBloom.sleepFlushLoop(
-                    seenBloom,
-                    Duration.ofSeconds(60),
-                    running::get
-            ));
-        }
-        Main.EXECUTOR.submit(this::runProducerLoop);
-        for (int i = 0; i < this.consumerThreads; i++) {
-            Main.EXECUTOR.submit(this::runConsumerLoop);
-        }
+        Main.EXECUTOR.submit(() -> {
+            if (seenBloom != null) {
+                seenBloom.tryLoadFromRedis();
+            }
+            if (seenBloomPersistToRedis && seenBloom != null) {
+                Main.EXECUTOR.submit(() -> UsernameDiscoverySeenBloom.sleepFlushLoop(
+                        seenBloom,
+                        Duration.ofSeconds(60),
+                        running::get
+                ));
+            }
+            Main.EXECUTOR.submit(this::runProducerLoop);
+            for (int i = 0; i < this.consumerThreads; i++) {
+                Main.EXECUTOR.submit(this::runConsumerLoop);
+            }
+        });
     }
 
     public long getQueueSize() {

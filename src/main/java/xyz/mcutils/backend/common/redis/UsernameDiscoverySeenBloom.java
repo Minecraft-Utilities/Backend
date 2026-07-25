@@ -34,7 +34,9 @@ public final class UsernameDiscoverySeenBloom {
     private final RedisTemplate<String, String> redis;
     private final String redisKey;
     private final boolean persistToRedis;
-    private final BloomFilter<String> filter;
+    private final long expectedInsertions;
+    private final double falsePositiveProbability;
+    private BloomFilter<String> filter;
     private final Object lock = new Object();
     private volatile boolean dirty;
 
@@ -48,15 +50,54 @@ public final class UsernameDiscoverySeenBloom {
         this.redis = redis;
         this.redisKey = redisKey;
         this.persistToRedis = persistToRedis;
-        this.filter = loadOrCreate(expectedInsertions, falsePositiveProbability);
-        warnIfLegacySeenSetPresent();
+        this.expectedInsertions = expectedInsertions;
+        this.falsePositiveProbability = falsePositiveProbability;
+        this.filter = BloomFilter.create(FUNNEL, expectedInsertions, falsePositiveProbability);
         log.info(
-                "Username discovery seen bloom ready (~{} inserts @ {} FPP, ~{} MiB in memory, persist={})",
+                "Username discovery seen bloom initialized (~{} inserts @ {} FPP, ~{} MiB in memory, persist={})",
                 expectedInsertions,
                 falsePositiveProbability,
                 approximateMemoryBytes() / (1024 * 1024),
                 persistToRedis
         );
+    }
+
+    /**
+     * Loads a previously persisted bloom filter from Redis. Safe to call from a background thread;
+     * does not block application startup.
+     */
+    public void tryLoadFromRedis() {
+        if (!persistToRedis) {
+            warnIfLegacySeenSetPresent();
+            return;
+        }
+        try {
+            byte[] bytes = readRedisBytes(redisKey);
+            if (bytes == null || bytes.length == 0) {
+                log.info("No persisted username discovery bloom at '{}', using in-memory filter", redisKey);
+                warnIfLegacySeenSetPresent();
+                return;
+            }
+            try (ByteArrayInputStream in = new ByteArrayInputStream(bytes)) {
+                BloomFilter<String> loaded = BloomFilter.readFrom(in, FUNNEL);
+                synchronized (lock) {
+                    this.filter = loaded;
+                    this.dirty = false;
+                }
+                log.info(
+                        "Loaded username discovery bloom from Redis ({} bytes, ~{} entries)",
+                        bytes.length,
+                        approximateElementCount()
+                );
+            }
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to load username discovery bloom from Redis key '{}', continuing with in-memory filter",
+                    redisKey,
+                    e
+            );
+        }
+        warnIfLegacySeenSetPresent();
     }
 
     public List<Boolean> mightContainLowercase(List<String> lowercaseUsernames) {
@@ -109,41 +150,28 @@ public final class UsernameDiscoverySeenBloom {
             if (!dirty) {
                 return;
             }
-            writeToRedis();
-            dirty = false;
+            try {
+                writeToRedis();
+                dirty = false;
+            } catch (Exception e) {
+                log.warn("Failed to persist username discovery bloom to Redis key '{}'", redisKey, e);
+            }
         }
     }
 
-    private BloomFilter<String> loadOrCreate(long expectedInsertions, double falsePositiveProbability) {
-        if (!persistToRedis) {
-            return BloomFilter.create(FUNNEL, expectedInsertions, falsePositiveProbability);
-        }
-        byte[] bytes = readRedisBytes(redisKey);
-        if (bytes == null || bytes.length == 0) {
-            return BloomFilter.create(FUNNEL, expectedInsertions, falsePositiveProbability);
-        }
-        try (ByteArrayInputStream in = new ByteArrayInputStream(bytes)) {
-            return BloomFilter.readFrom(in, FUNNEL);
-        } catch (IOException e) {
-            log.warn("Failed to load username discovery bloom from Redis key '{}', creating a new filter", redisKey, e);
-            return BloomFilter.create(FUNNEL, expectedInsertions, falsePositiveProbability);
-        }
-    }
-
-    private void writeToRedis() {
+    private void writeToRedis() throws IOException {
+        byte[] bytes;
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             filter.writeTo(out);
-            byte[] bytes = out.toByteArray();
-            RedisSerializer<String> keySerializer = redis.getStringSerializer();
-            byte[] keyBytes = keySerializer.serialize(redisKey);
-            redis.execute((RedisCallback<Void>) connection -> {
-                connection.stringCommands().set(keyBytes, bytes);
-                return null;
-            });
-            log.debug("Persisted username discovery bloom to Redis ({} bytes)", bytes.length);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            bytes = out.toByteArray();
         }
+        RedisSerializer<String> keySerializer = redis.getStringSerializer();
+        byte[] keyBytes = keySerializer.serialize(redisKey);
+        redis.execute((RedisCallback<Void>) connection -> {
+            connection.stringCommands().set(keyBytes, bytes);
+            return null;
+        });
+        log.debug("Persisted username discovery bloom to Redis ({} bytes)", bytes.length);
     }
 
     private byte[] readRedisBytes(String key) {
@@ -153,15 +181,19 @@ public final class UsernameDiscoverySeenBloom {
     }
 
     private void warnIfLegacySeenSetPresent() {
-        Long legacySize = redis.opsForSet().size(LEGACY_SEEN_SET_KEY);
-        if (legacySize != null && legacySize > 0) {
-            log.warn(
-                    "Legacy Redis set '{}' still has {} members and may be using significant RAM. "
-                            + "Delete it after deploying the bloom filter: DEL {}",
-                    LEGACY_SEEN_SET_KEY,
-                    legacySize,
-                    LEGACY_SEEN_SET_KEY
-            );
+        try {
+            Long legacySize = redis.opsForSet().size(LEGACY_SEEN_SET_KEY);
+            if (legacySize != null && legacySize > 0) {
+                log.warn(
+                        "Legacy Redis set '{}' still has {} members and may be using significant RAM. "
+                                + "Delete it after deploying the bloom filter: DEL {}",
+                        LEGACY_SEEN_SET_KEY,
+                        legacySize,
+                        LEGACY_SEEN_SET_KEY
+                );
+            }
+        } catch (Exception e) {
+            log.debug("Could not check legacy username discovery seen set: {}", e.getMessage());
         }
     }
 
@@ -175,17 +207,9 @@ public final class UsernameDiscoverySeenBloom {
             if (!isRunning.getAsBoolean()) {
                 break;
             }
-            try {
-                bloom.flushToRedisIfDirty();
-            } catch (Exception e) {
-                log.warn("Failed to persist username discovery bloom to Redis", e);
-            }
-        }
-        try {
             bloom.flushToRedisIfDirty();
-        } catch (Exception e) {
-            log.warn("Failed to persist username discovery bloom on shutdown", e);
         }
+        bloom.flushToRedisIfDirty();
     }
 
     private static void sleepQuietly(Duration duration) {
