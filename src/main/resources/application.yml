@@ -177,4 +177,4 @@ mc-utils:
   player-refresh:
     chunk-size: 1000
     concurrent-fetches: 50
-    mojang-rate-limit: 200
+    mojang-rate-limit: 400
