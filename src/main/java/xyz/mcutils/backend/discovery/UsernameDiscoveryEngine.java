@@ -209,10 +209,19 @@ public final class UsernameDiscoveryEngine {
         }
         String base = matcher.group(1);
         String separator = matcher.group(2);
-        int value = Integer.parseInt(matcher.group(3));
+        String suffix = matcher.group(3);
+        if (suffix.length() > 9) {
+            return;
+        }
+        int value;
+        try {
+            value = Integer.parseInt(suffix);
+        } catch (NumberFormatException e) {
+            return;
+        }
         for (int delta : new int[]{1, -1, 2, -2, 10, -10}) {
-            int next = value + delta;
-            if (next < 0) {
+            long next = (long) value + delta;
+            if (next < 0 || next > Integer.MAX_VALUE) {
                 continue;
             }
             if (!addIfValid(out, base + separator + next, maxToAdd)) {

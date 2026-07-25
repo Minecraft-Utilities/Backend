@@ -69,6 +69,13 @@ class UsernameDiscoveryEngineTest {
     }
 
     @Test
+    void generateCandidates_handlesHugeNumericSuffixWithoutThrowing() {
+        Set<String> candidates = names(engine.generateCandidates("player_2222222222222222"));
+
+        assertFalse(candidates.contains("player_2222222222222222"));
+    }
+
+    @Test
     void queuePayload_roundTripsWithStrategy() {
         UsernameCandidate original = new UsernameCandidate("shadow_king", UsernameDiscoveryStrategy.WORD_PAIR);
         UsernameCandidate parsed = UsernameCandidate.parseQueuePayload(original.queuePayload());
