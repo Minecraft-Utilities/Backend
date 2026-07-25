@@ -109,7 +109,7 @@ public class UsernameDiscoveryMetric extends Metric<UsernameDiscoveryMetric.Hold
                         .register(MetricService.REGISTRY),
                 GaugeWithCallback.builder()
                         .name("username_discovery_seen_set_size")
-                        .help("Usernames already checked by discovery (Redis set cardinality)")
+                        .help("Approximate count of usernames checked by discovery (bloom filter)")
                         .callback(callback -> callback.call(usernameDiscoveryService.getSeenSetSize()))
                         .register(MetricService.REGISTRY)
         ));

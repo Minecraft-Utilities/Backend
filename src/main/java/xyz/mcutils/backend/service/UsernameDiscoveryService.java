@@ -9,14 +9,13 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.ResourceAccessException;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.common.redis.RedisQueue;
 import xyz.mcutils.backend.common.redis.RedisQueueFactory;
+import xyz.mcutils.backend.common.redis.UsernameDiscoverySeenBloom;
 import xyz.mcutils.backend.discovery.UsernameCandidate;
 import xyz.mcutils.backend.discovery.UsernameDiscoveryConfig;
 import xyz.mcutils.backend.discovery.UsernameDiscoveryEngine;
@@ -42,7 +41,6 @@ import java.util.stream.Collectors;
 @Slf4j
 public class UsernameDiscoveryService {
     private static final String QUEUE_NAME = "username-discovery-queue";
-    private static final String SEEN_SET_KEY = "username-discovery-seen";
     private static final String CURSOR_KEY = "username-discovery:player-cursor";
     private static final UUID MIN_CURSOR = new UUID(0L, 0L);
     private static final int BULK_LOOKUP_SIZE = 10;
@@ -63,6 +61,8 @@ public class UsernameDiscoveryService {
 
     private final RedisQueue discoveryQueue;
     private final RedisTemplate<String, String> queueRedis;
+    private final UsernameDiscoverySeenBloom seenBloom;
+    private final boolean seenBloomPersistToRedis;
     private final PlayerRepository playerRepository;
     private final MojangService mojangService;
     private final PlayerSubmitService playerSubmitService;
@@ -89,10 +89,24 @@ public class UsernameDiscoveryService {
             @Value("${mc-utils.username-discovery.max-queue-size:250000}") long maxQueueSize,
             @Value("${mc-utils.username-discovery.lookup-rate-limit:100}") double lookupRateLimit,
             @Value("${mc-utils.username-discovery.concurrent-bulk-lookups:100}") int concurrentBulkLookups,
-            @Value("${mc-utils.username-discovery.consumer-threads:4}") int consumerThreads
+            @Value("${mc-utils.username-discovery.consumer-threads:4}") int consumerThreads,
+            @Value("${mc-utils.username-discovery.seen-bloom.expected-insertions:300000000}") long seenBloomExpectedInsertions,
+            @Value("${mc-utils.username-discovery.seen-bloom.false-positive-probability:0.01}") double seenBloomFalsePositiveProbability,
+            @Value("${mc-utils.username-discovery.seen-bloom.persist-to-redis:true}") boolean seenBloomPersistToRedis,
+            @Value("${mc-utils.username-discovery.seen-bloom.redis-key:username-discovery-seen-bloom}") String seenBloomRedisKey
     ) {
         this.discoveryQueue = queueFactory.getQueue(QUEUE_NAME);
         this.queueRedis = queueRedis;
+        this.seenBloomPersistToRedis = seenBloomPersistToRedis;
+        this.seenBloom = enabled
+                ? new UsernameDiscoverySeenBloom(
+                        queueRedis,
+                        seenBloomRedisKey,
+                        seenBloomExpectedInsertions,
+                        seenBloomFalsePositiveProbability,
+                        seenBloomPersistToRedis
+                )
+                : null;
         this.playerRepository = playerRepository;
         this.mojangService = mojangService;
         this.playerSubmitService = playerSubmitService;
@@ -121,6 +135,9 @@ public class UsernameDiscoveryService {
     @EventListener(ContextClosedEvent.class)
     public void onContextClosed() {
         running.set(false);
+        if (seenBloom != null) {
+            seenBloom.flushToRedisIfDirty();
+        }
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -131,6 +148,13 @@ public class UsernameDiscoveryService {
         }
         log.info("Starting username discovery (max {} candidates/player, {} consumer threads, {} concurrent lookups, lookup rate: {}/s)",
                 maxCandidatesPerPlayer, this.consumerThreads, this.concurrentBulkLookups, lookupRateLimiter.getRate());
+        if (seenBloomPersistToRedis && seenBloom != null) {
+            Main.EXECUTOR.submit(() -> UsernameDiscoverySeenBloom.sleepFlushLoop(
+                    seenBloom,
+                    Duration.ofSeconds(60),
+                    running::get
+            ));
+        }
         Main.EXECUTOR.submit(this::runProducerLoop);
         for (int i = 0; i < this.consumerThreads; i++) {
             Main.EXECUTOR.submit(this::runConsumerLoop);
@@ -142,8 +166,7 @@ public class UsernameDiscoveryService {
     }
 
     public long getSeenSetSize() {
-        Long size = queueRedis.opsForSet().size(SEEN_SET_KEY);
-        return size != null ? size : 0L;
+        return seenBloom != null ? seenBloom.approximateElementCount() : 0L;
     }
 
     private void runProducerLoop() {
@@ -428,7 +451,7 @@ public class UsernameDiscoveryService {
         for (int offset = 0; offset < names.size(); offset += SEEN_CHECK_CHUNK_SIZE) {
             int end = Math.min(offset + SEEN_CHECK_CHUNK_SIZE, names.size());
             List<String> chunk = names.subList(offset, end);
-            List<Boolean> seen = areSeen(chunk);
+            List<Boolean> seen = seenBloom.mightContainLowercase(chunk);
             for (int i = 0; i < chunk.size(); i++) {
                 if (!Boolean.TRUE.equals(seen.get(i))) {
                     unseen.add(chunk.get(i));
@@ -438,33 +461,14 @@ public class UsernameDiscoveryService {
         return unseen;
     }
 
-    @SuppressWarnings("unchecked")
-    private List<Boolean> areSeen(List<String> lowercaseUsernames) {
-        if (lowercaseUsernames.isEmpty()) {
-            return List.of();
-        }
-        RedisSerializer<String> keySerializer = (RedisSerializer<String>) queueRedis.getKeySerializer();
-        RedisSerializer<String> valueSerializer = (RedisSerializer<String>) queueRedis.getValueSerializer();
-        byte[] keyBytes = keySerializer.serialize(SEEN_SET_KEY);
-        byte[][] memberBytes = new byte[lowercaseUsernames.size()][];
-        int index = 0;
-        for (String name : lowercaseUsernames) {
-            memberBytes[index++] = valueSerializer.serialize(name);
-        }
-        List<Boolean> result = queueRedis.execute((RedisCallback<List<Boolean>>) connection ->
-                connection.setCommands().sMIsMember(keyBytes, memberBytes));
-        return result != null ? result : Collections.nCopies(lowercaseUsernames.size(), false);
-    }
-
-    private void markSeen(Collection<String> lowercaseUsernames) {
-        if (lowercaseUsernames == null || lowercaseUsernames.isEmpty()) {
+    private void markSeen(Collection<String> usernames) {
+        if (usernames == null || usernames.isEmpty()) {
             return;
         }
-        for (int offset = 0; offset < lowercaseUsernames.size(); offset += SEEN_CHECK_CHUNK_SIZE) {
-            int end = Math.min(offset + SEEN_CHECK_CHUNK_SIZE, lowercaseUsernames.size());
-            List<String> chunk = new ArrayList<>(lowercaseUsernames).subList(offset, end);
-            queueRedis.opsForSet().add(SEEN_SET_KEY, chunk.toArray(new String[0]));
-        }
+        List<String> lowercase = usernames.stream()
+                .map(name -> name.toLowerCase(Locale.ROOT))
+                .toList();
+        seenBloom.markSeenLowercase(lowercase);
     }
 
     private UUID readCursor() {

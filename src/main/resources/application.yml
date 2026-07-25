@@ -159,3 +159,9 @@ mc-utils:
     http-client:
       max-total-connections: 120
       max-connections-per-route: 120
+    # Bounded-memory bloom filter for "already looked up" usernames (~360 MiB Redis/JVM at defaults).
+    seen-bloom:
+      expected-insertions: 300000000
+      false-positive-probability: 0.01
+      persist-to-redis: true
+      redis-key: username-discovery-seen-bloom
