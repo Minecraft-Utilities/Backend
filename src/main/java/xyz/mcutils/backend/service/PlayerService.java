@@ -477,11 +477,9 @@ public class PlayerService {
     }
 
     public void bumpRefreshFailure(UUID playerId) {
-        Instant now = Instant.now();
         this.playerRepository.bumpRefreshFailure(
                 List.of(playerId),
-                now,
-                now.plus(PlayerRefreshSchedule.FAILURE_BACKOFF)
+                Instant.now().plus(PlayerRefreshSchedule.FAILURE_BACKOFF)
         );
     }
 
@@ -489,11 +487,9 @@ public class PlayerService {
         if (playerIds.isEmpty()) {
             return;
         }
-        Instant now = Instant.now();
         this.playerRepository.bumpRefreshFailure(
                 playerIds,
-                now,
-                now.plus(PlayerRefreshSchedule.FAILURE_BACKOFF)
+                Instant.now().plus(PlayerRefreshSchedule.FAILURE_BACKOFF)
         );
     }
 

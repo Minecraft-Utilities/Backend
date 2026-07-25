@@ -5,9 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.metric.impl.player.PlayerRefreshMetric;
 import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
 import xyz.mcutils.backend.model.persistence.postgres.UsernameChangeEventRow;
@@ -22,6 +20,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -36,38 +36,49 @@ public class PlayerRefreshService {
     private static final int CONCURRENT_FETCHES = 100;
     private static final int RATE_LIMIT = 400;
     private static final Duration CHUNK_TIMEOUT = Duration.ofMinutes(10);
+    private static final Duration REFRESH_LEASE = Duration.ofMinutes(10);
 
     private final RateLimiter rateLimiter = RateLimiter.create(RATE_LIMIT);
     private final MojangService mojangService;
     private final PlayerService playerService;
     private final PlayerRepository playerRepository;
+    private final ExecutorService refreshExecutor;
     private final AtomicBoolean running = new AtomicBoolean(true);
 
     public PlayerRefreshService(MojangService mojangService, PlayerService playerService, PlayerRepository playerRepository) {
         this.mojangService = mojangService;
         this.playerService = playerService;
         this.playerRepository = playerRepository;
+        this.refreshExecutor = Executors.newFixedThreadPool(
+                CONCURRENT_FETCHES,
+                Thread.ofPlatform().name("player-refresh-worker-", 0).factory()
+        );
     }
 
     @EventListener(ContextClosedEvent.class)
     public void onContextClosed() {
         running.set(false);
+        refreshExecutor.shutdownNow();
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void startRefreshTask() {
-        // Platform thread: this loop blocks on join/semaphore backpressure and must not pin a
-        // virtual-thread carrier while hundreds of blocking Mojang/DB tasks run elsewhere.
         Thread.ofPlatform().daemon(true).name("player-refresh").start(() -> {
             while (running.get()) {
                 try {
                     Instant now = Instant.now();
-                    List<PlayerRow> playerRows = this.playerRepository.findDueForRefresh(
+                    List<UUID> claimedIds = this.playerRepository.claimPlayersForRefresh(
                             now,
-                            Pageable.ofSize(REFRESH_CHUNK_SIZE)
+                            now.plus(REFRESH_LEASE),
+                            REFRESH_CHUNK_SIZE
                     );
-                    if (playerRows.isEmpty()) {
+                    if (claimedIds.isEmpty()) {
                         Thread.sleep(Duration.ofSeconds(10));
+                        continue;
+                    }
+                    List<PlayerRow> playerRows = this.playerRepository.findAllById(claimedIds);
+                    if (playerRows.isEmpty()) {
+                        log.warn("Claimed {} player ids for refresh but none were found", claimedIds.size());
                         continue;
                     }
                     refreshChunk(playerRows);
@@ -88,9 +99,6 @@ public class PlayerRefreshService {
     }
 
     private void refreshChunk(List<PlayerRow> playerRows) {
-        // Any lookup failure (null profile, 429, connection timeout, etc.) must still
-        // bump nextRefreshAt. Without this, failed players stay permanently at the front of
-        // the queue and create a retry storm that saturates the connection pool.
         long chunkStart = System.currentTimeMillis();
         List<UUID> failedIds = Collections.synchronizedList(new ArrayList<>());
         List<UsernameChangeEventRow> usernameChangeEvents = Collections.synchronizedList(new ArrayList<>());
@@ -102,7 +110,10 @@ public class PlayerRefreshService {
             if (!running.get()) {
                 return;
             }
-            futures.add(CompletableFuture.runAsync(() -> refreshPlayer(playerRow, failedIds, usernameChangeEvents, persisted, inflightFetches), Main.EXECUTOR));
+            futures.add(CompletableFuture.runAsync(
+                    () -> refreshPlayer(playerRow, failedIds, usernameChangeEvents, persisted, inflightFetches),
+                    refreshExecutor
+            ));
         }
 
         try {
@@ -192,6 +203,7 @@ public class PlayerRefreshService {
             }
             return new PlayerService.PlayerUpdate(playerRow, token);
         } catch (Exception e) {
+            log.debug("Mojang profile lookup failed for {}: {}", playerRow.getId(), e.toString());
             failedIds.add(playerRow.getId());
             return null;
         }

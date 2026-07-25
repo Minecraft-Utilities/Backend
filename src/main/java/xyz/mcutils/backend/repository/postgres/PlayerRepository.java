@@ -22,6 +22,31 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
     @Query("SELECT p FROM PlayerRow p WHERE p.nextRefreshAt < :now ORDER BY p.nextRefreshAt ASC, p.id ASC")
     List<PlayerRow> findDueForRefresh(@Param("now") Instant now, Pageable pageable);
 
+    /**
+     * Claims a batch of due players for refresh, skipping rows locked by another instance.
+     * Sets {@code next_refresh_at} to {@code leaseUntil} so uncompleted work is not immediately re-claimed.
+     */
+    @Modifying
+    @Transactional
+    @Query(nativeQuery = true, value = """
+        UPDATE players
+        SET next_refresh_at = :leaseUntil
+        WHERE id IN (
+            SELECT id
+            FROM players
+            WHERE next_refresh_at < :now
+            ORDER BY next_refresh_at ASC, id ASC
+            LIMIT :limit
+            FOR UPDATE SKIP LOCKED
+        )
+        RETURNING id
+        """)
+    List<UUID> claimPlayersForRefresh(
+            @Param("now") Instant now,
+            @Param("leaseUntil") Instant leaseUntil,
+            @Param("limit") int limit
+    );
+
 
     @Query("SELECT p.username FROM PlayerRow p WHERE p.skin.id = :skinId")
     List<String> findUsernamesBySkinId(long skinId, Pageable pageable);
@@ -55,8 +80,8 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
 
     @Modifying
     @Transactional
-    @Query("UPDATE PlayerRow p SET p.lastUpdated = :now, p.nextRefreshAt = :nextRefreshAt WHERE p.id IN :ids")
-    void bumpRefreshFailure(@Param("ids") Collection<UUID> ids, @Param("now") Instant now, @Param("nextRefreshAt") Instant nextRefreshAt);
+    @Query("UPDATE PlayerRow p SET p.nextRefreshAt = :nextRefreshAt WHERE p.id IN :ids")
+    void bumpRefreshFailure(@Param("ids") Collection<UUID> ids, @Param("nextRefreshAt") Instant nextRefreshAt);
 
     @Modifying
     @Transactional
