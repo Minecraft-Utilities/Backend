@@ -154,3 +154,4 @@ mc-utils:
     producer-enqueue-chunk-size: 2000
     max-queue-size: 250000
     lookup-rate-limit: 50
+    concurrent-bulk-lookups: 40
