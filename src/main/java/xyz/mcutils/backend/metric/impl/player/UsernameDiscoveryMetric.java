@@ -1,7 +1,7 @@
 package xyz.mcutils.backend.metric.impl.player;
 
 import io.prometheus.metrics.core.metrics.Counter;
-import io.prometheus.metrics.core.metrics.Gauge;
+import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import io.prometheus.metrics.core.metrics.Histogram;
 import xyz.mcutils.backend.discovery.UsernameDiscoveryStrategy;
 import xyz.mcutils.backend.metric.Metric;
@@ -102,12 +102,12 @@ public class UsernameDiscoveryMetric extends Metric<UsernameDiscoveryMetric.Hold
                         .help("Duration of a producer batch (scan players and enqueue candidates)")
                         .classicUpperBounds(50, 100, 250, 500, 1000, 2500, 5000, 10000, 30000)
                         .register(MetricService.REGISTRY),
-                Gauge.builder()
+                GaugeWithCallback.builder()
                         .name("username_discovery_queue_size")
                         .help("Pending username candidates in the discovery queue")
                         .callback(callback -> callback.call(usernameDiscoveryService.getQueueSize()))
                         .register(MetricService.REGISTRY),
-                Gauge.builder()
+                GaugeWithCallback.builder()
                         .name("username_discovery_seen_set_size")
                         .help("Usernames already checked by discovery (Redis set cardinality)")
                         .callback(callback -> callback.call(usernameDiscoveryService.getSeenSetSize()))
@@ -186,7 +186,7 @@ public class UsernameDiscoveryMetric extends Metric<UsernameDiscoveryMetric.Hold
             Counter producerCycles,
             Histogram bulkLookupDuration,
             Histogram producerDuration,
-            Gauge queueSize,
-            Gauge seenSetSize
+            GaugeWithCallback queueSize,
+            GaugeWithCallback seenSetSize
     ) {}
 }
