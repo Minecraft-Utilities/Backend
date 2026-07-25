@@ -137,3 +137,20 @@ mc-utils:
 
   webhooks:
     new_cape_discovered: webhook_url_here
+
+  # Background username discovery from tracked players (multi-strategy expansion).
+  username-discovery:
+    enabled: false
+    max-candidates-per-player: 750
+    numeric-suffix-max: 99
+    numeric-suffix-extended-max: 999
+    max-leet-variants-per-base: 16
+    max-omit-variants-per-base: 12
+    suffixes: "_,__,1,2,3,4,5,6,7,8,9,0,01,02,03,10,11,12,13,21,22,23,69,99,123,124,321,420,777,1337"
+    prefixes: "xX,Xx,xx,Mr,Mrs,The,Its,Im,Dr,Sir,Lord,OG,VIP,Big,Lil,Real,Not,Just"
+    affixes: "_mc,_yt,_tv,_pvp,_gg,_pro,_hd,_op,mc_,yt_,tv_,Gamer,Gaming,Pro,HD,Playz,Plays,Live,LIVE,Fan"
+    birth-years: "1998,1999,2000,2001,2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2014,2015"
+    producer-player-chunk-size: 250
+    producer-enqueue-chunk-size: 2000
+    max-queue-size: 250000
+    lookup-rate-limit: 50

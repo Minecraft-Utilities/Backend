@@ -82,7 +82,7 @@
         "description": "",
         "id": 1,
         "links": [],
-        "title": "💾 Memory Usage",
+        "title": "\ud83d\udcbe Memory Usage",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -172,6 +172,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -182,7 +184,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -224,7 +226,7 @@
         "description": "",
         "id": 10,
         "links": [],
-        "title": "🌐 External API requests/s",
+        "title": "\ud83c\udf10 External API requests/s",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -289,6 +291,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -299,7 +303,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -340,7 +344,7 @@
         "description": "",
         "id": 11,
         "links": [],
-        "title": "⏱️ External API latency (p50 ms)",
+        "title": "\u23f1\ufe0f External API latency (p50 ms)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -405,6 +409,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -415,7 +421,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -456,7 +462,7 @@
         "description": "",
         "id": 12,
         "links": [],
-        "title": "📥 Submission Queue Size",
+        "title": "\ud83d\udce5 Submission Queue Size",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -522,6 +528,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -532,7 +540,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -556,7 +564,7 @@
                     "spec": {
                       "editorMode": "code",
                       "exemplar": false,
-                      "expr": "tracked_players{job=\"mc_utils\"} / (rate(accounts_updated_total{job=\"mc_utils\"}[5m]) * 60)",
+                      "expr": "tracked_players{job=\"mc_utils\"} / (rate(accounts_updated_total{job=\"mc_utils\"}[1m]) * 60)",
                       "format": "time_series",
                       "instant": false,
                       "legendFormat": "__auto",
@@ -575,7 +583,7 @@
         "description": "",
         "id": 13,
         "links": [],
-        "title": "🔄 Full Account Refresh ETA",
+        "title": "\ud83d\udd04 Full Account Refresh ETA",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -641,6 +649,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -651,7 +661,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -692,7 +702,7 @@
         "description": "",
         "id": 16,
         "links": [],
-        "title": "📡 Requests/s by Endpoint",
+        "title": "\ud83d\udce1 Requests/s by Endpoint",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -760,16 +770,19 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
               "tooltip": {
+                "hideZeros": false,
                 "mode": "multi",
                 "sort": "desc"
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -810,7 +823,7 @@
         "description": "",
         "id": 17,
         "links": [],
-        "title": "⏱️ Request Latency p50 (ms)",
+        "title": "\u23f1\ufe0f Request Latency p50 (ms)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -878,16 +891,19 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
               "tooltip": {
+                "hideZeros": false,
                 "mode": "multi",
                 "sort": "desc"
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -928,7 +944,7 @@
         "description": "",
         "id": 18,
         "links": [],
-        "title": "✅ Player Submit Outcomes/s",
+        "title": "\u2705 Player Submit Outcomes/s",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -993,6 +1009,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -1003,7 +1021,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -1044,7 +1062,7 @@
         "description": "",
         "id": 19,
         "links": [],
-        "title": "⚡ Submit Queue Processed/s",
+        "title": "\u26a1 Submit Queue Processed/s",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -1109,6 +1127,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -1119,7 +1139,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -1160,7 +1180,7 @@
         "description": "",
         "id": 2,
         "links": [],
-        "title": "👥 Tracked Players",
+        "title": "\ud83d\udc65 Tracked Players",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -1251,6 +1271,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -1261,7 +1283,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -1302,7 +1324,7 @@
         "description": "",
         "id": 20,
         "links": [],
-        "title": "⏱️ Submit Processing Duration p50 (ms)",
+        "title": "\u23f1\ufe0f Submit Processing Duration p50 (ms)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -1367,6 +1389,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -1377,7 +1401,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -1418,7 +1442,7 @@
         "description": "",
         "id": 21,
         "links": [],
-        "title": "🎨 Skin Renders/s (cache hit vs miss)",
+        "title": "\ud83c\udfa8 Skin Renders/s (cache hit vs miss)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -1483,6 +1507,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -1493,7 +1519,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -1534,7 +1560,7 @@
         "description": "",
         "id": 22,
         "links": [],
-        "title": "⏱️ Skin Render Duration p50 (ms)",
+        "title": "\u23f1\ufe0f Skin Render Duration p50 (ms)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -1599,6 +1625,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -1609,7 +1637,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -1650,7 +1678,7 @@
         "description": "",
         "id": 23,
         "links": [],
-        "title": "🧥 Cape Renders/s (cache hit vs miss)",
+        "title": "\ud83e\udde5 Cape Renders/s (cache hit vs miss)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -1715,6 +1743,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -1725,7 +1755,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -1766,7 +1796,7 @@
         "description": "",
         "id": 24,
         "links": [],
-        "title": "⏱️ Cape Render Duration p50 (ms)",
+        "title": "\u23f1\ufe0f Cape Render Duration p50 (ms)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -1831,6 +1861,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -1841,7 +1873,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -1882,7 +1914,7 @@
         "description": "",
         "id": 25,
         "links": [],
-        "title": "🔍 Server Lookups/s (cache hit vs miss)",
+        "title": "\ud83d\udd0d Server Lookups/s (cache hit vs miss)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -1947,6 +1979,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -1957,7 +1991,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -1998,7 +2032,7 @@
         "description": "",
         "id": 26,
         "links": [],
-        "title": "⏱️ Server Ping Duration p50 (ms)",
+        "title": "\u23f1\ufe0f Server Ping Duration p50 (ms)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -2063,6 +2097,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -2073,7 +2109,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -2114,7 +2150,7 @@
         "description": "",
         "id": 27,
         "links": [],
-        "title": "🖥️ CPU Usage",
+        "title": "\ud83d\udda5\ufe0f CPU Usage",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -2165,7 +2201,7 @@
                   "steps": [
                     {
                       "color": "green",
-                      "value": null
+                      "value": 0
                     },
                     {
                       "color": "orange",
@@ -2189,6 +2225,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -2199,7 +2237,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -2240,7 +2278,7 @@
         "description": "",
         "id": 28,
         "links": [],
-        "title": "🧵 Thread Count",
+        "title": "\ud83e\uddf5 Thread Count",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -2305,6 +2343,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -2315,7 +2355,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -2356,7 +2396,7 @@
         "description": "",
         "id": 29,
         "links": [],
-        "title": "🗑️ GC Collections/s",
+        "title": "\ud83d\uddd1\ufe0f GC Collections/s",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -2421,6 +2461,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -2431,7 +2473,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -2472,7 +2514,7 @@
         "description": "",
         "id": 30,
         "links": [],
-        "title": "⏸️ GC Pause Time (s/s)",
+        "title": "\u23f8\ufe0f GC Pause Time (s/s)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -2537,6 +2579,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -2547,7 +2591,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -2570,6 +2614,7 @@
                     "kind": "DataQuery",
                     "spec": {
                       "editorMode": "code",
+                      "exemplar": false,
                       "expr": "topk(10, top_submitted_players_submitted_uuids{job=\"mc_utils\"})",
                       "format": "time_series",
                       "instant": true,
@@ -2589,39 +2634,18 @@
         "description": "Top 10 player names by total submission count",
         "id": 32,
         "links": [],
-        "title": "🏆 Top 10 Submitted Players",
+        "title": "\ud83c\udfc6 Top 10 Submitted Players",
         "vizConfig": {
-          "group": "barchart",
+          "group": "bargauge",
           "kind": "VizConfig",
           "spec": {
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "axisBorderShow": false,
-                  "axisCenteredZero": false,
-                  "axisColorMode": "text",
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "fillOpacity": 80,
-                  "gradientMode": "none",
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  },
-                  "lineWidth": 1,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "thresholdsStyle": {
-                    "mode": "off"
-                  }
+                  "mode": "thresholds"
                 },
                 "thresholds": {
-                  "mode": "absolute",
+                  "mode": "percentage",
                   "steps": [
                     {
                       "color": "green",
@@ -2634,29 +2658,32 @@
               "overrides": []
             },
             "options": {
-              "barRadius": 0,
-              "barWidth": 0.97,
-              "fullHighlight": false,
-              "groupWidth": 0.7,
+              "displayMode": "gradient",
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "overflow": "ellipsis",
                 "placement": "bottom",
-                "showLegend": true
+                "showLegend": false
               },
+              "maxVizHeight": 300,
+              "minVizHeight": 16,
+              "minVizWidth": 8,
+              "namePlacement": "auto",
               "orientation": "horizontal",
-              "showValue": "auto",
-              "stacking": "none",
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "single",
-                "sort": "none"
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
               },
-              "xTickLabelRotation": 0,
-              "xTickLabelSpacing": 200
+              "showUnfilled": true,
+              "sizing": "auto",
+              "valueMode": "text"
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -2697,7 +2724,7 @@
         "description": "DNS query rate by type (srv/a) and result (cache_hit/resolved/not_found)",
         "id": 33,
         "links": [],
-        "title": "🌍 DNS Query Rate",
+        "title": "\ud83c\udf0d DNS Query Rate",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -2762,6 +2789,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -2772,7 +2801,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -2813,7 +2842,7 @@
         "description": "DNS query p50 latency (excludes in-memory cache hits)",
         "id": 34,
         "links": [],
-        "title": "⏱️ DNS Query Duration p50 (ms)",
+        "title": "\u23f1\ufe0f DNS Query Duration p50 (ms)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -2878,6 +2907,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -2888,7 +2919,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -2929,7 +2960,7 @@
         "description": "IP geo/ASN lookup rate by result (Spring cache misses only)",
         "id": 35,
         "links": [],
-        "title": "📍 IP Lookup Rate",
+        "title": "\ud83d\udccd IP Lookup Rate",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -2994,6 +3025,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -3004,7 +3037,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -3045,7 +3078,7 @@
         "description": "IP lookup p50 latency (Spring cache misses only)",
         "id": 36,
         "links": [],
-        "title": "⏱️ IP Lookup Duration p50 (ms)",
+        "title": "\u23f1\ufe0f IP Lookup Duration p50 (ms)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -3110,6 +3143,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -3120,7 +3155,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -3161,7 +3196,7 @@
         "description": "S3/MinIO storage operation rate by operation (upload/get) and status (success/failure/cache_hit)",
         "id": 37,
         "links": [],
-        "title": "💿 Storage Operation Rate",
+        "title": "\ud83d\udcbf Storage Operation Rate",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -3226,6 +3261,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -3236,7 +3273,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -3277,7 +3314,7 @@
         "description": "S3 storage operation p50 latency (excludes in-memory cache hits)",
         "id": 38,
         "links": [],
-        "title": "⏱️ Storage Operation Duration p50 (ms)",
+        "title": "\u23f1\ufe0f Storage Operation Duration p50 (ms)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -3342,6 +3379,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -3352,7 +3391,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -3393,7 +3432,7 @@
         "description": "Current count of server hashes blocked by Mojang",
         "id": 42,
         "links": [],
-        "title": "🚫 Mojang Blocked Server Hashes",
+        "title": "\ud83d\udeab Mojang Blocked Server Hashes",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -3458,6 +3497,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -3468,7 +3509,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -3509,7 +3550,7 @@
         "description": "Current number of active WebSocket sessions",
         "id": 43,
         "links": [],
-        "title": "🔌 Active WebSocket Connections",
+        "title": "\ud83d\udd0c Active WebSocket Connections",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -3574,6 +3615,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -3584,7 +3627,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -3626,7 +3669,7 @@
         "description": "",
         "id": 44,
         "links": [],
-        "title": "👥 Tracked Players",
+        "title": "\ud83d\udc65 Tracked Players",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
@@ -3668,7 +3711,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -3710,7 +3753,7 @@
         "description": "",
         "id": 45,
         "links": [],
-        "title": "🖥️ CPU Usage",
+        "title": "\ud83d\udda5\ufe0f CPU Usage",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
@@ -3759,7 +3802,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -3801,7 +3844,7 @@
         "description": "",
         "id": 46,
         "links": [],
-        "title": "💾 Heap Memory",
+        "title": "\ud83d\udcbe Heap Memory",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
@@ -3843,7 +3886,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -3885,7 +3928,7 @@
         "description": "",
         "id": 47,
         "links": [],
-        "title": "📊 Requests/s",
+        "title": "\ud83d\udcca Requests/s",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
@@ -3927,7 +3970,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -3969,7 +4012,7 @@
         "description": "",
         "id": 48,
         "links": [],
-        "title": "🔌 WebSocket Connections",
+        "title": "\ud83d\udd0c WebSocket Connections",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
@@ -4011,7 +4054,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -4052,7 +4095,7 @@
         "description": "",
         "id": 49,
         "links": [],
-        "title": "⏱️ Overall Request Latency p50 (ms)",
+        "title": "\u23f1\ufe0f Overall Request Latency p50 (ms)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -4120,16 +4163,19 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
               "tooltip": {
+                "hideZeros": false,
                 "mode": "multi",
                 "sort": "desc"
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -4170,7 +4216,7 @@
         "description": "",
         "id": 5,
         "links": [],
-        "title": "💾 Non Heap Memory Usage",
+        "title": "\ud83d\udcbe Non Heap Memory Usage",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -4248,6 +4294,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -4258,7 +4306,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -4300,7 +4348,7 @@
         "description": "",
         "id": 50,
         "links": [],
-        "title": "📝 Name Changes",
+        "title": "\ud83d\udcdd Name Changes",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
@@ -4342,7 +4390,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -4383,7 +4431,7 @@
         "description": "",
         "id": 51,
         "links": [],
-        "title": "🔄 Player Changes/s",
+        "title": "\ud83d\udd04 Player Changes/s",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -4449,6 +4497,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -4459,7 +4509,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -4500,7 +4550,7 @@
         "description": "",
         "id": 52,
         "links": [],
-        "title": "🎯 Change Hit Rate",
+        "title": "\ud83c\udfaf Change Hit Rate",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -4566,6 +4616,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -4576,126 +4628,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
-        }
-      }
-    },
-    "panel-7": {
-      "kind": "Panel",
-      "spec": {
-        "data": {
-          "kind": "QueryGroup",
-          "spec": {
-            "queries": [
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "ffbmdvoh37lkwe"
-                    },
-                    "group": "victoriametrics-metrics-datasource",
-                    "kind": "DataQuery",
-                    "spec": {
-                      "editorMode": "code",
-                      "expr": "sum(rate(requests_total{job=\"mc_utils\"}[1m]))",
-                      "format": "time_series",
-                      "legendFormat": "Total",
-                      "range": true
-                    },
-                    "version": "v0"
-                  },
-                  "refId": "A"
-                }
-              }
-            ],
-            "queryOptions": {},
-            "transformations": []
-          }
-        },
-        "description": "",
-        "id": 7,
-        "links": [],
-        "title": "📊 Requests/s",
-        "vizConfig": {
-          "group": "timeseries",
-          "kind": "VizConfig",
-          "spec": {
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "axisBorderShow": false,
-                  "axisCenteredZero": false,
-                  "axisColorMode": "text",
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "barWidthFactor": 0.6,
-                  "drawStyle": "line",
-                  "fillOpacity": 25,
-                  "gradientMode": "opacity",
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  },
-                  "insertNulls": false,
-                  "lineInterpolation": "smooth",
-                  "lineWidth": 2,
-                  "pointSize": 5,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "showPoints": "auto",
-                  "showValues": false,
-                  "spanNulls": false,
-                  "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                  },
-                  "thresholdsStyle": {
-                    "mode": "off"
-                  }
-                },
-                "displayName": "Requests",
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    }
-                  ]
-                },
-                "unit": "reqps"
-              },
-              "overrides": []
-            },
-            "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
-              },
-              "legend": {
-                "calcs": [
-                  "mean",
-                  "max"
-                ],
-                "displayMode": "table",
-                "placement": "bottom",
-                "showLegend": true
-              },
-              "tooltip": {
-                "mode": "multi",
-                "sort": "desc"
-              }
-            }
-          },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -4759,7 +4692,7 @@
         "description": "",
         "id": 8,
         "links": [],
-        "title": "🎨 Tracked Skins",
+        "title": "\ud83c\udfa8 Tracked Skins",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -4846,6 +4779,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -4856,7 +4791,7 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
         }
       }
     },
@@ -4897,7 +4832,7 @@
         "description": "",
         "id": 9,
         "links": [],
-        "title": "🧥 Tracked Capes",
+        "title": "\ud83e\udde5 Tracked Capes",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -4988,6 +4923,8 @@
               "legend": {
                 "calcs": [],
                 "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "bottom",
                 "showLegend": true
               },
@@ -4998,7 +4935,1541 @@
               }
             }
           },
-          "version": "13.0.1+security-01"
+          "version": "13.1.1"
+        }
+      }
+    },
+    "panel-53": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "username_discovery_queue_size{job=\"mc_utils\"}",
+                      "format": "time_series",
+                      "legendFormat": "__auto",
+                      "range": false,
+                      "instant": true
+                    }
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 53,
+        "links": [],
+        "title": "\ud83d\udce5 Discovery Queue",
+        "vizConfig": {
+          "group": "stat",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "purple",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "background",
+              "graphMode": "sparkline",
+              "justifyMode": "center",
+              "orientation": "horizontal",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": false,
+              "textMode": "auto",
+              "wideLayout": true
+            }
+          },
+          "version": "13.1.1"
+        }
+      }
+    },
+    "panel-54": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "username_discovery_seen_set_size{job=\"mc_utils\"}",
+                      "format": "time_series",
+                      "legendFormat": "__auto",
+                      "range": false,
+                      "instant": true
+                    }
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 54,
+        "links": [],
+        "title": "\ud83d\uddc2\ufe0f Seen Usernames",
+        "vizConfig": {
+          "group": "stat",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "locale"
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "background",
+              "graphMode": "sparkline",
+              "justifyMode": "center",
+              "orientation": "horizontal",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": false,
+              "textMode": "auto",
+              "wideLayout": true
+            }
+          },
+          "version": "13.1.1"
+        }
+      }
+    },
+    "panel-55": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "sum(rate(username_discovery_hits_total{job=\"mc_utils\"}[5m])) / sum(rate(username_discovery_candidates_checked_total{job=\"mc_utils\"}[5m]))",
+                      "format": "time_series",
+                      "legendFormat": "__auto",
+                      "range": false,
+                      "instant": true
+                    }
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 55,
+        "links": [],
+        "title": "\ud83c\udfaf Discovery Hit Rate",
+        "vizConfig": {
+          "group": "stat",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "percentunit"
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "background",
+              "graphMode": "sparkline",
+              "justifyMode": "center",
+              "orientation": "horizontal",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": false,
+              "textMode": "auto",
+              "wideLayout": true
+            }
+          },
+          "version": "13.1.1"
+        }
+      }
+    },
+    "panel-56": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "sum(rate(username_discovery_hits_total{job=\"mc_utils\"}[5m]))",
+                      "format": "time_series",
+                      "legendFormat": "__auto",
+                      "range": false,
+                      "instant": true
+                    }
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 56,
+        "links": [],
+        "title": "\u2728 Discovery Hits/s",
+        "vizConfig": {
+          "group": "stat",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "orange",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "background",
+              "graphMode": "sparkline",
+              "justifyMode": "center",
+              "orientation": "horizontal",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": false,
+              "textMode": "auto",
+              "wideLayout": true
+            }
+          },
+          "version": "13.1.1"
+        }
+      }
+    },
+    "panel-57": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "sum(rate(username_discovery_candidates_checked_total{job=\"mc_utils\"}[1m]))",
+                      "format": "time_series",
+                      "legendFormat": "__auto",
+                      "range": true
+                    }
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 57,
+        "links": [],
+        "title": "\ud83d\udd0e Candidates Checked/s",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 25,
+                  "gradientMode": "opacity",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short",
+                "displayName": "Checked/s"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [],
+                "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "single",
+                "sort": "none"
+              }
+            }
+          },
+          "version": "13.1.1"
+        }
+      }
+    },
+    "panel-58": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "sum by (strategy) (rate(username_discovery_hits_total{job=\"mc_utils\"}[1m]))",
+                      "format": "time_series",
+                      "legendFormat": "{{strategy}}",
+                      "range": true
+                    }
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 58,
+        "links": [],
+        "title": "\u2705 Hits/s by Strategy",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 25,
+                  "gradientMode": "opacity",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [],
+                "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.1.1"
+        }
+      }
+    },
+    "panel-59": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "sum by (strategy) (rate(username_discovery_candidates_enqueued_total{job=\"mc_utils\"}[1m]))",
+                      "format": "time_series",
+                      "legendFormat": "{{strategy}}",
+                      "range": true
+                    }
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 59,
+        "links": [],
+        "title": "\ud83d\udce4 Enqueued/s by Strategy",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 25,
+                  "gradientMode": "opacity",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [],
+                "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.1.1"
+        }
+      }
+    },
+    "panel-60": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "sum by (reason) (rate(username_discovery_candidates_skipped_total{job=\"mc_utils\"}[1m]))",
+                      "format": "time_series",
+                      "legendFormat": "{{reason}}",
+                      "range": true
+                    }
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 60,
+        "links": [],
+        "title": "\u23ed\ufe0f Skipped/s by Reason",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 25,
+                  "gradientMode": "opacity",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [],
+                "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.1.1"
+        }
+      }
+    },
+    "panel-61": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "sum by (outcome) (rate(username_discovery_bulk_lookups_total{job=\"mc_utils\"}[1m]))",
+                      "format": "time_series",
+                      "legendFormat": "{{outcome}}",
+                      "range": true
+                    }
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 61,
+        "links": [],
+        "title": "\ud83c\udf10 Bulk Lookup Outcomes/s",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 25,
+                  "gradientMode": "opacity",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [],
+                "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.1.1"
+        }
+      }
+    },
+    "panel-62": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "histogram_quantile(0.50, sum(rate(username_discovery_bulk_lookup_duration_milliseconds_bucket{job=\"mc_utils\"}[1m])) by (le))",
+                      "format": "time_series",
+                      "legendFormat": "p50",
+                      "range": true
+                    }
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 62,
+        "links": [],
+        "title": "\u23f1\ufe0f Bulk Lookup Duration p50 (ms)",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 25,
+                  "gradientMode": "opacity",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "ms"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [],
+                "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "single",
+                "sort": "none"
+              }
+            }
+          },
+          "version": "13.1.1"
+        }
+      }
+    },
+    "panel-63": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "rate(username_discovery_producer_players_scanned_total{job=\"mc_utils\"}[1m])",
+                      "format": "time_series",
+                      "legendFormat": "Players Scanned/s",
+                      "range": true
+                    }
+                  },
+                  "refId": "A"
+                }
+              },
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "rate(username_discovery_submit_enqueued_total{job=\"mc_utils\"}[1m])",
+                      "format": "time_series",
+                      "legendFormat": "Submit Enqueued/s",
+                      "range": true
+                    }
+                  },
+                  "refId": "B"
+                }
+              },
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "rate(username_discovery_producer_cycles_total{job=\"mc_utils\"}[1m])",
+                      "format": "time_series",
+                      "legendFormat": "Producer Cycles/s",
+                      "range": true
+                    }
+                  },
+                  "refId": "C"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 63,
+        "links": [],
+        "title": "\ud83c\udfed Producer & Ingest Throughput/s",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 25,
+                  "gradientMode": "opacity",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [],
+                "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.1.1"
+        }
+      }
+    },
+    "panel-64": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "topk(10, sum by (strategy) (rate(username_discovery_hits_total{job=\"mc_utils\"}[5m])))",
+                      "format": "time_series",
+                      "legendFormat": "{{strategy}}",
+                      "range": false,
+                      "instant": true
+                    }
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Top strategies by discovery hit rate",
+        "id": 64,
+        "links": [],
+        "title": "\ud83c\udfc6 Top Strategies by Hits/s",
+        "vizConfig": {
+          "group": "bargauge",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "displayMode": "gradient",
+              "legend": {
+                "calcs": [],
+                "displayMode": "list",
+                "overflow": "ellipsis",
+                "placement": "bottom",
+                "showLegend": false
+              },
+              "maxVizHeight": 300,
+              "minVizHeight": 16,
+              "minVizWidth": 8,
+              "namePlacement": "auto",
+              "orientation": "horizontal",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showUnfilled": true,
+              "sizing": "auto",
+              "valueMode": "text"
+            }
+          },
+          "version": "13.1.1"
+        }
+      }
+    },
+    "panel-65": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "sum by (strategy) (rate(username_discovery_candidates_generated_total{job=\"mc_utils\"}[1m]))",
+                      "format": "time_series",
+                      "legendFormat": "{{strategy}}",
+                      "range": true
+                    }
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 65,
+        "links": [],
+        "title": "\ud83e\uddec Generated/s by Strategy",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 25,
+                  "gradientMode": "opacity",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [],
+                "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.1.1"
+        }
+      }
+    },
+    "panel-66": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "histogram_quantile(0.50, sum(rate(username_discovery_producer_duration_milliseconds_bucket{job=\"mc_utils\"}[1m])) by (le))",
+                      "format": "time_series",
+                      "legendFormat": "p50",
+                      "range": true
+                    }
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 66,
+        "links": [],
+        "title": "\u23f1\ufe0f Producer Batch Duration p50 (ms)",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 25,
+                  "gradientMode": "opacity",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 2,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "ms"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [],
+                "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "single",
+                "sort": "none"
+              }
+            }
+          },
+          "version": "13.1.1"
         }
       }
     }
@@ -5011,7 +6482,6 @@
           "kind": "RowsLayoutRow",
           "spec": {
             "collapse": false,
-            "title": "📌 Overview",
             "layout": {
               "kind": "GridLayout",
               "spec": {
@@ -5023,10 +6493,10 @@
                         "kind": "ElementReference",
                         "name": "panel-44"
                       },
-                      "x": 0,
-                      "y": 0,
+                      "height": 4,
                       "width": 4,
-                      "height": 4
+                      "x": 0,
+                      "y": 0
                     }
                   },
                   {
@@ -5036,10 +6506,10 @@
                         "kind": "ElementReference",
                         "name": "panel-45"
                       },
-                      "x": 4,
-                      "y": 0,
+                      "height": 4,
                       "width": 4,
-                      "height": 4
+                      "x": 4,
+                      "y": 0
                     }
                   },
                   {
@@ -5049,10 +6519,10 @@
                         "kind": "ElementReference",
                         "name": "panel-47"
                       },
-                      "x": 8,
-                      "y": 0,
+                      "height": 4,
                       "width": 4,
-                      "height": 4
+                      "x": 8,
+                      "y": 0
                     }
                   },
                   {
@@ -5062,10 +6532,10 @@
                         "kind": "ElementReference",
                         "name": "panel-48"
                       },
-                      "x": 12,
-                      "y": 0,
+                      "height": 4,
                       "width": 4,
-                      "height": 4
+                      "x": 12,
+                      "y": 0
                     }
                   },
                   {
@@ -5075,10 +6545,10 @@
                         "kind": "ElementReference",
                         "name": "panel-50"
                       },
-                      "x": 16,
-                      "y": 0,
+                      "height": 4,
                       "width": 4,
-                      "height": 4
+                      "x": 16,
+                      "y": 0
                     }
                   },
                   {
@@ -5088,22 +6558,22 @@
                         "kind": "ElementReference",
                         "name": "panel-46"
                       },
-                      "x": 20,
-                      "y": 0,
+                      "height": 4,
                       "width": 4,
-                      "height": 4
+                      "x": 20,
+                      "y": 0
                     }
                   }
                 ]
               }
-            }
+            },
+            "title": "\ud83d\udccc Overview"
           }
         },
         {
           "kind": "RowsLayoutRow",
           "spec": {
             "collapse": false,
-            "title": "📡 API Performance",
             "layout": {
               "kind": "GridLayout",
               "spec": {
@@ -5115,10 +6585,10 @@
                         "kind": "ElementReference",
                         "name": "panel-49"
                       },
-                      "x": 0,
-                      "y": 0,
+                      "height": 7,
                       "width": 24,
-                      "height": 7
+                      "x": 0,
+                      "y": 0
                     }
                   },
                   {
@@ -5128,10 +6598,10 @@
                         "kind": "ElementReference",
                         "name": "panel-16"
                       },
-                      "x": 0,
-                      "y": 7,
+                      "height": 8,
                       "width": 12,
-                      "height": 8
+                      "x": 0,
+                      "y": 7
                     }
                   },
                   {
@@ -5141,22 +6611,22 @@
                         "kind": "ElementReference",
                         "name": "panel-17"
                       },
-                      "x": 12,
-                      "y": 7,
+                      "height": 8,
                       "width": 12,
-                      "height": 8
+                      "x": 12,
+                      "y": 7
                     }
                   }
                 ]
               }
-            }
+            },
+            "title": "\ud83d\udce1 API Performance"
           }
         },
         {
           "kind": "RowsLayoutRow",
           "spec": {
             "collapse": false,
-            "title": "☕ JVM & Memory",
             "layout": {
               "kind": "GridLayout",
               "spec": {
@@ -5168,10 +6638,10 @@
                         "kind": "ElementReference",
                         "name": "panel-27"
                       },
-                      "x": 0,
-                      "y": 0,
+                      "height": 8,
                       "width": 16,
-                      "height": 8
+                      "x": 0,
+                      "y": 0
                     }
                   },
                   {
@@ -5181,10 +6651,10 @@
                         "kind": "ElementReference",
                         "name": "panel-28"
                       },
-                      "x": 16,
-                      "y": 0,
+                      "height": 8,
                       "width": 8,
-                      "height": 8
+                      "x": 16,
+                      "y": 0
                     }
                   },
                   {
@@ -5194,10 +6664,10 @@
                         "kind": "ElementReference",
                         "name": "panel-1"
                       },
-                      "x": 0,
-                      "y": 8,
+                      "height": 7,
                       "width": 12,
-                      "height": 7
+                      "x": 0,
+                      "y": 8
                     }
                   },
                   {
@@ -5207,10 +6677,10 @@
                         "kind": "ElementReference",
                         "name": "panel-5"
                       },
-                      "x": 12,
-                      "y": 8,
+                      "height": 7,
                       "width": 12,
-                      "height": 7
+                      "x": 12,
+                      "y": 8
                     }
                   },
                   {
@@ -5220,10 +6690,10 @@
                         "kind": "ElementReference",
                         "name": "panel-29"
                       },
-                      "x": 0,
-                      "y": 15,
+                      "height": 7,
                       "width": 12,
-                      "height": 7
+                      "x": 0,
+                      "y": 15
                     }
                   },
                   {
@@ -5233,22 +6703,22 @@
                         "kind": "ElementReference",
                         "name": "panel-30"
                       },
-                      "x": 12,
-                      "y": 15,
+                      "height": 7,
                       "width": 12,
-                      "height": 7
+                      "x": 12,
+                      "y": 15
                     }
                   }
                 ]
               }
-            }
+            },
+            "title": "\u2615 JVM & Memory"
           }
         },
         {
           "kind": "RowsLayoutRow",
           "spec": {
             "collapse": false,
-            "title": "📤 Player Submission",
             "layout": {
               "kind": "GridLayout",
               "spec": {
@@ -5260,10 +6730,10 @@
                         "kind": "ElementReference",
                         "name": "panel-18"
                       },
-                      "x": 0,
-                      "y": 0,
+                      "height": 8,
                       "width": 8,
-                      "height": 8
+                      "x": 0,
+                      "y": 0
                     }
                   },
                   {
@@ -5273,10 +6743,10 @@
                         "kind": "ElementReference",
                         "name": "panel-19"
                       },
-                      "x": 8,
-                      "y": 0,
+                      "height": 8,
                       "width": 8,
-                      "height": 8
+                      "x": 8,
+                      "y": 0
                     }
                   },
                   {
@@ -5286,10 +6756,10 @@
                         "kind": "ElementReference",
                         "name": "panel-20"
                       },
-                      "x": 16,
-                      "y": 0,
+                      "height": 8,
                       "width": 8,
-                      "height": 8
+                      "x": 16,
+                      "y": 0
                     }
                   },
                   {
@@ -5299,22 +6769,218 @@
                         "kind": "ElementReference",
                         "name": "panel-32"
                       },
-                      "x": 0,
-                      "y": 8,
+                      "height": 10,
                       "width": 24,
-                      "height": 10
+                      "x": 0,
+                      "y": 8
                     }
                   }
                 ]
               }
-            }
+            },
+            "title": "\ud83d\udce4 Player Submission"
           }
         },
         {
           "kind": "RowsLayoutRow",
           "spec": {
             "collapse": false,
-            "title": "📊 Data Catalog",
+            "layout": {
+              "kind": "GridLayout",
+              "spec": {
+                "items": [
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-53"
+                      },
+                      "height": 7,
+                      "width": 6,
+                      "x": 0,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-54"
+                      },
+                      "height": 7,
+                      "width": 6,
+                      "x": 6,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-55"
+                      },
+                      "height": 7,
+                      "width": 6,
+                      "x": 12,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-56"
+                      },
+                      "height": 7,
+                      "width": 6,
+                      "x": 18,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-57"
+                      },
+                      "height": 8,
+                      "width": 8,
+                      "x": 0,
+                      "y": 7
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-58"
+                      },
+                      "height": 8,
+                      "width": 8,
+                      "x": 8,
+                      "y": 7
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-61"
+                      },
+                      "height": 8,
+                      "width": 8,
+                      "x": 16,
+                      "y": 7
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-59"
+                      },
+                      "height": 8,
+                      "width": 12,
+                      "x": 0,
+                      "y": 15
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-60"
+                      },
+                      "height": 8,
+                      "width": 12,
+                      "x": 12,
+                      "y": 15
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-62"
+                      },
+                      "height": 8,
+                      "width": 8,
+                      "x": 0,
+                      "y": 23
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-63"
+                      },
+                      "height": 8,
+                      "width": 8,
+                      "x": 8,
+                      "y": 23
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-66"
+                      },
+                      "height": 8,
+                      "width": 8,
+                      "x": 16,
+                      "y": 23
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-65"
+                      },
+                      "height": 9,
+                      "width": 12,
+                      "x": 0,
+                      "y": 31
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-64"
+                      },
+                      "height": 9,
+                      "width": 12,
+                      "x": 12,
+                      "y": 31
+                    }
+                  }
+                ]
+              }
+            },
+            "title": "\ud83d\udd0d Username Discovery"
+          }
+        },
+        {
+          "kind": "RowsLayoutRow",
+          "spec": {
+            "collapse": false,
             "layout": {
               "kind": "GridLayout",
               "spec": {
@@ -5326,10 +6992,10 @@
                         "kind": "ElementReference",
                         "name": "panel-2"
                       },
-                      "x": 0,
-                      "y": 0,
+                      "height": 7,
                       "width": 8,
-                      "height": 7
+                      "x": 0,
+                      "y": 0
                     }
                   },
                   {
@@ -5339,10 +7005,10 @@
                         "kind": "ElementReference",
                         "name": "panel-8"
                       },
-                      "x": 8,
-                      "y": 0,
+                      "height": 7,
                       "width": 8,
-                      "height": 7
+                      "x": 8,
+                      "y": 0
                     }
                   },
                   {
@@ -5352,10 +7018,10 @@
                         "kind": "ElementReference",
                         "name": "panel-9"
                       },
-                      "x": 16,
-                      "y": 0,
+                      "height": 7,
                       "width": 8,
-                      "height": 7
+                      "x": 16,
+                      "y": 0
                     }
                   },
                   {
@@ -5365,10 +7031,10 @@
                         "kind": "ElementReference",
                         "name": "panel-12"
                       },
-                      "x": 0,
-                      "y": 7,
+                      "height": 7,
                       "width": 12,
-                      "height": 7
+                      "x": 0,
+                      "y": 7
                     }
                   },
                   {
@@ -5378,10 +7044,10 @@
                         "kind": "ElementReference",
                         "name": "panel-13"
                       },
-                      "x": 12,
-                      "y": 7,
+                      "height": 7,
                       "width": 12,
-                      "height": 7
+                      "x": 12,
+                      "y": 7
                     }
                   },
                   {
@@ -5391,10 +7057,10 @@
                         "kind": "ElementReference",
                         "name": "panel-51"
                       },
-                      "x": 0,
-                      "y": 14,
+                      "height": 7,
                       "width": 12,
-                      "height": 7
+                      "x": 0,
+                      "y": 14
                     }
                   },
                   {
@@ -5404,22 +7070,22 @@
                         "kind": "ElementReference",
                         "name": "panel-52"
                       },
-                      "x": 12,
-                      "y": 14,
+                      "height": 7,
                       "width": 12,
-                      "height": 7
+                      "x": 12,
+                      "y": 14
                     }
                   }
                 ]
               }
-            }
+            },
+            "title": "\ud83d\udcca Data Catalog"
           }
         },
         {
           "kind": "RowsLayoutRow",
           "spec": {
             "collapse": false,
-            "title": "🖼️ Rendering",
             "layout": {
               "kind": "GridLayout",
               "spec": {
@@ -5431,10 +7097,10 @@
                         "kind": "ElementReference",
                         "name": "panel-21"
                       },
-                      "x": 0,
-                      "y": 0,
+                      "height": 9,
                       "width": 12,
-                      "height": 9
+                      "x": 0,
+                      "y": 0
                     }
                   },
                   {
@@ -5444,10 +7110,10 @@
                         "kind": "ElementReference",
                         "name": "panel-22"
                       },
-                      "x": 12,
-                      "y": 0,
+                      "height": 9,
                       "width": 12,
-                      "height": 9
+                      "x": 12,
+                      "y": 0
                     }
                   },
                   {
@@ -5457,10 +7123,10 @@
                         "kind": "ElementReference",
                         "name": "panel-23"
                       },
-                      "x": 0,
-                      "y": 9,
+                      "height": 9,
                       "width": 12,
-                      "height": 9
+                      "x": 0,
+                      "y": 9
                     }
                   },
                   {
@@ -5470,22 +7136,22 @@
                         "kind": "ElementReference",
                         "name": "panel-24"
                       },
-                      "x": 12,
-                      "y": 9,
+                      "height": 9,
                       "width": 12,
-                      "height": 9
+                      "x": 12,
+                      "y": 9
                     }
                   }
                 ]
               }
-            }
+            },
+            "title": "\ud83d\uddbc\ufe0f Rendering"
           }
         },
         {
           "kind": "RowsLayoutRow",
           "spec": {
             "collapse": false,
-            "title": "🔗 External Services",
             "layout": {
               "kind": "GridLayout",
               "spec": {
@@ -5497,10 +7163,10 @@
                         "kind": "ElementReference",
                         "name": "panel-10"
                       },
-                      "x": 0,
-                      "y": 0,
+                      "height": 8,
                       "width": 12,
-                      "height": 8
+                      "x": 0,
+                      "y": 0
                     }
                   },
                   {
@@ -5510,10 +7176,10 @@
                         "kind": "ElementReference",
                         "name": "panel-11"
                       },
-                      "x": 12,
-                      "y": 0,
+                      "height": 8,
                       "width": 12,
-                      "height": 8
+                      "x": 12,
+                      "y": 0
                     }
                   },
                   {
@@ -5523,10 +7189,10 @@
                         "kind": "ElementReference",
                         "name": "panel-25"
                       },
-                      "x": 0,
-                      "y": 8,
+                      "height": 8,
                       "width": 12,
-                      "height": 8
+                      "x": 0,
+                      "y": 8
                     }
                   },
                   {
@@ -5536,10 +7202,10 @@
                         "kind": "ElementReference",
                         "name": "panel-26"
                       },
-                      "x": 12,
-                      "y": 8,
+                      "height": 8,
                       "width": 12,
-                      "height": 8
+                      "x": 12,
+                      "y": 8
                     }
                   },
                   {
@@ -5549,10 +7215,10 @@
                         "kind": "ElementReference",
                         "name": "panel-42"
                       },
-                      "x": 0,
-                      "y": 16,
+                      "height": 7,
                       "width": 12,
-                      "height": 7
+                      "x": 0,
+                      "y": 16
                     }
                   },
                   {
@@ -5562,22 +7228,22 @@
                         "kind": "ElementReference",
                         "name": "panel-43"
                       },
-                      "x": 12,
-                      "y": 16,
+                      "height": 7,
                       "width": 12,
-                      "height": 7
+                      "x": 12,
+                      "y": 16
                     }
                   }
                 ]
               }
-            }
+            },
+            "title": "\ud83d\udd17 External Services"
           }
         },
         {
           "kind": "RowsLayoutRow",
           "spec": {
             "collapse": false,
-            "title": "🏗️ Infrastructure",
             "layout": {
               "kind": "GridLayout",
               "spec": {
@@ -5589,10 +7255,10 @@
                         "kind": "ElementReference",
                         "name": "panel-37"
                       },
-                      "x": 0,
-                      "y": 0,
+                      "height": 8,
                       "width": 12,
-                      "height": 8
+                      "x": 0,
+                      "y": 0
                     }
                   },
                   {
@@ -5602,10 +7268,10 @@
                         "kind": "ElementReference",
                         "name": "panel-38"
                       },
-                      "x": 12,
-                      "y": 0,
+                      "height": 8,
                       "width": 12,
-                      "height": 8
+                      "x": 12,
+                      "y": 0
                     }
                   },
                   {
@@ -5615,10 +7281,10 @@
                         "kind": "ElementReference",
                         "name": "panel-33"
                       },
-                      "x": 0,
-                      "y": 8,
+                      "height": 8,
                       "width": 12,
-                      "height": 8
+                      "x": 0,
+                      "y": 8
                     }
                   },
                   {
@@ -5628,10 +7294,10 @@
                         "kind": "ElementReference",
                         "name": "panel-34"
                       },
-                      "x": 12,
-                      "y": 8,
+                      "height": 8,
                       "width": 12,
-                      "height": 8
+                      "x": 12,
+                      "y": 8
                     }
                   },
                   {
@@ -5641,10 +7307,10 @@
                         "kind": "ElementReference",
                         "name": "panel-35"
                       },
-                      "x": 0,
-                      "y": 16,
+                      "height": 8,
                       "width": 12,
-                      "height": 8
+                      "x": 0,
+                      "y": 16
                     }
                   },
                   {
@@ -5654,15 +7320,16 @@
                         "kind": "ElementReference",
                         "name": "panel-36"
                       },
-                      "x": 12,
-                      "y": 16,
+                      "height": 8,
                       "width": 12,
-                      "height": 8
+                      "x": 12,
+                      "y": 16
                     }
                   }
                 ]
               }
-            }
+            },
+            "title": "\ud83c\udfd7\ufe0f Infrastructure"
           }
         }
       ]
@@ -5687,11 +7354,11 @@
       "1d"
     ],
     "fiscalYearStartMonth": 0,
-    "from": "now-3h",
+    "from": "now-6h",
     "hideTimepicker": false,
     "timezone": "browser",
     "to": "now"
   },
-  "title": "📈 McUtils Metrics",
+  "title": "\ud83d\udcc8 McUtils Metrics",
   "variables": []
 }
