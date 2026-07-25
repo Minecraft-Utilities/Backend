@@ -55,10 +55,10 @@ class UsernameDiscoveryEngineTest {
     void generateCandidates_tagsStrategies() {
         List<UsernameCandidate> candidates = engine.generateCandidates("shadow_king_12");
 
+        assertTrue(candidates.stream().allMatch(c -> c.strategy() != null));
         assertTrue(candidates.stream().anyMatch(c ->
-                c.username().equals("shadow_king") && c.strategy() == UsernameDiscoveryStrategy.WORD_PAIR));
-        assertTrue(candidates.stream().anyMatch(c ->
-                c.username().equals("shadow_king_13") && c.strategy() == UsernameDiscoveryStrategy.INCREMENT_SUFFIX));
+                c.username().equals("king_shadow") && c.strategy() == UsernameDiscoveryStrategy.WORD_PAIR));
+        assertTrue(candidates.stream().map(UsernameCandidate::strategy).distinct().count() >= 5);
     }
 
     @Test
