@@ -21,7 +21,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressWarnings("UnstableApiUsage")
 @Service
@@ -85,49 +87,50 @@ public class PlayerRefreshService {
         // bump nextRefreshAt. Without this, failed players stay permanently at the front of
         // the queue and create a retry storm that saturates the connection pool.
         List<UUID> failedIds = Collections.synchronizedList(new ArrayList<>());
-        List<UsernameChangeEventRow> usernameChangeEvents = new ArrayList<>();
-        int persisted = 0;
+        List<UsernameChangeEventRow> usernameChangeEvents = Collections.synchronizedList(new ArrayList<>());
+        AtomicInteger persisted = new AtomicInteger();
+        Semaphore inflightFetches = new Semaphore(CONCURRENT_FETCHES);
+        List<CompletableFuture<Void>> futures = new ArrayList<>(playerRows.size());
 
-        for (int offset = 0; offset < playerRows.size(); offset += CONCURRENT_FETCHES) {
+        for (PlayerRow playerRow : playerRows) {
             if (!running.get()) {
                 return;
             }
-            int end = Math.min(offset + CONCURRENT_FETCHES, playerRows.size());
-            List<PlayerRow> slice = playerRows.subList(offset, end);
-            List<CompletableFuture<PlayerService.PersistPlayerRefreshResult>> sliceFutures = new ArrayList<>();
-
-            for (PlayerRow playerRow : slice) {
-                rateLimiter.acquire();
-                CompletableFuture<PlayerService.PlayerUpdate> fetchFuture = CompletableFuture.supplyAsync(
-                        () -> fetchProfile(playerRow, failedIds),
-                        Main.EXECUTOR
-                );
-                sliceFutures.add(fetchFuture.thenApplyAsync(update -> {
-                    if (update == null) {
-                        return null;
-                    }
-                    return this.playerService.persistPlayerRefresh(update);
-                }, Main.EXECUTOR));
+            try {
+                inflightFetches.acquire();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
             }
-
-            CompletableFuture.allOf(sliceFutures.toArray(CompletableFuture[]::new)).join();
-            for (CompletableFuture<PlayerService.PersistPlayerRefreshResult> future : sliceFutures) {
-                PlayerService.PersistPlayerRefreshResult result = future.join();
-                if (result != null && result.success()) {
-                    persisted++;
-                    if (result.usernameChangeEvent() != null) {
-                        usernameChangeEvents.add(result.usernameChangeEvent());
-                    }
-                }
-            }
+            rateLimiter.acquire();
+            futures.add(CompletableFuture
+                    .supplyAsync(() -> fetchProfile(playerRow, failedIds), Main.EXECUTOR)
+                    .thenApplyAsync(update -> {
+                        if (update == null) {
+                            return null;
+                        }
+                        return this.playerService.persistPlayerRefresh(update);
+                    }, Main.EXECUTOR)
+                    .whenComplete((result, error) -> inflightFetches.release())
+                    .thenAccept(result -> {
+                        if (result != null && result.success()) {
+                            persisted.incrementAndGet();
+                            if (result.usernameChangeEvent() != null) {
+                                usernameChangeEvents.add(result.usernameChangeEvent());
+                            }
+                        }
+                    }));
         }
+
+        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
 
         if (!failedIds.isEmpty()) {
             this.playerService.bumpRefreshFailures(failedIds);
         }
         this.playerService.broadcastUsernameChanges(usernameChangeEvents);
-        if (persisted > 0) {
-            MetricService.getMetric(PlayerRefreshMetric.class).recordPersist(persisted);
+        int persistedCount = persisted.get();
+        if (persistedCount > 0) {
+            MetricService.getMetric(PlayerRefreshMetric.class).recordPersist(persistedCount);
         }
     }
 

@@ -46,8 +46,12 @@ import java.util.stream.Stream;
 public class PlayerService {
     static final Duration PLAYER_UPDATE_INTERVAL = PlayerRefreshSchedule.BASE_INTERVAL;
     private static final int MAX_PLAYER_SEARCH_RESULTS = 5;
-    /** Max concurrent per-player refresh transactions (each uses REQUIRES_NEW + row lock). */
-    private static final int CONCURRENT_PERSISTS = 16;
+    /**
+     * Max concurrent per-player refresh transactions (each uses REQUIRES_NEW + row lock).
+     * Keep well below {@code spring.datasource.hikari.maximum-pool-size} to leave connections
+     * for API traffic, submit queue, and skin/cape resolution during prepare.
+     */
+    private static final int CONCURRENT_PERSISTS = 32;
 
     public static PlayerService INSTANCE;
     private final MojangService mojangService;
