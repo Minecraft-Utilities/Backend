@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.repository.postgres;
 
 import jakarta.persistence.LockModeType;
+import jakarta.persistence.QueryHint;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -22,31 +23,14 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
     @Query("SELECT p FROM PlayerRow p WHERE p.nextRefreshAt < :now ORDER BY p.nextRefreshAt ASC, p.id ASC")
     List<PlayerRow> findDueForRefresh(@Param("now") Instant now, Pageable pageable);
 
-    /**
-     * Claims a batch of due players for refresh, skipping rows locked by another instance.
-     * Sets {@code next_refresh_at} to {@code leaseUntil} so uncompleted work is not immediately re-claimed.
-     */
-    @Modifying
-    @Transactional
-    @Query(nativeQuery = true, value = """
-        UPDATE players
-        SET next_refresh_at = :leaseUntil
-        WHERE id IN (
-            SELECT id
-            FROM players
-            WHERE next_refresh_at < :now
-            ORDER BY next_refresh_at ASC, id ASC
-            LIMIT :limit
-            FOR UPDATE SKIP LOCKED
-        )
-        RETURNING id
-        """)
-    List<UUID> claimPlayersForRefresh(
-            @Param("now") Instant now,
-            @Param("leaseUntil") Instant leaseUntil,
-            @Param("limit") int limit
-    );
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2"))
+    @Query("SELECT p FROM PlayerRow p WHERE p.nextRefreshAt < :now ORDER BY p.nextRefreshAt ASC, p.id ASC")
+    List<PlayerRow> findDueForRefreshSkippable(@Param("now") Instant now, Pageable pageable);
 
+    @Modifying
+    @Query("UPDATE PlayerRow p SET p.nextRefreshAt = :leaseUntil WHERE p.id IN :ids")
+    void leasePlayersForRefresh(@Param("ids") Collection<UUID> ids, @Param("leaseUntil") Instant leaseUntil);
 
     @Query("SELECT p.username FROM PlayerRow p WHERE p.skin.id = :skinId")
     List<String> findUsernamesBySkinId(long skinId, Pageable pageable);

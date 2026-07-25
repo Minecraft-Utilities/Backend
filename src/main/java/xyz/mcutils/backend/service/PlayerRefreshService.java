@@ -5,7 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import xyz.mcutils.backend.metric.impl.player.PlayerRefreshMetric;
 import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
 import xyz.mcutils.backend.model.persistence.postgres.UsernameChangeEventRow;
@@ -42,13 +45,20 @@ public class PlayerRefreshService {
     private final MojangService mojangService;
     private final PlayerService playerService;
     private final PlayerRepository playerRepository;
+    private final TransactionTemplate transactionTemplate;
     private final ExecutorService refreshExecutor;
     private final AtomicBoolean running = new AtomicBoolean(true);
 
-    public PlayerRefreshService(MojangService mojangService, PlayerService playerService, PlayerRepository playerRepository) {
+    public PlayerRefreshService(
+            MojangService mojangService,
+            PlayerService playerService,
+            PlayerRepository playerRepository,
+            PlatformTransactionManager transactionManager
+    ) {
         this.mojangService = mojangService;
         this.playerService = playerService;
         this.playerRepository = playerRepository;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.refreshExecutor = Executors.newFixedThreadPool(
                 CONCURRENT_FETCHES,
                 Thread.ofPlatform().name("player-refresh-worker-", 0).factory()
@@ -63,24 +73,18 @@ public class PlayerRefreshService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void startRefreshTask() {
+        log.info("Starting player background refresh (chunk size {}, {} concurrent fetches, {} Mojang req/s)",
+                REFRESH_CHUNK_SIZE, CONCURRENT_FETCHES, RATE_LIMIT);
         Thread.ofPlatform().daemon(true).name("player-refresh").start(() -> {
             while (running.get()) {
                 try {
                     Instant now = Instant.now();
-                    List<UUID> claimedIds = this.playerRepository.claimPlayersForRefresh(
-                            now,
-                            now.plus(REFRESH_LEASE),
-                            REFRESH_CHUNK_SIZE
-                    );
-                    if (claimedIds.isEmpty()) {
+                    List<PlayerRow> playerRows = claimDuePlayers(now);
+                    if (playerRows.isEmpty()) {
                         Thread.sleep(Duration.ofSeconds(10));
                         continue;
                     }
-                    List<PlayerRow> playerRows = this.playerRepository.findAllById(claimedIds);
-                    if (playerRows.isEmpty()) {
-                        log.warn("Claimed {} player ids for refresh but none were found", claimedIds.size());
-                        continue;
-                    }
+                    log.info("Player refresh claimed {} players", playerRows.size());
                     refreshChunk(playerRows);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -95,6 +99,21 @@ public class PlayerRefreshService {
                     }
                 }
             }
+        });
+    }
+
+    private List<PlayerRow> claimDuePlayers(Instant now) {
+        return transactionTemplate.execute(status -> {
+            List<PlayerRow> due = playerRepository.findDueForRefreshSkippable(
+                    now,
+                    PageRequest.of(0, REFRESH_CHUNK_SIZE)
+            );
+            if (due.isEmpty()) {
+                return List.of();
+            }
+            List<UUID> ids = due.stream().map(PlayerRow::getId).toList();
+            playerRepository.leasePlayersForRefresh(ids, now.plus(REFRESH_LEASE));
+            return due;
         });
     }
 
