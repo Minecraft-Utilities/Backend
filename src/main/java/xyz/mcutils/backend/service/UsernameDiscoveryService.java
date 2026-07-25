@@ -29,7 +29,6 @@ import xyz.mcutils.backend.repository.postgres.PlayerRepository;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
@@ -47,9 +46,8 @@ public class UsernameDiscoveryService {
     private static final String CURSOR_KEY = "username-discovery:player-cursor";
     private static final UUID MIN_CURSOR = new UUID(0L, 0L);
     private static final int BULK_LOOKUP_SIZE = 10;
-    private static final int CONSUMER_BATCH_SIZE = 500;
     private static final int SEEN_CHECK_CHUNK_SIZE = 1000;
-    private static final Duration EMPTY_QUEUE_BLOCK = Duration.ofSeconds(2);
+    private static final Duration QUEUE_POLL_BLOCK = Duration.ofMillis(250);
 
     private final boolean enabled;
     private final int maxCandidatesPerPlayer;
@@ -57,7 +55,9 @@ public class UsernameDiscoveryService {
     private final int producerEnqueueChunkSize;
     private final long maxQueueSize;
     private final int concurrentBulkLookups;
+    private final int consumerThreads;
     private final RateLimiter lookupRateLimiter;
+    private final Semaphore inflightLookups;
     private final UsernameDiscoveryEngine discoveryEngine;
 
     private final RedisQueue discoveryQueue;
@@ -86,8 +86,9 @@ public class UsernameDiscoveryService {
             @Value("${mc-utils.username-discovery.producer-player-chunk-size:250}") int producerPlayerChunkSize,
             @Value("${mc-utils.username-discovery.producer-enqueue-chunk-size:2000}") int producerEnqueueChunkSize,
             @Value("${mc-utils.username-discovery.max-queue-size:250000}") long maxQueueSize,
-            @Value("${mc-utils.username-discovery.lookup-rate-limit:50}") double lookupRateLimit,
-            @Value("${mc-utils.username-discovery.concurrent-bulk-lookups:40}") int concurrentBulkLookups
+            @Value("${mc-utils.username-discovery.lookup-rate-limit:100}") double lookupRateLimit,
+            @Value("${mc-utils.username-discovery.concurrent-bulk-lookups:100}") int concurrentBulkLookups,
+            @Value("${mc-utils.username-discovery.consumer-threads:4}") int consumerThreads
     ) {
         this.discoveryQueue = queueFactory.getQueue(QUEUE_NAME);
         this.queueRedis = queueRedis;
@@ -100,7 +101,9 @@ public class UsernameDiscoveryService {
         this.producerEnqueueChunkSize = producerEnqueueChunkSize;
         this.maxQueueSize = maxQueueSize;
         this.concurrentBulkLookups = Math.max(1, concurrentBulkLookups);
+        this.consumerThreads = Math.max(1, consumerThreads);
         this.lookupRateLimiter = RateLimiter.create(lookupRateLimit);
+        this.inflightLookups = new Semaphore(this.concurrentBulkLookups);
         this.discoveryEngine = new UsernameDiscoveryEngine(new UsernameDiscoveryConfig(
                 maxCandidatesPerPlayer,
                 numericSuffixMax,
@@ -125,10 +128,12 @@ public class UsernameDiscoveryService {
             log.info("Username discovery is disabled");
             return;
         }
-        log.info("Starting username discovery (max {} candidates/player, {} concurrent lookups, lookup rate: {}/s)",
-                maxCandidatesPerPlayer, this.concurrentBulkLookups, lookupRateLimiter.getRate());
+        log.info("Starting username discovery (max {} candidates/player, {} consumer threads, {} concurrent lookups, lookup rate: {}/s)",
+                maxCandidatesPerPlayer, this.consumerThreads, this.concurrentBulkLookups, lookupRateLimiter.getRate());
         Main.EXECUTOR.submit(this::runProducerLoop);
-        Main.EXECUTOR.submit(this::runConsumerLoop);
+        for (int i = 0; i < this.consumerThreads; i++) {
+            Main.EXECUTOR.submit(this::runConsumerLoop);
+        }
     }
 
     public long getQueueSize() {
@@ -269,70 +274,87 @@ public class UsernameDiscoveryService {
     private void runConsumerLoop() {
         while (running.get()) {
             try {
-                Optional<List<String>> batch = discoveryQueue.blockingTakeBatch(CONSUMER_BATCH_SIZE, EMPTY_QUEUE_BLOCK);
-                if (batch.isEmpty()) {
-                    continue;
-                }
-                processBatch(batch.get());
-            } catch (Exception e) {
-                if (!running.get()) {
-                    break;
-                }
-                log.error("Username discovery consumer error, continuing", e);
-            }
-        }
-    }
-
-    private void processBatch(List<String> payloads) {
-        List<String> toRequeue = Collections.synchronizedList(new ArrayList<>());
-        List<String> completed = Collections.synchronizedList(new ArrayList<>());
-        UsernameDiscoveryMetric metrics = MetricService.getMetric(UsernameDiscoveryMetric.class);
-        Semaphore inflightLookups = new Semaphore(concurrentBulkLookups);
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-
-        for (int offset = 0; offset < payloads.size(); offset += BULK_LOOKUP_SIZE) {
-            if (!running.get()) {
-                toRequeue.addAll(payloads.subList(offset, payloads.size()));
-                break;
-            }
-
-            int end = Math.min(offset + BULK_LOOKUP_SIZE, payloads.size());
-            List<String> chunkPayloads = List.copyOf(payloads.subList(offset, end));
-            List<UsernameCandidate> chunk = chunkPayloads.stream()
-                    .map(UsernameCandidate::parseQueuePayload)
-                    .filter(Objects::nonNull)
-                    .toList();
-            if (chunk.isEmpty()) {
-                completed.addAll(chunkPayloads);
-                continue;
-            }
-
-            try {
                 inflightLookups.acquire();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                toRequeue.addAll(payloads.subList(offset, payloads.size()));
                 break;
             }
 
-            futures.add(CompletableFuture
-                    .supplyAsync(() -> lookupChunk(chunk, chunkPayloads), Main.EXECUTOR)
-                    .whenComplete((result, error) -> inflightLookups.release())
-                    .thenAccept(result -> applyChunkResult(result, toRequeue, completed, metrics)));
+            List<String> chunkPayloads = takeNextChunkPayloads();
+            if (chunkPayloads.isEmpty()) {
+                inflightLookups.release();
+                continue;
+            }
+
+            Main.EXECUTOR.submit(() -> {
+                try {
+                    handleChunk(chunkPayloads);
+                } finally {
+                    inflightLookups.release();
+                }
+            });
+        }
+    }
+
+    private List<String> takeNextChunkPayloads() {
+        Optional<String> first = discoveryQueue.blockingPopFirst(QUEUE_POLL_BLOCK);
+        if (first.isEmpty()) {
+            return List.of();
+        }
+        List<String> chunk = new ArrayList<>(BULK_LOOKUP_SIZE);
+        chunk.add(first.get());
+        if (BULK_LOOKUP_SIZE > 1) {
+            chunk.addAll(discoveryQueue.popUpTo(BULK_LOOKUP_SIZE - 1));
+        }
+        return chunk;
+    }
+
+    private void handleChunk(List<String> chunkPayloads) {
+        List<UsernameCandidate> chunk = chunkPayloads.stream()
+                .map(UsernameCandidate::parseQueuePayload)
+                .filter(Objects::nonNull)
+                .toList();
+        if (chunk.isEmpty()) {
+            discoveryQueue.removeDedupeKeys(chunkPayloads);
+            return;
         }
 
-        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+        ChunkLookupResult result = lookupChunk(chunk, chunkPayloads);
+        UsernameDiscoveryMetric metrics = MetricService.getMetric(UsernameDiscoveryMetric.class);
+        metrics.recordBulkLookup(result.outcome(), result.durationMs());
+        if (result.outcome() != UsernameDiscoveryMetric.BulkLookupOutcome.SUCCESS) {
+            discoveryQueue.requeue(result.chunkPayloads());
+            return;
+        }
 
-        if (!toRequeue.isEmpty()) {
-            discoveryQueue.requeue(toRequeue);
+        for (UsernameCandidate candidate : result.chunk()) {
+            metrics.recordChecked(candidate.strategy(), 1);
         }
-        if (!completed.isEmpty()) {
-            discoveryQueue.removeDedupeKeys(completed.stream()
-                    .map(UsernameCandidate::parseQueuePayload)
-                    .filter(Objects::nonNull)
-                    .map(UsernameCandidate::username)
-                    .toList());
+
+        Map<String, UsernameDiscoveryStrategy> strategyByName = new HashMap<>();
+        for (UsernameCandidate candidate : result.chunk()) {
+            strategyByName.put(candidate.username().toLowerCase(Locale.ROOT), candidate.strategy());
         }
+
+        if (!result.hits().isEmpty()) {
+            List<String> uuids = new ArrayList<>(result.hits().size());
+            for (MojangUsernameToUuidToken hit : result.hits()) {
+                uuids.add(hit.uuid());
+                UsernameDiscoveryStrategy strategy = strategyByName.getOrDefault(
+                        hit.username().toLowerCase(Locale.ROOT),
+                        null
+                );
+                metrics.recordHit(strategy);
+            }
+            int submitted = playerSubmitService.submitPlayers(uuids, null);
+            metrics.recordSubmitEnqueued(submitted);
+            log.info("Username discovery found {} profile(s): {}",
+                    result.hits().size(),
+                    result.hits().stream().map(MojangUsernameToUuidToken::username).collect(Collectors.joining(", ")));
+        }
+
+        markSeen(result.lookupNames());
+        discoveryQueue.removeDedupeKeys(result.chunk().stream().map(UsernameCandidate::username).toList());
     }
 
     private ChunkLookupResult lookupChunk(List<UsernameCandidate> chunk, List<String> chunkPayloads) {
@@ -379,52 +401,6 @@ public class UsernameDiscoveryService {
                     System.currentTimeMillis() - lookupStart
             );
         }
-    }
-
-    private void applyChunkResult(
-            ChunkLookupResult result,
-            List<String> toRequeue,
-            List<String> completed,
-            UsernameDiscoveryMetric metrics
-    ) {
-        if (result == null) {
-            return;
-        }
-
-        metrics.recordBulkLookup(result.outcome(), result.durationMs());
-        if (result.outcome() != UsernameDiscoveryMetric.BulkLookupOutcome.SUCCESS) {
-            toRequeue.addAll(result.chunkPayloads());
-            return;
-        }
-
-        for (UsernameCandidate candidate : result.chunk()) {
-            metrics.recordChecked(candidate.strategy(), 1);
-        }
-
-        Map<String, UsernameDiscoveryStrategy> strategyByName = new HashMap<>();
-        for (UsernameCandidate candidate : result.chunk()) {
-            strategyByName.put(candidate.username().toLowerCase(Locale.ROOT), candidate.strategy());
-        }
-
-        if (!result.hits().isEmpty()) {
-            List<String> uuids = new ArrayList<>(result.hits().size());
-            for (MojangUsernameToUuidToken hit : result.hits()) {
-                uuids.add(hit.uuid());
-                UsernameDiscoveryStrategy strategy = strategyByName.getOrDefault(
-                        hit.username().toLowerCase(Locale.ROOT),
-                        null
-                );
-                metrics.recordHit(strategy);
-            }
-            int submitted = playerSubmitService.submitPlayers(uuids, null);
-            metrics.recordSubmitEnqueued(submitted);
-            log.info("Username discovery found {} profile(s): {}",
-                    result.hits().size(),
-                    result.hits().stream().map(MojangUsernameToUuidToken::username).collect(Collectors.joining(", ")));
-        }
-
-        markSeen(result.lookupNames());
-        completed.addAll(result.chunkPayloads());
     }
 
     private Set<String> filterUnseen(Collection<String> lowercaseUsernames) {

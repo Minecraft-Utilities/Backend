@@ -112,7 +112,7 @@ public class MojangService {
         boolean success = false;
         try {
             MojangUsernameToUuidToken[] result = webRequest
-                    .request(MINECRAFT_SERVICES_ENDPOINT + "/minecraft/profile/lookup/name/bulk")
+                    .discoveryRequest(MINECRAFT_SERVICES_ENDPOINT + "/minecraft/profile/lookup/name/bulk")
                     .post(names)
                     .useProxy()
                     .as(MojangUsernameToUuidToken[].class);

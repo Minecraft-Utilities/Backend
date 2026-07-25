@@ -153,5 +153,9 @@ mc-utils:
     producer-player-chunk-size: 250
     producer-enqueue-chunk-size: 2000
     max-queue-size: 250000
-    lookup-rate-limit: 50
-    concurrent-bulk-lookups: 40
+    lookup-rate-limit: 100
+    concurrent-bulk-lookups: 100
+    consumer-threads: 4
+    http-client:
+      max-total-connections: 120
+      max-connections-per-route: 120

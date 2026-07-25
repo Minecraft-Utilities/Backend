@@ -48,13 +48,32 @@ public class WebRequest {
     @Value("${mc-utils.http-client.connection-time-to-live-seconds}")
     private int connectionTimeToLiveSeconds;
 
+    @Value("${mc-utils.username-discovery.http-client.max-total-connections:120}")
+    private int discoveryMaxTotalConnections;
+
+    @Value("${mc-utils.username-discovery.http-client.max-connections-per-route:120}")
+    private int discoveryMaxConnectionsPerRoute;
+
     @Value("${mc-utils.http-proxy:}")
     private String httpProxy;
 
     private RestClient client;
+    private RestClient discoveryClient;
 
     @PostConstruct
     private void initHttpClient() {
+        client = buildRestClient(maxTotalConnections, maxConnectionsPerRoute);
+        discoveryClient = buildRestClient(discoveryMaxTotalConnections, discoveryMaxConnectionsPerRoute);
+        log.info(
+                "HTTP clients ready (shared pool: {} total / {} per route, discovery pool: {} total / {} per route)",
+                maxTotalConnections,
+                maxConnectionsPerRoute,
+                discoveryMaxTotalConnections,
+                discoveryMaxConnectionsPerRoute
+        );
+    }
+
+    private RestClient buildRestClient(int maxTotal, int maxPerRoute) {
         SocketConfig socketConfig = SocketConfig.custom()
                 .setSoTimeout(Timeout.of(socketTimeoutMs, TimeUnit.MILLISECONDS))
                 .build();
@@ -64,8 +83,8 @@ public class WebRequest {
                 .build();
 
         PoolingHttpClientConnectionManager connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
-                .setMaxConnTotal(maxTotalConnections)
-                .setMaxConnPerRoute(maxConnectionsPerRoute)
+                .setMaxConnTotal(maxTotal)
+                .setMaxConnPerRoute(maxPerRoute)
                 .setDefaultSocketConfig(socketConfig)
                 .setDefaultConnectionConfig(connectionConfig)
                 .build();
@@ -85,26 +104,32 @@ public class WebRequest {
         HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(httpClient);
         requestFactory.setConnectionRequestTimeout(connectionRequestTimeoutMs);
 
-        client = RestClient.builder()
+        return RestClient.builder()
                 .requestFactory(requestFactory)
                 .build();
     }
 
     public RequestBuilder request(String url) {
-        return new RequestBuilder(url);
+        return new RequestBuilder(url, client);
+    }
+
+    public RequestBuilder discoveryRequest(String url) {
+        return new RequestBuilder(url, discoveryClient);
     }
 
     public enum Method { GET, POST, HEAD }
 
     public class RequestBuilder {
 
+        private final RestClient restClient;
         private final String url;
         private Method method = Method.GET;
         private Object body;
         private boolean useProxy;
 
-        private RequestBuilder(String url) {
+        private RequestBuilder(String url, RestClient restClient) {
             this.url = url;
+            this.restClient = restClient;
         }
 
         public RequestBuilder get() {
@@ -136,7 +161,7 @@ public class WebRequest {
 
         public <T> T as(Class<T> clazz) {
             String requestUrl = resolveUrl();
-            var spec = client.method(toHttpMethod()).uri(requestUrl).accept(MediaType.APPLICATION_JSON);
+            var spec = restClient.method(toHttpMethod()).uri(requestUrl).accept(MediaType.APPLICATION_JSON);
             if (body != null) {
                 if (body instanceof MultiValueMap) {
                     spec.contentType(MediaType.APPLICATION_FORM_URLENCODED).body(body);
@@ -161,7 +186,7 @@ public class WebRequest {
         }
 
         public <T> ResponseEntity<T> asResponse(Class<T> clazz) {
-            var spec = client.method(toHttpMethod()).uri(resolveUrl());
+            var spec = restClient.method(toHttpMethod()).uri(resolveUrl());
             if (body != null) {
                 if (body instanceof MultiValueMap) {
                     spec.contentType(MediaType.APPLICATION_FORM_URLENCODED).body(body);
@@ -176,7 +201,7 @@ public class WebRequest {
 
         public byte[] asBytes() {
             try {
-                ResponseEntity<byte[]> response = client.method(toHttpMethod()).uri(resolveUrl())
+                ResponseEntity<byte[]> response = restClient.method(toHttpMethod()).uri(resolveUrl())
                         .retrieve()
                         .onStatus(HttpStatusCode::isError, (req, res) -> {})
                         .toEntity(byte[].class);
@@ -199,7 +224,7 @@ public class WebRequest {
 
         public boolean exists() {
             try {
-                ResponseEntity<Void> response = client.head().uri(resolveUrl())
+                ResponseEntity<Void> response = restClient.head().uri(resolveUrl())
                         .retrieve()
                         .onStatus(HttpStatusCode::isError, (req, res) -> {})
                         .toBodilessEntity();
