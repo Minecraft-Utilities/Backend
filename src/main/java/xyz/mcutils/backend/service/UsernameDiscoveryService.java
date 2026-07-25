@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.stereotype.Service;
@@ -458,7 +459,7 @@ public class UsernameDiscoveryService {
         for (String name : lowercaseUsernames) {
             memberBytes[index++] = valueSerializer.serialize(name);
         }
-        List<Boolean> result = queueRedis.execute(connection ->
+        List<Boolean> result = queueRedis.execute((RedisCallback<List<Boolean>>) connection ->
                 connection.setCommands().sMIsMember(keyBytes, memberBytes));
         return result != null ? result : Collections.nCopies(lowercaseUsernames.size(), false);
     }
