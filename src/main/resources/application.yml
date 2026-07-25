@@ -57,11 +57,17 @@ mc-utils:
   # HTTP client timeouts and connection pool (for outbound requests).
   http-client:
     max-total-connections: 1000
-    max-connections-per-route: 100
+    max-connections-per-route: 250
     connect-timeout-ms: 2500
     connection-request-timeout-ms: 60000
     socket-timeout-ms: 10000
     connection-time-to-live-seconds: 60
+
+  # Dedicated pool for Mojang profile/username lookups (refresh + submit queues).
+  mojang-profile:
+    http-client:
+      max-total-connections: 150
+      max-connections-per-route: 150
 
   # Redis - This is used for caching
   redis:
@@ -166,3 +172,9 @@ mc-utils:
       false-positive-probability: 0.01
       persist-to-redis: true
       redis-key: username-discovery-seen-bloom
+
+  # Background player refresh (Mojang session server profile lookups).
+  player-refresh:
+    chunk-size: 1000
+    concurrent-fetches: 50
+    mojang-rate-limit: 200

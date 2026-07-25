@@ -54,22 +54,32 @@ public class WebRequest {
     @Value("${mc-utils.username-discovery.http-client.max-connections-per-route:120}")
     private int discoveryMaxConnectionsPerRoute;
 
+    @Value("${mc-utils.mojang-profile.http-client.max-total-connections:150}")
+    private int mojangProfileMaxTotalConnections;
+
+    @Value("${mc-utils.mojang-profile.http-client.max-connections-per-route:150}")
+    private int mojangProfileMaxConnectionsPerRoute;
+
     @Value("${mc-utils.http-proxy:}")
     private String httpProxy;
 
     private RestClient client;
     private RestClient discoveryClient;
+    private RestClient mojangProfileClient;
 
     @PostConstruct
     private void initHttpClient() {
         client = buildRestClient(maxTotalConnections, maxConnectionsPerRoute);
         discoveryClient = buildRestClient(discoveryMaxTotalConnections, discoveryMaxConnectionsPerRoute);
+        mojangProfileClient = buildRestClient(mojangProfileMaxTotalConnections, mojangProfileMaxConnectionsPerRoute);
         log.info(
-                "HTTP clients ready (shared pool: {} total / {} per route, discovery pool: {} total / {} per route)",
+                "HTTP clients ready (shared pool: {} total / {} per route, discovery pool: {} total / {} per route, mojang profile pool: {} total / {} per route)",
                 maxTotalConnections,
                 maxConnectionsPerRoute,
                 discoveryMaxTotalConnections,
-                discoveryMaxConnectionsPerRoute
+                discoveryMaxConnectionsPerRoute,
+                mojangProfileMaxTotalConnections,
+                mojangProfileMaxConnectionsPerRoute
         );
     }
 
@@ -115,6 +125,10 @@ public class WebRequest {
 
     public RequestBuilder discoveryRequest(String url) {
         return new RequestBuilder(url, discoveryClient);
+    }
+
+    public RequestBuilder mojangProfileRequest(String url) {
+        return new RequestBuilder(url, mojangProfileClient);
     }
 
     public enum Method { GET, POST, HEAD }

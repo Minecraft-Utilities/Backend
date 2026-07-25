@@ -2,6 +2,7 @@ package xyz.mcutils.backend.service;
 
 import com.google.common.util.concurrent.RateLimiter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
@@ -9,6 +10,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.client.ResourceAccessException;
+import xyz.mcutils.backend.exception.impl.RateLimitException;
 import xyz.mcutils.backend.metric.impl.player.PlayerRefreshMetric;
 import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
 import xyz.mcutils.backend.model.persistence.postgres.UsernameChangeEventRow;
@@ -20,9 +23,11 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -34,14 +39,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Service
 @Slf4j
 public class PlayerRefreshService {
-    private static final int REFRESH_CHUNK_SIZE = 1000;
-    /** Must stay at or below http-client.max-connections-per-route to avoid pool queue stalls. */
-    private static final int CONCURRENT_FETCHES = 100;
-    private static final int RATE_LIMIT = 400;
     private static final Duration CHUNK_TIMEOUT = Duration.ofMinutes(10);
     private static final Duration REFRESH_LEASE = Duration.ofMinutes(10);
 
-    private final RateLimiter rateLimiter = RateLimiter.create(RATE_LIMIT);
+    private final int refreshChunkSize;
+    private final int concurrentFetches;
+    private final RateLimiter rateLimiter;
     private final MojangService mojangService;
     private final PlayerService playerService;
     private final PlayerRepository playerRepository;
@@ -53,14 +56,20 @@ public class PlayerRefreshService {
             MojangService mojangService,
             PlayerService playerService,
             PlayerRepository playerRepository,
-            PlatformTransactionManager transactionManager
+            PlatformTransactionManager transactionManager,
+            @Value("${mc-utils.player-refresh.chunk-size:1000}") int refreshChunkSize,
+            @Value("${mc-utils.player-refresh.concurrent-fetches:50}") int concurrentFetches,
+            @Value("${mc-utils.player-refresh.mojang-rate-limit:200}") double mojangRateLimit
     ) {
+        this.refreshChunkSize = refreshChunkSize;
+        this.concurrentFetches = concurrentFetches;
+        this.rateLimiter = RateLimiter.create(mojangRateLimit);
         this.mojangService = mojangService;
         this.playerService = playerService;
         this.playerRepository = playerRepository;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.refreshExecutor = Executors.newFixedThreadPool(
-                CONCURRENT_FETCHES,
+                concurrentFetches,
                 Thread.ofPlatform().name("player-refresh-worker-", 0).factory()
         );
     }
@@ -73,8 +82,8 @@ public class PlayerRefreshService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void startRefreshTask() {
-        log.info("Starting player background refresh (chunk size {}, {} concurrent fetches, {} Mojang req/s)",
-                REFRESH_CHUNK_SIZE, CONCURRENT_FETCHES, RATE_LIMIT);
+        log.info("Starting player background refresh (chunk size {}, Mojang rate limit {}/s)",
+                refreshChunkSize, rateLimiter.getRate());
         Thread.ofPlatform().daemon(true).name("player-refresh").start(() -> {
             while (running.get()) {
                 try {
@@ -106,7 +115,7 @@ public class PlayerRefreshService {
         return transactionTemplate.execute(status -> {
             List<PlayerRow> due = playerRepository.findDueForRefreshSkippable(
                     now,
-                    PageRequest.of(0, REFRESH_CHUNK_SIZE)
+                    PageRequest.of(0, refreshChunkSize)
             );
             if (due.isEmpty()) {
                 return List.of();
@@ -120,9 +129,10 @@ public class PlayerRefreshService {
     private void refreshChunk(List<PlayerRow> playerRows) {
         long chunkStart = System.currentTimeMillis();
         List<UUID> failedIds = Collections.synchronizedList(new ArrayList<>());
+        Map<String, AtomicInteger> failureReasons = new ConcurrentHashMap<>();
         List<UsernameChangeEventRow> usernameChangeEvents = Collections.synchronizedList(new ArrayList<>());
         AtomicInteger persisted = new AtomicInteger();
-        Semaphore inflightFetches = new Semaphore(CONCURRENT_FETCHES);
+        Semaphore inflightFetches = new Semaphore(concurrentFetches);
         List<CompletableFuture<Void>> futures = new ArrayList<>(playerRows.size());
 
         for (PlayerRow playerRow : playerRows) {
@@ -130,7 +140,7 @@ public class PlayerRefreshService {
                 return;
             }
             futures.add(CompletableFuture.runAsync(
-                    () -> refreshPlayer(playerRow, failedIds, usernameChangeEvents, persisted, inflightFetches),
+                    () -> refreshPlayer(playerRow, failedIds, failureReasons, usernameChangeEvents, persisted, inflightFetches),
                     refreshExecutor
             ));
         }
@@ -159,11 +169,12 @@ public class PlayerRefreshService {
         long durationMs = System.currentTimeMillis() - chunkStart;
         if (persistedCount > 0 || !failedIds.isEmpty()) {
             log.info(
-                    "Player refresh chunk finished: persisted={}, failed={}, total={}, {}ms",
+                    "Player refresh chunk finished: persisted={}, failed={}, total={}, {}ms{}",
                     persistedCount,
                     failedIds.size(),
                     playerRows.size(),
-                    durationMs
+                    durationMs,
+                    formatFailureReasons(failureReasons)
             );
         } else {
             log.warn(
@@ -174,9 +185,30 @@ public class PlayerRefreshService {
         }
     }
 
+    private static String formatFailureReasons(Map<String, AtomicInteger> failureReasons) {
+        if (failureReasons.isEmpty()) {
+            return "";
+        }
+        StringBuilder summary = new StringBuilder(", reasons={");
+        boolean first = true;
+        for (Map.Entry<String, AtomicInteger> entry : failureReasons.entrySet()) {
+            if (!first) {
+                summary.append(", ");
+            }
+            summary.append(entry.getKey()).append('=').append(entry.getValue().get());
+            first = false;
+        }
+        return summary.append('}').toString();
+    }
+
+    private static void recordFailure(Map<String, AtomicInteger> failureReasons, String reason) {
+        failureReasons.computeIfAbsent(reason, ignored -> new AtomicInteger()).incrementAndGet();
+    }
+
     private void refreshPlayer(
             PlayerRow playerRow,
             List<UUID> failedIds,
+            Map<String, AtomicInteger> failureReasons,
             List<UsernameChangeEventRow> usernameChangeEvents,
             AtomicInteger persisted,
             Semaphore inflightFetches
@@ -193,7 +225,7 @@ public class PlayerRefreshService {
         }
         try {
             rateLimiter.acquire();
-            PlayerService.PlayerUpdate update = fetchProfile(playerRow, failedIds);
+            PlayerService.PlayerUpdate update = fetchProfile(playerRow, failedIds, failureReasons);
             if (update == null) {
                 return;
             }
@@ -209,7 +241,11 @@ public class PlayerRefreshService {
         }
     }
 
-    private PlayerService.PlayerUpdate fetchProfile(PlayerRow playerRow, List<UUID> failedIds) {
+    private PlayerService.PlayerUpdate fetchProfile(
+            PlayerRow playerRow,
+            List<UUID> failedIds,
+            Map<String, AtomicInteger> failureReasons
+    ) {
         if (!running.get()) {
             return null;
         }
@@ -218,12 +254,22 @@ public class PlayerRefreshService {
             MojangProfileToken token = this.mojangService.getProfile(playerRow.getId().toString());
             if (token == null) {
                 failedIds.add(playerRow.getId());
+                recordFailure(failureReasons, "null_profile");
                 return null;
             }
             return new PlayerService.PlayerUpdate(playerRow, token);
+        } catch (RateLimitException e) {
+            failedIds.add(playerRow.getId());
+            recordFailure(failureReasons, "rate_limited");
+            return null;
+        } catch (ResourceAccessException e) {
+            failedIds.add(playerRow.getId());
+            recordFailure(failureReasons, "timeout");
+            return null;
         } catch (Exception e) {
             log.debug("Mojang profile lookup failed for {}: {}", playerRow.getId(), e.toString());
             failedIds.add(playerRow.getId());
+            recordFailure(failureReasons, e.getClass().getSimpleName());
             return null;
         }
     }
