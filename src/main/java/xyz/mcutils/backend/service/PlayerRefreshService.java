@@ -21,7 +21,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -33,6 +35,7 @@ public class PlayerRefreshService {
     /** Must stay at or below http-client.max-connections-per-route to avoid pool queue stalls. */
     private static final int CONCURRENT_FETCHES = 100;
     private static final int RATE_LIMIT = 400;
+    private static final Duration CHUNK_TIMEOUT = Duration.ofMinutes(10);
 
     private final RateLimiter rateLimiter = RateLimiter.create(RATE_LIMIT);
     private final MojangService mojangService;
@@ -53,7 +56,9 @@ public class PlayerRefreshService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void startRefreshTask() {
-        Thread.ofVirtual().name("player-refresh").start(() -> {
+        // Platform thread: this loop blocks on join/semaphore backpressure and must not pin a
+        // virtual-thread carrier while hundreds of blocking Mojang/DB tasks run elsewhere.
+        Thread.ofPlatform().daemon(true).name("player-refresh").start(() -> {
             while (running.get()) {
                 try {
                     Instant now = Instant.now();
@@ -86,6 +91,7 @@ public class PlayerRefreshService {
         // Any lookup failure (null profile, 429, connection timeout, etc.) must still
         // bump nextRefreshAt. Without this, failed players stay permanently at the front of
         // the queue and create a retry storm that saturates the connection pool.
+        long chunkStart = System.currentTimeMillis();
         List<UUID> failedIds = Collections.synchronizedList(new ArrayList<>());
         List<UsernameChangeEventRow> usernameChangeEvents = Collections.synchronizedList(new ArrayList<>());
         AtomicInteger persisted = new AtomicInteger();
@@ -96,33 +102,21 @@ public class PlayerRefreshService {
             if (!running.get()) {
                 return;
             }
-            try {
-                inflightFetches.acquire();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-            }
-            rateLimiter.acquire();
-            futures.add(CompletableFuture
-                    .supplyAsync(() -> fetchProfile(playerRow, failedIds), Main.EXECUTOR)
-                    .thenApplyAsync(update -> {
-                        if (update == null) {
-                            return null;
-                        }
-                        return this.playerService.persistPlayerRefresh(update);
-                    }, Main.EXECUTOR)
-                    .whenComplete((result, error) -> inflightFetches.release())
-                    .thenAccept(result -> {
-                        if (result != null && result.success()) {
-                            persisted.incrementAndGet();
-                            if (result.usernameChangeEvent() != null) {
-                                usernameChangeEvents.add(result.usernameChangeEvent());
-                            }
-                        }
-                    }));
+            futures.add(CompletableFuture.runAsync(() -> refreshPlayer(playerRow, failedIds, usernameChangeEvents, persisted, inflightFetches), Main.EXECUTOR));
         }
 
-        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+        try {
+            CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
+                    .orTimeout(CHUNK_TIMEOUT.toSeconds(), TimeUnit.SECONDS)
+                    .join();
+        } catch (CompletionException e) {
+            log.error(
+                    "Player refresh chunk timed out or failed for {} players after {}ms",
+                    playerRows.size(),
+                    System.currentTimeMillis() - chunkStart,
+                    e
+            );
+        }
 
         if (!failedIds.isEmpty()) {
             this.playerService.bumpRefreshFailures(failedIds);
@@ -131,6 +125,57 @@ public class PlayerRefreshService {
         int persistedCount = persisted.get();
         if (persistedCount > 0) {
             MetricService.getMetric(PlayerRefreshMetric.class).recordPersist(persistedCount);
+        }
+        long durationMs = System.currentTimeMillis() - chunkStart;
+        if (persistedCount > 0 || !failedIds.isEmpty()) {
+            log.info(
+                    "Player refresh chunk finished: persisted={}, failed={}, total={}, {}ms",
+                    persistedCount,
+                    failedIds.size(),
+                    playerRows.size(),
+                    durationMs
+            );
+        } else {
+            log.warn(
+                    "Player refresh chunk finished with zero outcomes for {} players in {}ms",
+                    playerRows.size(),
+                    durationMs
+            );
+        }
+    }
+
+    private void refreshPlayer(
+            PlayerRow playerRow,
+            List<UUID> failedIds,
+            List<UsernameChangeEventRow> usernameChangeEvents,
+            AtomicInteger persisted,
+            Semaphore inflightFetches
+    ) {
+        if (!running.get()) {
+            return;
+        }
+        try {
+            inflightFetches.acquire();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            failedIds.add(playerRow.getId());
+            return;
+        }
+        try {
+            rateLimiter.acquire();
+            PlayerService.PlayerUpdate update = fetchProfile(playerRow, failedIds);
+            if (update == null) {
+                return;
+            }
+            PlayerService.PersistPlayerRefreshResult result = this.playerService.persistPlayerRefresh(update);
+            if (result.success()) {
+                persisted.incrementAndGet();
+                if (result.usernameChangeEvent() != null) {
+                    usernameChangeEvents.add(result.usernameChangeEvent());
+                }
+            }
+        } finally {
+            inflightFetches.release();
         }
     }
 
