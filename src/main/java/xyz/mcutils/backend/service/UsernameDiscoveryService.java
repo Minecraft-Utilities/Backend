@@ -47,6 +47,7 @@ public class UsernameDiscoveryService {
     private static final UUID MIN_CURSOR = new UUID(0L, 0L);
     private static final int BULK_LOOKUP_SIZE = 10;
     private static final int SEEN_CHECK_CHUNK_SIZE = 1000;
+    private static final int EXISTING_USERNAME_CHECK_CHUNK_SIZE = 500;
     private static final Duration QUEUE_POLL_BLOCK = Duration.ofMillis(250);
 
     private final boolean enabled;
@@ -243,7 +244,7 @@ public class UsernameDiscoveryService {
             List<UsernameCandidate> chunk = pending.subList(offset, end);
 
             Set<String> usernames = chunk.stream().map(UsernameCandidate::username).collect(Collectors.toSet());
-            Set<String> existing = playerRepository.findExistingUsernamesLower(usernames);
+            Set<String> existing = findExistingUsernames(usernames);
             if (!existing.isEmpty()) {
                 metrics.recordSkipped(UsernameDiscoveryMetric.SkipReason.ALREADY_TRACKED, existing.size());
             }
@@ -251,7 +252,7 @@ public class UsernameDiscoveryService {
             List<RedisQueue.QueueItem> items = new ArrayList<>();
             Map<UsernameDiscoveryStrategy, Long> enqueuedByStrategy = new EnumMap<>(UsernameDiscoveryStrategy.class);
             for (UsernameCandidate candidate : chunk) {
-                if (existing.contains(candidate.username())) {
+                if (existing.contains(candidate.username().toUpperCase(Locale.ROOT))) {
                     continue;
                 }
                 items.add(new RedisQueue.QueueItem(candidate.queuePayload(), candidate.username()));
@@ -401,6 +402,21 @@ public class UsernameDiscoveryService {
                     System.currentTimeMillis() - lookupStart
             );
         }
+    }
+
+    private Set<String> findExistingUsernames(Set<String> lowercaseUsernames) {
+        if (lowercaseUsernames == null || lowercaseUsernames.isEmpty()) {
+            return Set.of();
+        }
+        List<String> names = lowercaseUsernames.stream()
+                .map(name -> name.toUpperCase(Locale.ROOT))
+                .toList();
+        Set<String> existing = new HashSet<>();
+        for (int offset = 0; offset < names.size(); offset += EXISTING_USERNAME_CHECK_CHUNK_SIZE) {
+            int end = Math.min(offset + EXISTING_USERNAME_CHECK_CHUNK_SIZE, names.size());
+            existing.addAll(playerRepository.findExistingUsernamesUpper(names.subList(offset, end)));
+        }
+        return existing;
     }
 
     private Set<String> filterUnseen(Collection<String> lowercaseUsernames) {
