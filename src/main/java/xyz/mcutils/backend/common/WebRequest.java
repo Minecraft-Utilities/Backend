@@ -48,12 +48,6 @@ public class WebRequest {
     @Value("${mc-utils.http-client.connection-time-to-live-seconds}")
     private int connectionTimeToLiveSeconds;
 
-    @Value("${mc-utils.username-discovery.http-client.max-total-connections:120}")
-    private int discoveryMaxTotalConnections;
-
-    @Value("${mc-utils.username-discovery.http-client.max-connections-per-route:120}")
-    private int discoveryMaxConnectionsPerRoute;
-
     @Value("${mc-utils.mojang-profile.http-client.max-total-connections:250}")
     private int mojangProfileMaxTotalConnections;
 
@@ -64,20 +58,16 @@ public class WebRequest {
     private String httpProxy;
 
     private RestClient client;
-    private RestClient discoveryClient;
     private RestClient mojangProfileClient;
 
     @PostConstruct
     private void initHttpClient() {
         client = buildRestClient(maxTotalConnections, maxConnectionsPerRoute);
-        discoveryClient = buildRestClient(discoveryMaxTotalConnections, discoveryMaxConnectionsPerRoute);
         mojangProfileClient = buildRestClient(mojangProfileMaxTotalConnections, mojangProfileMaxConnectionsPerRoute);
         log.info(
-                "HTTP clients ready (shared pool: {} total / {} per route, discovery pool: {} total / {} per route, mojang profile pool: {} total / {} per route)",
+                "HTTP clients ready (shared pool: {} total / {} per route, mojang profile pool: {} total / {} per route)",
                 maxTotalConnections,
                 maxConnectionsPerRoute,
-                discoveryMaxTotalConnections,
-                discoveryMaxConnectionsPerRoute,
                 mojangProfileMaxTotalConnections,
                 mojangProfileMaxConnectionsPerRoute
         );
@@ -121,10 +111,6 @@ public class WebRequest {
 
     public RequestBuilder request(String url) {
         return new RequestBuilder(url, client);
-    }
-
-    public RequestBuilder discoveryRequest(String url) {
-        return new RequestBuilder(url, discoveryClient);
     }
 
     public RequestBuilder mojangProfileRequest(String url) {

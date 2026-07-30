@@ -35,8 +35,6 @@ public class MojangService {
      */
     private static final String SESSION_SERVER_ENDPOINT = "https://sessionserver.mojang.com";
     private static final String API_ENDPOINT = "https://api.mojang.com";
-    private static final String MINECRAFT_SERVICES_ENDPOINT = "https://api.minecraftservices.com";
-    private static final int BULK_USERNAME_LOOKUP_LIMIT = 10;
     private static final String FETCH_BLOCKED_SERVERS = SESSION_SERVER_ENDPOINT + "/blockedservers";
     private static final String API_MOJANG = "mojang";
 
@@ -91,35 +89,6 @@ public class MojangService {
             return result;
         } finally {
             MetricService.getMetric(ExternalApiRequestsMetric.class).record(API_MOJANG, "username_lookup", success, System.currentTimeMillis() - start);
-        }
-    }
-
-    /**
-     * Resolves up to 10 usernames in a single Mojang request.
-     *
-     * @param names usernames to resolve
-     * @return profiles that exist; omitted names were not found
-     */
-    public List<MojangUsernameToUuidToken> bulkLookupNames(List<String> names) {
-        if (names == null || names.isEmpty()) {
-            return List.of();
-        }
-        if (names.size() > BULK_USERNAME_LOOKUP_LIMIT) {
-            throw new IllegalArgumentException("Bulk username lookup supports at most " + BULK_USERNAME_LOOKUP_LIMIT + " names");
-        }
-
-        long start = System.currentTimeMillis();
-        boolean success = false;
-        try {
-            MojangUsernameToUuidToken[] result = webRequest
-                    .discoveryRequest(MINECRAFT_SERVICES_ENDPOINT + "/minecraft/profile/lookup/name/bulk")
-                    .post(names)
-                    .useProxy()
-                    .as(MojangUsernameToUuidToken[].class);
-            success = true;
-            return result != null ? Arrays.asList(result) : List.of();
-        } finally {
-            MetricService.getMetric(ExternalApiRequestsMetric.class).record(API_MOJANG, "bulk_username_lookup", success, System.currentTimeMillis() - start);
         }
     }
 

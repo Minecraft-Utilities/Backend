@@ -29,7 +29,7 @@ public class MetricService {
     public static final PrometheusRegistry REGISTRY = new PrometheusRegistry();
     private static final Map<Class<?>, Metric<?>> metrics = new ConcurrentHashMap<>();
 
-    public MetricService(@Lazy PlayerSubmitService playerSubmitService, @Lazy PlayerService playerService, @Lazy MojangService mojangService, @Lazy StatisticsService statisticsService, @Lazy UsernameDiscoveryService usernameDiscoveryService) {
+    public MetricService(@Lazy PlayerSubmitService playerSubmitService, @Lazy PlayerService playerService, @Lazy MojangService mojangService, @Lazy StatisticsService statisticsService) {
         // DNS
         this.registerMetric(new DnsQueryMetric());
 
@@ -61,7 +61,6 @@ public class MetricService {
         this.registerMetric(new PlayerSubmitOutcomesMetric());
         this.registerMetric(new PlayerSubmitProcessingMetric());
         this.registerMetric(new TopSubmittedPlayersMetric(playerService));
-        this.registerMetric(new UsernameDiscoveryMetric(usernameDiscoveryService));
 
         // Skin
         this.registerMetric(new TrackedSkinsMetric(statisticsService));
