@@ -311,17 +311,19 @@ public class PlayerService {
         PlayerRow snapshot = playerUpdate.playerRow();
         MojangProfileToken token = playerUpdate.token();
         Tuple<SkinTextureToken, CapeTextureToken> skinAndCape = token.getSkinAndCape();
-        SkinTextureToken skinToken = skinAndCape.left();
-        CapeTextureToken capeToken = skinAndCape.right();
+        SkinTextureToken skinToken = skinAndCape != null ? skinAndCape.left() : null;
+        CapeTextureToken capeToken = skinAndCape != null ? skinAndCape.right() : null;
 
         SkinRow newSkin = null;
-        if (!snapshot.getSkin().getTextureId().equals(skinToken.getTextureId())) {
+        if (skinToken != null && !snapshot.getSkin().getTextureId().equals(skinToken.getTextureId())) {
             newSkin = this.skinService.getOrCreateSkinCached(skinToken, snapshot.getId());
         }
 
+        // A profile without a textures payload (null skinAndCape) means Mojang returned no skin/cape
+        // data at all; keep the stored assets unchanged instead of treating them as removed.
         String oldCapeTextureId = snapshot.getCape() != null ? snapshot.getCape().getTextureId() : null;
         String newCapeTextureId = capeToken != null ? capeToken.getTextureId() : null;
-        boolean capeChanged = !Objects.equals(oldCapeTextureId, newCapeTextureId);
+        boolean capeChanged = skinAndCape != null && !Objects.equals(oldCapeTextureId, newCapeTextureId);
         CapeRow newCape = null;
         if (capeChanged && capeToken != null) {
             newCape = this.capeService.getOrCreateCapeCached(capeToken, snapshot.getId());

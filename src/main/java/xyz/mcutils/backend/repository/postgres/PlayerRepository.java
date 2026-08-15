@@ -21,13 +21,41 @@ public interface PlayerRepository extends JpaRepository<PlayerRow, UUID> {
     List<PlayerRow> findByUsernameStartingWithIgnoreCase(String username, Pageable pageable);
     List<PlayerRow> findAllByOrderBySubmittedUuidsDesc(Pageable pageable);
 
-    @Query("SELECT p FROM PlayerRow p WHERE p.nextRefreshAt < :now ORDER BY p.nextRefreshAt ASC, p.id ASC")
-    List<PlayerRow> findDueForRefresh(@Param("now") Instant now, Pageable pageable);
-
+    /**
+     * Claims the most volatile due players first: those with {@code change_velocity} at or above
+     * {@link xyz.mcutils.backend.service.PlayerRefreshSchedule#HOT_VELOCITY_THRESHOLD} or with any
+     * monthly views, ordered by change velocity descending so the most-changed players are always
+     * refreshed at their adaptive cadence even when the loop is overloaded (where a plain
+     * {@code next_refresh_at} FIFO order would flatten every player to the same effective rate).
+     * <p>
+     * The {@code 0.5} literal MUST stay in sync with {@code HOT_VELOCITY_THRESHOLD} and the partial
+     * index predicate in {@code V39__hot_refresh_priority_index.sql}; a parameter would defeat
+     * partial index matching.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2"))
-    @Query("SELECT p FROM PlayerRow p WHERE p.nextRefreshAt < :now ORDER BY p.nextRefreshAt ASC, p.id ASC")
-    List<PlayerRow> findDueForRefreshSkippable(@Param("now") Instant now, Pageable pageable);
+    @Query("""
+            SELECT p FROM PlayerRow p
+            WHERE p.nextRefreshAt < :now
+              AND (p.changeVelocity >= 0.5 OR p.monthlyViews > 0)
+            ORDER BY p.changeVelocity DESC, p.monthlyViews DESC, p.nextRefreshAt ASC, p.id ASC
+            """)
+    List<PlayerRow> findHotDueForRefreshSkippable(@Param("now") Instant now, Pageable pageable);
+
+    /**
+     * Claims the remaining stable players (below {@link xyz.mcutils.backend.service.PlayerRefreshSchedule#HOT_VELOCITY_THRESHOLD}
+     * and never viewed) in FIFO order by {@code next_refresh_at}; fills the chunk capacity left
+     * over by the hot tier. Complement of {@link #findHotDueForRefreshSkippable}.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2"))
+    @Query("""
+            SELECT p FROM PlayerRow p
+            WHERE p.nextRefreshAt < :now
+              AND p.changeVelocity < 0.5 AND p.monthlyViews = 0
+            ORDER BY p.nextRefreshAt ASC, p.id ASC
+            """)
+    List<PlayerRow> findColdDueForRefreshSkippable(@Param("now") Instant now, Pageable pageable);
 
     @Modifying
     @Query("UPDATE PlayerRow p SET p.nextRefreshAt = :leaseUntil WHERE p.id IN :ids")

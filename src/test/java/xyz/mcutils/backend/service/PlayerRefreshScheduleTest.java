@@ -52,6 +52,16 @@ class PlayerRefreshScheduleTest {
     }
 
     @Test
+    void hotThresholdVelocityHalvesTheIntervalSpan() {
+        // At HOT_VELOCITY_THRESHOLD the velocity contribution to activity is exactly 1.0,
+        // so the interval span (MAX - MIN) is halved: ~12.2h vs the 24h stable baseline.
+        // This is the property that makes the hot refresh tier worth prioritizing.
+        long span = PlayerRefreshSchedule.MAX_INTERVAL.toMillis() - PlayerRefreshSchedule.MIN_INTERVAL.toMillis();
+        Duration hot = PlayerRefreshSchedule.intervalFor(PlayerRefreshSchedule.HOT_VELOCITY_THRESHOLD, 0);
+        assertEquals(span / 2 + PlayerRefreshSchedule.MIN_INTERVAL.toMillis(), hot.toMillis());
+    }
+
+    @Test
     void intervalRespectsMinimumClamp() {
         Duration extreme = PlayerRefreshSchedule.intervalFor(10, 1_000_000);
         assertTrue(extreme.compareTo(PlayerRefreshSchedule.MIN_INTERVAL) >= 0);

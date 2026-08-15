@@ -19,6 +19,18 @@ public final class PlayerRefreshSchedule {
     private static final double VIEW_WEIGHT = 0.3;
     private static final double MAX_VELOCITY = 10.0;
 
+    /**
+     * Minimum change velocity for a player to join the "hot" refresh tier (claimed before the
+     * cold tier, ordered by velocity descending). At this velocity the adaptive interval is
+     * roughly {@link #MAX_INTERVAL}/2 or less, i.e. meaningfully hotter than the stable baseline.
+     * <p>
+     * MUST stay in sync with the partial index predicate in
+     * {@code V39__hot_refresh_priority_index.sql} and the JPQL literals in
+     * {@code PlayerRepository.findHotDueForRefreshSkippable} /
+     * {@code findColdDueForRefreshSkippable} (kept as literals so Postgres can use the partial index).
+     */
+    public static final double HOT_VELOCITY_THRESHOLD = 0.5;
+
     private PlayerRefreshSchedule() {
     }
 

@@ -113,10 +113,19 @@ public class PlayerRefreshService {
 
     private List<PlayerRow> claimDuePlayers(Instant now) {
         return transactionTemplate.execute(status -> {
-            List<PlayerRow> due = playerRepository.findDueForRefreshSkippable(
+            // Hot tier first: most-changed and popular players are claimed before stable ones,
+            // so their adaptive intervals actually drive refresh frequency even when the loop
+            // is overloaded (a plain next_refresh_at FIFO would flatten everyone to the same rate).
+            List<PlayerRow> due = new ArrayList<>(playerRepository.findHotDueForRefreshSkippable(
                     now,
                     PageRequest.of(0, refreshChunkSize)
-            );
+            ));
+            if (due.size() < refreshChunkSize) {
+                due.addAll(playerRepository.findColdDueForRefreshSkippable(
+                        now,
+                        PageRequest.of(0, refreshChunkSize - due.size())
+                ));
+            }
             if (due.isEmpty()) {
                 return List.of();
             }
