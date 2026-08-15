@@ -17,6 +17,7 @@ import xyz.mcutils.backend.model.domain.player.history.RecentUsernameChange;
 import xyz.mcutils.backend.model.dto.request.PlayerViewRequest;
 import xyz.mcutils.backend.model.dto.request.SubmitPlayersRequest;
 import xyz.mcutils.backend.model.dto.response.SubmitPlayersResponse;
+import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
 import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.PlayerSubmitService;
 import xyz.mcutils.backend.service.PlayerViewService;
@@ -43,7 +44,7 @@ public class PlayerController {
             @Parameter(description = "The query to search for (username prefix, case-insensitive)", example = "ImFascinated") @RequestParam String query,
             @Parameter(description = "The type of player data to return", example = "basic") @RequestParam(defaultValue = "BASIC") PlayerType type) {
         List<BasicPlayer> entries = this.playerService.searchPlayers(query).stream()
-                .map(player -> type == PlayerType.FULL ? player : BasicPlayer.from(player))
+                .map(player -> type == PlayerType.FULL ? FullPlayer.fromRow(player, this.playerService) : BasicPlayer.fromRow(player))
                 .toList();
         return ResponseEntity.ok().body(entries);
     }
@@ -52,8 +53,8 @@ public class PlayerController {
     public ResponseEntity<BasicPlayer> getPlayer(
             @Parameter(description = "The UUID or Username of the player", example = "ImFascinated") @PathVariable String id,
             @Parameter(description = "The type of player data to return", example = "basic") @RequestParam(defaultValue = "BASIC") PlayerType type) {
-        FullPlayer player = FullPlayer.fromRow(this.playerService.getPlayer(id), this.playerService);
-        BasicPlayer result = type == PlayerType.FULL ? player : BasicPlayer.from(player);
+        PlayerRow player = this.playerService.getPlayer(id);
+        BasicPlayer result = type == PlayerType.FULL ? FullPlayer.fromRow(player, this.playerService) : BasicPlayer.fromRow(player);
         return ResponseEntity.ok().cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic()).body(result);
     }
 

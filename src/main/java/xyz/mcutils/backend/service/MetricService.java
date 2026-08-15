@@ -3,6 +3,7 @@ package xyz.mcutils.backend.service;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.metric.Metric;
 import xyz.mcutils.backend.metric.impl.api.ExternalApiRequestsMetric;
@@ -28,6 +29,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MetricService {
     public static final PrometheusRegistry REGISTRY = new PrometheusRegistry();
     private static final Map<Class<?>, Metric<?>> metrics = new ConcurrentHashMap<>();
+
+    private final TopSubmittedPlayersMetric topSubmittedPlayersMetric;
+    private final SubmissionQueueSizeMetric submissionQueueSizeMetric;
 
     public MetricService(@Lazy PlayerSubmitService playerSubmitService, @Lazy PlayerService playerService, @Lazy MojangService mojangService, @Lazy StatisticsService statisticsService) {
         // DNS
@@ -57,10 +61,12 @@ public class MetricService {
         this.registerMetric(new PlayerRefreshMetric());
         this.registerMetric(new PlayerChangesDetectedMetric());
         this.registerMetric(new NameChangesMetric(statisticsService));
-        this.registerMetric(new SubmissionQueueSizeMetric(playerSubmitService));
+        this.submissionQueueSizeMetric = new SubmissionQueueSizeMetric(playerSubmitService);
+        this.registerMetric(this.submissionQueueSizeMetric);
         this.registerMetric(new PlayerSubmitOutcomesMetric());
         this.registerMetric(new PlayerSubmitProcessingMetric());
-        this.registerMetric(new TopSubmittedPlayersMetric(playerService));
+        this.topSubmittedPlayersMetric = new TopSubmittedPlayersMetric(playerService);
+        this.registerMetric(this.topSubmittedPlayersMetric);
 
         // Skin
         this.registerMetric(new TrackedSkinsMetric(statisticsService));
@@ -99,5 +105,19 @@ public class MetricService {
      */
     private void registerMetric(Metric<?> metric) {
         metrics.put(metric.getClass(), metric);
+    }
+
+    /**
+     * Refreshes the in-memory snapshots behind gauges that previously hit Postgres/Redis
+     * on every /metrics scrape. Runs on the shared scheduler, off the scrape path.
+     */
+    @Scheduled(fixedRate = 30_000, initialDelay = 10_000)
+    public void refreshCachedMetrics() {
+        try {
+            this.topSubmittedPlayersMetric.refresh();
+            this.submissionQueueSizeMetric.refresh();
+        } catch (Exception e) {
+            log.warn("Failed to refresh cached metrics: {}", e.toString());
+        }
     }
 }

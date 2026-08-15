@@ -1,7 +1,6 @@
 package xyz.mcutils.backend.config;
 
 import jakarta.annotation.PostConstruct;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
@@ -11,7 +10,6 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
-import org.springframework.web.filter.ShallowEtagHeaderFilter;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import xyz.mcutils.backend.filter.MetricsAuthFilter;
@@ -53,21 +51,6 @@ public class AppConfig {
         bean.setOrder(0); // Run before other filters
         bean.setName("metricsAuthFilter");
         return bean;
-    }
-
-    @Bean
-    public FilterRegistrationBean<ShallowEtagHeaderFilter> shallowEtagHeaderFilter() {
-        ShallowEtagHeaderFilter filter = new ShallowEtagHeaderFilter() {
-            @Override
-            protected boolean shouldNotFilter(HttpServletRequest request) {
-                return request.getRequestURI().endsWith(".png");
-            }
-        };
-        FilterRegistrationBean<ShallowEtagHeaderFilter> filterRegistrationBean = new FilterRegistrationBean<>(filter);
-        filterRegistrationBean.addUrlPatterns("/*");
-        filterRegistrationBean.setOrder(2);
-        filterRegistrationBean.setName("etagFilter");
-        return filterRegistrationBean;
     }
 
     @Bean

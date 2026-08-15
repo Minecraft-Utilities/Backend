@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
@@ -55,14 +56,39 @@ public class RedisConfig {
     @Bean(name = "queueRedisTemplate")
     public RedisTemplate<String, String> queueRedisTemplate() {
         RedisTemplate<String, String> template = new RedisTemplate<>();
-        template.setConnectionFactory(lettuceConnectionFactory());
+        template.setConnectionFactory(queueLettuceConnectionFactory());
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(new StringRedisSerializer());
         template.afterPropertiesSet();
         return template;
     }
 
+    /**
+     * Dedicated connection for the blocking queue consumers (BLPOP) so they can never
+     * stall cache/repository traffic sharing the main connection (Lettuce processes
+     * commands per connection in order; a pending BLPOP would block everything behind it).
+     */
     @Bean
+    public LettuceConnectionFactory queueLettuceConnectionFactory() {
+        log.info("Connecting queue Redis at {}:{}/{} with dedicated Lettuce connection", host, port, database);
+
+        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(host, port);
+        config.setDatabase(database);
+
+        if (!auth.trim().isEmpty()) {
+            config.setPassword(auth);
+        }
+
+        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
+                .commandTimeout(Duration.ofSeconds(commandTimeoutSeconds))
+                .shutdownTimeout(Duration.ofMillis(100))
+                .build();
+
+        return new LettuceConnectionFactory(config, clientConfig);
+    }
+
+    @Bean
+    @Primary
     public LettuceConnectionFactory lettuceConnectionFactory() {
         log.info("Connecting to Redis at {}:{}/{} with Lettuce", host, port, database);
 

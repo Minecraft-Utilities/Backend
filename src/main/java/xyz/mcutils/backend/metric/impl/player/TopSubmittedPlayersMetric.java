@@ -6,11 +6,23 @@ import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
 import xyz.mcutils.backend.service.MetricService;
 import xyz.mcutils.backend.service.PlayerService;
 
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+
 /**
- * Exposes the top 10 players by total submitted UUIDs as a gauge, read directly from MongoDB.
- * Use {@code topk(10, top_submitted_players_submitted_uuids)} in Grafana.
+ * Exposes the top 10 players by total submitted UUIDs as a gauge.
+ * The callback reads an in-memory snapshot refreshed on a schedule, so scraping /metrics
+ * never executes a Postgres query (previously every scrape ran an ORDER BY on the request thread).
+ * <p>
+ * The snapshot holder is static because the registered gauge callback is built inside the
+ * {@code super(...)} call, which cannot reference the not-yet-constructed instance; this class
+ * is a singleton registered once in {@link MetricService}.
  */
 public class TopSubmittedPlayersMetric extends Metric<TopSubmittedPlayersMetric.Holder> {
+
+    private static final AtomicReference<List<PlayerRow>> SNAPSHOT = new AtomicReference<>(List.of());
+
+    private final PlayerService playerService;
 
     public TopSubmittedPlayersMetric(PlayerService playerService) {
         super(new Holder(
@@ -19,12 +31,20 @@ public class TopSubmittedPlayersMetric extends Metric<TopSubmittedPlayersMetric.
                         .help("Submitted UUID count for the top 10 players by submission count")
                         .labelNames("username")
                         .callback(callback -> {
-                            for (PlayerRow player : playerService.getTopSubmittedPlayers(10)) {
+                            for (PlayerRow player : SNAPSHOT.get()) {
                                 callback.call(player.getSubmittedUuids(), player.getUsername());
                             }
                         })
                         .register(MetricService.REGISTRY)
         ));
+        this.playerService = playerService;
+    }
+
+    /**
+     * Refreshes the in-memory snapshot. Called by a scheduler, never from the scrape callback.
+     */
+    public void refresh() {
+        SNAPSHOT.set(this.playerService.getTopSubmittedPlayers(10));
     }
 
     public record Holder(GaugeWithCallback gauge) {}

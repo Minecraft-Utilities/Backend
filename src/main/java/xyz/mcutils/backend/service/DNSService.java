@@ -15,6 +15,8 @@ import xyz.mcutils.backend.model.domain.dns.DNSRecord;
 import xyz.mcutils.backend.model.domain.dns.impl.ARecord;
 import xyz.mcutils.backend.model.domain.dns.impl.SRVRecord;
 
+import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -27,10 +29,29 @@ public class DNSService {
      * The prefix to use for Minecraft Java SRV queries.
      */
     private static final String SRV_QUERY_PREFIX = "_minecraft._tcp.%s";
-    private final Cache<DnsCacheKey, DNSRecord> objectCache;
+    /**
+     * Negative results (no SRV/A record) are cached too — an absent SRV record is the common
+     * case, and previously every server-cache miss fired a fresh blocking DNS query for it.
+     */
+    private final Cache<DnsCacheKey, Optional<DNSRecord>> objectCache;
+    /**
+     * Resolver with a bounded timeout (dnsjava defaults to ~10s with retries); a slow or
+     * firewalled DNS server must not stall request threads for seconds at a time.
+     */
+    private final org.xbill.DNS.SimpleResolver resolver;
 
     public DNSService(@Value("${mc-utils.cache.dns.enabled}") boolean cacheEnabled, @Value("${mc-utils.cache.dns.ttl}") int objectCacheTtl) {
-        this.objectCache = cacheEnabled ? CacheBuilder.newBuilder().expireAfterWrite(objectCacheTtl, TimeUnit.MINUTES).build() : null;
+        this.objectCache = cacheEnabled
+                ? CacheBuilder.newBuilder().expireAfterWrite(objectCacheTtl, TimeUnit.MINUTES).maximumSize(10_000).build()
+                : null;
+        org.xbill.DNS.SimpleResolver resolver = null;
+        try {
+            resolver = new org.xbill.DNS.SimpleResolver();
+            resolver.setTimeout(Duration.ofSeconds(2));
+        } catch (Exception e) {
+            log.warn("Failed to configure DNS resolver timeout, using dnsjava defaults", e);
+        }
+        this.resolver = resolver;
     }
 
     /**
@@ -42,15 +63,23 @@ public class DNSService {
      */
     @SneakyThrows
     public SRVRecord resolveSRV(@NonNull String hostname) {
-        DNSRecord dnsRecord = objectCache != null ? objectCache.getIfPresent(new DnsCacheKey(hostname.toUpperCase(), Type.SRV)) : null;
-        if (dnsRecord != null) {
+        DnsCacheKey key = new DnsCacheKey(hostname.toUpperCase(), Type.SRV);
+        Optional<DNSRecord> cached = objectCache != null ? objectCache.getIfPresent(key) : null;
+        if (cached != null) {
             MetricService.getMetric(DnsQueryMetric.class).record(DnsQueryMetric.QueryType.SRV, DnsQueryMetric.Result.CACHE_HIT, 0);
-            return (SRVRecord) dnsRecord;
+            return (SRVRecord) cached.orElse(null);
         }
 
         long start = System.currentTimeMillis();
-        Record[] records = new Lookup(SRV_QUERY_PREFIX.formatted(hostname), Type.SRV).run(); // Resolve SRV records
+        Lookup lookup = new Lookup(SRV_QUERY_PREFIX.formatted(hostname), Type.SRV);
+        if (resolver != null) {
+            lookup.setResolver(resolver);
+        }
+        Record[] records = lookup.run(); // Resolve SRV records
         if (records == null) { // No records exist
+            if (objectCache != null) {
+                objectCache.put(key, Optional.empty());
+            }
             MetricService.getMetric(DnsQueryMetric.class).record(DnsQueryMetric.QueryType.SRV, DnsQueryMetric.Result.NOT_FOUND, System.currentTimeMillis() - start);
             return null;
         }
@@ -58,8 +87,8 @@ public class DNSService {
         for (Record record : records) {
             result = new SRVRecord((org.xbill.DNS.SRVRecord) record);
         }
-        if (objectCache != null && result != null) {
-            objectCache.put(new DnsCacheKey(hostname.toUpperCase(), Type.SRV), result);
+        if (objectCache != null) {
+            objectCache.put(key, Optional.ofNullable(result));
         }
         MetricService.getMetric(DnsQueryMetric.class).record(DnsQueryMetric.QueryType.SRV, DnsQueryMetric.Result.RESOLVED, System.currentTimeMillis() - start);
         return result;
@@ -74,15 +103,23 @@ public class DNSService {
      */
     @SneakyThrows
     public ARecord resolveA(@NonNull String hostname) {
-        DNSRecord dnsRecord = objectCache != null ? objectCache.getIfPresent(new DnsCacheKey(hostname.toUpperCase(), Type.A)) : null;
-        if (dnsRecord != null) {
+        DnsCacheKey key = new DnsCacheKey(hostname.toUpperCase(), Type.A);
+        Optional<DNSRecord> cached = objectCache != null ? objectCache.getIfPresent(key) : null;
+        if (cached != null) {
             MetricService.getMetric(DnsQueryMetric.class).record(DnsQueryMetric.QueryType.A, DnsQueryMetric.Result.CACHE_HIT, 0);
-            return (ARecord) dnsRecord;
+            return (ARecord) cached.orElse(null);
         }
 
         long start = System.currentTimeMillis();
-        Record[] records = new Lookup(hostname, Type.A).run(); // Resolve A records
+        Lookup lookup = new Lookup(hostname, Type.A);
+        if (resolver != null) {
+            lookup.setResolver(resolver);
+        }
+        Record[] records = lookup.run(); // Resolve A records
         if (records == null) { // No records exist
+            if (objectCache != null) {
+                objectCache.put(key, Optional.empty());
+            }
             MetricService.getMetric(DnsQueryMetric.class).record(DnsQueryMetric.QueryType.A, DnsQueryMetric.Result.NOT_FOUND, System.currentTimeMillis() - start);
             return null;
         }
@@ -90,8 +127,8 @@ public class DNSService {
         for (Record record : records) {
             result = new ARecord((org.xbill.DNS.ARecord) record);
         }
-        if (objectCache != null && result != null) {
-            objectCache.put(new DnsCacheKey(hostname.toUpperCase(), Type.A), result);
+        if (objectCache != null) {
+            objectCache.put(key, Optional.ofNullable(result));
         }
         MetricService.getMetric(DnsQueryMetric.class).record(DnsQueryMetric.QueryType.A, DnsQueryMetric.Result.RESOLVED, System.currentTimeMillis() - start);
         return result;

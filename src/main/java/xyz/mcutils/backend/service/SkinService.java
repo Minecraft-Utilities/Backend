@@ -48,7 +48,24 @@ public class SkinService {
     private final StorageService storageService;
     private final StatisticsService statisticsService;
     private final WebRequest webRequest;
-    private final Cache<String, byte[]> renderedSkinCache = CacheBuilder.newBuilder().expireAfterAccess(6, TimeUnit.HOURS).maximumSize(2000).build();
+    /**
+     * Rendered part cache. Weight-bounded (256MB) instead of entry-count-bounded so a few
+     * 768px PNGs cannot pin the whole heap; per-size variants are cached under {@code key-size}.
+     */
+    private final Cache<String, byte[]> renderedSkinCache = CacheBuilder.newBuilder()
+            .expireAfterAccess(6, TimeUnit.HOURS)
+            .maximumWeight(256L * 1024 * 1024)
+            .weigher((String key, byte[] value) -> value.length)
+            .build();
+    /**
+     * Upgraded/fixed texture bytes are content-addressed per textureId and never change;
+     * previously every texture request re-decoded + re-scanned + re-encoded the PNG.
+     */
+    private final Cache<String, byte[]> processedTextureCache = CacheBuilder.newBuilder()
+            .expireAfterWrite(24, TimeUnit.HOURS)
+            .maximumWeight(64L * 1024 * 1024)
+            .weigher((String key, byte[] value) -> value.length)
+            .build();
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
     private final CoalescingLoader<String, SkinRow> skinCreationLoader = new CoalescingLoader<>(Runnable::run);
     private final TransactionTemplate transactionTemplate;
@@ -197,6 +214,11 @@ public class SkinService {
      * @return the skin image
      */
     public byte[] getSkinTexture(String textureId, String textureUrl, boolean upgrade) {
+        String cacheKey = textureId + ":" + upgrade;
+        byte[] processed = this.processedTextureCache.getIfPresent(cacheKey);
+        if (processed != null) {
+            return processed;
+        }
         byte[] skin = textureLoader.get(textureId, () -> {
             long start = System.currentTimeMillis();
 
@@ -219,7 +241,9 @@ public class SkinService {
             }
             return skinBytes;
         });
-        return SkinUtils.fixTransparentSkin(upgrade ? SkinUtils.upgradeLegacySkin(textureId, skin) : skin);
+        processed = SkinUtils.fixTransparentSkin(upgrade ? SkinUtils.upgradeLegacySkin(textureId, skin) : skin);
+        this.processedTextureCache.put(cacheKey, processed);
+        return processed;
     }
 
     /**
@@ -248,8 +272,14 @@ public class SkinService {
 
         String canonicalKeyBase = "%s-%s-%s".formatted(skin.getTextureId(), part.name(), options.renderOverlays());
         String canonicalKey = options.cape() != null ? canonicalKeyBase + "-" + options.cape().getTextureId() : canonicalKeyBase;
-        byte[] canonicalBytes = cacheEnabled ? this.renderedSkinCache.getIfPresent(canonicalKey) : null;
+        String sizeKey = canonicalKey + "-" + size;
+        byte[] sizeBytes = cacheEnabled ? this.renderedSkinCache.getIfPresent(sizeKey) : null;
+        if (sizeBytes != null) {
+            MetricService.getMetric(SkinRenderMetric.class).recordHit();
+            return sizeBytes;
+        }
 
+        byte[] canonicalBytes = cacheEnabled ? this.renderedSkinCache.getIfPresent(canonicalKey) : null;
         if (canonicalBytes == null) {
             log.debug("Rendering skin part {} for skin {}", part.name(), skin.getTextureId());
             long renderStart = System.currentTimeMillis();
@@ -271,6 +301,10 @@ public class SkinService {
         }
 
         BufferedImage image = ImageUtils.decodeImage(canonicalBytes);
-        return ImageUtils.imageToBytes(ImageUtils.resizeToHeight(image, size), 1);
+        sizeBytes = ImageUtils.imageToBytes(ImageUtils.resizeToHeight(image, size), 1);
+        if (cacheEnabled) {
+            this.renderedSkinCache.put(sizeKey, sizeBytes);
+        }
+        return sizeBytes;
     }
 }

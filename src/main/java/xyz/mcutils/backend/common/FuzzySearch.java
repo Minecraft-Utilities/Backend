@@ -2,9 +2,12 @@ package xyz.mcutils.backend.common;
 
 import lombok.experimental.UtilityClass;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -34,6 +37,21 @@ public final class FuzzySearch {
      * @return number of insertions, deletions, or substitutions to transform a into b
      */
     public static int levenshteinDistance(CharSequence a, CharSequence b) {
+        return levenshteinDistance(a, b, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Levenshtein distance with an early exit: computation stops as soon as the current row's
+     * minimum exceeds {@code maxDistance} (the sequences cannot be within budget), and the
+     * length difference is checked up front. Non-matches — the common case in registry search —
+     * cost O(n × d) instead of O(n × m), and no per-call allocation beyond two small rows.
+     *
+     * @param a           first sequence
+     * @param b           second sequence
+     * @param maxDistance budget; the returned value is only meaningful when ≤ maxDistance
+     * @return edit distance, or {@code maxDistance + 1} if it exceeds the budget
+     */
+    public static int levenshteinDistance(CharSequence a, CharSequence b, int maxDistance) {
         int n = a.length();
         int m = b.length();
         if (n == 0) {
@@ -42,6 +60,9 @@ public final class FuzzySearch {
         if (m == 0) {
             return n;
         }
+        if (Math.abs(n - m) > maxDistance) {
+            return maxDistance + 1;
+        }
         int[] prev = new int[m + 1];
         int[] curr = new int[m + 1];
         for (int j = 0; j <= m; j++) {
@@ -49,9 +70,16 @@ public final class FuzzySearch {
         }
         for (int i = 1; i <= n; i++) {
             curr[0] = i;
+            int rowMin = curr[0];
             for (int j = 1; j <= m; j++) {
                 int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
                 curr[j] = Math.min(Math.min(curr[j - 1] + 1, prev[j] + 1), prev[j - 1] + cost);
+                if (curr[j] < rowMin) {
+                    rowMin = curr[j];
+                }
+            }
+            if (rowMin > maxDistance) {
+                return maxDistance + 1;
             }
             int[] t = prev;
             prev = curr;
@@ -87,22 +115,29 @@ public final class FuzzySearch {
             return -1;
         }
         String normalizedQuery = query.trim().toLowerCase();
-        String lower = text.toLowerCase();
         if (normalizedQuery.isEmpty()) {
             return -1;
         }
-        if (lower.contains(normalizedQuery)) {
+        return matchScoreNormalized(normalizedQuery, text.toLowerCase(), maxFuzzyDistance, tokenPattern);
+    }
+
+    /**
+     * Scoring with the query already trimmed/lowercased; used by {@link #bestMatchScore} so the
+     * normalization cost is paid once per search rather than once per candidate text.
+     */
+    private static int matchScoreNormalized(String normalizedQuery, String lowerText, int maxFuzzyDistance, Pattern tokenPattern) {
+        if (lowerText.contains(normalizedQuery)) {
             return 0;
         }
-        int best = levenshteinDistance(normalizedQuery, lower);
+        int best = levenshteinDistance(normalizedQuery, lowerText, maxFuzzyDistance);
         if (best <= maxFuzzyDistance) {
             return best;
         }
-        for (String token : tokenPattern.split(lower)) {
+        for (String token : tokenPattern.split(lowerText)) {
             if (token.length() < 2) {
                 continue;
             }
-            best = Math.min(best, levenshteinDistance(normalizedQuery, token));
+            best = Math.min(best, levenshteinDistance(normalizedQuery, token, maxFuzzyDistance));
             if (best <= maxFuzzyDistance) {
                 return best;
             }
@@ -122,12 +157,16 @@ public final class FuzzySearch {
         if (texts == null || texts.isEmpty()) {
             return -1;
         }
+        String normalizedQuery = query == null ? null : query.trim().toLowerCase();
+        if (normalizedQuery == null || normalizedQuery.isEmpty()) {
+            return -1;
+        }
         int best = -1;
         for (String text : texts) {
             if (text == null) {
                 continue;
             }
-            int score = matchScore(query, text, maxFuzzyDistance);
+            int score = matchScoreNormalized(normalizedQuery, text.toLowerCase(), maxFuzzyDistance, DEFAULT_TOKEN_PATTERN);
             best = bestScore(best, score);
             if (best == 0) {
                 break;
@@ -139,6 +178,7 @@ public final class FuzzySearch {
     /**
      * Search a list of items by fuzzy-matching the query against strings extracted from each item.
      * Results are ordered by best score (exact/substring first, then by fuzzy distance) and limited.
+     * Uses a bounded top-K heap instead of sorting the entire match set.
      *
      * @param items            list to search
      * @param query            search query
@@ -149,10 +189,36 @@ public final class FuzzySearch {
      * @return list of matching items, best matches first, size at most {@code limit}
      */
     public static <T> List<T> search(List<T> items, String query, Function<T, ? extends Collection<String>> textExtractor, int maxFuzzyDistance, int limit) {
-        if (query == null || query.isBlank() || items == null || items.isEmpty()) {
+        if (query == null || query.isBlank() || items == null || items.isEmpty() || limit <= 0) {
             return List.of();
         }
-        return items.stream().map(item -> new Scored<>(item, bestMatchScore(query, textExtractor.apply(item), maxFuzzyDistance))).filter(scored -> scored.score() >= 0).sorted(Comparator.comparingInt(Scored::score)).limit(limit).map(Scored::item).toList();
+        // Worst-first heap bounded to `limit` keeps only the best matches; no full-list sort.
+        // Tie-break by original index so equal scores keep stable list order (matches the old
+        // full-sort behavior).
+        PriorityQueue<Scored<T>> top = new PriorityQueue<>(Math.min(limit, 16),
+                Comparator.comparingInt((Scored<T> scored) -> scored.score())
+                        .reversed()
+                        .thenComparing(Comparator.comparingInt((Scored<T> scored) -> scored.index()).reversed()));
+        int index = 0;
+        for (T item : items) {
+            int score = bestMatchScore(query, textExtractor.apply(item), maxFuzzyDistance);
+            if (score >= 0) {
+                Scored<T> candidate = new Scored<>(item, score, index);
+                if (top.size() < limit) {
+                    top.add(candidate);
+                } else if (candidate.score() < top.peek().score()) {
+                    top.poll();
+                    top.add(candidate);
+                }
+            }
+            index++;
+        }
+        List<T> result = new ArrayList<>(top.size());
+        while (!top.isEmpty()) {
+            result.add(top.poll().item());
+        }
+        Collections.reverse(result);
+        return result;
     }
 
     /**
@@ -169,7 +235,7 @@ public final class FuzzySearch {
     }
 
     /**
-     * Result of scoring an item (item + match score).
+     * Result of scoring an item (item + match score + original list index for stable ordering).
      */
-    public record Scored<T>(T item, int score) {}
+    public record Scored<T>(T item, int score, int index) {}
 }

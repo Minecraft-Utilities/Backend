@@ -18,7 +18,6 @@ import xyz.mcutils.backend.metric.impl.player.AccountsUpdatedMetric;
 import xyz.mcutils.backend.metric.impl.player.PlayerChangesDetectedMetric;
 import xyz.mcutils.backend.metric.impl.player.PlayerRefreshMetric;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
-import xyz.mcutils.backend.model.domain.player.FullPlayer;
 import xyz.mcutils.backend.model.domain.player.history.RecentUsernameChange;
 import xyz.mcutils.backend.model.domain.player.history.UsernameHistory;
 import xyz.mcutils.backend.model.domain.skin.Skin;
@@ -56,6 +55,7 @@ public class PlayerService {
 
     public static PlayerService INSTANCE;
     private final MojangService mojangService;
+    private final MojangRateLimiter mojangRateLimiter;
     private final SkinService skinService;
     private final CapeService capeService;
     private final PlayerRepository playerRepository;
@@ -66,12 +66,13 @@ public class PlayerService {
 
     private final CoalescingLoader<String, PlayerRow> playerLoader = new CoalescingLoader<>(Runnable::run);
 
-    public PlayerService(MojangService mojangService, SkinService skinService, CapeService capeService,
+    public PlayerService(MojangService mojangService, MojangRateLimiter mojangRateLimiter, SkinService skinService, CapeService capeService,
                          PlayerRepository playerRepository, UsernameChangeEventRepository usernameChangeEventRepository,
                          PlayerSkinAdoptionRepository playerSkinAdoptionRepository, PlayerCapeAdoptionRepository playerCapeAdoptionRepository,
                          @Lazy PlayerService self,
                          @Value("${mc-utils.player-refresh.concurrent-persists:64}") int concurrentPersists) {
         this.mojangService = mojangService;
+        this.mojangRateLimiter = mojangRateLimiter;
         this.skinService = skinService;
         this.capeService = capeService;
         this.playerRepository = playerRepository;
@@ -91,9 +92,10 @@ public class PlayerService {
     public PlayerRow getPlayer(String query) {
         return playerLoader.get(query, () -> {
             boolean isUsername = query.length() <= 16;
-            Optional<PlayerRow> optionalPlayerRow = isUsername ? this.playerRepository.findByUsernameIgnoreCase(query) : this.playerRepository.findById(UUIDUtils.parseUuid(query));
+            UUID parsedUuid = isUsername ? null : UUIDUtils.parseUuid(query);
+            Optional<PlayerRow> optionalPlayerRow = isUsername ? this.playerRepository.findByUsernameIgnoreCase(query) : this.playerRepository.findById(parsedUuid);
             if (optionalPlayerRow.isEmpty()) {
-                UUID uuid = !isUsername ? UUIDUtils.parseUuid(query) : null;
+                UUID uuid = parsedUuid;
                 if (isUsername) {
                     MojangUsernameToUuidToken mojangUsernameToUuid = this.mojangService.getUuidFromUsername(query);
                     if (mojangUsernameToUuid == null) {
@@ -112,9 +114,12 @@ public class PlayerService {
 
             PlayerRow playerRow = optionalPlayerRow.get();
             // Only refresh on-demand for viewed players; the background loop owns the long tail.
+            // The shared limiter keeps this path inside the same Mojang budget as the background
+            // refresh and submit queue (previously this bypassed all rate limiting).
             if (playerRow.getNextRefreshAt().isBefore(Instant.now()) && playerRow.getMonthlyViews() > 0) {
                 Main.EXECUTOR.execute(() -> {
                     try {
+                        this.mojangRateLimiter.acquire();
                         MojangProfileToken token = this.mojangService.getProfile(playerRow.getId().toString());
                         if (token == null) {
                             this.bumpRefreshFailure(playerRow.getId());
@@ -170,16 +175,26 @@ public class PlayerService {
 
     @Transactional
     public void createPlayers(List<MojangProfileToken> tokens) {
+        // Precompute the first player owning each distinct texture once (O(N)); previously each
+        // per-texture future re-scanned the whole token list, making this O(distinct x N).
+        Map<String, UUID> firstSkinOwnerByTextureId = new HashMap<>();
+        Map<String, UUID> firstCapeOwnerByTextureId = new HashMap<>();
+        for (MojangProfileToken token : tokens) {
+            SkinTextureToken skin = token.getSkinAndCape().left();
+            firstSkinOwnerByTextureId.computeIfAbsent(skin.getTextureId(), _ -> UUIDUtils.parseUuid(token.getId()));
+            CapeTextureToken cape = token.getSkinAndCape().right();
+            if (cape != null) {
+                firstCapeOwnerByTextureId.computeIfAbsent(cape.getTextureId(), _ -> UUIDUtils.parseUuid(token.getId()));
+            }
+        }
+
         Map<String, CompletableFuture<SkinRow>> skinFutures = tokens.stream()
                 .map(t -> t.getSkinAndCape().left())
                 .collect(Collectors.toMap(
                         SkinTextureToken::getTextureId,
-                        t -> CompletableFuture.supplyAsync(() -> {
-                            UUID firstPlayerId = UUIDUtils.parseUuid(tokens.stream()
-                                    .filter(tok -> Objects.equals(tok.getSkinAndCape().left().getTextureId(), t.getTextureId()))
-                                    .findFirst().orElseThrow().getId());
-                            return this.skinService.getOrCreateSkinCached(t, firstPlayerId);
-                        }, Main.EXECUTOR),
+                        t -> CompletableFuture.supplyAsync(() ->
+                                this.skinService.getOrCreateSkinCached(t, firstSkinOwnerByTextureId.get(t.getTextureId())),
+                                Main.EXECUTOR),
                         (a, b) -> a));
 
         Map<String, CompletableFuture<CapeRow>> capeFutures = tokens.stream()
@@ -187,12 +202,9 @@ public class PlayerService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toMap(
                         CapeTextureToken::getTextureId,
-                        t -> CompletableFuture.supplyAsync(() -> {
-                            UUID firstPlayerId = UUIDUtils.parseUuid(tokens.stream()
-                                    .filter(tok -> tok.getSkinAndCape().right() != null && tok.getSkinAndCape().right().getTextureId().equals(t.getTextureId()))
-                                    .findFirst().orElseThrow().getId());
-                            return this.capeService.getOrCreateCapeCached(t, firstPlayerId);
-                        }, Main.EXECUTOR),
+                        t -> CompletableFuture.supplyAsync(() ->
+                                this.capeService.getOrCreateCapeCached(t, firstCapeOwnerByTextureId.get(t.getTextureId())),
+                                Main.EXECUTOR),
                         (a, b) -> a));
 
         CompletableFuture.allOf(Stream.concat(skinFutures.values().stream(), capeFutures.values().stream())
@@ -462,9 +474,8 @@ public class PlayerService {
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
-    public List<FullPlayer> searchPlayers(String query) {
-        return this.playerRepository.findByUsernameStartingWithIgnoreCase(query, Pageable.ofSize(MAX_PLAYER_SEARCH_RESULTS)).stream()
-                .map(playerRow -> FullPlayer.fromRow(playerRow, this)).toList();
+    public List<PlayerRow> searchPlayers(String query) {
+        return this.playerRepository.findByUsernameStartingWithIgnoreCase(query, Pageable.ofSize(MAX_PLAYER_SEARCH_RESULTS));
     }
 
     public List<PlayerRow> getTopSubmittedPlayers(int amount) {

@@ -14,6 +14,7 @@ import xyz.mcutils.backend.websocket.WebSocketManager;
 import xyz.mcutils.backend.websocket.impl.StatisticsWebSocket;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 @Getter
@@ -26,11 +27,31 @@ public class StatisticsService {
     private final CapeRepository capeRepository;
     private final UsernameChangeEventRepository usernameChangeEventRepository;
 
-    private long trackedPlayerCount;
-    private long trackedSkinCount;
-    private long trackedCapeCount;
-    private long trendingSkinCount;
-    private long nameChangesCount;
+    private final AtomicLong trackedPlayerCount = new AtomicLong();
+    private final AtomicLong trackedSkinCount = new AtomicLong();
+    private final AtomicLong trackedCapeCount = new AtomicLong();
+    private final AtomicLong trendingSkinCount = new AtomicLong();
+    private final AtomicLong nameChangesCount = new AtomicLong();
+
+    public long getTrackedPlayerCount() {
+        return this.trackedPlayerCount.get();
+    }
+
+    public long getTrackedSkinCount() {
+        return this.trackedSkinCount.get();
+    }
+
+    public long getTrackedCapeCount() {
+        return this.trackedCapeCount.get();
+    }
+
+    public long getTrendingSkinCount() {
+        return this.trendingSkinCount.get();
+    }
+
+    public long getNameChangesCount() {
+        return this.nameChangesCount.get();
+    }
 
     public StatisticsService(PlayerRepository playerRepository, SkinRepository skinRepository, CapeRepository capeRepository, UsernameChangeEventRepository usernameChangeEventRepository) {
         this.playerRepository = playerRepository;
@@ -44,8 +65,8 @@ public class StatisticsService {
         if (delta == 0) {
             return;
         }
-        INSTANCE.trackedPlayerCount += delta;
-        if (INSTANCE.trackedPlayerCount % 100 == 0) {
+        long newValue = INSTANCE.trackedPlayerCount.addAndGet(delta);
+        if (newValue % 100 == 0) {
             INSTANCE.updateStatistics();
         }
     }
@@ -54,8 +75,8 @@ public class StatisticsService {
         if (delta == 0) {
             return;
         }
-        INSTANCE.trackedSkinCount += delta;
-        if (INSTANCE.trackedSkinCount % 100 == 0) {
+        long newValue = INSTANCE.trackedSkinCount.addAndGet(delta);
+        if (newValue % 100 == 0) {
             INSTANCE.updateStatistics();
         }
     }
@@ -64,8 +85,8 @@ public class StatisticsService {
         if (delta == 0) {
             return;
         }
-        INSTANCE.trackedCapeCount += delta;
-        if (INSTANCE.trackedCapeCount % 100 == 0) {
+        long newValue = INSTANCE.trackedCapeCount.addAndGet(delta);
+        if (newValue % 100 == 0) {
             INSTANCE.updateStatistics();
         }
     }
@@ -74,7 +95,7 @@ public class StatisticsService {
         if (delta == 0) {
             return;
         }
-        INSTANCE.nameChangesCount += delta;
+        INSTANCE.nameChangesCount.addAndGet(delta);
     }
 
     @PostConstruct
@@ -87,11 +108,11 @@ public class StatisticsService {
 
         CompletableFuture.allOf(playersFuture, skinsFuture, capesFuture, trendingSkinsFuture, nameChangesFuture).join();
 
-        this.trackedPlayerCount = playersFuture.join();
-        this.trackedSkinCount = skinsFuture.join();
-        this.trackedCapeCount = capesFuture.join();
-        this.trendingSkinCount = trendingSkinsFuture.join();
-        this.nameChangesCount = nameChangesFuture.join();
+        this.trackedPlayerCount.set(playersFuture.join());
+        this.trackedSkinCount.set(skinsFuture.join());
+        this.trackedCapeCount.set(capesFuture.join());
+        this.trendingSkinCount.set(trendingSkinsFuture.join());
+        this.nameChangesCount.set(nameChangesFuture.join());
     }
 
     /**
@@ -99,7 +120,7 @@ public class StatisticsService {
      * Called after the hourly trending-heat rebuild; avoids a per-request COUNT over ~90k+ rows.
      */
     public void refreshTrendingSkinCount() {
-        this.trendingSkinCount = this.skinRepository.countTrendingSkins(VanillaSkinTextureIds.ALL);
+        this.trendingSkinCount.set(this.skinRepository.countTrendingSkins(VanillaSkinTextureIds.ALL));
     }
 
     /**
@@ -115,6 +136,6 @@ public class StatisticsService {
      * @return the statistics
      */
     public StatisticsResponse getStatistics() {
-        return new StatisticsResponse(trackedPlayerCount, trackedSkinCount, trackedCapeCount);
+        return new StatisticsResponse(getTrackedPlayerCount(), getTrackedSkinCount(), getTrackedCapeCount());
     }
 }

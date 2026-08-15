@@ -10,6 +10,7 @@ import xyz.mcutils.backend.service.pinger.MinecraftServerPinger;
 
 import java.io.IOException;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
@@ -37,7 +38,10 @@ public final class BedrockMinecraftServerPinger implements MinecraftServerPinger
         // Open a socket connection to the server
         try (DatagramSocket socket = new DatagramSocket()) {
             socket.setSoTimeout(timeout);
-            socket.connect(new InetSocketAddress(hostname, port));
+            // Connect to the already-resolved IP; DatagramSocket.connect would otherwise
+            // re-resolve the hostname through the JVM resolver (see JavaMinecraftServerPinger).
+            InetAddress target = (ip != null && !ip.isBlank()) ? InetAddress.getByName(ip) : InetAddress.getByName(hostname);
+            socket.connect(new InetSocketAddress(target, port));
 
             long ping = System.currentTimeMillis() - before; // Calculate the ping
             log.debug("Pinged {}:{} in {}ms", hostname, port, ping);

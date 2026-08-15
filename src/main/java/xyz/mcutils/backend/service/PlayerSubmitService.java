@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.service;
 
-import com.google.common.util.concurrent.RateLimiter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Lazy;
@@ -13,8 +12,8 @@ import xyz.mcutils.backend.common.FutureUtils;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.common.redis.RedisQueue;
 import xyz.mcutils.backend.common.redis.RedisQueueFactory;
-import xyz.mcutils.backend.exception.impl.MojangAPIRateLimitException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
+import xyz.mcutils.backend.exception.impl.RateLimitException;
 import xyz.mcutils.backend.metric.impl.player.PlayerSubmitOutcomesMetric;
 import xyz.mcutils.backend.metric.impl.player.PlayerSubmitProcessingMetric;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
@@ -29,7 +28,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Dedicated submit queue for tracking new players.
  * Queue entries are stored as strings: {@code playerUuid,submitterUuid} (or {@code playerUuid} when no submitter).
  */
-@SuppressWarnings("UnstableApiUsage")
 @Service
 @Slf4j
 public class PlayerSubmitService {
@@ -37,20 +35,20 @@ public class PlayerSubmitService {
     private static final int BATCH_SIZE = 1000;
     /** Must stay at or below mojang-profile http-client max-connections-per-route. */
     private static final int CONCURRENT_FETCHES = 40;
-    private static final int RATE_LIMIT = 200;
     private static final String QUEUE_NAME = "player-submit-queue";
     private static final Duration EMPTY_QUEUE_BLOCK = Duration.ofSeconds(2);
 
-    private final RateLimiter rateLimiter = RateLimiter.create(RATE_LIMIT);
+    private final MojangRateLimiter mojangRateLimiter;
     private final RedisQueue submitQueue;
     private final PlayerService playerService;
     private final MojangService mojangService;
     private final AtomicBoolean running = new AtomicBoolean(true);
 
-    public PlayerSubmitService(RedisQueueFactory queueFactory, @Lazy PlayerService playerService, @Lazy MojangService mojangService) {
+    public PlayerSubmitService(RedisQueueFactory queueFactory, @Lazy PlayerService playerService, @Lazy MojangService mojangService, MojangRateLimiter mojangRateLimiter) {
         this.submitQueue = queueFactory.getQueue(QUEUE_NAME);
         this.playerService = playerService;
         this.mojangService = mojangService;
+        this.mojangRateLimiter = mojangRateLimiter;
     }
 
     @EventListener(ContextClosedEvent.class)
@@ -126,7 +124,7 @@ public class PlayerSubmitService {
             List<QueueEntry> slice = toProcess.subList(offset, end);
             List<Future<Void>> futures = new ArrayList<>();
             for (QueueEntry entry : slice) {
-                rateLimiter.acquire();
+                mojangRateLimiter.acquire();
                 futures.add(Main.EXECUTOR.submit(() -> {
                     fetchResults.add(fetchProfile(entry));
                     return null;
@@ -180,7 +178,11 @@ public class PlayerSubmitService {
             log.debug("Player {} not found on Mojang, removing from queue", entry.playerId(), e);
             recordOutcome(PlayerSubmitProcessingMetric.Outcome.NOT_FOUND, processStart);
             return new FetchResult(entry, null, PlayerSubmitProcessingMetric.Outcome.NOT_FOUND, processStart);
-        } catch (MojangAPIRateLimitException e) {
+        } catch (RateLimitException e) {
+            // The HTTP layer throws the plain RateLimitException (not the never-thrown
+            // MojangAPIRateLimitException subclass); without this catch the popped entry
+            // was silently dropped: never requeued, and its dedupe key stayed in the set,
+            // permanently blocking future enqueues of that player.
             recordOutcome(PlayerSubmitProcessingMetric.Outcome.RATE_LIMITED, processStart);
             return new FetchResult(entry, null, PlayerSubmitProcessingMetric.Outcome.RATE_LIMITED, processStart);
         } catch (ResourceAccessException e) {

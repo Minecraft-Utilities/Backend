@@ -35,7 +35,11 @@ public final class JavaMinecraftServerPinger implements MinecraftServerPinger<Ja
         // Open a socket connection to the server
         try (Socket socket = new Socket()) {
             socket.setTcpNoDelay(true);
-            socket.connect(new InetSocketAddress(hostname, port), timeout);
+            // Connect to the already-resolved IP instead of re-resolving the hostname through the
+            // JVM resolver (which bypasses DNSService's cache and can pick a different address
+            // family, e.g. IPv6 for an IPv4-only server, causing a full timeout).
+            InetAddress target = (ip != null && !ip.isBlank()) ? InetAddress.getByName(ip) : InetAddress.getByName(hostname);
+            socket.connect(new InetSocketAddress(target, port), timeout);
             socket.setSoTimeout(timeout);
 
             // Open data streams to begin packet transaction

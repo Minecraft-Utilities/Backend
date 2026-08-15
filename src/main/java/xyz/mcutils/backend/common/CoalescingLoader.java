@@ -4,6 +4,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 /**
@@ -33,7 +34,12 @@ public final class CoalescingLoader<K, V> {
      * @throws RuntimeException if the loader throws (or any failure), unwrapped from {@link CompletionException}
      */
     public V get(K key, Supplier<V> loader) {
-        CompletableFuture<V> future = inFlight.computeIfAbsent(key, _ -> CompletableFuture.supplyAsync(loader, executor));
+        AtomicReference<CompletableFuture<V>> created = new AtomicReference<>();
+        CompletableFuture<V> future = inFlight.computeIfAbsent(key, _ -> {
+            CompletableFuture<V> f = CompletableFuture.supplyAsync(loader, executor);
+            created.set(f);
+            return f;
+        });
         try {
             return future.join();
         } catch (CompletionException e) {
@@ -43,7 +49,12 @@ public final class CoalescingLoader<K, V> {
             }
             throw new IllegalStateException(cause != null ? cause : e);
         } finally {
-            inFlight.remove(key);
+            // Only the caller that created the load removes the key, so concurrent callers
+            // joining the same in-flight load can never remove it out from under each other
+            // (previously every joiner removed it, opening a window for duplicate loads).
+            if (created.get() != null) {
+                inFlight.remove(key);
+            }
         }
     }
 }

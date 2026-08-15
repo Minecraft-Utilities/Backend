@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.service;
 
-import com.google.common.util.concurrent.RateLimiter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -35,16 +34,20 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-@SuppressWarnings("UnstableApiUsage")
 @Service
 @Slf4j
 public class PlayerRefreshService {
     private static final Duration CHUNK_TIMEOUT = Duration.ofMinutes(10);
-    private static final Duration REFRESH_LEASE = Duration.ofMinutes(10);
+    /**
+     * Twice the chunk timeout: if a chunk times out, the abandoned in-flight players must
+     * not become due again the instant their lease expires (lease == timeout caused a
+     * claim → timeout → re-claim spin under sustained Mojang slowness).
+     */
+    private static final Duration REFRESH_LEASE = Duration.ofMinutes(20);
 
     private final int refreshChunkSize;
     private final int concurrentFetches;
-    private final RateLimiter rateLimiter;
+    private final MojangRateLimiter mojangRateLimiter;
     private final MojangService mojangService;
     private final PlayerService playerService;
     private final PlayerRepository playerRepository;
@@ -57,13 +60,13 @@ public class PlayerRefreshService {
             PlayerService playerService,
             PlayerRepository playerRepository,
             PlatformTransactionManager transactionManager,
+            MojangRateLimiter mojangRateLimiter,
             @Value("${mc-utils.player-refresh.chunk-size:2500}") int refreshChunkSize,
-            @Value("${mc-utils.player-refresh.concurrent-fetches:200}") int concurrentFetches,
-            @Value("${mc-utils.player-refresh.mojang-rate-limit:600}") double mojangRateLimit
+            @Value("${mc-utils.player-refresh.concurrent-fetches:200}") int concurrentFetches
     ) {
         this.refreshChunkSize = refreshChunkSize;
         this.concurrentFetches = concurrentFetches;
-        this.rateLimiter = RateLimiter.create(mojangRateLimit);
+        this.mojangRateLimiter = mojangRateLimiter;
         this.mojangService = mojangService;
         this.playerService = playerService;
         this.playerRepository = playerRepository;
@@ -82,8 +85,8 @@ public class PlayerRefreshService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void startRefreshTask() {
-        log.info("Starting player background refresh (chunk size {}, Mojang rate limit {}/s)",
-                refreshChunkSize, rateLimiter.getRate());
+        log.info("Starting player background refresh (chunk size {}, Mojang rate limit configured via mc-utils.player-refresh.mojang-rate-limit)",
+                refreshChunkSize);
         Thread.ofPlatform().daemon(true).name("player-refresh").start(() -> {
             while (running.get()) {
                 try {
@@ -233,7 +236,7 @@ public class PlayerRefreshService {
             return;
         }
         try {
-            rateLimiter.acquire();
+            mojangRateLimiter.acquire();
             PlayerService.PlayerUpdate update = fetchProfile(playerRow, failedIds, failureReasons);
             if (update == null) {
                 return;

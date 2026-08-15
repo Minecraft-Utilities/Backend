@@ -12,8 +12,8 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import tools.jackson.databind.json.JsonMapper;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @RequiredArgsConstructor
 @Getter
@@ -28,7 +28,7 @@ public abstract class WebSocket extends TextWebSocketHandler {
      */
     public final String path;
 
-    private final List<WebSocketSession> sessions = new ArrayList<>();
+    private final List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
     @Setter
     private JsonMapper jsonMapper;
 
@@ -45,12 +45,29 @@ public abstract class WebSocket extends TextWebSocketHandler {
 
     /**
      * Sends a message to all connected clients.
+     * <p>
+     * Serializes the payload once and shares the {@link TextMessage} across sessions
+     * (previously the payload was serialized once per client). Each send is guarded so a
+     * single closed/slow session cannot abort the fan-out to the remaining clients.
      *
      * @param message the message to send
      */
     public void sendMessageToAll(Object message) {
+        if (this.sessions.isEmpty()) {
+            return;
+        }
+        TextMessage textMessage = new TextMessage(message instanceof String ? (String) message : this.jsonMapper.writeValueAsString(message));
         for (WebSocketSession session : this.sessions) {
-            this.sendMessage(session, message);
+            try {
+                session.sendMessage(textMessage);
+            } catch (Exception e) {
+                log.warn("Failed to send message to session {} on {}: {}", session.getId(), this.path, e.toString());
+                try {
+                    session.close(CloseStatus.SERVER_ERROR);
+                } catch (Exception ignored) {
+                    // session is already gone; afterConnectionClosed will remove it
+                }
+            }
         }
     }
 

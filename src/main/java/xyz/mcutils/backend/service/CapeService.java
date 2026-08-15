@@ -47,6 +47,15 @@ public class CapeService {
     private final WebRequest webRequest;
     private final CoalescingLoader<String, byte[]> textureLoader = new CoalescingLoader<>(Main.EXECUTOR);
     private final CoalescingLoader<String, CapeRow> capeCreationLoader = new CoalescingLoader<>(Runnable::run);
+    /**
+     * Local cache for downscaled (non-max) cape renders. The canonical max-size PNG lives in
+     * S3; smaller sizes used to be decoded + resized + re-encoded on every request.
+     */
+    private final com.google.common.cache.Cache<String, byte[]> downscaledRenderCache = com.google.common.cache.CacheBuilder.newBuilder()
+            .expireAfterAccess(6, java.util.concurrent.TimeUnit.HOURS)
+            .maximumWeight(128L * 1024 * 1024)
+            .weigher((String key, byte[] value) -> value.length)
+            .build();
     private final TransactionTemplate transactionTemplate;
     @Value("${mc-utils.renderer.cape.cache}")
     private boolean cacheEnabled;
@@ -247,7 +256,15 @@ public class CapeService {
             return canonicalBytes;
         }
 
+        String sizeKey = canonicalKey + "-" + size;
+        byte[] sizeBytes = this.downscaledRenderCache.getIfPresent(sizeKey);
+        if (sizeBytes != null) {
+            return sizeBytes;
+        }
+
         BufferedImage image = canonicalImage != null ? canonicalImage : ImageUtils.decodeImage(canonicalBytes);
-        return ImageUtils.imageToBytes(ImageUtils.resizeToHeight(image, size), 1);
+        sizeBytes = ImageUtils.imageToBytes(ImageUtils.resizeToHeight(image, size), 1);
+        this.downscaledRenderCache.put(sizeKey, sizeBytes);
+        return sizeBytes;
     }
 }
