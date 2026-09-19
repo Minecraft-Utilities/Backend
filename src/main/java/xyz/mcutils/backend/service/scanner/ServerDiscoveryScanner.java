@@ -82,7 +82,7 @@ public class ServerDiscoveryScanner {
             OpenPortHandler openPortHandler,
             ServerScannerMetric metrics,
             @Value("${mc-utils.server-scanner.ports.discovery:25564,25565,25566,25567}") String discoveryPortsCsv,
-            @Value("${mc-utils.server-scanner.discovery.concurrency:50000}") int concurrency,
+            @Value("${mc-utils.server-scanner.discovery.concurrency:20000}") int concurrency,
             @Value("${mc-utils.server-scanner.discovery.connect-timeout-ms:1000}") long connectTimeoutMs
     ) {
         this.space = space;
