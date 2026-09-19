@@ -7,7 +7,9 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -100,7 +102,7 @@ final class FakeMinecraftServer implements AutoCloseable {
                 return base;
             }
         }
-        throw new IllegalStateException("Could not find a free run of ports " + java.util.Arrays.toString(offsets));
+        throw new IllegalStateException("Could not find a free run of ports " + Arrays.toString(offsets));
     }
 
     private void acceptLoop(ServerSocket socket, byte[] response) {
@@ -137,7 +139,7 @@ final class FakeMinecraftServer implements AutoCloseable {
     private static byte[] buildStatusResponse(String json) throws IOException {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         DataOutputStream data = new DataOutputStream(out);
-        byte[] jsonBytes = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        byte[] jsonBytes = json.getBytes(StandardCharsets.UTF_8);
         int packetLength = 1 + varIntLength(jsonBytes.length) + jsonBytes.length;
         writeVarInt(data, packetLength);
         data.writeByte(STATUS_PACKET_ID);

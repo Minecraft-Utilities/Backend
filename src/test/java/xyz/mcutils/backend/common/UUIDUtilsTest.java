@@ -2,6 +2,7 @@ package xyz.mcutils.backend.common;
 
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -17,7 +18,7 @@ class UUIDUtilsTest {
 
     @Test
     void offlineModeUuidIsVersion3() {
-        UUID offline = UUID.nameUUIDFromBytes("OfflinePlayer:Steve".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        UUID offline = UUID.nameUUIDFromBytes("OfflinePlayer:Steve".getBytes(StandardCharsets.UTF_8));
         assertFalse(UUIDUtils.isOnlineMode(offline));
     }
 

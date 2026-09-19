@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -27,6 +28,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Orchestrates the internet server scanner. Opt-in via {@code mc-utils.server-scanner.enabled};
@@ -73,7 +75,7 @@ public class ServerScannerService {
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     /** Verified servers (sink calls) and players handed to the queue, for progress logging. */
-    private final java.util.concurrent.atomic.AtomicLong serversFound = new java.util.concurrent.atomic.AtomicLong();
+    private final AtomicLong serversFound = new AtomicLong();
     private volatile long lastLogCompleted24s;
     private volatile long lastLogNanos = System.nanoTime();
 
@@ -285,7 +287,7 @@ public class ServerScannerService {
             double percent = completed * 100.0 / total;
             String eta = perMinute > 0 ? ", ETA " + formatEta((long) ((total - completed) / (perMinute / 60.0))) : "";
             log.info("Server scanner progress: {} / {} /24 subnets ({}%), {} /24s/min, ~{} probes/s{}, servers found={}, players enqueued={}",
-                    completed, total, String.format(java.util.Locale.ROOT, "%.1f", percent),
+                    completed, total, String.format(Locale.ROOT, "%.1f", percent),
                     perMinute, perMinute * 254L / 60L, eta, serversFound.get(), harvester.totalEnqueued());
         } else {
             log.info("Server scanner progress (scoped): {} /24 subnets, {} /24s/min, servers found={}, players enqueued={}",

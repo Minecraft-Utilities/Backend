@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import xyz.mcutils.backend.service.pinger.impl.JavaMinecraftServerPinger;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -89,7 +90,7 @@ class ServerScanVerifierTest {
         String jsonBase = FakeMinecraftServer.statusJson("1.21", 1, 100,
                 "[" + FakeMinecraftServer.sampleEntry("Steve", STEVE.toString()) + "]");
         try (TestHarness harness = new TestHarness(new FakeMinecraftServer(
-                List.of(base, base + 1), java.util.Arrays.asList(jsonBase, null)))) { // base+1 is a silent non-MC service
+                List.of(base, base + 1), Arrays.asList(jsonBase, null)))) { // base+1 is a silent non-MC service
             ServerScanVerifier verifier = harness.verifier(base, 3, 200);
             ServerScanVerifier.HostResult result = verifier.verifyHost(IP);
 
