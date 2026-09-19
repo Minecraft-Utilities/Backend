@@ -68,13 +68,15 @@ Components (old → new):
 | — | `TrackerController` / `TrackerStatsService` | API (`docs/SERVER_TRACKER_API_PLAN.md`) |
 
 **Unchanged internals:** `Ipv4Space`, `HoneypotDetector`, `ScanFingerprintStore` /
-`RedisScanFingerprintStore`, `BufferedHarvester`, `HoneypotSurgeGuard` — generic enough to keep
+`RedisScanFingerprintStore`, `BufferedHarvester` — generic enough to keep
 their names; the rename targets the public surface (service, verifier, metric, config, tables).
+(HoneypotSurgeGuard was removed entirely: honeypots cause no pauses, the flagged host's IP is
+skipped.)
 
 **Merging the loops:** both the discovery campaign and the refresh cycle run inside
 `ServerTrackerService` as independent daemon loops started at `ApplicationReadyEvent` and
-stopped at `ContextClosedEvent`, sharing the verify worker pool, the store, the surge guard and
-the metrics. Discovery feeds new rows; the refresh cycle keeps everything current in between.
+stopped at `ContextClosedEvent`, sharing the verify worker pool, the store and the metrics.
+Discovery feeds new rows; the refresh cycle keeps everything current in between.
 
 ---
 
@@ -228,9 +230,10 @@ on the very next cycle; legacy rows converge the same way). No per-row schedulin
 `orTimeout(CHUNK_TIMEOUT).join()` (CHUNK_TIMEOUT = 10 min, mirroring the player system; per-ping
 socket timeout = `verify.timeout-ms`), per-server outcomes counted. Per server, token-only ping
 (no DNS, no Redis, no geo re-lookup). **Anti-poisoning parity:** every refresh sample runs the
-same `HoneypotDetector` evaluate + surge guard as discovery; the verdict gates both
-`player_history` writes and queue harvest identically — a server newly flagged as honeypot on a
-refresh gets flagged in the store and its sample dropped:
+same `HoneypotDetector` evaluate as discovery; the verdict gates both `player_history` writes
+and queue harvest identically — a server newly flagged as honeypot on a refresh gets flagged in
+the store and its sample dropped. Honeypot-flagged hosts are skipped entirely by the verifier:
+no port walk, nothing harvested from the IP (it's just a honeypot — no harvest pauses):
 - **success** → `ServerTrackerStore` upsert (server row + players + history row), reset
   `consecutive_offline`; `last_updated` advances (data freshness), `last_refreshed` already
   advanced at claim (attempt time);
@@ -366,7 +369,7 @@ the submit pipeline) and is omitted:
 
 - discovery (renamed): `ip_probes_total`, `connect_open_total`, `servers_verified_total`,
   `ports_probed_walk_total`, `players_harvested_total`, `players_enqueued_total`,
-  `harvest_pauses_total`, `tracker_progress_24s` gauge;
+  `tracker_progress_24s` gauge;
 - anti-honeypot (renamed): `sample_entries_dropped_total{reason}`,
   `honeypot_servers_flagged_total`, `honeypot_fingerprints_blocked_total`;
 - tracked dataset (new): `tracked_servers` gauge — **single-sourced from the

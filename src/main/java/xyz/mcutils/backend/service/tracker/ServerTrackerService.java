@@ -69,9 +69,6 @@ public class ServerTrackerService {
     private final int verifyConcurrency;
     private final int enqueueBatchSize;
     private final long enqueueRatePerMinute;
-    private final int surgeWindow;
-    private final int surgeMaxFlagged;
-    private final long surgeCooldownSeconds;
     private final int progressLogIntervalSeconds;
     private final List<String> excludeExtraCidrs;
     private final List<String> includeCidrs;
@@ -122,9 +119,6 @@ public class ServerTrackerService {
             @Value("${mc-utils.server-tracker.ports.probe-cap-per-ip:300}") int probeCapPerIp,
             @Value("${mc-utils.server-tracker.enqueue.batch-size:1000}") int enqueueBatchSize,
             @Value("${mc-utils.server-tracker.enqueue.rate-per-minute:3000}") long enqueueRatePerMinute,
-            @Value("${mc-utils.server-tracker.honeypot.surge-window:100}") int surgeWindow,
-            @Value("${mc-utils.server-tracker.honeypot.surge-max-flagged:10}") int surgeMaxFlagged,
-            @Value("${mc-utils.server-tracker.honeypot.surge-cooldown-seconds:300}") long surgeCooldownSeconds,
             @Value("${mc-utils.server-tracker.progress-log-interval-seconds:60}") int progressLogIntervalSeconds,
             @Value("${mc-utils.server-tracker.ip.exclude-extra-cidrs:}") String excludeExtraCidrs,
             @Value("${mc-utils.server-tracker.ip.include-cidrs:}") String includeCidrs
@@ -151,9 +145,6 @@ public class ServerTrackerService {
         this.probeCapPerIp = probeCapPerIp;
         this.enqueueBatchSize = enqueueBatchSize;
         this.enqueueRatePerMinute = enqueueRatePerMinute;
-        this.surgeWindow = surgeWindow;
-        this.surgeMaxFlagged = surgeMaxFlagged;
-        this.surgeCooldownSeconds = surgeCooldownSeconds;
         this.progressLogIntervalSeconds = Math.max(10, progressLogIntervalSeconds);
         this.excludeExtraCidrs = splitCidrs(excludeExtraCidrs);
         this.includeCidrs = splitCidrs(includeCidrs);
@@ -219,16 +210,10 @@ public class ServerTrackerService {
                 Thread.ofPlatform().daemon(true).name("tracker-verify-", 0).factory()
         );
 
-        HoneypotSurgeGuard surgeGuard = new HoneypotSurgeGuard(surgeWindow, surgeMaxFlagged, surgeCooldownSeconds);
         this.harvester = new BufferedHarvester(
-                playerSubmitService, metrics, enqueueBatchSize, enqueueRatePerMinute, surgeGuard
+                playerSubmitService, metrics, enqueueBatchSize, enqueueRatePerMinute
         );
         ServerTrackerVerifier.ServerTrackerSink serverSink = snapshot -> {
-            if (surgeGuard.report(snapshot.honeypot()) && metrics != null) {
-                metrics.recordHarvestPause();
-                log.warn("Honeypot surge detected (>={} of last {} verified servers flagged), harvesting paused for {}s",
-                        surgeMaxFlagged, surgeWindow, surgeCooldownSeconds);
-            }
             serversFound.incrementAndGet();
             serverTrackerStore.record(snapshot);
         };
@@ -393,33 +378,28 @@ public class ServerTrackerService {
 
     /**
      * Buffers harvested players and flushes them to the submit queue in batches, rate-capped so
-     * the Redis queue cannot outrun the shared Mojang budget. Harvesting pauses while the
-     * honeypot surge guard is active.
+     * the Redis queue cannot outrun the shared Mojang budget. Honeypot-flagged hosts are skipped
+     * by the verifier, so nothing from them ever reaches this queue.
      */
     static final class BufferedHarvester implements ServerTrackerVerifier.PlayerHarvester {
         private final PlayerSubmitService submitService;
         private final ServerTrackerMetric metrics;
         private final int batchSize;
         private final long minFlushIntervalNanos;
-        private final HoneypotSurgeGuard surgeGuard;
         private final List<HoneypotDetector.SampleEntry> buffer = new ArrayList<>();
         private long lastFlush;
         private long totalEnqueued;
 
         BufferedHarvester(PlayerSubmitService submitService, ServerTrackerMetric metrics, int batchSize,
-                          long enqueueRatePerMinute, HoneypotSurgeGuard surgeGuard) {
+                          long enqueueRatePerMinute) {
             this.submitService = submitService;
             this.metrics = metrics;
             this.batchSize = batchSize;
             this.minFlushIntervalNanos = TimeUnit.MINUTES.toNanos(1) / Math.max(1, enqueueRatePerMinute);
-            this.surgeGuard = surgeGuard;
         }
 
         @Override
         public synchronized int harvest(List<HoneypotDetector.SampleEntry> players) {
-            if (surgeGuard.paused()) {
-                return 0;
-            }
             buffer.addAll(players);
             if (buffer.size() >= batchSize) {
                 return flushLocked();
@@ -456,49 +436,6 @@ public class ServerTrackerService {
 
         synchronized long totalEnqueued() {
             return totalEnqueued;
-        }
-    }
-
-    /**
-     * Sliding window of the most recent verified-server honeypot verdicts. When the flagged
-     * ratio crosses the threshold, harvesting pauses for the cooldown (set-and-forget: the
-     * window keeps sliding and the guard re-arms automatically).
-     */
-    static final class HoneypotSurgeGuard {
-        private final boolean[] ring;
-        private final int maxFlagged;
-        private final long cooldownNanos;
-        private int head;
-        private int size;
-        private long pausedUntil;
-
-        HoneypotSurgeGuard(int window, int maxFlagged, long cooldownSeconds) {
-            this.ring = new boolean[Math.max(1, window)];
-            this.maxFlagged = maxFlagged;
-            this.cooldownNanos = TimeUnit.SECONDS.toNanos(cooldownSeconds);
-        }
-
-        synchronized boolean report(boolean flagged) {
-            ring[head] = flagged;
-            head = (head + 1) % ring.length;
-            if (size < ring.length) {
-                size++;
-            }
-            int count = 0;
-            for (int i = 0; i < size; i++) {
-                if (ring[i]) {
-                    count++;
-                }
-            }
-            if (count >= maxFlagged && !paused()) {
-                pausedUntil = System.nanoTime() + cooldownNanos;
-                return true;
-            }
-            return false;
-        }
-
-        boolean paused() {
-            return System.nanoTime() < pausedUntil;
         }
     }
 }

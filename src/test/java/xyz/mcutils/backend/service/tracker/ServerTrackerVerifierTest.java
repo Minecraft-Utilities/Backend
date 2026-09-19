@@ -190,4 +190,22 @@ class ServerTrackerVerifierTest {
             assertTrue(harness.harvested.size() < 3, "the repeated sample's players are dropped");
         }
     }
+
+    @Test
+    void flaggedBasePortSkipsTheWholeIp() throws Exception {
+        int base = FakeMinecraftServer.findBasePort(0, 1, 2);
+        String json = FakeMinecraftServer.statusJson("1.21", 1, 100,
+                "[" + FakeMinecraftServer.sampleEntry("Steve", STEVE.toString()) + "]");
+        try (TestHarness harness = new TestHarness(new FakeMinecraftServer(
+                List.of(base, base + 1), List.of(json, json)))) {
+            // max-identical-port-samples = 1 flags the host on the very first verified port.
+            ServerTrackerVerifier verifier = harness.verifier(3, 200, 50, 1);
+            ServerTrackerVerifier.HostResult result = verifier.verifyHost(IP, base);
+
+            assertEquals(1, result.serversFound(), "a flagged base port skips the port walk entirely");
+            assertTrue(result.honeypot());
+            assertEquals(0, harness.harvested.size(), "nothing from a flagged honeypot host is harvested");
+            assertEquals(1, harness.sink.size(), "the flagged server itself is still recorded");
+        }
+    }
 }

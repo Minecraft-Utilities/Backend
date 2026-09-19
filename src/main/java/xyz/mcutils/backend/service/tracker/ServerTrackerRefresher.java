@@ -33,8 +33,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * anything, overlapping instances/restarts cannot double-claim, and a crash mid-chunk costs
  * nothing (rows rotate back after the rest of the set). Anti-poisoning parity: every refresh
  * sample runs the same {@link HoneypotDetector} verdict as discovery; flagged servers persist
- * counts/version only, never samples. The refresh cycle never enqueues players — the queue
- * surge guard is a discovery-path concern.
+ * counts/version only, never samples, and the verifier skips honeypot-flagged hosts entirely
+ * (no port walk). The refresh cycle never enqueues players.
  * <p>
  * Not a Spring bean: {@link ServerTrackerService} constructs it after the context is ready.
  */

@@ -240,10 +240,6 @@ mc-utils:
       window-hours: 24
       # Identical sample on >N ports of one host flags the host.
       max-identical-port-samples: 3
-      # Automated harvest pause when N of the last window verified servers are honeypots.
-      surge-window: 100
-      surge-max-flagged: 10
-      surge-cooldown-seconds: 300
     ip:
       # Comma-separated extra CIDRs to skip (RFC 6890 + DoD ranges are always skipped).
       exclude-extra-cidrs: ""

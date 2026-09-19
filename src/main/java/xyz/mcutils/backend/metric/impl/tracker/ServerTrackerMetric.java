@@ -62,10 +62,6 @@ public class ServerTrackerMetric extends Metric<ServerTrackerMetric.Holder> {
                         .help("Sample fingerprints recognized as honeypot farms")
                         .register(MetricService.REGISTRY),
                 Counter.builder()
-                        .name("server_tracker_harvest_pauses_total")
-                        .help("Times harvesting was paused by the honeypot surge guard")
-                        .register(MetricService.REGISTRY),
-                Counter.builder()
                         .name("server_tracker_players_seen_first_total")
                         .help("Player-history rows inserted (players seen on a tracked server for the first time)")
                         .register(MetricService.REGISTRY),
@@ -141,10 +137,6 @@ public class ServerTrackerMetric extends Metric<ServerTrackerMetric.Holder> {
         getValue().honeypotFingerprints.inc();
     }
 
-    public void recordHarvestPause() {
-        getValue().harvestPauses.inc();
-    }
-
     public void recordPlayersSeenFirst(long count) {
         getValue().playersSeenFirst.inc(count);
     }
@@ -187,7 +179,6 @@ public class ServerTrackerMetric extends Metric<ServerTrackerMetric.Holder> {
             Counter sampleDropped,
             Counter honeypotServers,
             Counter honeypotFingerprints,
-            Counter harvestPauses,
             Counter playersSeenFirst,
             Counter geoLookupFailures,
             Counter refreshPings,

@@ -132,10 +132,15 @@ public class ServerTrackerVerifier {
             return NOT_A_SERVER;
         }
 
-        ServerOutcome outcome = handleServer(ip, discoveredPort, base.token(), base.latencyMs());
+        ServerOutcome baseOutcome = handleServer(ip, discoveredPort, base.token(), base.latencyMs());
         int serversFound = 1;
-        int playersEnqueued = outcome.playersEnqueued();
-        boolean honeypot = outcome.honeypot();
+        int playersEnqueued = baseOutcome.playersEnqueued();
+
+        // A honeypot is just a honeypot: flag it, record it, and skip the whole IP — no port
+        // walk, nothing further to harvest.
+        if (baseOutcome.honeypot()) {
+            return new HostResult(serversFound, playersEnqueued, true);
+        }
 
         // Sliding window: the ceiling is (last working port + window), recomputed per verified server.
         int lastWorking = discoveredPort;
@@ -150,10 +155,13 @@ public class ServerTrackerVerifier {
                 ServerOutcome walkOutcome = handleServer(ip, port, walk.token(), walk.latencyMs());
                 serversFound++;
                 playersEnqueued += walkOutcome.playersEnqueued();
-                honeypot |= walkOutcome.honeypot();
+                if (walkOutcome.honeypot()) {
+                    // Flagged mid-walk: skip the remaining ports of this IP.
+                    return new HostResult(serversFound, playersEnqueued, true);
+                }
             }
         }
-        return new HostResult(serversFound, playersEnqueued, honeypot);
+        return new HostResult(serversFound, playersEnqueued, false);
     }
 
     private ServerOutcome handleServer(String ip, int port, JavaServerStatusToken token, Integer latencyMs) {

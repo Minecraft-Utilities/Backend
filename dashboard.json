@@ -5941,28 +5941,6 @@
                     },
                     "refId": "B"
                   }
-                },
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "hidden": false,
-                    "query": {
-                      "datasource": {
-                        "name": "ffbmdvoh37lkwe"
-                      },
-                      "group": "victoriametrics-metrics-datasource",
-                      "kind": "DataQuery",
-                      "version": "v0",
-                      "spec": {
-                        "editorMode": "code",
-                        "expr": "rate(server_tracker_harvest_pauses_total{job=\"mc_utils\"}[1m])",
-                        "format": "time_series",
-                        "legendFormat": "harvest pauses",
-                        "range": true
-                      }
-                    },
-                    "refId": "C"
-                  }
                 }
               ],
               "queryOptions": {},
@@ -5972,7 +5950,7 @@
           "description": "",
           "id": 62,
           "links": [],
-          "title": "🛡️ Honeypot Flags & Pauses/s",
+          "title": "🛡️ Honeypot Flags & Farm Blocks/s",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
