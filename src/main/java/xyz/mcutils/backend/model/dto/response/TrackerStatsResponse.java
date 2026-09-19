@@ -5,7 +5,7 @@ import java.util.Map;
 /**
  * Public statistics of the internet server tracker.
  *
- * @param trackedServers total servers in {@code tracked_servers} (incl. honeypot-flagged)
+ * @param trackedServers total servers in {@code tracker_servers} (incl. honeypot-flagged)
  * @param trackedPlayers distinct players ever seen across all tracked servers
  * @param onlinePlayers  sum of {@code online_count} over alive, non-honeypot servers
  * @param geo            top-10 country ISO code -> server count

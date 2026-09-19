@@ -60,7 +60,7 @@ public class ServerTrackerVerifier {
 
     /**
      * Persists a verified server snapshot. The production implementation writes to
-     * {@code tracked_servers} + {@code player_history} + {@code server_online_history};
+     * {@code tracker_servers} + {@code tracker_player_history} + {@code tracker_server_online_history};
      * alternative implementations may collect snapshots.
      */
     public interface ServerTrackerSink {

@@ -24,14 +24,14 @@ import java.util.UUID;
 import java.util.function.Function;
 
 /**
- * Persists verified-server snapshots into the tracker dataset: {@code tracked_servers} rows
- * (full telemetry upsert, {@code first_seen} preserved), {@code player_history} rows (UUID-keyed
+ * Persists verified-server snapshots into the tracker dataset: {@code tracker_servers} rows
+ * (full telemetry upsert, {@code first_seen} preserved), {@code tracker_player_history} rows (UUID-keyed
  * upsert: existing rows bump {@code times_seen} + {@code last_seen}, new rows count as first
- * sightings) and {@code server_online_history} samples.
+ * sightings) and {@code tracker_server_online_history} samples.
  * <p>
  * Buffered like {@code BufferedHarvester}: callers (verify pool, refresh cycle) never block on
  * the database — snapshots accumulate and {@link #flush()} writes them in a few batched,
- * multi-row statements. Every flush upserts the {@code tracked_servers} rows first and keys
+ * multi-row statements. Every flush upserts the {@code tracker_servers} rows first and keys
  * the player/history rows by the canonical uuid that upsert returns, so the foreign keys always
  * resolve — brand-new discovery finds and concurrent flushes cannot orphan child rows. Geo
  * enrichment runs once per <b>new</b> server inside the flush, never on refresh.
@@ -160,10 +160,10 @@ public class ServerTrackerStore {
                 });
             }
 
-            // Parent rows first: the tracked_servers upsert returns the canonical uuid of every
+            // Parent rows first: the tracker_servers upsert returns the canonical uuid of every
             // row (a losing random candidate from a concurrent flush on the same new server is
             // discarded by ON CONFLICT (ip, port)); the child rows below must reference a uuid
-            // that actually exists in tracked_servers or the foreign keys reject them.
+            // that actually exists in tracker_servers or the foreign keys reject them.
             List<UUID> serverUuids = executeChunkedReturningUuids(serverUpsertSql(), rows -> placeholders(rows, 24), serverRows);
 
             List<Object[]> playerMatches = new ArrayList<>();
@@ -250,7 +250,7 @@ public class ServerTrackerStore {
     }
 
     /**
-     * Upserts the tracked_servers rows and returns the canonical uuid of each, in input order.
+     * Upserts the tracker_servers rows and returns the canonical uuid of each, in input order.
      * {@code ON CONFLICT DO UPDATE ... RETURNING} emits one row per VALUES row (the inserted row,
      * or the row as updated after any conflict) — including two rows targeting the same
      * (ip, port), which both yield the uuid that survived the upsert.
@@ -266,7 +266,7 @@ public class ServerTrackerStore {
             ));
         }
         if (uuids.size() != rows.size()) {
-            throw new IllegalStateException("tracked_servers upsert returned " + uuids.size() + " uuids for " + rows.size() + " rows");
+            throw new IllegalStateException("tracker_servers upsert returned " + uuids.size() + " uuids for " + rows.size() + " rows");
         }
         return uuids;
     }
@@ -311,15 +311,15 @@ public class ServerTrackerStore {
 
     private static String playerUpdateSql() {
         return """
-                UPDATE player_history SET username = v.username, last_seen = v.last_seen::timestamptz, times_seen = player_history.times_seen + 1
+                UPDATE tracker_player_history SET username = v.username, last_seen = v.last_seen::timestamptz, times_seen = tracker_player_history.times_seen + 1
                 FROM (VALUES %s) AS v(server_uuid, player_uuid, username, last_seen)
-                WHERE player_history.server_uuid = v.server_uuid::uuid AND player_history.player_uuid = v.player_uuid::uuid
+                WHERE tracker_player_history.server_uuid = v.server_uuid::uuid AND tracker_player_history.player_uuid = v.player_uuid::uuid
                 """;
     }
 
     private static String playerInsertSql() {
         return """
-                INSERT INTO player_history (server_uuid, player_uuid, username, first_seen, last_seen, times_seen)
+                INSERT INTO tracker_player_history (server_uuid, player_uuid, username, first_seen, last_seen, times_seen)
                 VALUES %s
                 ON CONFLICT (server_uuid, player_uuid) DO NOTHING
                 """;
@@ -338,7 +338,7 @@ public class ServerTrackerStore {
 
     private static String onlineHistoryUpsertSql() {
         return """
-                INSERT INTO server_online_history (server_uuid, sampled_at, online, max, version)
+                INSERT INTO tracker_server_online_history (server_uuid, sampled_at, online, max, version)
                 VALUES %s
                 ON CONFLICT (server_uuid, sampled_at) DO UPDATE SET
                     online = EXCLUDED.online,
@@ -349,7 +349,7 @@ public class ServerTrackerStore {
 
     private static String serverUpsertSql() {
         return """
-                INSERT INTO tracked_servers (uuid, ip, port, first_seen, last_updated, online_count, max_players,
+                INSERT INTO tracker_servers (uuid, ip, port, first_seen, last_updated, online_count, max_players,
                     version, protocol, platform, motd, motd_hash, favicon_hash, modded, latency_ms,
                     prevents_chat_reports, enforces_secure_chat, previews_chat, country, asn,
                     sample_count, honeypot, consecutive_offline, last_refreshed)
@@ -369,10 +369,10 @@ public class ServerTrackerStore {
                     prevents_chat_reports = EXCLUDED.prevents_chat_reports,
                     enforces_secure_chat = EXCLUDED.enforces_secure_chat,
                     previews_chat = EXCLUDED.previews_chat,
-                    country = COALESCE(EXCLUDED.country, tracked_servers.country),
-                    asn = COALESCE(EXCLUDED.asn, tracked_servers.asn),
+                    country = COALESCE(EXCLUDED.country, tracker_servers.country),
+                    asn = COALESCE(EXCLUDED.asn, tracker_servers.asn),
                     sample_count = EXCLUDED.sample_count,
-                    honeypot = tracked_servers.honeypot OR EXCLUDED.honeypot,
+                    honeypot = tracker_servers.honeypot OR EXCLUDED.honeypot,
                     consecutive_offline = 0
                 RETURNING uuid
                 """;

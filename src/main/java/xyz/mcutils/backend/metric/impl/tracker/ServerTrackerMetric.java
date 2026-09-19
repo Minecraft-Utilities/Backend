@@ -88,7 +88,7 @@ public class ServerTrackerMetric extends Metric<ServerTrackerMetric.Holder> {
                         .register(MetricService.REGISTRY),
                 GaugeWithCallback.builder()
                         .name("server_tracker_tracked_servers")
-                        .help("Tracked servers currently in tracked_servers")
+                        .help("Tracked servers currently in tracker_servers")
                         .callback(callback -> callback.call(TRACKED_SERVERS.get()))
                         .register(MetricService.REGISTRY),
                 GaugeWithCallback.builder()

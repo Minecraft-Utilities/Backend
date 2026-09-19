@@ -20,7 +20,7 @@ import java.util.UUID;
  * column tracks the latest advertised name.
  */
 @Entity
-@Table(name = "player_history")
+@Table(name = "tracker_player_history")
 @IdClass(PlayerHistoryRow.PlayerHistoryId.class)
 @Getter
 @Setter

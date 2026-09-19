@@ -18,9 +18,9 @@ is the first consumer of the dataset.
 
 | Counter | Definition | Source query |
 |---|---|---|
-| `trackedServers` | total servers in `tracked_servers` (incl. honeypot-flagged) | `SELECT COUNT(*) FROM tracked_servers` |
-| `trackedPlayers` | distinct players ever seen across all tracked servers | `SELECT COUNT(DISTINCT player_uuid) FROM player_history` |
-| `onlinePlayers` | sum of `online_count` over **alive, non-honeypot** servers | `SELECT COALESCE(SUM(online_count), 0) FROM tracked_servers WHERE consecutive_offline = 0 AND NOT honeypot` |
+| `trackedServers` | total servers in `tracker_servers` (incl. honeypot-flagged) | `SELECT COUNT(*) FROM tracker_servers` |
+| `trackedPlayers` | distinct players ever seen across all tracked servers | `SELECT COUNT(DISTINCT player_uuid) FROM tracker_player_history` |
+| `onlinePlayers` | sum of `online_count` over **alive, non-honeypot** servers | `SELECT COALESCE(SUM(online_count), 0) FROM tracker_servers WHERE consecutive_offline = 0 AND NOT honeypot` |
 
 Why exclude honeypots from `onlinePlayers`: their counts are fabricated sample-bait; including
 them pollutes the headline number. `trackedServers` still counts them (they are tracked and
@@ -30,9 +30,9 @@ flagged — that flag is part of the dataset).
 
 | Field | Key | Source query |
 |---|---|---|
-| `geo` | country ISO code (`VARCHAR(2)`); unknown-country rows excluded | `SELECT country, COUNT(*) FROM tracked_servers WHERE country IS NOT NULL GROUP BY country ORDER BY COUNT(*) DESC LIMIT 10` |
-| `platform` | server-software string from version name (`Paper`, `Spigot`, `Forge`, plain version → `unknown`), **keys lowercased** so one canonical bucket per software; `Platform` enum not involved (edition vs software) | `SELECT LOWER(COALESCE(platform, 'unknown')), COUNT(*) FROM tracked_servers GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 10` |
-| `protocol` | status-protocol number (JSON keys render as strings); unknown excluded | `SELECT protocol, COUNT(*) FROM tracked_servers WHERE protocol IS NOT NULL GROUP BY protocol ORDER BY COUNT(*) DESC LIMIT 10` |
+| `geo` | country ISO code (`VARCHAR(2)`); unknown-country rows excluded | `SELECT country, COUNT(*) FROM tracker_servers WHERE country IS NOT NULL GROUP BY country ORDER BY COUNT(*) DESC LIMIT 10` |
+| `platform` | server-software string from version name (`Paper`, `Spigot`, `Forge`, plain version → `unknown`), **keys lowercased** so one canonical bucket per software; `Platform` enum not involved (edition vs software) | `SELECT LOWER(COALESCE(platform, 'unknown')), COUNT(*) FROM tracker_servers GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 10` |
+| `protocol` | status-protocol number (JSON keys render as strings); unknown excluded | `SELECT protocol, COUNT(*) FROM tracker_servers WHERE protocol IS NOT NULL GROUP BY protocol ORDER BY COUNT(*) DESC LIMIT 10` |
 
 Repo constraints: no `pom.xml` changes; strict Controller → Service → Repository layering;
 record DTOs; explicit `{}` braces.
@@ -72,8 +72,8 @@ Controller: new `controller/TrackerController` — `@RestController`, `@RequestM
 
 - `GET /servers/tracker` — paginated tracked-server list (uuid, ip, port, version, online, last_updated).
 - `GET /servers/tracker/{uuid}` — single-server detail + latest online-history point.
-- `GET /servers/tracker/{uuid}/history` — `server_online_history` series.
-- `GET /servers/tracker/players/{uuid}` — reverse `player_history` lookup: servers a player was seen on, with first/last seen.
+- `GET /servers/tracker/{uuid}/history` — `tracker_server_online_history` series.
+- `GET /servers/tracker/players/{uuid}` — reverse `tracker_player_history` lookup: servers a player was seen on, with first/last seen.
 - `GET /servers/tracker/stats` remains backward-compatible through all of these (fields may only grow).
 
 ---
@@ -111,7 +111,7 @@ Follows the existing `StatisticsService` pattern (in-memory counters, async DB l
 | Service | `service/TrackerStatsService.java` | counters + breakdowns, async load, scheduled + cycle-triggered refresh |
 | Repository | `repository/postgres/TrackedServerRepository.java` | `findByIpAndPort` (store reuse) + `@Query` count/sum/group-by projections (`interface Breakdown { String getKey(); long getCount(); }`) |
 | Repository | `repository/postgres/PlayerHistoryRepository.java` | `@Query` distinct-player count |
-| Metric | `ServerTrackerMetric` | `tracked_servers` gauge fed by the same counters (`docs/SERVER_TRACKER_PLAN.md` §10) |
+| Metric | `ServerTrackerMetric` | `tracker_servers` gauge fed by the same counters (`docs/SERVER_TRACKER_PLAN.md` §10) |
 
 ---
 

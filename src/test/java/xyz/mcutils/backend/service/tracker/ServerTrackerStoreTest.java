@@ -36,7 +36,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Exercises {@link ServerTrackerStore}: buffering (no DB until flush), tracking-disabled no-op,
- * the batched multi-row statement arities (tracked_servers rows carry 24 columns, player inserts
+ * the batched multi-row statement arities (tracker_servers rows carry 24 columns, player inserts
  * 5, player updates 4, online history 5), geo enrichment on new servers and geo-failure
  * resilience. The SQL semantics themselves are verified against real Postgres in the staged
  * rollout (the project has no DB test harness).
@@ -100,7 +100,7 @@ class ServerTrackerStoreTest {
         assertEquals(2, store.flush());
 
         // 2 snapshots x 24 columns = one statement with 48 args: both rows batched together.
-        List<Object[]> serverRows = captured.argsFor("INSERT INTO tracked_servers");
+        List<Object[]> serverRows = captured.argsFor("INSERT INTO tracker_servers");
         assertEquals(1, serverRows.size(), "all server rows share one multi-row statement");
         Object[] serverRow = serverRows.get(0);
         assertEquals(48, serverRow.length, "two server rows x 24 columns");
@@ -110,15 +110,15 @@ class ServerTrackerStoreTest {
         assertEquals("US", serverRow[18], "existing row keeps its country");
         assertEquals(13335L, serverRow[19], "existing row keeps its asn");
 
-        List<Object[]> playerArgs = captured.argsFor("INSERT INTO player_history");
+        List<Object[]> playerArgs = captured.argsFor("INSERT INTO tracker_player_history");
         assertEquals(1, playerArgs.size());
         assertEquals(10, playerArgs.get(0).length, "two player inserts x 5 columns");
 
-        List<Object[]> updateArgs = captured.argsFor("UPDATE player_history");
+        List<Object[]> updateArgs = captured.argsFor("UPDATE tracker_player_history");
         assertEquals(1, updateArgs.size());
         assertEquals(8, updateArgs.get(0).length, "two player updates x 4 columns");
 
-        List<Object[]> historyArgs = captured.argsFor("INSERT INTO server_online_history");
+        List<Object[]> historyArgs = captured.argsFor("INSERT INTO tracker_server_online_history");
         assertEquals(1, historyArgs.size());
         assertEquals(10, historyArgs.get(0).length, "two history rows x 5 columns");
 
@@ -142,7 +142,7 @@ class ServerTrackerStoreTest {
         store.record(snapshot(3));
         assertEquals(1, store.flush());
 
-        Object[] serverRow = captured.argsFor("INSERT INTO tracked_servers").get(0);
+        Object[] serverRow = captured.argsFor("INSERT INTO tracker_servers").get(0);
         assertEquals(24, serverRow.length);
         assertEquals("US", serverRow[18], "country from MaxMind");
         assertEquals(12345L, serverRow[19], "asn number parsed from the AS-prefixed string");
@@ -164,7 +164,7 @@ class ServerTrackerStoreTest {
         store.record(snapshot(3));
         assertEquals(1, store.flush(), "geo failure must not fail the flush");
 
-        Object[] serverRow = captured.argsFor("INSERT INTO tracked_servers").get(0);
+        Object[] serverRow = captured.argsFor("INSERT INTO tracker_servers").get(0);
         assertNull(serverRow[18], "country stays NULL when geo lookup fails");
         assertNull(serverRow[19], "asn stays NULL when geo lookup fails");
     }
@@ -185,7 +185,7 @@ class ServerTrackerStoreTest {
     @Test
     void childRowsReferenceTheCanonicalUuidReturnedByTheServerUpsert() throws Exception {
         // A brand-new server (discovery find): the flush submits its own candidate uuid, but the
-        // upsert's RETURNING hands back the uuid that actually survived in tracked_servers (a
+        // upsert's RETURNING hands back the uuid that actually survived in tracker_servers (a
         // concurrent flush may have inserted the row first). Child rows must key on that
         // canonical uuid — the losing candidate does not exist yet, so the FK would reject it.
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
@@ -207,11 +207,11 @@ class ServerTrackerStoreTest {
         store.record(snapshot(3));
         assertEquals(1, store.flush());
 
-        Object[] serverRow = captured.argsFor("INSERT INTO tracked_servers").get(0);
+        Object[] serverRow = captured.argsFor("INSERT INTO tracker_servers").get(0);
         UUID candidate = (UUID) serverRow[0];
         assertNotEquals(winner, candidate, "the flush submits its own candidate uuid for a new server");
-        assertEquals(winner, captured.argsFor("INSERT INTO player_history").get(0)[0], "player rows key on the canonical uuid");
-        assertEquals(winner, captured.argsFor("INSERT INTO server_online_history").get(0)[0], "history rows key on the canonical uuid");
+        assertEquals(winner, captured.argsFor("INSERT INTO tracker_player_history").get(0)[0], "player rows key on the canonical uuid");
+        assertEquals(winner, captured.argsFor("INSERT INTO tracker_server_online_history").get(0)[0], "history rows key on the canonical uuid");
     }
 
     /** Captures every (sql, args) pair the store sends, replaying the setters via a proxy. */
@@ -221,7 +221,7 @@ class ServerTrackerStoreTest {
             captured.add(invocation.getArgument(0), invocation.getArgument(1));
             return 1;
         });
-        // The tracked_servers upsert runs through query() with a RowMapper and yields the
+        // The tracker_servers upsert runs through query() with a RowMapper and yields the
         // canonical uuid of each row; default to echoing the candidate uuid the store
         // submitted so the child rows stay consistent with the captured server rows.
         when(jdbc.query(anyString(), any(PreparedStatementSetter.class), any(RowMapper.class))).thenAnswer(invocation -> {

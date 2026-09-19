@@ -56,7 +56,7 @@ public class UUIDUtils {
      * Generates a version 7 (time-ordered) UUID per RFC 9562: a 48-bit Unix-epoch-millisecond
      * timestamp prefix followed by random bits. Unlike {@link UUID#randomUUID()} (version 4),
      * values are roughly monotonic in creation order, so inserts into a UUID primary key
-     * (e.g. {@code tracked_servers.uuid}) stay B-tree local instead of scattering pages.
+     * (e.g. {@code tracker_servers.uuid}) stay B-tree local instead of scattering pages.
      * Thread-safe; uses {@link ThreadLocalRandom} — these are database keys, not secrets, so
      * the SecureRandom cost of {@code randomUUID()} is unnecessary.
      */

@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Cached public statistics of the tracked-server dataset, served entirely from memory: requests
- * never touch the database (the {@code COUNT(DISTINCT player_uuid)} over player_history is far
+ * never touch the database (the {@code COUNT(DISTINCT player_uuid)} over tracker_player_history is far
  * too expensive for per-request work).
  * <p>
  * Follows the {@code StatisticsService} pattern: counters are loaded in memory at

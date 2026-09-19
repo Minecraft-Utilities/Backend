@@ -16,7 +16,7 @@ import java.util.UUID;
  * by discovery verifications and refresh-cycle pings.
  */
 @Entity
-@Table(name = "tracked_servers")
+@Table(name = "tracker_servers")
 @Getter
 @Setter
 @NoArgsConstructor

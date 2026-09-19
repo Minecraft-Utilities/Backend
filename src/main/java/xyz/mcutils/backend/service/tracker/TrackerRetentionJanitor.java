@@ -9,10 +9,10 @@ import xyz.mcutils.backend.metric.impl.tracker.ServerTrackerMetric;
 import xyz.mcutils.backend.service.MetricService;
 
 /**
- * Retention janitor for {@code server_online_history} (grows ~400k rows/day at the default 6h
+ * Retention janitor for {@code tracker_server_online_history} (grows ~400k rows/day at the default 6h
  * refresh gap). Runs daily: raw samples older than {@code raw-retention-days} are downsampled
  * into hourly buckets (peak online per bucket), the raw rows are then deleted, and everything
- * older than {@code hourly-retention-days} is pruned. {@code player_history} is bounded by
+ * older than {@code hourly-retention-days} is pruned. {@code tracker_player_history} is bounded by
  * distinct (server, player) pairs and needs no janitor.
  */
 @Service
@@ -20,12 +20,12 @@ import xyz.mcutils.backend.service.MetricService;
 public class TrackerRetentionJanitor {
 
     private static final String DOWNSAMPLE_SQL = """
-            INSERT INTO server_online_history (server_uuid, sampled_at, online, max, version)
+            INSERT INTO tracker_server_online_history (server_uuid, sampled_at, online, max, version)
             SELECT server_uuid, hour, online, max, version
             FROM (
                 SELECT server_uuid, date_trunc('hour', sampled_at) AS hour, online, max, version,
                        ROW_NUMBER() OVER (PARTITION BY server_uuid, date_trunc('hour', sampled_at) ORDER BY online DESC) AS rn
-                FROM server_online_history
+                FROM tracker_server_online_history
                 WHERE sampled_at < now() - make_interval(days => ?)
             ) t
             WHERE rn = 1
@@ -33,13 +33,13 @@ public class TrackerRetentionJanitor {
             """;
 
     private static final String DELETE_RAW_SQL = """
-            DELETE FROM server_online_history
+            DELETE FROM tracker_server_online_history
             WHERE sampled_at < now() - make_interval(days => ?)
               AND date_trunc('hour', sampled_at) <> sampled_at
             """;
 
     private static final String DELETE_OLD_SQL = """
-            DELETE FROM server_online_history
+            DELETE FROM tracker_server_online_history
             WHERE sampled_at < now() - make_interval(days => ?)
             """;
 

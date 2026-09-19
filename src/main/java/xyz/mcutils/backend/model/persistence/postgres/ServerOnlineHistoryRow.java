@@ -19,7 +19,7 @@ import java.util.UUID;
  * One online-count sample of a tracked server (popularity/uptime time series).
  */
 @Entity
-@Table(name = "server_online_history")
+@Table(name = "tracker_server_online_history")
 @IdClass(ServerOnlineHistoryRow.ServerOnlineHistoryId.class)
 @Getter
 @Setter

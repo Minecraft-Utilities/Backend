@@ -146,9 +146,9 @@ public class ServerTrackerRefresher {
      */
     private List<ClaimedServer> claim() {
         String sql = """
-                UPDATE tracked_servers SET last_refreshed = now()
+                UPDATE tracker_servers SET last_refreshed = now()
                 WHERE uuid IN (
-                    SELECT uuid FROM tracked_servers
+                    SELECT uuid FROM tracker_servers
                     WHERE last_refreshed < now() - make_interval(hours => ?)
                     ORDER BY last_refreshed ASC
                     LIMIT ?
@@ -292,7 +292,7 @@ public class ServerTrackerRefresher {
 
     private void recordOffline(UUID serverUuid) {
         try {
-            jdbcTemplate.update("UPDATE tracked_servers SET consecutive_offline = consecutive_offline + 1 WHERE uuid = ?", serverUuid);
+            jdbcTemplate.update("UPDATE tracker_servers SET consecutive_offline = consecutive_offline + 1 WHERE uuid = ?", serverUuid);
         } catch (Exception e) {
             log.debug("Failed to bump consecutive_offline for {}: {}", serverUuid, e.toString());
         }

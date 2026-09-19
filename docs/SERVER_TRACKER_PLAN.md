@@ -59,7 +59,7 @@ Components (old → new):
 | `ServerScanVerifier` | `ServerTrackerVerifier` | + `ServerSnapshot` sink (§6) |
 | `ServerScannerMetric` | `ServerTrackerMetric` | absorbs refresh + tracked metrics (§10) |
 | `ScanProgressRow` / `scan_progress` | `TrackerProgressRow` / `tracker_progress` | renamed in migration |
-| `ScannedServerRow` / `scanned_servers` | `TrackedServerRow` / `tracked_servers` | full telemetry row (§4) |
+| `ScannedServerRow` / `scanned_servers` | `TrackedServerRow` / `tracker_servers` | full telemetry row (§4) |
 | `ServerScannerRepository` | `ServerTrackerRepository` | + `PlayerHistoryRepository`, `TrackerProgressRepository` |
 | config `mc-utils.server-scanner.*` | `mc-utils.server-tracker.*` | §9 |
 | log prefix "Server scanner" | "Server tracker" | |
@@ -114,7 +114,7 @@ Creates the tracked dataset, migrates `scanned_servers` rows, renames `scan_prog
 ```sql
 ALTER TABLE scan_progress RENAME TO tracker_progress;
 
-CREATE TABLE tracked_servers (
+CREATE TABLE tracker_servers (
     uuid                UUID        PRIMARY KEY,          -- surrogate id; protocol advertises none
     ip                  VARCHAR(45) NOT NULL,
     port                INTEGER     NOT NULL,
@@ -143,10 +143,10 @@ CREATE TABLE tracked_servers (
 );
 
 -- Refresh cycle: least-recently-refreshed first; every server equal (see §5)
-CREATE INDEX idx_tracked_servers_refresh ON tracked_servers (last_refreshed);
+CREATE INDEX idx_tracked_servers_refresh ON tracker_servers (last_refreshed);
 
-CREATE TABLE player_history (
-    server_uuid UUID        NOT NULL REFERENCES tracked_servers(uuid) ON DELETE CASCADE,
+CREATE TABLE tracker_player_history (
+    server_uuid UUID        NOT NULL REFERENCES tracker_servers(uuid) ON DELETE CASCADE,
     player_uuid UUID        NOT NULL,                     -- sample always carries uuid+name
     username    VARCHAR(16) NOT NULL,                     -- updated on rename (uuid stays key)
     first_seen  TIMESTAMPTZ NOT NULL,
@@ -154,11 +154,11 @@ CREATE TABLE player_history (
     times_seen  INTEGER     NOT NULL DEFAULT 1,
     PRIMARY KEY (server_uuid, player_uuid)
 );
-CREATE INDEX idx_player_history_player ON player_history (player_uuid);
-CREATE INDEX idx_player_history_username ON player_history (username);
+CREATE INDEX idx_player_history_player ON tracker_player_history (player_uuid);
+CREATE INDEX idx_player_history_username ON tracker_player_history (username);
 
-CREATE TABLE server_online_history (                       -- popularity/uptime time series
-    server_uuid UUID        NOT NULL REFERENCES tracked_servers(uuid) ON DELETE CASCADE,
+CREATE TABLE tracker_server_online_history (                       -- popularity/uptime time series
+    server_uuid UUID        NOT NULL REFERENCES tracker_servers(uuid) ON DELETE CASCADE,
     sampled_at  TIMESTAMPTZ NOT NULL,
     online      INTEGER     NOT NULL,
     max         INTEGER     NOT NULL,
@@ -167,8 +167,8 @@ CREATE TABLE server_online_history (                       -- popularity/uptime 
 );
 -- optional later: tracked_server_mods (server_uuid, mod_id, version) from ForgeData.mods
 
--- Backfill old scanner rows into tracked_servers, then drop the old table
-INSERT INTO tracked_servers (uuid, ip, port, first_seen, last_updated, sample_count, honeypot)
+-- Backfill old scanner rows into tracker_servers, then drop the old table
+INSERT INTO tracker_servers (uuid, ip, port, first_seen, last_updated, sample_count, honeypot)
 SELECT gen_random_uuid(), ip, port, first_seen, last_seen, sample_count, honeypot
 FROM scanned_servers;
 DROP TABLE scanned_servers;
@@ -179,7 +179,7 @@ Notes:
 - Two timestamps with different meanings: `last_updated` = last **successful** status fetch
   (data staleness, freezes when a server dies; the originally requested column) and
   `last_refreshed` = last refresh **attempt** (cycle order, bumps on every claim; see §5).
-- `player_history` is keyed by `player_uuid` (not username): usernames rename, UUIDs are stable;
+- `tracker_player_history` is keyed by `player_uuid` (not username): usernames rename, UUIDs are stable;
   the username column is kept and updated on rename.
 - Backfilled rows start with `online_count = 0` and NULL `version`/`protocol`/`platform`/
   `country`/`asn` (not known historically); `last_refreshed = epoch` makes them refreshable
@@ -187,10 +187,10 @@ Notes:
 - Only post-honeypot-verdict players are written (same list the harvester gets).
 - `motd` is stored truncated to 1024 chars (cleaned text); `motd_hash`/`favicon_hash` are
   SHA-256 of the raw canonical payloads (32-byte `BYTEA`).
-- Store write semantics are upserts, not inserts: `tracked_servers` conflicts on `(ip, port)` —
-  first_seen preserved, all other fields overwritten; `server_online_history` conflicts on
+- Store write semantics are upserts, not inserts: `tracker_servers` conflicts on `(ip, port)` —
+  first_seen preserved, all other fields overwritten; `tracker_server_online_history` conflicts on
   `(server_uuid, sampled_at)` — last write in a flush window wins (two refreshes of the same
-  server can land in one flush); `player_history` conflicts on the PK — first_seen preserved,
+  server can land in one flush); `tracker_player_history` conflicts on the PK — first_seen preserved,
   username/last_seen/times_seen updated (`times_seen++`).
 
 ---
@@ -204,7 +204,7 @@ first — one timestamp per row (`last_refreshed`), no future-dated bookkeeping 
 **Claim** (transactional, Postgres-native):
 
 ```sql
-SELECT uuid, ip, port FROM tracked_servers
+SELECT uuid, ip, port FROM tracker_servers
 WHERE last_refreshed < now() - make_interval(hours => :minGapHours)
 ORDER BY last_refreshed ASC
 LIMIT :chunkSize
@@ -230,7 +230,7 @@ on the very next cycle; legacy rows converge the same way). No per-row schedulin
 `orTimeout(CHUNK_TIMEOUT).join()` (CHUNK_TIMEOUT = 10 min, mirroring the player system; per-ping
 socket timeout = `verify.timeout-ms`), per-server outcomes counted. Per server, token-only ping
 (no DNS, no Redis, no geo re-lookup). **Anti-poisoning parity:** every refresh sample runs the
-same `HoneypotDetector` evaluate as discovery; the verdict gates both `player_history` writes
+same `HoneypotDetector` evaluate as discovery; the verdict gates both `tracker_player_history` writes
 and queue harvest identically — a server newly flagged as honeypot on a refresh gets flagged in
 the store and its sample dropped. Honeypot-flagged hosts are skipped entirely by the verifier:
 no port walk, nothing harvested from the IP (it's just a honeypot — no harvest pauses):
@@ -260,8 +260,8 @@ worker time spread across the day — negligible vs. the discovery campaign.
   flags, verdict players, honeypot flag. `handleServer` already has the full token in scope —
   no extra pings; latency = nanoTime around the existing `ping()` call.
 - `persistScannedServer` moves into `ServerTrackerStore` (Spring service): upsert server row +
-  one batched `INSERT ... ON CONFLICT` for player_history (native multi-row statement via
-  JdbcTemplate — **no pom.xml changes**) + one `server_online_history` row per sighting.
+  one batched `INSERT ... ON CONFLICT` for tracker_player_history (native multi-row statement via
+  JdbcTemplate — **no pom.xml changes**) + one `tracker_server_online_history` row per sighting.
 - **Geo enrichment** — `MaxMindService.lookupIp(ip)` (`@Cacheable "geoLookup"`, returns
   `IpLookup` with `GeoLocation` + `AsnLookup`): once per **new** server (first sight, inside
   the store flush, not on refresh), gated by `tracking.geo.enabled`. `platform`/`protocol`
@@ -285,8 +285,8 @@ worker time spread across the day — negligible vs. the discovery campaign.
 
 ## 7. Retention janitor
 
-`server_online_history` grows ~400k rows/day at the 6h cadence → scheduled prune: raw rows
-kept 30 days, downsampled to hourly for 90, then deleted. `player_history` is bounded by
+`tracker_server_online_history` grows ~400k rows/day at the 6h cadence → scheduled prune: raw rows
+kept 30 days, downsampled to hourly for 90, then deleted. `tracker_player_history` is bounded by
 distinct (server, player) pairs and needs no janitor.
 
 ---
@@ -299,8 +299,8 @@ when a server changes IP), latency, secure-chat flags (public "chat-report-safe"
 country+ASN (server distribution stats).
 
 **Tier 2 — later, cheap:** mod lists (`tracked_server_mods`) → most common mods on public
-servers; version drift detection (from `server_online_history.version`); player networks
-(players seen on ≥2 servers ⇒ networked hosts, one query over `player_history`); uptime stats.
+servers; version drift detection (from `tracker_server_online_history.version`); player networks
+(players seen on ≥2 servers ⇒ networked hosts, one query over `tracker_player_history`); uptime stats.
 
 **Out of scope:** Bedrock probing, per-player session tracking (status protocol samples only).
 
@@ -372,7 +372,7 @@ the submit pipeline) and is omitted:
   `tracker_progress_24s` gauge;
 - anti-honeypot (renamed): `sample_entries_dropped_total{reason}`,
   `honeypot_servers_flagged_total`, `honeypot_fingerprints_blocked_total`;
-- tracked dataset (new): `tracked_servers` gauge — **single-sourced from the
+- tracked dataset (new): `tracker_servers` gauge — **single-sourced from the
   `TrackerStatsService` snapshot** (never a second counter in the store/refresh paths),
   `players_seen_first_total`, `geo_lookup_failures_total`;
 - refresh (new): `refresh_pings_total`, `refresh_persisted_total`,
@@ -403,7 +403,7 @@ against real Postgres in the staged rollout.
 - janitor retention math;
 - `TrackerIntegrationTest` (existing `ScannerIntegrationTest`, renamed, reusing
   `FakeMinecraftServer`) extended to assert version/online/max/platform land in
-  `tracked_servers` and player history rows are written exactly for post-verdict players.
+  `tracker_servers` and player history rows are written exactly for post-verdict players.
 
 ---
 
@@ -413,7 +413,7 @@ against real Postgres in the staged rollout.
    renames per §2, `scan_progress` → `tracker_progress` via migration; **migrate deployment
    env vars to `mc-utils.server-tracker.*` and update `dashboard.json` metric names** (see §9
    hazard note); `mvn test` green (behavior unchanged).
-2. `V43__server_tracker.sql` (tracked_servers + player_history + server_online_history +
+2. `V43__server_tracker.sql` (tracker_servers + tracker_player_history + tracker_server_online_history +
    backfill + drop + rename) + entities/repos.
 3. `ServerSnapshot` + verifier sink refactor + latency capture; update existing tests.
 4. `ServerTrackerStore` (batched upserts, buffered flush, geo enrichment) wired into
