@@ -15,6 +15,7 @@ import xyz.mcutils.backend.service.MetricService;
 import xyz.mcutils.backend.service.PlayerSubmitService;
 import xyz.mcutils.backend.service.pinger.impl.JavaMinecraftServerPinger;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -285,7 +286,7 @@ public class ServerScannerService {
         long total = space.public24Count();
         if (total > 0) {
             double percent = completed * 100.0 / total;
-            String eta = perMinute > 0 ? ", ETA " + formatEta((long) ((total - completed) / (perMinute / 60.0))) : "";
+            String eta = perMinute > 0 ? ", ETA " + formatEta(Duration.ofSeconds(Math.max(0, (total - completed) * 60 / perMinute))) : "";
             log.info("Server scanner progress: {} / {} /24 subnets ({}%), {} /24s/min, ~{} probes/s{}, servers found={}, players enqueued={}",
                     completed, total, String.format(Locale.ROOT, "%.1f", percent),
                     perMinute, perMinute * 254L / 60L, eta, serversFound.get(), harvester.totalEnqueued());
@@ -295,10 +296,10 @@ public class ServerScannerService {
         }
     }
 
-    private static String formatEta(long seconds) {
-        long days = seconds / 86_400;
-        long hours = (seconds % 86_400) / 3_600;
-        long minutes = (seconds % 3_600) / 60;
+    private static String formatEta(Duration eta) {
+        long days = eta.toDays();
+        long hours = eta.toHoursPart();
+        long minutes = eta.toMinutesPart();
         if (days > 0) {
             return days + "d " + hours + "h";
         }
