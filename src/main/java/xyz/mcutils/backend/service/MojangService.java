@@ -74,6 +74,24 @@ public class MojangService {
     }
 
     /**
+     * Gets the full name history for the player with the given UUID.
+     *
+     * @param id the uuid of the player
+     * @return the name history, oldest to newest; empty if unavailable
+     */
+    public List<MojangNameHistoryToken> getNameHistory(String id) {
+        long start = System.currentTimeMillis();
+        boolean success = false;
+        try {
+            MojangNameHistoryToken[] result = webRequest.mojangProfileRequest(API_ENDPOINT + "/user/profile/" + id + "/names").useProxy().as(MojangNameHistoryToken[].class);
+            success = result != null && result.length > 0;
+            return result != null ? List.of(result) : List.of();
+        } finally {
+            MetricService.getMetric(ExternalApiRequestsMetric.class).record(API_MOJANG, "name_history", success, System.currentTimeMillis() - start);
+        }
+    }
+
+    /**
      * Gets the UUID of the player using
      * the name of the player.
      *

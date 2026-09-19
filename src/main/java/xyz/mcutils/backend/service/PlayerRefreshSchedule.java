@@ -13,11 +13,18 @@ public final class PlayerRefreshSchedule {
     public static final Duration MIN_INTERVAL = Duration.ofMinutes(20);
     public static final Duration MAX_INTERVAL = Duration.ofHours(24);
     public static final Duration FAILURE_BACKOFF = Duration.ofMinutes(30);
+    /**
+     * Re-check a player shortly after a detected change: a player who just changed is far
+     * likelier to change again in the next minutes-to-hours (skin tweaks, name-drop sprees),
+     * and the adaptive cadence alone would not revisit them for hours. Self-terminating:
+     * once a burst check comes back clean, scheduling falls back to the adaptive interval.
+     */
+    public static final Duration BURST_INTERVAL = Duration.ofMinutes(20);
 
     private static final double HALF_LIFE_HOURS = 48.0;
     private static final double VELOCITY_WEIGHT = 2.0;
-    private static final double VIEW_WEIGHT = 0.3;
-    private static final double MAX_VELOCITY = 10.0;
+    private static final double VIEW_WEIGHT = 0.05;
+    private static final double MAX_VELOCITY = 30.0;
 
     /**
      * Minimum change velocity for a player to join the "hot" refresh tier (claimed before the
@@ -44,9 +51,17 @@ public final class PlayerRefreshSchedule {
         }
         double velocity = currentVelocity * Math.pow(0.5, hoursSince / HALF_LIFE_HOURS);
         if (hadChanges) {
-            velocity += 1.0;
+            velocity += 2.0;
         }
         return Math.min(velocity, MAX_VELOCITY);
+    }
+
+    /**
+     * Interval until the next refresh: a short burst right after any detected change,
+     * otherwise the adaptive cadence derived from velocity and popularity.
+     */
+    public static Duration nextRefreshInterval(boolean hadChanges, double velocity, long monthlyViews) {
+        return hadChanges ? BURST_INTERVAL : intervalFor(velocity, monthlyViews);
     }
 
     /**

@@ -23,6 +23,7 @@ import xyz.mcutils.backend.model.domain.player.history.UsernameHistory;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.persistence.postgres.*;
 import xyz.mcutils.backend.model.token.mojang.CapeTextureToken;
+import xyz.mcutils.backend.model.token.mojang.MojangNameHistoryToken;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.model.token.mojang.MojangUsernameToUuidToken;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
@@ -341,7 +342,36 @@ public class PlayerService {
             newCape = this.capeService.getOrCreateCapeCached(capeToken, snapshot.getId());
         }
 
-        return new PreparedPlayerUpdate(snapshot.getId(), token, newSkin, newCape, capeChanged);
+        // Exact adoption time of a changed username, from Mojang's name history; null when unknown.
+        Instant usernameChangedAt = null;
+        if (!snapshot.getUsername().equals(token.getName())) {
+            usernameChangedAt = fetchNameChangeTimestamp(snapshot.getId().toString(), token.getName());
+        }
+
+        return new PreparedPlayerUpdate(snapshot.getId(), token, newSkin, newCape, capeChanged, usernameChangedAt);
+    }
+
+    /**
+     * Resolves the exact adoption time of the current username from Mojang's name history so
+     * name-change events carry the real change timestamp instead of the poll time. Returns
+     * {@code null} when the history is unavailable or the current name has no recorded change
+     * time (e.g. it is the account's original name); callers then fall back to the refresh time.
+     */
+    private Instant fetchNameChangeTimestamp(String uuid, String currentName) {
+        try {
+            this.mojangRateLimiter.acquire();
+            List<MojangNameHistoryToken> history = this.mojangService.getNameHistory(uuid);
+            for (int i = history.size() - 1; i >= 0; i--) {
+                MojangNameHistoryToken entry = history.get(i);
+                if (entry.name().equalsIgnoreCase(currentName)) {
+                    return entry.changedToAt() != null ? Instant.ofEpochMilli(entry.changedToAt()) : null;
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            log.debug("Name history lookup failed for {}: {}", uuid, e.toString());
+            return null;
+        }
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -366,6 +396,7 @@ public class PlayerService {
             playerRow.setSkin(prepared.newSkin());
             equippedSkinId = prepared.newSkin().getId();
             changeCount++;
+            MetricService.getMetric(PlayerChangesDetectedMetric.class).record(PlayerChangesDetectedMetric.SKIN);
         }
 
         if (prepared.capeChanged()) {
@@ -377,6 +408,7 @@ public class PlayerService {
                     equippedCapeId = prepared.newCape().getId();
                 }
                 changeCount++;
+                MetricService.getMetric(PlayerChangesDetectedMetric.class).record(PlayerChangesDetectedMetric.CAPE);
             }
         }
 
@@ -384,14 +416,16 @@ public class PlayerService {
         String previousUsername = playerRow.getUsername();
         if (!previousUsername.equals(token.getName())) {
             playerRow.setUsername(token.getName());
-            usernameChangeEventRow = new UsernameChangeEventRow(playerRow.getId(), token.getName(), previousUsername, now);
+            Instant eventTime = prepared.usernameChangedAt() != null ? prepared.usernameChangedAt() : now;
+            usernameChangeEventRow = new UsernameChangeEventRow(playerRow.getId(), token.getName(), previousUsername, eventTime);
             changeCount++;
+            MetricService.getMetric(PlayerChangesDetectedMetric.class).record(PlayerChangesDetectedMetric.USERNAME);
         }
 
         boolean hadChanges = changeCount > 0;
         double velocity = PlayerRefreshSchedule.updateVelocity(
                 playerRow.getChangeVelocity(), playerRow.getLastUpdated(), now, hadChanges);
-        Duration interval = PlayerRefreshSchedule.intervalFor(velocity, playerRow.getMonthlyViews());
+        Duration interval = PlayerRefreshSchedule.nextRefreshInterval(hadChanges, velocity, playerRow.getMonthlyViews());
         playerRow.setChangeVelocity(velocity);
         playerRow.setNextRefreshAt(now.plus(interval));
         playerRow.setLastUpdated(now);
@@ -409,9 +443,6 @@ public class PlayerService {
         }
 
         MetricService.getMetric(AccountsUpdatedMetric.class).inc(1);
-        if (changeCount > 0) {
-            MetricService.getMetric(PlayerChangesDetectedMetric.class).inc(changeCount);
-        }
         return usernameChangeEventRow;
     }
 
@@ -420,7 +451,8 @@ public class PlayerService {
             MojangProfileToken token,
             SkinRow newSkin,
             CapeRow newCape,
-            boolean capeChanged
+            boolean capeChanged,
+            Instant usernameChangedAt
     ) {}
 
     public Set<UsernameHistory> getUsernameHistory(PlayerRow player) {

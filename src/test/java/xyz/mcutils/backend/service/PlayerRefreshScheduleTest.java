@@ -35,7 +35,7 @@ class PlayerRefreshScheduleTest {
     @Test
     void velocityBumpsOnChange() {
         double velocity = PlayerRefreshSchedule.updateVelocity(0, BASE, BASE, true);
-        assertEquals(1.0, velocity, 0.001);
+        assertEquals(2.0, velocity, 0.001);
     }
 
     @Test
@@ -47,8 +47,8 @@ class PlayerRefreshScheduleTest {
 
     @Test
     void velocityIsCapped() {
-        double velocity = PlayerRefreshSchedule.updateVelocity(9.5, BASE, BASE, true);
-        assertEquals(10.0, velocity, 0.001);
+        double velocity = PlayerRefreshSchedule.updateVelocity(29.5, BASE, BASE, true);
+        assertEquals(30.0, velocity, 0.001);
     }
 
     @Test
@@ -74,5 +74,30 @@ class PlayerRefreshScheduleTest {
         Instant next = PlayerRefreshSchedule.computeNextRefreshAt(2, 500, now);
         Duration expected = PlayerRefreshSchedule.intervalFor(2, 500);
         assertEquals(now.plus(expected), next);
+    }
+
+    @Test
+    void changedPlayerIsScheduledForBurstRecheck() {
+        Duration interval = PlayerRefreshSchedule.nextRefreshInterval(true, 0, 0);
+        assertEquals(PlayerRefreshSchedule.BURST_INTERVAL, interval);
+    }
+
+    @Test
+    void cleanBurstFallsBackToAdaptiveInterval() {
+        double velocity = 3.0;
+        long views = 500;
+        assertEquals(
+                PlayerRefreshSchedule.intervalFor(velocity, views),
+                PlayerRefreshSchedule.nextRefreshInterval(false, velocity, views)
+        );
+    }
+
+    @Test
+    void highVelocityDrivesIntervalWellBeneathOldFloor() {
+        // Previously capped at ~88min even at max velocity; the higher cap should
+        // let churning players approach the minimum interval.
+        Duration interval = PlayerRefreshSchedule.intervalFor(30, 0);
+        assertTrue(interval.compareTo(Duration.ofMinutes(60)) < 0);
+        assertTrue(interval.compareTo(PlayerRefreshSchedule.MIN_INTERVAL) >= 0);
     }
 }
