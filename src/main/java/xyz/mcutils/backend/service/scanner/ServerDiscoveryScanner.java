@@ -12,11 +12,10 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Discovery stage of the internet scanner: asynchronous TCP connect probes across the whole
@@ -25,6 +24,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * running only on non-standard ports are found too. Hosts are probed in a seeded random order
  * (per /16, per /24, per host), one probe per port, no retries; the in-flight cap doubles as the
  * pacing mechanism.
+ * <p>
+ * CPU-conscious by design: the pending set is tracked only by an integer counter plus the
+ * per-key attachment (no side map, no boxed deadlines), connects that complete synchronously
+ * are finished immediately without a selector round-trip, and the expiry sweep walks the
+ * selector's key set at most once per second.
  * <p>
  * Only the configured discovery ports are probed here — the port walk happens in
  * {@link ServerScanVerifier} on hosts where a discovery port verified. Open ports are handed to
@@ -38,19 +42,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ServerDiscoveryScanner {
 
     /**
-     * Receives an IP + port whose TCP connect succeeded. Called from the selector loop.
+     * Receives an IP + port whose TCP connect succeeded. Called from the selector thread.
      */
     public interface OpenPortHandler {
         void handle(String ip, int port);
     }
 
     /**
-     * The target of one pending connect: the IP plus which discovery port is being probed.
+     * Per-connection attachment: the target plus the connect deadline (nanoTime).
      */
-    private record PendingTarget(String ip, int port) {}
+    private record Pending(String ip, int port, long deadline) {}
 
     private static final int SELECT_TIMEOUT_MS = 100;
-    private static final Duration PENDING_SWEEP_INTERVAL = Duration.ofMillis(500);
+    private static final Duration PENDING_SWEEP_INTERVAL = Duration.ofSeconds(1);
 
     private final Ipv4Space space;
     private final List<Integer> discoveryPorts;
@@ -59,10 +63,10 @@ public class ServerDiscoveryScanner {
     private final OpenPortHandler openPortHandler;
     private final ServerScannerMetric metrics; // nullable: metrics recording is optional
     private final AtomicBoolean running = new AtomicBoolean(false);
+    private final AtomicInteger pendingCount = new AtomicInteger();
 
     // Selector-loop state
     private Selector selector;
-    private final Map<SocketChannel, Long> pending = new HashMap<>();
     private long lastSweep;
 
     // Iteration state
@@ -133,12 +137,12 @@ public class ServerDiscoveryScanner {
                     SocketChannel channel = (SocketChannel) key.channel();
                     try {
                         if (channel.finishConnect()) {
-                            pending.remove(channel);
+                            pendingCount.decrementAndGet();
                             if (metrics != null) {
                                 metrics.recordConnectOpen();
                             }
-                            PendingTarget target = (PendingTarget) key.attachment();
-                            openPortHandler.handle(target.ip(), target.port());
+                            Pending pending = (Pending) key.attachment();
+                            openPortHandler.handle(pending.ip(), pending.port());
                         } else {
                             abandon(key);
                             continue;
@@ -176,27 +180,37 @@ public class ServerDiscoveryScanner {
     }
 
     private void fillPending() {
-        while (running.get() && pending.size() < concurrency) {
+        while (running.get() && pendingCount.get() < concurrency) {
             long ip = nextHost();
             if (ip < 0) {
                 return; // space exhausted
             }
             String ipString = Ipv4Space.longToIpv4(ip);
             for (int port : discoveryPorts) {
+                if (metrics != null) {
+                    metrics.recordProbe();
+                }
                 try {
                     SocketChannel channel = SocketChannel.open();
                     channel.configureBlocking(false);
                     channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
-                    channel.register(selector, SelectionKey.OP_CONNECT, new PendingTarget(ipString, port));
-                    channel.connect(new InetSocketAddress(ipString, port));
-                    pending.put(channel, System.nanoTime());
-                    if (metrics != null) {
-                        metrics.recordProbe();
+                    if (channel.connect(new InetSocketAddress(ipString, port))) {
+                        // Connected synchronously: finish immediately, no selector round-trip.
+                        try {
+                            if (metrics != null) {
+                                metrics.recordConnectOpen();
+                            }
+                            openPortHandler.handle(ipString, port);
+                        } finally {
+                            channel.close();
+                        }
+                    } else {
+                        channel.register(selector, SelectionKey.OP_CONNECT,
+                                new Pending(ipString, port, System.nanoTime() + connectTimeout.toNanos()));
+                        pendingCount.incrementAndGet();
                     }
                 } catch (IOException e) {
-                    if (metrics != null) { // unresolvable/unroutable still counts as one probe
-                        metrics.recordProbe();
-                    }
+                    // Unresolvable/unroutable (e.g. no route): the probe already counted, move on.
                 }
             }
         }
@@ -208,13 +222,12 @@ public class ServerDiscoveryScanner {
             return;
         }
         lastSweep = now;
+        // No side map: deadlines live in each key's attachment, and the selector owns the set.
+        // Collect first, then abandon, so selector.keys() is never mutated mid-iteration.
         List<SelectionKey> expired = new ArrayList<>();
-        for (Map.Entry<SocketChannel, Long> entry : pending.entrySet()) {
-            if (now - entry.getValue() >= connectTimeout.toNanos()) {
-                SelectionKey key = entry.getKey().keyFor(selector);
-                if (key != null) {
-                    expired.add(key);
-                }
+        for (SelectionKey key : selector.keys()) {
+            if (key.attachment() instanceof Pending pending && now >= pending.deadline()) {
+                expired.add(key);
             }
         }
         for (SelectionKey key : expired) {
@@ -223,11 +236,10 @@ public class ServerDiscoveryScanner {
     }
 
     private void abandon(SelectionKey key) {
-        SocketChannel channel = (SocketChannel) key.channel();
-        pending.remove(channel);
+        pendingCount.decrementAndGet();
         key.cancel();
         try {
-            channel.close();
+            key.channel().close();
         } catch (IOException ignored) {
         }
     }
@@ -236,13 +248,13 @@ public class ServerDiscoveryScanner {
         if (selector == null) {
             return;
         }
-        for (SocketChannel channel : pending.keySet()) {
+        for (SelectionKey key : selector.keys()) {
             try {
-                channel.close();
+                key.channel().close();
             } catch (IOException ignored) {
             }
         }
-        pending.clear();
+        pendingCount.set(0);
         try {
             selector.close();
         } catch (IOException ignored) {
@@ -250,7 +262,7 @@ public class ServerDiscoveryScanner {
     }
 
     private boolean exhaustedAndIdle() {
-        return spaceExhausted && pending.isEmpty();
+        return spaceExhausted && pendingCount.get() == 0;
     }
 
     /**
