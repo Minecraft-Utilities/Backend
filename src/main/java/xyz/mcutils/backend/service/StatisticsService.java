@@ -1,7 +1,8 @@
 package xyz.mcutils.backend.service;
 
-import jakarta.annotation.PostConstruct;
 import lombok.Getter;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.Main;
 import xyz.mcutils.backend.model.domain.skin.VanillaSkinTextureIds;
@@ -98,21 +99,26 @@ public class StatisticsService {
         INSTANCE.nameChangesCount.addAndGet(delta);
     }
 
-    @PostConstruct
-    public void init() {
-        CompletableFuture<Long> playersFuture = CompletableFuture.supplyAsync(this.playerRepository::count, Main.EXECUTOR);
-        CompletableFuture<Long> skinsFuture = CompletableFuture.supplyAsync(this.skinRepository::count, Main.EXECUTOR);
-        CompletableFuture<Long> capesFuture = CompletableFuture.supplyAsync(this.capeRepository::count, Main.EXECUTOR);
-        CompletableFuture<Long> trendingSkinsFuture = CompletableFuture.supplyAsync(() -> this.skinRepository.countTrendingSkins(VanillaSkinTextureIds.ALL), Main.EXECUTOR);
-        CompletableFuture<Long> nameChangesFuture = CompletableFuture.supplyAsync(this.usernameChangeEventRepository::countNameChanges, Main.EXECUTOR);
-
-        CompletableFuture.allOf(playersFuture, skinsFuture, capesFuture, trendingSkinsFuture, nameChangesFuture).join();
-
-        this.trackedPlayerCount.set(playersFuture.join());
-        this.trackedSkinCount.set(skinsFuture.join());
-        this.trackedCapeCount.set(capesFuture.join());
-        this.trendingSkinCount.set(trendingSkinsFuture.join());
-        this.nameChangesCount.set(nameChangesFuture.join());
+    /**
+     * Loads the initial DB-backed counters. Must NOT run during bean creation: repository
+     * calls on virtual threads resolve late singletons (transaction machinery, customizers)
+     * whose creation needs the singleton lock held by the bean-creation thread — joining on
+     * them from {@code @PostConstruct} deadlocked startup, leaving a Hikari connection open
+     * until the leak detector fired. Fires once at {@code ApplicationReadyEvent}, when every
+     * singleton exists, and never blocks: each count sets its counter when it finishes.
+     */
+    @EventListener(ApplicationReadyEvent.class)
+    public void loadInitialCounts() {
+        CompletableFuture.supplyAsync(this.playerRepository::count, Main.EXECUTOR)
+                .thenAccept(this.trackedPlayerCount::set);
+        CompletableFuture.supplyAsync(this.skinRepository::count, Main.EXECUTOR)
+                .thenAccept(this.trackedSkinCount::set);
+        CompletableFuture.supplyAsync(this.capeRepository::count, Main.EXECUTOR)
+                .thenAccept(this.trackedCapeCount::set);
+        CompletableFuture.supplyAsync(() -> this.skinRepository.countTrendingSkins(VanillaSkinTextureIds.ALL), Main.EXECUTOR)
+                .thenAccept(this.trendingSkinCount::set);
+        CompletableFuture.supplyAsync(this.usernameChangeEventRepository::countNameChanges, Main.EXECUTOR)
+                .thenAccept(this.nameChangesCount::set);
     }
 
     /**
