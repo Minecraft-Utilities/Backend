@@ -220,8 +220,12 @@ mc-utils:
       concurrency: 200
       timeout-ms: 5000
     ports:
-      base: 25565
-      # Probe up to lastWorkingPort + window ports per host (sliding ceiling).
+      # Ports probed on EVERY host during discovery. Each port costs one full
+      # sweep, so keep the list small: base 25565 plus the common neighbors
+      # (25564/25566) to catch servers that skip the standard port.
+      discovery: "25564,25565,25566"
+      # Probe up to lastWorkingPort + window ports per host (sliding ceiling,
+      # applied after a discovery port verifies as a server).
       window: 10
       max: 65535
       # Absolute cap on ports probed per host.

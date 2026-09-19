@@ -10,8 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Verifies hosts that passed the discovery connect probe: performs a full Java status ping on
- * the base port, harvests the player sample, then walks ports incrementally. The walk ceiling
+ * Verifies hosts that passed a discovery connect probe: performs a full Java status ping on the
+ * discovered port, harvests the player sample, then walks ports incrementally. The walk ceiling
  * is always {@code lastWorkingPort + window}, recomputed after every verified server, so gapped
  * multi-server hosts (25565, 25566, 25571, 25580) are fully discovered while non-MC services
  * like RCON occupying adjacent ports never extend the search.
@@ -39,9 +39,9 @@ public class ServerScanVerifier {
     }
 
     /**
-     * Result of verifying one host.
+     * Result of verifying one host at its discovered port.
      *
-     * @param serversFound   number of verified Java servers found on this host (base + walk)
+     * @param serversFound   number of verified Java servers found (discovered port + walk)
      * @param playersEnqueued total players handed to the submit queue
      * @param honeypot       whether any verified server on the host was flagged
      */
@@ -56,7 +56,6 @@ public class ServerScanVerifier {
     private final ScannedServerSink serverSink;
     private final PlayerHarvester harvester;
     private final ServerScannerMetric metrics; // nullable: metrics recording is optional
-    private final int basePort;
     private final int window;
     private final int maxPort;
     private final int probeCapPerIp;
@@ -68,7 +67,6 @@ public class ServerScanVerifier {
             ScannedServerSink serverSink,
             PlayerHarvester harvester,
             ServerScannerMetric metrics,
-            @Value("${mc-utils.server-scanner.ports.base:25565}") int basePort,
             @Value("${mc-utils.server-scanner.ports.window:10}") int window,
             @Value("${mc-utils.server-scanner.ports.max:65535}") int maxPort,
             @Value("${mc-utils.server-scanner.ports.probe-cap-per-ip:200}") int probeCapPerIp,
@@ -79,7 +77,6 @@ public class ServerScanVerifier {
         this.serverSink = serverSink;
         this.harvester = harvester;
         this.metrics = metrics;
-        this.basePort = basePort;
         this.window = window;
         this.maxPort = maxPort;
         this.probeCapPerIp = probeCapPerIp;
@@ -87,24 +84,25 @@ public class ServerScanVerifier {
     }
 
     /**
-     * Verifies {@code ip} at the base port and walks up to {@code window} ports beyond the last
-     * working port. Empty result when the base port does not answer a valid Java status ping.
+     * Verifies {@code ip} at {@code discoveredPort} (the port a discovery probe found open) and
+     * walks up to {@code window} ports beyond the last working port. Empty result when the
+     * discovered port does not answer a valid Java status ping.
      */
-    public HostResult verifyHost(String ip) {
-        JavaServerStatusToken token = ping(ip, basePort);
+    public HostResult verifyHost(String ip, int discoveredPort) {
+        JavaServerStatusToken token = ping(ip, discoveredPort);
         if (token == null) {
             return NOT_A_SERVER;
         }
 
-        ServerOutcome base = handleServer(ip, basePort, token);
+        ServerOutcome base = handleServer(ip, discoveredPort, token);
         int serversFound = 1;
         int playersEnqueued = base.playersEnqueued();
         boolean honeypot = base.honeypot();
 
         // Sliding window: the ceiling is (last working port + window), recomputed per verified server.
-        int lastWorking = basePort;
+        int lastWorking = discoveredPort;
         int probes = 1;
-        int port = basePort + 1;
+        int port = discoveredPort + 1;
         while (port <= Math.min(lastWorking + window, maxPort) && probes < probeCapPerIp) {
             if (metrics != null) {
                 metrics.recordWalkProbe();

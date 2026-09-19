@@ -19,15 +19,17 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Discovery stage of the internet scanner: asynchronous TCP connect probes on the base port
- * across the whole IPv4 space, using {@code java.nio} non-blocking channels with a single
- * selector thread. Hosts are probed in a seeded random order (per /16, per /24, per host), one
- * probe per IP, no retries; the in-flight cap doubles as the pacing mechanism.
+ * Discovery stage of the internet scanner: asynchronous TCP connect probes across the whole
+ * IPv4 space, using {@code java.nio} non-blocking channels with a single selector thread.
+ * Every host is probed on each configured discovery port (e.g. 25564, 25565, 25566), so servers
+ * running only on non-standard ports are found too. Hosts are probed in a seeded random order
+ * (per /16, per /24, per host), one probe per port, no retries; the in-flight cap doubles as the
+ * pacing mechanism.
  * <p>
- * Only the base port is probed here — the port walk happens in {@link ServerScanVerifier} on
- * hosts whose base port already verified. Open ports are handed to the verifier via the
- * {@link OpenPortHandler} callback (invoked on the selector thread; dispatch to a pool belongs
- * to the caller).
+ * Only the configured discovery ports are probed here — the port walk happens in
+ * {@link ServerScanVerifier} on hosts where a discovery port verified. Open ports are handed to
+ * the verifier via the {@link OpenPortHandler} callback (invoked on the selector thread;
+ * dispatch to a pool belongs to the caller).
  * <p>
  * Not a Spring bean: {@link ServerScannerService} constructs it (and its collaborators) after
  * the context is ready, so nothing here needs to be eagerly instantiable.
@@ -36,17 +38,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ServerDiscoveryScanner {
 
     /**
-     * Receives an IP whose base port accepted a TCP connect. Called from the selector loop.
+     * Receives an IP + port whose TCP connect succeeded. Called from the selector loop.
      */
     public interface OpenPortHandler {
-        void handle(String ip);
+        void handle(String ip, int port);
     }
+
+    /**
+     * The target of one pending connect: the IP plus which discovery port is being probed.
+     */
+    private record PendingTarget(String ip, int port) {}
 
     private static final int SELECT_TIMEOUT_MS = 100;
     private static final Duration PENDING_SWEEP_INTERVAL = Duration.ofMillis(500);
 
     private final Ipv4Space space;
-    private final int basePort;
+    private final List<Integer> discoveryPorts;
     private final int concurrency;
     private final Duration connectTimeout;
     private final OpenPortHandler openPortHandler;
@@ -70,16 +77,20 @@ public class ServerDiscoveryScanner {
             Ipv4Space space,
             OpenPortHandler openPortHandler,
             ServerScannerMetric metrics,
-            @Value("${mc-utils.server-scanner.ports.base:25565}") int basePort,
+            @Value("${mc-utils.server-scanner.ports.discovery:25564,25565,25566}") String discoveryPortsCsv,
             @Value("${mc-utils.server-scanner.discovery.concurrency:20000}") int concurrency,
             @Value("${mc-utils.server-scanner.discovery.connect-timeout-ms:1000}") long connectTimeoutMs
     ) {
         this.space = space;
         this.openPortHandler = openPortHandler;
         this.metrics = metrics;
-        this.basePort = basePort;
+        this.discoveryPorts = parsePorts(discoveryPortsCsv);
         this.concurrency = concurrency;
         this.connectTimeout = Duration.ofMillis(connectTimeoutMs);
+    }
+
+    public int discoveryPortCount() {
+        return discoveryPorts.size();
     }
 
     public Ipv4Space.Progress cursor() {
@@ -126,7 +137,8 @@ public class ServerDiscoveryScanner {
                             if (metrics != null) {
                                 metrics.recordConnectOpen();
                             }
-                            openPortHandler.handle((String) key.attachment());
+                            PendingTarget target = (PendingTarget) key.attachment();
+                            openPortHandler.handle(target.ip(), target.port());
                         } else {
                             abandon(key);
                             continue;
@@ -170,19 +182,21 @@ public class ServerDiscoveryScanner {
                 return; // space exhausted
             }
             String ipString = Ipv4Space.longToIpv4(ip);
-            try {
-                SocketChannel channel = SocketChannel.open();
-                channel.configureBlocking(false);
-                channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
-                channel.register(selector, SelectionKey.OP_CONNECT, ipString);
-                channel.connect(new InetSocketAddress(ipString, basePort));
-                pending.put(channel, System.nanoTime());
-                if (metrics != null) {
-                    metrics.recordProbe();
-                }
-            } catch (IOException e) {
-                if (metrics != null) { // unresolvable/unroutable still counts as one probe
-                    metrics.recordProbe();
+            for (int port : discoveryPorts) {
+                try {
+                    SocketChannel channel = SocketChannel.open();
+                    channel.configureBlocking(false);
+                    channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
+                    channel.register(selector, SelectionKey.OP_CONNECT, new PendingTarget(ipString, port));
+                    channel.connect(new InetSocketAddress(ipString, port));
+                    pending.put(channel, System.nanoTime());
+                    if (metrics != null) {
+                        metrics.recordProbe();
+                    }
+                } catch (IOException e) {
+                    if (metrics != null) { // unresolvable/unroutable still counts as one probe
+                        metrics.recordProbe();
+                    }
                 }
             }
         }
@@ -264,5 +278,22 @@ public class ServerDiscoveryScanner {
             currentHosts = Ipv4Space.hostsIn24(current24, space.seed());
             hostIndex = 0;
         }
+    }
+
+    private static List<Integer> parsePorts(String csv) {
+        if (csv == null || csv.isBlank()) {
+            throw new IllegalArgumentException("mc-utils.server-scanner.ports.discovery must not be empty");
+        }
+        List<Integer> ports = new ArrayList<>();
+        for (String part : csv.split(",")) {
+            int port = Integer.parseInt(part.trim());
+            if (port < 1 || port > 65535) {
+                throw new IllegalArgumentException("Invalid discovery port: " + port);
+            }
+            if (!ports.contains(port)) {
+                ports.add(port);
+            }
+        }
+        return List.copyOf(ports);
     }
 }

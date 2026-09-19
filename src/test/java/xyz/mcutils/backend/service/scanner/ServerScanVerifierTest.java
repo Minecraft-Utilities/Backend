@@ -37,11 +37,11 @@ class ServerScanVerifierTest {
             this.server = server;
         }
 
-        ServerScanVerifier verifier(int basePort, int window, int probeCap) {
-            return verifier(basePort, window, probeCap, 50, 3);
+        ServerScanVerifier verifier(int window, int probeCap) {
+            return verifier(window, probeCap, 50, 3);
         }
 
-        ServerScanVerifier verifier(int basePort, int window, int probeCap, int maxNets, int maxPorts) {
+        ServerScanVerifier verifier(int window, int probeCap, int maxNets, int maxPorts) {
             HoneypotDetector detector = new HoneypotDetector(store, maxNets, 24, maxPorts);
             ServerScanVerifier.PlayerHarvester harvester = players -> {
                 harvested.addAll(players);
@@ -50,7 +50,7 @@ class ServerScanVerifierTest {
             ServerScanVerifier.ScannedServerSink sink = (ip, port, count, honeypot) ->
                     this.sink.add(new SinkRecord(ip, port, count, honeypot));
             return new ServerScanVerifier(new JavaMinecraftServerPinger(), detector, sink, harvester,
-                    null, basePort, window, 65535, probeCap, 1_500);
+                    null, window, 65535, probeCap, 1_500);
         }
 
         @Override
@@ -70,8 +70,8 @@ class ServerScanVerifierTest {
                 "[" + FakeMinecraftServer.sampleEntry("jeb_", JEB.toString()) + "]");
         try (TestHarness harness = new TestHarness(new FakeMinecraftServer(
                 List.of(base, base + 1, base + 6), List.of(jsonBase, jsonNext, jsonFar)))) {
-            ServerScanVerifier verifier = harness.verifier(base, 10, 200);
-            ServerScanVerifier.HostResult result = verifier.verifyHost(IP);
+            ServerScanVerifier verifier = harness.verifier(10, 200);
+            ServerScanVerifier.HostResult result = verifier.verifyHost(IP, base);
 
             assertEquals(3, result.serversFound(), "all three gapped servers must be found");
             assertEquals(3, result.playersEnqueued());
@@ -91,8 +91,8 @@ class ServerScanVerifierTest {
                 "[" + FakeMinecraftServer.sampleEntry("Steve", STEVE.toString()) + "]");
         try (TestHarness harness = new TestHarness(new FakeMinecraftServer(
                 List.of(base, base + 1), Arrays.asList(jsonBase, null)))) { // base+1 is a silent non-MC service
-            ServerScanVerifier verifier = harness.verifier(base, 3, 200);
-            ServerScanVerifier.HostResult result = verifier.verifyHost(IP);
+            ServerScanVerifier verifier = harness.verifier(3, 200);
+            ServerScanVerifier.HostResult result = verifier.verifyHost(IP, base);
 
             assertEquals(1, result.serversFound(), "silent port must not count as a server");
             assertEquals(1, harness.sink.size());
@@ -101,19 +101,38 @@ class ServerScanVerifierTest {
         }
     }
 
-    @Test
+@Test
     void closedBasePortYieldsNoServers() throws Exception {
         int base = FakeMinecraftServer.findBasePort(1); // only base+1 is bound
         String json = FakeMinecraftServer.statusJson("1.21", 1, 100,
                 "[" + FakeMinecraftServer.sampleEntry("Steve", STEVE.toString()) + "]");
         try (TestHarness harness = new TestHarness(new FakeMinecraftServer(
                 List.of(base + 1), List.of(json)))) {
-            ServerScanVerifier verifier = harness.verifier(base, 10, 200);
-            ServerScanVerifier.HostResult result = verifier.verifyHost(IP);
+            ServerScanVerifier verifier = harness.verifier(10, 200);
+            ServerScanVerifier.HostResult result = verifier.verifyHost(IP, base);
 
             assertEquals(ServerScanVerifier.NOT_A_SERVER, result);
-            assertTrue(harness.sink.isEmpty(), "no walk when the base port has no server");
+            assertTrue(harness.sink.isEmpty(), "no walk when the discovered port has no server");
             assertTrue(harness.harvested.isEmpty());
+        }
+    }
+
+    @Test
+    void discoversServerOnNonStandardDiscoveryPort() throws Exception {
+        // A server running ONLY on 25566 (base+1): discovery probes 25564/25565/25566 and
+        // hands off the open 25566, which must verify and harvest without any base port.
+        int base = FakeMinecraftServer.findBasePort(1);
+        String json = FakeMinecraftServer.statusJson("1.21", 1, 100,
+                "[" + FakeMinecraftServer.sampleEntry("Steve", STEVE.toString()) + "]");
+        try (TestHarness harness = new TestHarness(new FakeMinecraftServer(
+                List.of(base + 1), List.of(json)))) {
+            ServerScanVerifier verifier = harness.verifier(3, 200);
+            ServerScanVerifier.HostResult result = verifier.verifyHost(IP, base + 1);
+
+            assertEquals(1, result.serversFound());
+            assertEquals(1, harness.sink.size());
+            assertEquals(base + 1, harness.sink.get(0).port());
+            assertEquals(1, harness.harvested.size());
         }
     }
 
@@ -127,8 +146,8 @@ class ServerScanVerifierTest {
         try (TestHarness harness = new TestHarness(new FakeMinecraftServer(
                 List.of(base, base + 5), List.of(jsonBase, jsonFar)))) {
             // Window 2: base+5 is beyond base+2, so the walk never reaches it.
-            ServerScanVerifier verifier = harness.verifier(base, 2, 200);
-            ServerScanVerifier.HostResult result = verifier.verifyHost(IP);
+            ServerScanVerifier verifier = harness.verifier(2, 200);
+            ServerScanVerifier.HostResult result = verifier.verifyHost(IP, base);
 
             assertEquals(1, result.serversFound());
             assertEquals(1, harness.sink.size());
@@ -145,8 +164,8 @@ class ServerScanVerifierTest {
                         + "," + FakeMinecraftServer.sampleEntry("Steve", STEVE.toString()) + "]");
         try (TestHarness harness = new TestHarness(new FakeMinecraftServer(
                 List.of(base), List.of(json)))) {
-            ServerScanVerifier verifier = harness.verifier(base, 2, 200);
-            ServerScanVerifier.HostResult result = verifier.verifyHost(IP);
+            ServerScanVerifier verifier = harness.verifier(2, 200);
+            ServerScanVerifier.HostResult result = verifier.verifyHost(IP, base);
 
             assertEquals(1, result.serversFound());
             assertEquals(1, result.playersEnqueued(), "only the online-mode player is enqueued");
@@ -163,8 +182,8 @@ class ServerScanVerifierTest {
                 "[" + FakeMinecraftServer.sampleEntry("Steve", STEVE.toString()) + "]");
         try (TestHarness harness = new TestHarness(new FakeMinecraftServer(
                 List.of(base, base + 1, base + 2), List.of(json, json, json)))) {
-            ServerScanVerifier verifier = harness.verifier(base, 3, 200, 50, 3);
-            ServerScanVerifier.HostResult result = verifier.verifyHost(IP);
+            ServerScanVerifier verifier = harness.verifier(3, 200, 50, 3);
+            ServerScanVerifier.HostResult result = verifier.verifyHost(IP, base);
 
             assertEquals(3, result.serversFound());
             assertTrue(result.honeypot(), "identical sample on 3 ports of one host flags the host");

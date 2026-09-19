@@ -65,7 +65,7 @@ public class ServerScannerService {
     private final int progressLogIntervalSeconds;
     private final List<String> excludeExtraCidrs;
     private final List<String> includeCidrs;
-    private final int basePort;
+    private final String discoveryPortsCsv;
     private final int portWindow;
     private final int maxPort;
     private final int probeCapPerIp;
@@ -98,7 +98,7 @@ public class ServerScannerService {
             @Value("${mc-utils.server-scanner.discovery.connect-timeout-ms:1000}") long connectTimeoutMs,
             @Value("${mc-utils.server-scanner.verify.concurrency:200}") int verifyConcurrency,
             @Value("${mc-utils.server-scanner.verify.timeout-ms:5000}") int verifyTimeoutMs,
-            @Value("${mc-utils.server-scanner.ports.base:25565}") int basePort,
+            @Value("${mc-utils.server-scanner.ports.discovery:25564,25565,25566}") String discoveryPortsCsv,
             @Value("${mc-utils.server-scanner.ports.window:10}") int portWindow,
             @Value("${mc-utils.server-scanner.ports.max:65535}") int maxPort,
             @Value("${mc-utils.server-scanner.ports.probe-cap-per-ip:200}") int probeCapPerIp,
@@ -120,7 +120,7 @@ public class ServerScannerService {
         this.connectTimeoutMs = connectTimeoutMs;
         this.verifyConcurrency = verifyConcurrency;
         this.verifyTimeoutMs = verifyTimeoutMs;
-        this.basePort = basePort;
+        this.discoveryPortsCsv = discoveryPortsCsv;
         this.portWindow = portWindow;
         this.maxPort = maxPort;
         this.probeCapPerIp = probeCapPerIp;
@@ -190,11 +190,11 @@ public class ServerScannerService {
         };
         ServerScanVerifier verifier = new ServerScanVerifier(
                 new JavaMinecraftServerPinger(), honeypotDetector, serverSink, harvester::harvest, metrics,
-                basePort, portWindow, maxPort, probeCapPerIp, verifyTimeoutMs
+                portWindow, maxPort, probeCapPerIp, verifyTimeoutMs
         );
         this.discovery = new ServerDiscoveryScanner(
-                space, ip -> verifierExecutor.submit(() -> verifier.verifyHost(ip)), metrics,
-                basePort, discoveryConcurrency, connectTimeoutMs
+                space, (ip, port) -> verifierExecutor.submit(() -> verifier.verifyHost(ip, port)), metrics,
+                discoveryPortsCsv, discoveryConcurrency, connectTimeoutMs
         );
 
         upkeepExecutor.scheduleAtFixedRate(() -> {
@@ -294,9 +294,10 @@ public class ServerScannerService {
         if (total > 0) {
             double percent = completed * 100.0 / total;
             String eta = perMinute > 0 ? ", ETA " + formatEta(Duration.ofSeconds(Math.max(0, (total - completed) * 60 / perMinute))) : "";
+            long probesPerSecond = perMinute * 254L * discovery.discoveryPortCount() / 60L;
             log.info("Server scanner progress: {} / {} /24 subnets ({}%), {} /24s/min, ~{} probes/s{}, servers found={}, players enqueued={}",
                     completed, total, String.format(Locale.ROOT, "%.1f", percent),
-                    perMinute, perMinute * 254L / 60L, eta, serversFound.get(), harvester.totalEnqueued());
+                    perMinute, probesPerSecond, eta, serversFound.get(), harvester.totalEnqueued());
         } else {
             log.info("Server scanner progress (scoped): {} /24 subnets, {} /24s/min, servers found={}, players enqueued={}",
                     completed, perMinute, serversFound.get(), harvester.totalEnqueued());
