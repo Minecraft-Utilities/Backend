@@ -208,11 +208,16 @@ mc-utils:
     progress-log-interval-seconds: 60
     discovery:
       # Concurrent in-flight TCP connect probes (also paces the scan rate).
-      concurrency: 5000
-      connect-timeout-ms: 2000
+      # At these rates make sure the host has a high fd limit (ulimit -n >= 32768)
+      # and, for sustained heavy scans, net.ipv4.tcp_tw_reuse=1 so TIME_WAIT
+      # sockets recycle instead of throttling the ephemeral port range.
+      concurrency: 20000
+      # Timeout for a dead host. Shorter = faster sweep, but too short misses
+      # slow networks; 1000ms is a good balance for the open internet.
+      connect-timeout-ms: 1000
     verify:
       # Parallel full status-pings on hosts whose base port connected.
-      concurrency: 100
+      concurrency: 200
       timeout-ms: 5000
     ports:
       base: 25565
