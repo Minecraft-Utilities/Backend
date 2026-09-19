@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.service.scanner;
+package xyz.mcutils.backend.service.tracker;
 
 import com.google.common.hash.Hashing;
 import org.springframework.beans.factory.annotation.Value;
@@ -46,9 +46,9 @@ public class HoneypotDetector {
 
     public HoneypotDetector(
             ScanFingerprintStore store,
-            @Value("${mc-utils.server-scanner.honeypot.max-distinct-nets-per-fingerprint:50}") int maxDistinctNets,
-            @Value("${mc-utils.server-scanner.honeypot.window-hours:24}") long windowHours,
-            @Value("${mc-utils.server-scanner.honeypot.max-identical-port-samples:3}") int maxIdenticalPortSamples
+            @Value("${mc-utils.server-tracker.honeypot.max-distinct-nets-per-fingerprint:50}") int maxDistinctNets,
+            @Value("${mc-utils.server-tracker.honeypot.window-hours:24}") long windowHours,
+            @Value("${mc-utils.server-tracker.honeypot.max-identical-port-samples:3}") int maxIdenticalPortSamples
     ) {
         this.store = store;
         this.maxDistinctNets = maxDistinctNets;

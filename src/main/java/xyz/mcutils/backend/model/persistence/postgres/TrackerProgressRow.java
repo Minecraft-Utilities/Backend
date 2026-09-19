@@ -12,16 +12,16 @@ import lombok.Setter;
 import java.time.Instant;
 
 /**
- * Singleton row (id = 1) tracking the scanner's position in the IPv4 space and its root seed,
+ * Singleton row (id = 1) tracking the tracker's position in the IPv4 space and its root seed,
  * so a restart resumes without re-scanning completed /16s.
  */
 @Entity
-@Table(name = "scan_progress")
+@Table(name = "tracker_progress")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class ScanProgressRow {
+public class TrackerProgressRow {
 
     public static final int SINGLETON_ID = 1;
 

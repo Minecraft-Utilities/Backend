@@ -88,7 +88,7 @@
           "description": "",
           "id": 1,
           "links": [],
-          "title": "\ud83d\udcbe Memory Usage",
+          "title": "💾 Memory Usage",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -232,7 +232,7 @@
           "description": "",
           "id": 10,
           "links": [],
-          "title": "\ud83c\udf10 External API requests/s",
+          "title": "🌐 External API requests/s",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -350,7 +350,7 @@
           "description": "",
           "id": 11,
           "links": [],
-          "title": "\u23f1\ufe0f External API latency (p50 ms)",
+          "title": "⏱️ External API latency (p50 ms)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -468,7 +468,7 @@
           "description": "",
           "id": 12,
           "links": [],
-          "title": "\ud83d\udce5 Submission Queue Size",
+          "title": "📥 Submission Queue Size",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -589,7 +589,7 @@
           "description": "",
           "id": 13,
           "links": [],
-          "title": "\ud83d\udd04 Full Account Refresh ETA",
+          "title": "🔄 Full Account Refresh ETA",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -708,7 +708,7 @@
           "description": "",
           "id": 16,
           "links": [],
-          "title": "\ud83d\udce1 Requests/s by Endpoint",
+          "title": "📡 Requests/s by Endpoint",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -829,7 +829,7 @@
           "description": "",
           "id": 17,
           "links": [],
-          "title": "\u23f1\ufe0f Request Latency p50 (ms)",
+          "title": "⏱️ Request Latency p50 (ms)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -950,7 +950,7 @@
           "description": "",
           "id": 18,
           "links": [],
-          "title": "\u2705 Player Submit Outcomes/s",
+          "title": "✅ Player Submit Outcomes/s",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1068,7 +1068,7 @@
           "description": "",
           "id": 19,
           "links": [],
-          "title": "\u26a1 Submit Queue Processed/s",
+          "title": "⚡ Submit Queue Processed/s",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1186,7 +1186,7 @@
           "description": "",
           "id": 2,
           "links": [],
-          "title": "\ud83d\udc65 Tracked Players",
+          "title": "👥 Tracked Players",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1330,7 +1330,7 @@
           "description": "",
           "id": 20,
           "links": [],
-          "title": "\u23f1\ufe0f Submit Processing Duration p50 (ms)",
+          "title": "⏱️ Submit Processing Duration p50 (ms)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1448,7 +1448,7 @@
           "description": "",
           "id": 21,
           "links": [],
-          "title": "\ud83c\udfa8 Skin Renders/s (cache hit vs miss)",
+          "title": "🎨 Skin Renders/s (cache hit vs miss)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1566,7 +1566,7 @@
           "description": "",
           "id": 22,
           "links": [],
-          "title": "\u23f1\ufe0f Skin Render Duration p50 (ms)",
+          "title": "⏱️ Skin Render Duration p50 (ms)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1684,7 +1684,7 @@
           "description": "",
           "id": 23,
           "links": [],
-          "title": "\ud83e\udde5 Cape Renders/s (cache hit vs miss)",
+          "title": "🧥 Cape Renders/s (cache hit vs miss)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1802,7 +1802,7 @@
           "description": "",
           "id": 24,
           "links": [],
-          "title": "\u23f1\ufe0f Cape Render Duration p50 (ms)",
+          "title": "⏱️ Cape Render Duration p50 (ms)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1920,7 +1920,7 @@
           "description": "",
           "id": 25,
           "links": [],
-          "title": "\ud83d\udd0d Server Lookups/s (cache hit vs miss)",
+          "title": "🔍 Server Lookups/s (cache hit vs miss)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -2038,7 +2038,7 @@
           "description": "",
           "id": 26,
           "links": [],
-          "title": "\u23f1\ufe0f Server Ping Duration p50 (ms)",
+          "title": "⏱️ Server Ping Duration p50 (ms)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -2156,7 +2156,7 @@
           "description": "",
           "id": 27,
           "links": [],
-          "title": "\ud83d\udda5\ufe0f CPU Usage",
+          "title": "🖥️ CPU Usage",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -2284,7 +2284,7 @@
           "description": "",
           "id": 28,
           "links": [],
-          "title": "\ud83e\uddf5 Thread Count",
+          "title": "🧵 Thread Count",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -2402,7 +2402,7 @@
           "description": "",
           "id": 29,
           "links": [],
-          "title": "\ud83d\uddd1\ufe0f GC Collections/s",
+          "title": "🗑️ GC Collections/s",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -2520,7 +2520,7 @@
           "description": "",
           "id": 30,
           "links": [],
-          "title": "\u23f8\ufe0f GC Pause Time (s/s)",
+          "title": "⏸️ GC Pause Time (s/s)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -2640,7 +2640,7 @@
           "description": "Top 10 player names by total submission count",
           "id": 32,
           "links": [],
-          "title": "\ud83c\udfc6 Top 10 Submitted Players",
+          "title": "🏆 Top 10 Submitted Players",
           "vizConfig": {
             "group": "bargauge",
             "kind": "VizConfig",
@@ -2730,7 +2730,7 @@
           "description": "DNS query rate by type (srv/a) and result (cache_hit/resolved/not_found)",
           "id": 33,
           "links": [],
-          "title": "\ud83c\udf0d DNS Query Rate",
+          "title": "🌍 DNS Query Rate",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -2848,7 +2848,7 @@
           "description": "DNS query p50 latency (excludes in-memory cache hits)",
           "id": 34,
           "links": [],
-          "title": "\u23f1\ufe0f DNS Query Duration p50 (ms)",
+          "title": "⏱️ DNS Query Duration p50 (ms)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -2966,7 +2966,7 @@
           "description": "IP geo/ASN lookup rate by result (Spring cache misses only)",
           "id": 35,
           "links": [],
-          "title": "\ud83d\udccd IP Lookup Rate",
+          "title": "📍 IP Lookup Rate",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -3084,7 +3084,7 @@
           "description": "IP lookup p50 latency (Spring cache misses only)",
           "id": 36,
           "links": [],
-          "title": "\u23f1\ufe0f IP Lookup Duration p50 (ms)",
+          "title": "⏱️ IP Lookup Duration p50 (ms)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -3202,7 +3202,7 @@
           "description": "S3/MinIO storage operation rate by operation (upload/get) and status (success/failure/cache_hit)",
           "id": 37,
           "links": [],
-          "title": "\ud83d\udcbf Storage Operation Rate",
+          "title": "💿 Storage Operation Rate",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -3320,7 +3320,7 @@
           "description": "S3 storage operation p50 latency (excludes in-memory cache hits)",
           "id": 38,
           "links": [],
-          "title": "\u23f1\ufe0f Storage Operation Duration p50 (ms)",
+          "title": "⏱️ Storage Operation Duration p50 (ms)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -3438,7 +3438,7 @@
           "description": "Current count of server hashes blocked by Mojang",
           "id": 42,
           "links": [],
-          "title": "\ud83d\udeab Mojang Blocked Server Hashes",
+          "title": "🚫 Mojang Blocked Server Hashes",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -3556,7 +3556,7 @@
           "description": "Current number of active WebSocket sessions",
           "id": 43,
           "links": [],
-          "title": "\ud83d\udd0c Active WebSocket Connections",
+          "title": "🔌 Active WebSocket Connections",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -3675,7 +3675,7 @@
           "description": "",
           "id": 44,
           "links": [],
-          "title": "\ud83d\udc65 Tracked Players",
+          "title": "👥 Tracked Players",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -3759,7 +3759,7 @@
           "description": "",
           "id": 45,
           "links": [],
-          "title": "\ud83d\udda5\ufe0f CPU Usage",
+          "title": "🖥️ CPU Usage",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -3850,7 +3850,7 @@
           "description": "",
           "id": 46,
           "links": [],
-          "title": "\ud83d\udcbe Heap Memory",
+          "title": "💾 Heap Memory",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -3934,7 +3934,7 @@
           "description": "",
           "id": 47,
           "links": [],
-          "title": "\ud83d\udcca Requests/s",
+          "title": "📊 Requests/s",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -4018,7 +4018,7 @@
           "description": "",
           "id": 48,
           "links": [],
-          "title": "\ud83d\udd0c WebSocket Connections",
+          "title": "🔌 WebSocket Connections",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -4101,7 +4101,7 @@
           "description": "",
           "id": 49,
           "links": [],
-          "title": "\u23f1\ufe0f Overall Request Latency p50 (ms)",
+          "title": "⏱️ Overall Request Latency p50 (ms)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -4222,7 +4222,7 @@
           "description": "",
           "id": 5,
           "links": [],
-          "title": "\ud83d\udcbe Non Heap Memory Usage",
+          "title": "💾 Non Heap Memory Usage",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -4354,7 +4354,7 @@
           "description": "",
           "id": 50,
           "links": [],
-          "title": "\ud83d\udcdd Name Changes",
+          "title": "📝 Name Changes",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -4437,7 +4437,7 @@
           "description": "",
           "id": 51,
           "links": [],
-          "title": "\ud83d\udd04 Player Changes/s",
+          "title": "🔄 Player Changes/s",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -4556,7 +4556,7 @@
           "description": "",
           "id": 52,
           "links": [],
-          "title": "\ud83c\udfaf Change Hit Rate",
+          "title": "🎯 Change Hit Rate",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -4698,7 +4698,7 @@
           "description": "",
           "id": 8,
           "links": [],
-          "title": "\ud83c\udfa8 Tracked Skins",
+          "title": "🎨 Tracked Skins",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -4838,7 +4838,7 @@
           "description": "",
           "id": 9,
           "links": [],
-          "title": "\ud83e\udde5 Tracked Capes",
+          "title": "🧥 Tracked Capes",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -4965,7 +4965,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(server_scanner_ip_probes_total{job=\"mc_utils\"}[1m])",
+                        "expr": "rate(server_tracker_ip_probes_total{job=\"mc_utils\"}[1m])",
                         "format": "time_series",
                         "legendFormat": "__auto",
                         "range": true,
@@ -4983,7 +4983,7 @@
           "description": "",
           "id": 53,
           "links": [],
-          "title": "\ud83d\udd0e IP Probes/s",
+          "title": "🔎 IP Probes/s",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -5049,7 +5049,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(server_scanner_connect_open_total{job=\"mc_utils\"}[1m])",
+                        "expr": "rate(server_tracker_connect_open_total{job=\"mc_utils\"}[1m])",
                         "format": "time_series",
                         "legendFormat": "__auto",
                         "range": true,
@@ -5067,7 +5067,7 @@
           "description": "",
           "id": 54,
           "links": [],
-          "title": "\u2705 Open Connects/s",
+          "title": "✅ Open Connects/s",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -5133,7 +5133,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(server_scanner_servers_verified_total{job=\"mc_utils\"}[1m])",
+                        "expr": "rate(server_tracker_servers_verified_total{job=\"mc_utils\"}[1m])",
                         "format": "time_series",
                         "legendFormat": "__auto",
                         "range": true,
@@ -5151,7 +5151,7 @@
           "description": "",
           "id": 55,
           "links": [],
-          "title": "\ud83d\udda5\ufe0f Verified Servers/s",
+          "title": "🖥️ Verified Servers/s",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -5217,7 +5217,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(server_scanner_ports_probed_walk_total{job=\"mc_utils\"}[1m])",
+                        "expr": "rate(server_tracker_ports_probed_walk_total{job=\"mc_utils\"}[1m])",
                         "format": "time_series",
                         "legendFormat": "__auto",
                         "range": true,
@@ -5235,7 +5235,7 @@
           "description": "",
           "id": 56,
           "links": [],
-          "title": "\ud83d\udd22 Port Walk Probes/s",
+          "title": "🔢 Port Walk Probes/s",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -5301,7 +5301,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(server_scanner_players_enqueued_total{job=\"mc_utils\"}[1m])",
+                        "expr": "rate(server_tracker_players_enqueued_total{job=\"mc_utils\"}[1m])",
                         "format": "time_series",
                         "legendFormat": "__auto",
                         "range": true,
@@ -5319,7 +5319,7 @@
           "description": "",
           "id": 57,
           "links": [],
-          "title": "\ud83d\udce6 Players Enqueued/s",
+          "title": "📦 Players Enqueued/s",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -5385,7 +5385,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "server_scanner_progress_24s{job=\"mc_utils\"}",
+                        "expr": "server_tracker_progress_24s{job=\"mc_utils\"}",
                         "format": "time_series",
                         "legendFormat": "__auto",
                         "range": false,
@@ -5403,7 +5403,7 @@
           "description": "",
           "id": 58,
           "links": [],
-          "title": "\ud83d\uddfa\ufe0f Progress (/24 subnets)",
+          "title": "🗺️ Progress (/24 subnets)",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -5469,7 +5469,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(server_scanner_ip_probes_total{job=\"mc_utils\"}[1m])",
+                        "expr": "rate(server_tracker_ip_probes_total{job=\"mc_utils\"}[1m])",
                         "format": "time_series",
                         "legendFormat": "probes",
                         "range": true
@@ -5491,7 +5491,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(server_scanner_connect_open_total{job=\"mc_utils\"}[1m])",
+                        "expr": "rate(server_tracker_connect_open_total{job=\"mc_utils\"}[1m])",
                         "format": "time_series",
                         "legendFormat": "open connects",
                         "range": true
@@ -5513,7 +5513,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(server_scanner_servers_verified_total{job=\"mc_utils\"}[1m])",
+                        "expr": "rate(server_tracker_servers_verified_total{job=\"mc_utils\"}[1m])",
                         "format": "time_series",
                         "legendFormat": "servers verified",
                         "range": true
@@ -5530,7 +5530,7 @@
           "description": "",
           "id": 59,
           "links": [],
-          "title": "\ud83c\udf10 Discovery Throughput/s",
+          "title": "🌐 Discovery Throughput/s",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -5631,7 +5631,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(server_scanner_players_harvested_total{job=\"mc_utils\"}[1m])",
+                        "expr": "rate(server_tracker_players_harvested_total{job=\"mc_utils\"}[1m])",
                         "format": "time_series",
                         "legendFormat": "harvested",
                         "range": true
@@ -5653,7 +5653,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(server_scanner_players_enqueued_total{job=\"mc_utils\"}[1m])",
+                        "expr": "rate(server_tracker_players_enqueued_total{job=\"mc_utils\"}[1m])",
                         "format": "time_series",
                         "legendFormat": "enqueued",
                         "range": true
@@ -5675,7 +5675,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(server_scanner_ports_probed_walk_total{job=\"mc_utils\"}[1m])",
+                        "expr": "rate(server_tracker_ports_probed_walk_total{job=\"mc_utils\"}[1m])",
                         "format": "time_series",
                         "legendFormat": "walk probes",
                         "range": true
@@ -5692,7 +5692,7 @@
           "description": "",
           "id": 60,
           "links": [],
-          "title": "\ud83d\udd04 Harvest vs Enqueue/s",
+          "title": "🔄 Harvest vs Enqueue/s",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -5793,7 +5793,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by (reason) (rate(server_scanner_sample_entries_dropped_total{job=\"mc_utils\"}[1m]))",
+                        "expr": "sum by (reason) (rate(server_tracker_sample_entries_dropped_total{job=\"mc_utils\"}[1m]))",
                         "format": "time_series",
                         "legendFormat": "{{reason}}",
                         "range": true
@@ -5810,7 +5810,7 @@
           "description": "",
           "id": 61,
           "links": [],
-          "title": "\ud83d\uddd1\ufe0f Sample Drops/s by Reason",
+          "title": "🗑️ Sample Drops/s by Reason",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -5911,7 +5911,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(server_scanner_honeypot_servers_flagged_total{job=\"mc_utils\"}[1m])",
+                        "expr": "rate(server_tracker_honeypot_servers_flagged_total{job=\"mc_utils\"}[1m])",
                         "format": "time_series",
                         "legendFormat": "servers flagged",
                         "range": true
@@ -5933,7 +5933,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(server_scanner_honeypot_fingerprints_blocked_total{job=\"mc_utils\"}[1m])",
+                        "expr": "rate(server_tracker_honeypot_fingerprints_blocked_total{job=\"mc_utils\"}[1m])",
                         "format": "time_series",
                         "legendFormat": "fingerprint farms blocked",
                         "range": true
@@ -5955,7 +5955,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(server_scanner_harvest_pauses_total{job=\"mc_utils\"}[1m])",
+                        "expr": "rate(server_tracker_harvest_pauses_total{job=\"mc_utils\"}[1m])",
                         "format": "time_series",
                         "legendFormat": "harvest pauses",
                         "range": true
@@ -5972,7 +5972,7 @@
           "description": "",
           "id": 62,
           "links": [],
-          "title": "\ud83d\udee1\ufe0f Honeypot Flags & Pauses/s",
+          "title": "🛡️ Honeypot Flags & Pauses/s",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -6021,6 +6021,794 @@
                     "steps": [
                       {
                         "color": "red",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "options": {
+                "annotations": {
+                  "clustering": -1,
+                  "multiLane": false
+                },
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "desc"
+                }
+              }
+            },
+            "version": "13.1.1"
+          }
+        }
+      },
+      "panel-63": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "ffbmdvoh37lkwe"
+                      },
+                      "group": "victoriametrics-metrics-datasource",
+                      "kind": "DataQuery",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "server_tracker_tracked_servers{job=\"mc_utils\"}",
+                        "format": "time_series",
+                        "legendFormat": "__auto",
+                        "range": true,
+                        "instant": false
+                      }
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 63,
+          "links": [],
+          "title": "🗃️ Tracked Servers",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "fixedColor": "blue",
+                    "mode": "fixed"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "blue",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "background",
+                "graphMode": "sparkline",
+                "justifyMode": "center",
+                "orientation": "horizontal",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              }
+            },
+            "version": "13.1.1"
+          }
+        }
+      },
+      "panel-64": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "ffbmdvoh37lkwe"
+                      },
+                      "group": "victoriametrics-metrics-datasource",
+                      "kind": "DataQuery",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "rate(server_tracker_refresh_pings_total{job=\"mc_utils\"}[1m])",
+                        "format": "time_series",
+                        "legendFormat": "__auto",
+                        "range": true,
+                        "instant": false
+                      }
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 64,
+          "links": [],
+          "title": "🔄 Refresh Pings/s",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "fixedColor": "orange",
+                    "mode": "fixed"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "orange",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "background",
+                "graphMode": "sparkline",
+                "justifyMode": "center",
+                "orientation": "horizontal",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              }
+            },
+            "version": "13.1.1"
+          }
+        }
+      },
+      "panel-65": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "ffbmdvoh37lkwe"
+                      },
+                      "group": "victoriametrics-metrics-datasource",
+                      "kind": "DataQuery",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "rate(server_tracker_refresh_persisted_total{job=\"mc_utils\"}[1m])",
+                        "format": "time_series",
+                        "legendFormat": "__auto",
+                        "range": true,
+                        "instant": false
+                      }
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 65,
+          "links": [],
+          "title": "💾 Refresh Persisted/s",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "fixedColor": "green",
+                    "mode": "fixed"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "background",
+                "graphMode": "sparkline",
+                "justifyMode": "center",
+                "orientation": "horizontal",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              }
+            },
+            "version": "13.1.1"
+          }
+        }
+      },
+      "panel-66": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "ffbmdvoh37lkwe"
+                      },
+                      "group": "victoriametrics-metrics-datasource",
+                      "kind": "DataQuery",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "rate(server_tracker_players_seen_first_total{job=\"mc_utils\"}[1m])",
+                        "format": "time_series",
+                        "legendFormat": "__auto",
+                        "range": true,
+                        "instant": false
+                      }
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 66,
+          "links": [],
+          "title": "👤 New Players Seen/s",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "fixedColor": "purple",
+                    "mode": "fixed"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "purple",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "background",
+                "graphMode": "sparkline",
+                "justifyMode": "center",
+                "orientation": "horizontal",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              }
+            },
+            "version": "13.1.1"
+          }
+        }
+      },
+      "panel-67": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "ffbmdvoh37lkwe"
+                      },
+                      "group": "victoriametrics-metrics-datasource",
+                      "kind": "DataQuery",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "rate(server_tracker_geo_lookup_failures_total{job=\"mc_utils\"}[1m])",
+                        "format": "time_series",
+                        "legendFormat": "__auto",
+                        "range": true,
+                        "instant": false
+                      }
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 67,
+          "links": [],
+          "title": "🌍 Geo Lookup Failures/s",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "fixedColor": "red",
+                    "mode": "fixed"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "red",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "background",
+                "graphMode": "sparkline",
+                "justifyMode": "center",
+                "orientation": "horizontal",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              }
+            },
+            "version": "13.1.1"
+          }
+        }
+      },
+      "panel-68": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "ffbmdvoh37lkwe"
+                      },
+                      "group": "victoriametrics-metrics-datasource",
+                      "kind": "DataQuery",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "rate(server_tracker_history_rows_pruned_total{job=\"mc_utils\"}[1m])",
+                        "format": "time_series",
+                        "legendFormat": "__auto",
+                        "range": true,
+                        "instant": false
+                      }
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 68,
+          "links": [],
+          "title": "🧹 History Pruned/s",
+          "vizConfig": {
+            "group": "stat",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "fixedColor": "purple",
+                    "mode": "fixed"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "purple",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "options": {
+                "colorMode": "background",
+                "graphMode": "sparkline",
+                "justifyMode": "center",
+                "orientation": "horizontal",
+                "percentChangeColorMode": "standard",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showPercentChange": false,
+                "textMode": "auto",
+                "wideLayout": true
+              }
+            },
+            "version": "13.1.1"
+          }
+        }
+      },
+      "panel-69": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "ffbmdvoh37lkwe"
+                      },
+                      "group": "victoriametrics-metrics-datasource",
+                      "kind": "DataQuery",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "rate(server_tracker_refresh_pings_total{job=\"mc_utils\"}[1m])",
+                        "format": "time_series",
+                        "legendFormat": "pings",
+                        "range": true,
+                        "instant": false
+                      }
+                    },
+                    "refId": "A"
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "ffbmdvoh37lkwe"
+                      },
+                      "group": "victoriametrics-metrics-datasource",
+                      "kind": "DataQuery",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "rate(server_tracker_refresh_persisted_total{job=\"mc_utils\"}[1m])",
+                        "format": "time_series",
+                        "legendFormat": "persisted",
+                        "range": true,
+                        "instant": false
+                      }
+                    },
+                    "refId": "B"
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "ffbmdvoh37lkwe"
+                      },
+                      "group": "victoriametrics-metrics-datasource",
+                      "kind": "DataQuery",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "rate(server_tracker_refresh_failed_total{job=\"mc_utils\"}[1m])",
+                        "format": "time_series",
+                        "legendFormat": "failed",
+                        "range": true,
+                        "instant": false
+                      }
+                    },
+                    "refId": "C"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 69,
+          "links": [],
+          "title": "🔄 Refresh Cycle/s",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 25,
+                    "gradientMode": "opacity",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "smooth",
+                    "lineWidth": 2,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  "unit": "short"
+                },
+                "overrides": []
+              },
+              "options": {
+                "annotations": {
+                  "clustering": -1,
+                  "multiLane": false
+                },
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "enableFacetedFilter": false,
+                  "overflow": "ellipsis",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "desc"
+                }
+              }
+            },
+            "version": "13.1.1"
+          }
+        }
+      },
+      "panel-70": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "ffbmdvoh37lkwe"
+                      },
+                      "group": "victoriametrics-metrics-datasource",
+                      "kind": "DataQuery",
+                      "version": "v0",
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "sum by (reason) (rate(server_tracker_refresh_failed_total{job=\"mc_utils\"}[1m]))",
+                        "format": "time_series",
+                        "legendFormat": "{{reason}}",
+                        "range": true,
+                        "instant": false
+                      }
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 70,
+          "links": [],
+          "title": "⚠️ Refresh Failures/s by Reason",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 25,
+                    "gradientMode": "opacity",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "smooth",
+                    "lineWidth": 2,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
                         "value": 0
                       }
                     ]
@@ -6147,7 +6935,7 @@
                   ]
                 }
               },
-              "title": "\ud83d\udccc Overview"
+              "title": "📌 Overview"
             }
           },
           {
@@ -6200,7 +6988,7 @@
                   ]
                 }
               },
-              "title": "\ud83d\udce1 API Performance"
+              "title": "📡 API Performance"
             }
           },
           {
@@ -6292,7 +7080,7 @@
                   ]
                 }
               },
-              "title": "\u2615 JVM & Memory"
+              "title": "☕ JVM & Memory"
             }
           },
           {
@@ -6358,7 +7146,7 @@
                   ]
                 }
               },
-              "title": "\ud83d\udce4 Player Submission"
+              "title": "📤 Player Submission"
             }
           },
           {
@@ -6498,11 +7286,115 @@
                         "x": 12,
                         "y": 15
                       }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-63"
+                        },
+                        "height": 7,
+                        "width": 4,
+                        "x": 0,
+                        "y": 23
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-64"
+                        },
+                        "height": 7,
+                        "width": 4,
+                        "x": 4,
+                        "y": 23
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-65"
+                        },
+                        "height": 7,
+                        "width": 4,
+                        "x": 8,
+                        "y": 23
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-66"
+                        },
+                        "height": 7,
+                        "width": 4,
+                        "x": 12,
+                        "y": 23
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-67"
+                        },
+                        "height": 7,
+                        "width": 4,
+                        "x": 16,
+                        "y": 23
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-68"
+                        },
+                        "height": 7,
+                        "width": 4,
+                        "x": 20,
+                        "y": 23
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-69"
+                        },
+                        "height": 8,
+                        "width": 12,
+                        "x": 0,
+                        "y": 30
+                      }
+                    },
+                    {
+                      "kind": "GridLayoutItem",
+                      "spec": {
+                        "element": {
+                          "kind": "ElementReference",
+                          "name": "panel-70"
+                        },
+                        "height": 8,
+                        "width": 12,
+                        "x": 12,
+                        "y": 30
+                      }
                     }
                   ]
                 }
               },
-              "title": "\ud83d\udef0\ufe0f Server Scanner"
+              "title": "🛰️ Server Tracker"
             }
           },
           {
@@ -6607,7 +7499,7 @@
                   ]
                 }
               },
-              "title": "\ud83d\udcca Data Catalog"
+              "title": "📊 Data Catalog"
             }
           },
           {
@@ -6673,7 +7565,7 @@
                   ]
                 }
               },
-              "title": "\ud83d\uddbc\ufe0f Rendering"
+              "title": "🖼️ Rendering"
             }
           },
           {
@@ -6765,7 +7657,7 @@
                   ]
                 }
               },
-              "title": "\ud83d\udd17 External Services"
+              "title": "🔗 External Services"
             }
           },
           {
@@ -6857,7 +7749,7 @@
                   ]
                 }
               },
-              "title": "\ud83c\udfd7\ufe0f Infrastructure"
+              "title": "🏗️ Infrastructure"
             }
           }
         ]
@@ -6887,7 +7779,7 @@
       "timezone": "browser",
       "to": "now"
     },
-    "title": "\ud83d\udcc8 McUtils Metrics",
+    "title": "📈 McUtils Metrics",
     "variables": []
   }
 }

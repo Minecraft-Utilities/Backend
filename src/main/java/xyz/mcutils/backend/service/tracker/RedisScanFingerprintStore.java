@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.service.scanner;
+package xyz.mcutils.backend.service.tracker;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;

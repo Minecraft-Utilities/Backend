@@ -199,11 +199,12 @@ mc-utils:
     mojang-rate-limit: 600
     concurrent-persists: 64
 
-  # Internet server scanner: sweeps the public IPv4 space for Java Minecraft servers
-  # and feeds harvested online players into the submit queue (attributed to ImFascinated).
-  # Opt-in: the scanner does nothing at boot while enabled is false.
-  server-scanner:
-    enabled: false
+  # Internet server tracker: sweeps the public IPv4 space for Java Minecraft servers,
+  # persists per-server telemetry (counts, version, geo, platform, protocol, player
+  # history), keeps tracked servers current with an equal-cadence refresh cycle, and
+  # exposes stats over the API. Defaults to enabled; opt out per feature.
+  server-tracker:
+    enabled: true
     # Console progress summary interval in seconds (min 10).
     progress-log-interval-seconds: 60
     discovery:
@@ -248,3 +249,25 @@ mc-utils:
       exclude-extra-cidrs: ""
       # Comma-separated CIDRs to scan INSTEAD of the full space (scoped/CI mode).
       include-cidrs: ""
+    tracking:
+      # Persist per-server telemetry (tracked_servers, player_history, online history).
+      enabled: true
+      geo:
+        # MaxMind country/ASN lookup once per NEW server (cached; NULL when unset).
+        enabled: true
+    refresh:
+      # Refresh cycle: every tracked server re-pinged, equal treatment.
+      enabled: true
+      # Min hours between refreshes of the same server (the single cadence knob).
+      min-gap-hours: 6
+      # Claim chunk and worker pool (mirrors player-refresh).
+      chunk-size: 2500
+      concurrent-fetches: 200
+      timeout-ms: 5000
+    history:
+      # Online-history retention: raw rows 30 days, hourly downsampled to 90, then pruned.
+      raw-retention-days: 30
+      hourly-retention-days: 90
+    stats:
+      # API stats snapshot recompute cadence in seconds.
+      refresh-seconds: 300

@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.service.scanner;
+package xyz.mcutils.backend.service.tracker;
 
 import org.junit.jupiter.api.Test;
 
@@ -6,14 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Exercises {@link ServerScannerService.HoneypotSurgeGuard}: the sliding-window honeypot
+ * Exercises {@link ServerTrackerService.HoneypotSurgeGuard}: the sliding-window honeypot
  * verdicts that auto-pause harvesting once the flagged ratio crosses the threshold.
  */
-class ServerScannerServiceTest {
+class ServerTrackerServiceTest {
 
     @Test
     void pausesAfterThresholdFlaggedServers() {
-        ServerScannerService.HoneypotSurgeGuard guard = new ServerScannerService.HoneypotSurgeGuard(3, 2, 300);
+        ServerTrackerService.HoneypotSurgeGuard guard = new ServerTrackerService.HoneypotSurgeGuard(3, 2, 300);
         assertFalse(guard.report(true), "first flagged server is under the threshold");
         assertTrue(guard.report(true), "second flagged server crosses the threshold and arms the pause");
         assertTrue(guard.paused());
@@ -21,7 +21,7 @@ class ServerScannerServiceTest {
 
     @Test
     void pauseIsSetAndResetOnceArmed() {
-        ServerScannerService.HoneypotSurgeGuard guard = new ServerScannerService.HoneypotSurgeGuard(3, 2, 300);
+        ServerTrackerService.HoneypotSurgeGuard guard = new ServerTrackerService.HoneypotSurgeGuard(3, 2, 300);
         guard.report(true);
         assertFalse(guard.paused());
         guard.report(true);
@@ -36,7 +36,7 @@ class ServerScannerServiceTest {
 
     @Test
     void cleanVerdictsNeverPause() {
-        ServerScannerService.HoneypotSurgeGuard guard = new ServerScannerService.HoneypotSurgeGuard(3, 2, 300);
+        ServerTrackerService.HoneypotSurgeGuard guard = new ServerTrackerService.HoneypotSurgeGuard(3, 2, 300);
         for (int i = 0; i < 10; i++) {
             assertFalse(guard.report(false));
         }

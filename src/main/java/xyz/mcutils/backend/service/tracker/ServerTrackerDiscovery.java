@@ -1,8 +1,8 @@
-package xyz.mcutils.backend.service.scanner;
+package xyz.mcutils.backend.service.tracker;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import xyz.mcutils.backend.metric.impl.scanner.ServerScannerMetric;
+import xyz.mcutils.backend.metric.impl.tracker.ServerTrackerMetric;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Discovery stage of the internet scanner: asynchronous TCP connect probes across the whole
+ * Discovery stage of the internet tracker: asynchronous TCP connect probes across the whole
  * IPv4 space, using {@code java.nio} non-blocking channels with a single selector thread.
  * Every host is probed on each configured discovery port (e.g. 25564, 25565, 25566), so servers
  * running only on non-standard ports are found too. Hosts are probed in a seeded random order
@@ -31,15 +31,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  * selector's key set at most once per second.
  * <p>
  * Only the configured discovery ports are probed here — the port walk happens in
- * {@link ServerScanVerifier} on hosts where a discovery port verified. Open ports are handed to
+ * {@link ServerTrackerVerifier} on hosts where a discovery port verified. Open ports are handed to
  * the verifier via the {@link OpenPortHandler} callback (invoked on the selector thread;
  * dispatch to a pool belongs to the caller).
  * <p>
- * Not a Spring bean: {@link ServerScannerService} constructs it (and its collaborators) after
+ * Not a Spring bean: {@link ServerTrackerService} constructs it (and its collaborators) after
  * the context is ready, so nothing here needs to be eagerly instantiable.
  */
 @Slf4j
-public class ServerDiscoveryScanner {
+public class ServerTrackerDiscovery {
 
     /**
      * Receives an IP + port whose TCP connect succeeded. Called from the selector thread.
@@ -61,7 +61,7 @@ public class ServerDiscoveryScanner {
     private final int concurrency;
     private final Duration connectTimeout;
     private final OpenPortHandler openPortHandler;
-    private final ServerScannerMetric metrics; // nullable: metrics recording is optional
+    private final ServerTrackerMetric metrics; // nullable: metrics recording is optional
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicInteger pendingCount = new AtomicInteger();
 
@@ -77,13 +77,13 @@ public class ServerDiscoveryScanner {
     private volatile Ipv4Space.Progress cursor;
     private volatile long completed24s;
 
-    public ServerDiscoveryScanner(
+    public ServerTrackerDiscovery(
             Ipv4Space space,
             OpenPortHandler openPortHandler,
-            ServerScannerMetric metrics,
-            @Value("${mc-utils.server-scanner.ports.discovery:25564,25565,25566,25567}") String discoveryPortsCsv,
-            @Value("${mc-utils.server-scanner.discovery.concurrency:20000}") int concurrency,
-            @Value("${mc-utils.server-scanner.discovery.connect-timeout-ms:1000}") long connectTimeoutMs
+            ServerTrackerMetric metrics,
+            @Value("${mc-utils.server-tracker.ports.discovery:25564,25565,25566,25567}") String discoveryPortsCsv,
+            @Value("${mc-utils.server-tracker.discovery.concurrency:20000}") int concurrency,
+            @Value("${mc-utils.server-tracker.discovery.connect-timeout-ms:1000}") long connectTimeoutMs
     ) {
         this.space = space;
         this.openPortHandler = openPortHandler;
@@ -118,7 +118,7 @@ public class ServerDiscoveryScanner {
      */
     public void run() {
         if (!running.compareAndSet(false, true)) {
-            throw new IllegalStateException("Discovery scanner is already running");
+            throw new IllegalStateException("Discovery stage is already running");
         }
         try {
             selector = Selector.open();
@@ -162,7 +162,7 @@ public class ServerDiscoveryScanner {
                 }
             }
         } catch (IOException e) {
-            log.error("Discovery scanner selector failed", e);
+            log.error("Discovery stage selector failed", e);
         } finally {
             closeAll();
             running.set(false);
@@ -277,7 +277,7 @@ public class ServerDiscoveryScanner {
                 long completed = ++completed24s;
                 this.cursor = space.progress();
                 if (metrics != null) {
-                    ServerScannerMetric.updateProgress(completed);
+                    ServerTrackerMetric.updateProgress(completed);
                 }
                 current24 = -1;
             }
@@ -294,7 +294,7 @@ public class ServerDiscoveryScanner {
 
     private static List<Integer> parsePorts(String csv) {
         if (csv == null || csv.isBlank()) {
-            throw new IllegalArgumentException("mc-utils.server-scanner.ports.discovery must not be empty");
+            throw new IllegalArgumentException("mc-utils.server-tracker.ports.discovery must not be empty");
         }
         List<Integer> ports = new ArrayList<>();
         for (String part : csv.split(",")) {

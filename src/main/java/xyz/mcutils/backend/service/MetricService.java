@@ -16,7 +16,7 @@ import xyz.mcutils.backend.metric.impl.jvm.*;
 import xyz.mcutils.backend.metric.impl.mojang.MojangBlockedServersMetric;
 import xyz.mcutils.backend.metric.impl.player.*;
 import xyz.mcutils.backend.metric.impl.server.ServerLookupMetric;
-import xyz.mcutils.backend.metric.impl.scanner.ServerScannerMetric;
+import xyz.mcutils.backend.metric.impl.tracker.ServerTrackerMetric;
 import xyz.mcutils.backend.metric.impl.skin.SkinRenderMetric;
 import xyz.mcutils.backend.metric.impl.skin.TrackedSkinsMetric;
 import xyz.mcutils.backend.metric.impl.storage.StorageOperationMetric;
@@ -79,7 +79,7 @@ public class MetricService {
 
         // Server
         this.registerMetric(new ServerLookupMetric());
-        this.registerMetric(new ServerScannerMetric());
+        this.registerMetric(new ServerTrackerMetric());
 
         // Mojang
         this.registerMetric(new MojangBlockedServersMetric(mojangService));

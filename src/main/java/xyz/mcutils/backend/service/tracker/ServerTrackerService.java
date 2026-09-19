@@ -1,18 +1,18 @@
-package xyz.mcutils.backend.service.scanner;
+package xyz.mcutils.backend.service.tracker;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
-import xyz.mcutils.backend.metric.impl.scanner.ServerScannerMetric;
-import xyz.mcutils.backend.model.persistence.postgres.ScanProgressRow;
-import xyz.mcutils.backend.model.persistence.postgres.ScannedServerRow;
-import xyz.mcutils.backend.repository.postgres.ScanProgressRepository;
-import xyz.mcutils.backend.repository.postgres.ServerScannerRepository;
+import xyz.mcutils.backend.metric.impl.tracker.ServerTrackerMetric;
+import xyz.mcutils.backend.model.persistence.postgres.TrackerProgressRow;
+import xyz.mcutils.backend.repository.postgres.TrackerProgressRepository;
 import xyz.mcutils.backend.service.MetricService;
 import xyz.mcutils.backend.service.PlayerSubmitService;
+import xyz.mcutils.backend.service.TrackerStatsService;
 import xyz.mcutils.backend.service.pinger.impl.JavaMinecraftServerPinger;
 
 import java.time.Duration;
@@ -32,17 +32,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Orchestrates the internet server scanner. Opt-in via {@code mc-utils.server-scanner.enabled};
- * when disabled the service does nothing. On start it restores the last persisted position
- * (seed + /16 + /24 offset), runs the NIO discovery sweep, verifies open hosts with the port
- * walk, and feeds harvested players into {@link PlayerSubmitService} attributed to ImFascinated.
+ * Orchestrates the internet server tracker: the discovery campaign (IPv4 sweep, verification,
+ * harvest, progress persistence) and the refresh cycle (continuous equal-cadence re-ping of
+ * tracked servers) run as independent daemon loops sharing the verify pool and the
+ * {@link ServerTrackerStore}. Discovery defaults to enabled ({@code mc-utils.server-tracker.enabled});
+ * when disabled the refresh cycle still keeps tracked rows current (e.g. after a finished
+ * campaign). Harvested players are fed into {@link PlayerSubmitService} attributed to
+ * ImFascinated.
  */
 @Service
 @Slf4j
-public class ServerScannerService {
+public class ServerTrackerService {
 
     /**
-     * ImFascinated's UUID: all scanner harvests are attributed to this account so
+     * ImFascinated's UUID: all tracker harvests are attributed to this account so
      * {@code TopSubmittedPlayers} counts them there.
      */
     public static final UUID SUBMITTED_BY = UUID.fromString("eeab5f8a-18dd-4d58-af78-2b3c4543da48");
@@ -51,11 +54,18 @@ public class ServerScannerService {
     private static final long FLUSH_INTERVAL_SECONDS = 2;
 
     private final PlayerSubmitService playerSubmitService;
-    private final ServerScannerRepository serverScannerRepository;
-    private final ScanProgressRepository scanProgressRepository;
+    private final ServerTrackerStore serverTrackerStore;
+    private final TrackerProgressRepository trackerProgressRepository;
     private final HoneypotDetector honeypotDetector;
+    private final JdbcTemplate jdbcTemplate;
+    private final TrackerStatsService trackerStatsService;
 
     private final boolean enabled;
+    private final boolean refreshEnabled;
+    private final int refreshChunkSize;
+    private final int refreshConcurrentFetches;
+    private final int refreshTimeoutMs;
+    private final long refreshMinGapHours;
     private final int verifyConcurrency;
     private final int enqueueBatchSize;
     private final long enqueueRatePerMinute;
@@ -80,42 +90,57 @@ public class ServerScannerService {
     private volatile long lastLogCompleted24s;
     private volatile long lastLogNanos = System.nanoTime();
 
-    private ServerDiscoveryScanner discovery;
+    private ServerTrackerDiscovery discovery;
     private Ipv4Space space;
-    private ServerScannerMetric metrics;
+    private ServerTrackerMetric metrics;
     private BufferedHarvester harvester;
+    private ServerTrackerRefresher refresher;
     private ExecutorService verifierExecutor;
     private ScheduledExecutorService upkeepExecutor;
     private Thread discoveryThread;
 
-    public ServerScannerService(
+    public ServerTrackerService(
             PlayerSubmitService playerSubmitService,
-            ServerScannerRepository serverScannerRepository,
-            ScanProgressRepository scanProgressRepository,
+            ServerTrackerStore serverTrackerStore,
+            TrackerProgressRepository trackerProgressRepository,
             HoneypotDetector honeypotDetector,
-            @Value("${mc-utils.server-scanner.enabled:false}") boolean enabled,
-            @Value("${mc-utils.server-scanner.discovery.concurrency:20000}") int discoveryConcurrency,
-            @Value("${mc-utils.server-scanner.discovery.connect-timeout-ms:1000}") long connectTimeoutMs,
-            @Value("${mc-utils.server-scanner.verify.concurrency:200}") int verifyConcurrency,
-            @Value("${mc-utils.server-scanner.verify.timeout-ms:5000}") int verifyTimeoutMs,
-            @Value("${mc-utils.server-scanner.ports.discovery:25564,25565,25566,25567}") String discoveryPortsCsv,
-            @Value("${mc-utils.server-scanner.ports.window:10}") int portWindow,
-            @Value("${mc-utils.server-scanner.ports.max:65535}") int maxPort,
-            @Value("${mc-utils.server-scanner.ports.probe-cap-per-ip:300}") int probeCapPerIp,
-            @Value("${mc-utils.server-scanner.enqueue.batch-size:1000}") int enqueueBatchSize,
-            @Value("${mc-utils.server-scanner.enqueue.rate-per-minute:3000}") long enqueueRatePerMinute,
-            @Value("${mc-utils.server-scanner.honeypot.surge-window:100}") int surgeWindow,
-            @Value("${mc-utils.server-scanner.honeypot.surge-max-flagged:10}") int surgeMaxFlagged,
-            @Value("${mc-utils.server-scanner.honeypot.surge-cooldown-seconds:300}") long surgeCooldownSeconds,
-            @Value("${mc-utils.server-scanner.progress-log-interval-seconds:60}") int progressLogIntervalSeconds,
-            @Value("${mc-utils.server-scanner.ip.exclude-extra-cidrs:}") String excludeExtraCidrs,
-            @Value("${mc-utils.server-scanner.ip.include-cidrs:}") String includeCidrs
+            JdbcTemplate jdbcTemplate,
+            TrackerStatsService trackerStatsService,
+            @Value("${mc-utils.server-tracker.enabled:true}") boolean enabled,
+            @Value("${mc-utils.server-tracker.refresh.enabled:true}") boolean refreshEnabled,
+            @Value("${mc-utils.server-tracker.refresh.min-gap-hours:6}") long refreshMinGapHours,
+            @Value("${mc-utils.server-tracker.refresh.chunk-size:2500}") int refreshChunkSize,
+            @Value("${mc-utils.server-tracker.refresh.concurrent-fetches:200}") int refreshConcurrentFetches,
+            @Value("${mc-utils.server-tracker.refresh.timeout-ms:5000}") int refreshTimeoutMs,
+            @Value("${mc-utils.server-tracker.discovery.concurrency:20000}") int discoveryConcurrency,
+            @Value("${mc-utils.server-tracker.discovery.connect-timeout-ms:1000}") long connectTimeoutMs,
+            @Value("${mc-utils.server-tracker.verify.concurrency:200}") int verifyConcurrency,
+            @Value("${mc-utils.server-tracker.verify.timeout-ms:5000}") int verifyTimeoutMs,
+            @Value("${mc-utils.server-tracker.ports.discovery:25564,25565,25566,25567}") String discoveryPortsCsv,
+            @Value("${mc-utils.server-tracker.ports.window:10}") int portWindow,
+            @Value("${mc-utils.server-tracker.ports.max:65535}") int maxPort,
+            @Value("${mc-utils.server-tracker.ports.probe-cap-per-ip:300}") int probeCapPerIp,
+            @Value("${mc-utils.server-tracker.enqueue.batch-size:1000}") int enqueueBatchSize,
+            @Value("${mc-utils.server-tracker.enqueue.rate-per-minute:3000}") long enqueueRatePerMinute,
+            @Value("${mc-utils.server-tracker.honeypot.surge-window:100}") int surgeWindow,
+            @Value("${mc-utils.server-tracker.honeypot.surge-max-flagged:10}") int surgeMaxFlagged,
+            @Value("${mc-utils.server-tracker.honeypot.surge-cooldown-seconds:300}") long surgeCooldownSeconds,
+            @Value("${mc-utils.server-tracker.progress-log-interval-seconds:60}") int progressLogIntervalSeconds,
+            @Value("${mc-utils.server-tracker.ip.exclude-extra-cidrs:}") String excludeExtraCidrs,
+            @Value("${mc-utils.server-tracker.ip.include-cidrs:}") String includeCidrs
     ) {
         this.playerSubmitService = playerSubmitService;
-        this.serverScannerRepository = serverScannerRepository;
-        this.scanProgressRepository = scanProgressRepository;
+        this.serverTrackerStore = serverTrackerStore;
+        this.trackerProgressRepository = trackerProgressRepository;
         this.honeypotDetector = honeypotDetector;
+        this.jdbcTemplate = jdbcTemplate;
+        this.trackerStatsService = trackerStatsService;
         this.enabled = enabled;
+        this.refreshEnabled = refreshEnabled;
+        this.refreshMinGapHours = refreshMinGapHours;
+        this.refreshChunkSize = refreshChunkSize;
+        this.refreshConcurrentFetches = refreshConcurrentFetches;
+        this.refreshTimeoutMs = refreshTimeoutMs;
         this.discoveryConcurrency = discoveryConcurrency;
         this.connectTimeoutMs = connectTimeoutMs;
         this.verifyConcurrency = verifyConcurrency;
@@ -136,86 +161,112 @@ public class ServerScannerService {
 
     @EventListener(ApplicationReadyEvent.class)
     public synchronized void start() {
-        if (!enabled) {
-            log.info("Server scanner disabled (mc-utils.server-scanner.enabled=false)");
+        if (!running.compareAndSet(false, true)) {
             return;
         }
-        if (running.get()) {
-            return;
+        if (enabled || refreshEnabled) {
+            this.upkeepExecutor = Executors.newSingleThreadScheduledExecutor(
+                    Thread.ofPlatform().daemon(true).name("tracker-upkeep").factory()
+            );
+            // Store + harvest flush must run regardless of which loops are active: the refresh
+            // cycle records snapshots even when the discovery campaign is disabled.
+            upkeepExecutor.scheduleAtFixedRate(() -> {
+                try {
+                    if (harvester != null) {
+                        harvester.flush();
+                    }
+                    serverTrackerStore.flush();
+                } catch (Exception e) {
+                    log.warn("Tracker flush task failed", e);
+                }
+            }, FLUSH_INTERVAL_SECONDS, FLUSH_INTERVAL_SECONDS, TimeUnit.SECONDS);
         }
+        if (enabled) {
+            startDiscovery();
+        } else {
+            log.info("Server tracker discovery disabled (mc-utils.server-tracker.enabled=false)");
+        }
+        startRefresher();
+    }
 
-        ScanProgressRow stored = scanProgressRepository.findById(ScanProgressRow.SINGLETON_ID).orElse(null);
+    private void startDiscovery() {
+        TrackerProgressRow stored = trackerProgressRepository.findById(TrackerProgressRow.SINGLETON_ID).orElse(null);
         long seed;
-        if (stored != null && !ScanProgressRow.State.COMPLETED.name().equals(stored.getState())) {
+        if (stored != null && !TrackerProgressRow.State.COMPLETED.name().equals(stored.getState())) {
             seed = stored.getSeed();
         } else {
             seed = ThreadLocalRandom.current().nextLong();
             if (stored == null) {
-                scanProgressRepository.save(new ScanProgressRow(
-                        ScanProgressRow.SINGLETON_ID, seed, 0, 0,
-                        ScanProgressRow.State.RUNNING.name(), Instant.now(), Instant.now()
+                trackerProgressRepository.save(new TrackerProgressRow(
+                        TrackerProgressRow.SINGLETON_ID, seed, 0, 0,
+                        TrackerProgressRow.State.RUNNING.name(), Instant.now(), Instant.now()
                 ));
             } else {
                 stored.setSeed(seed);
-                stored.setState(ScanProgressRow.State.RUNNING.name());
+                stored.setState(TrackerProgressRow.State.RUNNING.name());
                 stored.setUpdatedAt(Instant.now());
-                scanProgressRepository.save(stored);
+                trackerProgressRepository.save(stored);
             }
         }
 
         this.space = new Ipv4Space(excludeExtraCidrs, includeCidrs, seed);
-        if (stored != null && !ScanProgressRow.State.COMPLETED.name().equals(stored.getState())) {
+        if (stored != null && !TrackerProgressRow.State.COMPLETED.name().equals(stored.getState())) {
             space.restore(new Ipv4Space.Progress(seed, stored.getPermuted16Pos(), stored.getOffset24()));
         }
-        this.metrics = MetricService.getMetric(ServerScannerMetric.class);
+        this.metrics = MetricService.getMetric(ServerTrackerMetric.class);
         this.verifierExecutor = Executors.newFixedThreadPool(
                 verifyConcurrency,
-                Thread.ofPlatform().daemon(true).name("scanner-verify-", 0).factory()
-        );
-        this.upkeepExecutor = Executors.newSingleThreadScheduledExecutor(
-                Thread.ofPlatform().daemon(true).name("scanner-upkeep").factory()
+                Thread.ofPlatform().daemon(true).name("tracker-verify-", 0).factory()
         );
 
         HoneypotSurgeGuard surgeGuard = new HoneypotSurgeGuard(surgeWindow, surgeMaxFlagged, surgeCooldownSeconds);
         this.harvester = new BufferedHarvester(
                 playerSubmitService, metrics, enqueueBatchSize, enqueueRatePerMinute, surgeGuard
         );
-        ServerScanVerifier.ScannedServerSink serverSink = (ip, port, sampleCount, honeypot) -> {
-            if (surgeGuard.report(honeypot) && metrics != null) {
+        ServerTrackerVerifier.ServerTrackerSink serverSink = snapshot -> {
+            if (surgeGuard.report(snapshot.honeypot()) && metrics != null) {
                 metrics.recordHarvestPause();
                 log.warn("Honeypot surge detected (>={} of last {} verified servers flagged), harvesting paused for {}s",
                         surgeMaxFlagged, surgeWindow, surgeCooldownSeconds);
             }
-            persistScannedServer(ip, port, sampleCount, honeypot);
+            serversFound.incrementAndGet();
+            serverTrackerStore.record(snapshot);
         };
-        ServerScanVerifier verifier = new ServerScanVerifier(
+        ServerTrackerVerifier verifier = new ServerTrackerVerifier(
                 new JavaMinecraftServerPinger(), honeypotDetector, serverSink, harvester::harvest, metrics,
                 portWindow, maxPort, probeCapPerIp, verifyTimeoutMs
         );
-        this.discovery = new ServerDiscoveryScanner(
+        this.discovery = new ServerTrackerDiscovery(
                 space, (ip, port) -> verifierExecutor.submit(() -> verifier.verifyHost(ip, port)), metrics,
                 discoveryPortsCsv, discoveryConcurrency, connectTimeoutMs
         );
 
         upkeepExecutor.scheduleAtFixedRate(() -> {
             try {
-                harvester.flush();
-            } catch (Exception e) {
-                log.warn("Scanner flush task failed", e);
-            }
-        }, FLUSH_INTERVAL_SECONDS, FLUSH_INTERVAL_SECONDS, TimeUnit.SECONDS);
-        upkeepExecutor.scheduleAtFixedRate(() -> {
-            try {
                 persistProgress();
             } catch (Exception e) {
-                log.warn("Scanner progress persist task failed", e);
+                log.warn("Tracker progress persist task failed", e);
             }
         }, PROGRESS_PERSIST_INTERVAL_SECONDS, PROGRESS_PERSIST_INTERVAL_SECONDS, TimeUnit.SECONDS);
         upkeepExecutor.scheduleAtFixedRate(this::logProgress, progressLogIntervalSeconds, progressLogIntervalSeconds, TimeUnit.SECONDS);
 
-        running.set(true);
-        this.discoveryThread = Thread.ofPlatform().daemon(true).name("server-scanner").start(discovery::run);
-        log.info("Server scanner started (scoped mode: {}, seed: {})", space.hasIncludeScope(), seed);
+        this.discoveryThread = Thread.ofPlatform().daemon(true).name("server-tracker").start(discovery::run);
+        log.info("Server tracker discovery started (scoped mode: {}, seed: {})", space.hasIncludeScope(), seed);
+    }
+
+    private void startRefresher() {
+        if (!refreshEnabled) {
+            log.info("Server tracker refresh cycle disabled (mc-utils.server-tracker.refresh.enabled=false)");
+            return;
+        }
+        if (this.metrics == null) {
+            this.metrics = MetricService.getMetric(ServerTrackerMetric.class);
+        }
+        this.refresher = new ServerTrackerRefresher(
+                jdbcTemplate, new JavaMinecraftServerPinger(), honeypotDetector, serverTrackerStore, metrics,
+                trackerStatsService::refresh, refreshChunkSize, refreshConcurrentFetches, refreshTimeoutMs, refreshMinGapHours
+        );
+        refresher.start();
     }
 
     @EventListener(ContextClosedEvent.class)
@@ -223,9 +274,12 @@ public class ServerScannerService {
         if (!running.compareAndSet(true, false)) {
             return;
         }
-        log.info("Stopping server scanner...");
+        log.info("Stopping server tracker...");
         if (discovery != null) {
             discovery.close();
+        }
+        if (refresher != null) {
+            refresher.stop();
         }
         if (verifierExecutor != null) {
             verifierExecutor.shutdownNow();
@@ -241,26 +295,7 @@ public class ServerScannerService {
             }
         }
         persistProgress(true);
-        log.info("Server scanner stopped");
-    }
-
-    private void persistScannedServer(String ip, int port, int sampleCount, boolean honeypot) {
-        serversFound.incrementAndGet();
-        try {
-            Instant now = Instant.now();
-            Optional<ScannedServerRow> existing = serverScannerRepository.findByIpAndPort(ip, port);
-            if (existing.isPresent()) {
-                ScannedServerRow row = existing.get();
-                row.setLastSeen(now);
-                row.setSampleCount(sampleCount);
-                row.setHoneypot(row.isHoneypot() || honeypot);
-                serverScannerRepository.save(row);
-            } else {
-                serverScannerRepository.save(new ScannedServerRow(ip, port, now, now, sampleCount, honeypot));
-            }
-        } catch (Exception e) {
-            log.debug("Failed to persist scanned server {}:{}: {}", ip, port, e.toString());
-        }
+        log.info("Server tracker stopped");
     }
 
     private void persistProgress() {
@@ -276,7 +311,7 @@ public class ServerScannerService {
             return;
         }
         if (discovery.isComplete()) {
-            log.info("Server scanner completed: {} /24 subnets, servers found={}, players enqueued={}",
+            log.info("Server tracker completed: {} /24 subnets, servers found={}, players enqueued={}",
                     discovery.completed24s(), serversFound.get(), harvester.totalEnqueued());
             return;
         }
@@ -295,11 +330,11 @@ public class ServerScannerService {
             double percent = completed * 100.0 / total;
             String eta = perMinute > 0 ? ", ETA " + formatEta(Duration.ofSeconds(Math.max(0, (total - completed) * 60 / perMinute))) : "";
             long probesPerSecond = perMinute * 254L * discovery.discoveryPortCount() / 60L;
-            log.info("Server scanner progress: {} / {} /24 subnets ({}%), {} /24s/min, ~{} probes/s{}, servers found={}, players enqueued={}",
+            log.info("Server tracker progress: {} / {} /24 subnets ({}%), {} /24s/min, ~{} probes/s{}, servers found={}, players enqueued={}",
                     completed, total, String.format(Locale.ROOT, "%.1f", percent),
                     perMinute, probesPerSecond, eta, serversFound.get(), harvester.totalEnqueued());
         } else {
-            log.info("Server scanner progress (scoped): {} /24 subnets, {} /24s/min, servers found={}, players enqueued={}",
+            log.info("Server tracker progress (scoped): {} /24 subnets, {} /24s/min, servers found={}, players enqueued={}",
                     completed, perMinute, serversFound.get(), harvester.totalEnqueued());
         }
     }
@@ -326,23 +361,23 @@ public class ServerScannerService {
             int permuted16Pos = cursor == null ? 0 : cursor.permuted16Pos();
             int offset24 = cursor == null ? 0 : cursor.offset24();
             String state = discovery.isComplete()
-                    ? ScanProgressRow.State.COMPLETED.name()
-                    : ScanProgressRow.State.PAUSED.name();
-            ScanProgressRow stored = scanProgressRepository.findById(ScanProgressRow.SINGLETON_ID).orElseGet(() -> {
-                ScanProgressRow created = new ScanProgressRow(
-                        ScanProgressRow.SINGLETON_ID, space.seed(), 0, 0,
-                        ScanProgressRow.State.RUNNING.name(), Instant.now(), Instant.now()
+                    ? TrackerProgressRow.State.COMPLETED.name()
+                    : TrackerProgressRow.State.PAUSED.name();
+            TrackerProgressRow stored = trackerProgressRepository.findById(TrackerProgressRow.SINGLETON_ID).orElseGet(() -> {
+                TrackerProgressRow created = new TrackerProgressRow(
+                        TrackerProgressRow.SINGLETON_ID, space.seed(), 0, 0,
+                        TrackerProgressRow.State.RUNNING.name(), Instant.now(), Instant.now()
                 );
-                return scanProgressRepository.save(created);
+                return trackerProgressRepository.save(created);
             });
             stored.setSeed(space.seed());
             stored.setPermuted16Pos(permuted16Pos);
             stored.setOffset24(offset24);
             stored.setState(state);
             stored.setUpdatedAt(Instant.now());
-            scanProgressRepository.save(stored);
+            trackerProgressRepository.save(stored);
         } catch (Exception e) {
-            log.debug("Failed to persist scanner progress: {}", e.toString());
+            log.debug("Failed to persist tracker progress: {}", e.toString());
         }
     }
 
@@ -361,9 +396,9 @@ public class ServerScannerService {
      * the Redis queue cannot outrun the shared Mojang budget. Harvesting pauses while the
      * honeypot surge guard is active.
      */
-    static final class BufferedHarvester implements ServerScanVerifier.PlayerHarvester {
+    static final class BufferedHarvester implements ServerTrackerVerifier.PlayerHarvester {
         private final PlayerSubmitService submitService;
-        private final ServerScannerMetric metrics;
+        private final ServerTrackerMetric metrics;
         private final int batchSize;
         private final long minFlushIntervalNanos;
         private final HoneypotSurgeGuard surgeGuard;
@@ -371,7 +406,7 @@ public class ServerScannerService {
         private long lastFlush;
         private long totalEnqueued;
 
-        BufferedHarvester(PlayerSubmitService submitService, ServerScannerMetric metrics, int batchSize,
+        BufferedHarvester(PlayerSubmitService submitService, ServerTrackerMetric metrics, int batchSize,
                           long enqueueRatePerMinute, HoneypotSurgeGuard surgeGuard) {
             this.submitService = submitService;
             this.metrics = metrics;

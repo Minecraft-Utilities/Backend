@@ -1,4 +1,4 @@
-package xyz.mcutils.backend.service.scanner;
+package xyz.mcutils.backend.service.tracker;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
