@@ -6,6 +6,7 @@ import lombok.experimental.UtilityClass;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 @UtilityClass
 public class UUIDUtils {
@@ -49,5 +50,22 @@ public class UUIDUtils {
      */
     public static boolean isOnlineMode(UUID uuid) {
         return uuid != null && uuid.version() == 4;
+    }
+
+    /**
+     * Generates a version 7 (time-ordered) UUID per RFC 9562: a 48-bit Unix-epoch-millisecond
+     * timestamp prefix followed by random bits. Unlike {@link UUID#randomUUID()} (version 4),
+     * values are roughly monotonic in creation order, so inserts into a UUID primary key
+     * (e.g. {@code tracked_servers.uuid}) stay B-tree local instead of scattering pages.
+     * Thread-safe; uses {@link ThreadLocalRandom} — these are database keys, not secrets, so
+     * the SecureRandom cost of {@code randomUUID()} is unnecessary.
+     */
+    public static UUID uuidv7() {
+        long mostSigBits = (System.currentTimeMillis() & 0xFFFFFFFFFFFFL) << 16
+                | 0x7000L // version nibble 0111
+                | (ThreadLocalRandom.current().nextLong() & 0x0FFFL); // rand_a (12 bits)
+        long leastSigBits = 0x8000000000000000L // variant bits 10
+                | (ThreadLocalRandom.current().nextLong() & 0x3FFFFFFFFFFFFFFFL); // rand_b (62 bits)
+        return new UUID(mostSigBits, leastSigBits);
     }
 }

@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementSetter;
 import org.springframework.stereotype.Service;
+import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.tracker.ServerTrackerMetric;
 import xyz.mcutils.backend.model.domain.IpLookup;
@@ -30,8 +31,10 @@ import java.util.function.Function;
  * <p>
  * Buffered like {@code BufferedHarvester}: callers (verify pool, refresh cycle) never block on
  * the database — snapshots accumulate and {@link #flush()} writes them in a few batched,
- * multi-row statements. Geo enrichment runs once per <b>new</b> server inside the flush, never
- * on refresh.
+ * multi-row statements. Every flush upserts the {@code tracked_servers} rows first and keys
+ * the player/history rows by the canonical uuid that upsert returns, so the foreign keys always
+ * resolve — brand-new discovery finds and concurrent flushes cannot orphan child rows. Geo
+ * enrichment runs once per <b>new</b> server inside the flush, never on refresh.
  * <p>
  * When {@code tracking.enabled} is false every write is a no-op (progress + harvest continue,
  * nothing is persisted).
@@ -73,7 +76,7 @@ public class ServerTrackerStore {
 
     private record Pending(ServerTrackerVerifier.ServerSnapshot snapshot, Instant seenAt) {}
 
-    private record Resolved(Pending pending, UUID serverUuid, String country, Long asn) {}
+    private record Resolved(Pending pending, String country, Long asn) {}
 
     /**
      * Queues a verified-server snapshot for the next flush. Safe to call from any verify/refresh
@@ -117,9 +120,6 @@ public class ServerTrackerStore {
     private int flushPending(List<Pending> batch) {
         try {
             List<Resolved> resolved = new ArrayList<>(batch.size());
-            List<Object[]> playerMatches = new ArrayList<>();
-            List<Object[]> playerInserts = new ArrayList<>();
-            List<Object[]> historyRows = new ArrayList<>();
             List<Object[]> serverRows = new ArrayList<>();
             ServerTrackerMetric metrics = MetricService.getMetric(ServerTrackerMetric.class);
 
@@ -134,7 +134,7 @@ public class ServerTrackerStore {
                     country = existing.get().getCountry();
                     asn = existing.get().getAsn();
                 } else {
-                    serverUuid = UUID.randomUUID();
+                    serverUuid = UUIDUtils.uuidv7();
                     Geo geo = lookupGeo(snapshot.ip());
                     country = geo.country();
                     asn = geo.asn();
@@ -142,7 +142,7 @@ public class ServerTrackerStore {
                         metrics.recordGeoLookupFailure();
                     }
                 }
-                resolved.add(new Resolved(pending, serverUuid, country, asn));
+                resolved.add(new Resolved(pending, country, asn));
 
                 String motd = truncate(snapshot.motd(), MAX_MOTD_LENGTH);
                 serverRows.add(new Object[]{
@@ -158,6 +158,22 @@ public class ServerTrackerStore {
                         snapshot.players().size(), snapshot.honeypot(),
                         0, Instant.EPOCH
                 });
+            }
+
+            // Parent rows first: the tracked_servers upsert returns the canonical uuid of every
+            // row (a losing random candidate from a concurrent flush on the same new server is
+            // discarded by ON CONFLICT (ip, port)); the child rows below must reference a uuid
+            // that actually exists in tracked_servers or the foreign keys reject them.
+            List<UUID> serverUuids = executeChunkedReturningUuids(serverUpsertSql(), rows -> placeholders(rows, 24), serverRows);
+
+            List<Object[]> playerMatches = new ArrayList<>();
+            List<Object[]> playerInserts = new ArrayList<>();
+            List<Object[]> historyRows = new ArrayList<>();
+            for (int i = 0; i < resolved.size(); i++) {
+                Resolved r = resolved.get(i);
+                Pending pending = r.pending();
+                UUID serverUuid = serverUuids.get(i);
+                ServerTrackerVerifier.ServerSnapshot snapshot = pending.snapshot();
                 historyRows.add(new Object[]{serverUuid, pending.seenAt(), snapshot.online(), snapshot.maxPlayers(), truncate(snapshot.version(), MAX_VERSION_LENGTH)});
                 for (HoneypotDetector.SampleEntry entry : snapshot.players()) {
                     String username = truncate(entry.name(), MAX_USERNAME_LENGTH);
@@ -180,9 +196,6 @@ public class ServerTrackerStore {
             }
             if (!historyRows.isEmpty()) {
                 executeChunked(onlineHistoryUpsertSql(), rows -> placeholders(rows, 5), historyRows);
-            }
-            if (!serverRows.isEmpty()) {
-                executeChunked(serverUpsertSql(), rows -> placeholders(rows, 24), serverRows);
             }
             return batch.size();
         } catch (Exception e) {
@@ -234,6 +247,28 @@ public class ServerTrackerStore {
             total += jdbcTemplate.update(sql.formatted(valuesBuilder.apply(slice.size())), setterFor(flatten(slice)));
         }
         return total;
+    }
+
+    /**
+     * Upserts the tracked_servers rows and returns the canonical uuid of each, in input order.
+     * {@code ON CONFLICT DO UPDATE ... RETURNING} emits one row per VALUES row (the inserted row,
+     * or the row as updated after any conflict) — including two rows targeting the same
+     * (ip, port), which both yield the uuid that survived the upsert.
+     */
+    private List<UUID> executeChunkedReturningUuids(String sql, Function<Integer, String> valuesBuilder, List<Object[]> rows) {
+        List<UUID> uuids = new ArrayList<>(rows.size());
+        for (int i = 0; i < rows.size(); i += CHUNK_SIZE) {
+            List<Object[]> slice = rows.subList(i, Math.min(i + CHUNK_SIZE, rows.size()));
+            uuids.addAll(jdbcTemplate.query(
+                    sql.formatted(valuesBuilder.apply(slice.size())),
+                    setterFor(flatten(slice)),
+                    (rs, rowNum) -> UUID.fromString(rs.getString("uuid"))
+            ));
+        }
+        if (uuids.size() != rows.size()) {
+            throw new IllegalStateException("tracked_servers upsert returned " + uuids.size() + " uuids for " + rows.size() + " rows");
+        }
+        return uuids;
     }
 
     private static PreparedStatementSetter setterFor(Object[] flat) {
@@ -339,6 +374,7 @@ public class ServerTrackerStore {
                     sample_count = EXCLUDED.sample_count,
                     honeypot = tracked_servers.honeypot OR EXCLUDED.honeypot,
                     consecutive_offline = 0
+                RETURNING uuid
                 """;
     }
 

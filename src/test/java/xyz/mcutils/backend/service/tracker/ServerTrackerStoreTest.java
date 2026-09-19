@@ -3,6 +3,7 @@ package xyz.mcutils.backend.service.tracker;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementSetter;
+import org.springframework.jdbc.core.RowMapper;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.model.domain.IpLookup;
 import xyz.mcutils.backend.model.domain.asn.AsnLookup;
@@ -21,6 +22,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,6 +47,8 @@ class ServerTrackerStoreTest {
     private static final UUID PLAYER_UUID = UUID.fromString("22222222-2222-4222-8222-222222222222");
     private static final String IP = "1.2.3.4";
     private static final int PORT = 25565;
+
+    private static final int TRACKED_SERVER_COLUMNS = 24;
 
     private ServerTrackerVerifier.ServerSnapshot snapshot(int online) {
         return new ServerTrackerVerifier.ServerSnapshot(IP, PORT, online, 100, "Paper 1.21.4", 769, "Paper",
@@ -170,11 +174,44 @@ class ServerTrackerStoreTest {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         ServerTrackerRepository repo = mock(ServerTrackerRepository.class);
         when(repo.findByIpAndPort(IP, PORT)).thenReturn(Optional.empty());
-        when(jdbc.update(anyString(), any(PreparedStatementSetter.class))).thenThrow(new RuntimeException("connection lost"));
+        when(jdbc.query(anyString(), any(PreparedStatementSetter.class), any(RowMapper.class)))
+                .thenThrow(new RuntimeException("connection lost"));
 
         ServerTrackerStore store = new ServerTrackerStore(jdbc, repo, mock(MaxMindService.class), true, false);
         store.record(snapshot(3));
         assertEquals(0, store.flush(), "failed flush reports zero written and does not throw");
+    }
+
+    @Test
+    void childRowsReferenceTheCanonicalUuidReturnedByTheServerUpsert() throws Exception {
+        // A brand-new server (discovery find): the flush submits its own candidate uuid, but the
+        // upsert's RETURNING hands back the uuid that actually survived in tracked_servers (a
+        // concurrent flush may have inserted the row first). Child rows must key on that
+        // canonical uuid — the losing candidate does not exist yet, so the FK would reject it.
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        ServerTrackerRepository repo = mock(ServerTrackerRepository.class);
+        CapturedUpdates captured = new CapturedUpdates();
+        when(repo.findByIpAndPort(IP, PORT)).thenReturn(Optional.empty());
+        when(jdbc.update(anyString(), any(PreparedStatementSetter.class))).thenAnswer(invocation -> {
+            captured.add(invocation.getArgument(0), invocation.getArgument(1));
+            return 1;
+        });
+
+        UUID winner = UUID.fromString("33333333-3333-4333-8333-333333333333");
+        when(jdbc.query(anyString(), any(PreparedStatementSetter.class), any(RowMapper.class))).thenAnswer(invocation -> {
+            captured.addAndGet(invocation.getArgument(0), invocation.getArgument(1));
+            return List.of(winner);
+        });
+
+        ServerTrackerStore store = new ServerTrackerStore(jdbc, repo, mock(MaxMindService.class), true, false);
+        store.record(snapshot(3));
+        assertEquals(1, store.flush());
+
+        Object[] serverRow = captured.argsFor("INSERT INTO tracked_servers").get(0);
+        UUID candidate = (UUID) serverRow[0];
+        assertNotEquals(winner, candidate, "the flush submits its own candidate uuid for a new server");
+        assertEquals(winner, captured.argsFor("INSERT INTO player_history").get(0)[0], "player rows key on the canonical uuid");
+        assertEquals(winner, captured.argsFor("INSERT INTO server_online_history").get(0)[0], "history rows key on the canonical uuid");
     }
 
     /** Captures every (sql, args) pair the store sends, replaying the setters via a proxy. */
@@ -183,6 +220,17 @@ class ServerTrackerStoreTest {
         when(jdbc.update(anyString(), any(PreparedStatementSetter.class))).thenAnswer(invocation -> {
             captured.add(invocation.getArgument(0), invocation.getArgument(1));
             return 1;
+        });
+        // The tracked_servers upsert runs through query() with a RowMapper and yields the
+        // canonical uuid of each row; default to echoing the candidate uuid the store
+        // submitted so the child rows stay consistent with the captured server rows.
+        when(jdbc.query(anyString(), any(PreparedStatementSetter.class), any(RowMapper.class))).thenAnswer(invocation -> {
+            Object[] values = captured.addAndGet(invocation.getArgument(0), invocation.getArgument(1));
+            List<UUID> uuids = new ArrayList<>(values.length / TRACKED_SERVER_COLUMNS);
+            for (int row = 0; row < values.length; row += TRACKED_SERVER_COLUMNS) {
+                uuids.add((UUID) values[row]);
+            }
+            return uuids;
         });
         return captured;
     }
@@ -206,6 +254,12 @@ class ServerTrackerStoreTest {
                     });
             setter.setValues(ps);
             argsList.add(values);
+        }
+
+        /** Records the statement like {@link #add} and returns the replayed parameter values. */
+        Object[] addAndGet(String sql, PreparedStatementSetter setter) throws Exception {
+            add(sql, setter);
+            return argsList.get(argsList.size() - 1);
         }
 
         List<Object[]> argsFor(String sqlFragment) {
