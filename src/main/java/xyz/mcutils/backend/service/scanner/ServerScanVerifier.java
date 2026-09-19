@@ -69,7 +69,7 @@ public class ServerScanVerifier {
             ServerScannerMetric metrics,
             @Value("${mc-utils.server-scanner.ports.window:10}") int window,
             @Value("${mc-utils.server-scanner.ports.max:65535}") int maxPort,
-            @Value("${mc-utils.server-scanner.ports.probe-cap-per-ip:200}") int probeCapPerIp,
+            @Value("${mc-utils.server-scanner.ports.probe-cap-per-ip:500}") int probeCapPerIp,
             @Value("${mc-utils.server-scanner.verify.timeout-ms:5000}") int verifyTimeoutMs
     ) {
         this.pinger = pinger;
