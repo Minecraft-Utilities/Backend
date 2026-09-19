@@ -30,8 +30,10 @@ import java.util.regex.Pattern;
  *   <li><b>Per-IP repetition</b> — the same fingerprint on {@code maxIdenticalPortSamples} or
  *       more ports of one host flags that host.</li>
  * </ol>
- * The final anti-poisoning gate is Mojang itself: every harvested UUID the submit pipeline
- * cannot resolve is silently discarded there.
+ * The final anti-poisoning gate is player identity itself: {@link PlayerSampleVerifier} keeps
+ * only samples whose (name, uuid) pair matches the players table — the Mojang-verified
+ * identity store, consulted cache-only — and the submit pipeline silently discards anything
+ * that still cannot be resolved there.
  */
 @Component
 public class HoneypotDetector {

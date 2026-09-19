@@ -57,6 +57,7 @@ public class ServerTrackerService {
     private final ServerTrackerStore serverTrackerStore;
     private final TrackerProgressRepository trackerProgressRepository;
     private final HoneypotDetector honeypotDetector;
+    private final PlayerSampleVerifier playerSampleVerifier;
     private final JdbcTemplate jdbcTemplate;
     private final TrackerStatsService trackerStatsService;
 
@@ -101,6 +102,7 @@ public class ServerTrackerService {
             ServerTrackerStore serverTrackerStore,
             TrackerProgressRepository trackerProgressRepository,
             HoneypotDetector honeypotDetector,
+            PlayerSampleVerifier playerSampleVerifier,
             JdbcTemplate jdbcTemplate,
             TrackerStatsService trackerStatsService,
             @Value("${mc-utils.server-tracker.enabled:true}") boolean enabled,
@@ -127,6 +129,7 @@ public class ServerTrackerService {
         this.serverTrackerStore = serverTrackerStore;
         this.trackerProgressRepository = trackerProgressRepository;
         this.honeypotDetector = honeypotDetector;
+        this.playerSampleVerifier = playerSampleVerifier;
         this.jdbcTemplate = jdbcTemplate;
         this.trackerStatsService = trackerStatsService;
         this.enabled = enabled;
@@ -218,7 +221,7 @@ public class ServerTrackerService {
             serverTrackerStore.record(snapshot);
         };
         ServerTrackerVerifier verifier = new ServerTrackerVerifier(
-                new JavaMinecraftServerPinger(), honeypotDetector, serverSink, harvester::harvest, metrics,
+                new JavaMinecraftServerPinger(), honeypotDetector, serverSink, harvester::harvest, playerSampleVerifier, metrics,
                 portWindow, maxPort, probeCapPerIp, verifyTimeoutMs
         );
         this.discovery = new ServerTrackerDiscovery(
@@ -248,7 +251,7 @@ public class ServerTrackerService {
             this.metrics = MetricService.getMetric(ServerTrackerMetric.class);
         }
         this.refresher = new ServerTrackerRefresher(
-                jdbcTemplate, new JavaMinecraftServerPinger(), honeypotDetector, serverTrackerStore, metrics,
+                jdbcTemplate, new JavaMinecraftServerPinger(), honeypotDetector, serverTrackerStore, playerSampleVerifier, metrics,
                 trackerStatsService::refresh, refreshChunkSize, refreshConcurrentFetches, refreshTimeoutMs, refreshMinGapHours
         );
         refresher.start();

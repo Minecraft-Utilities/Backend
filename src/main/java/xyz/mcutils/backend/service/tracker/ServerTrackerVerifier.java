@@ -35,8 +35,8 @@ public class ServerTrackerVerifier {
 
     /**
      * Full telemetry of one verified server, harvested from the status token plus the honeypot
-     * verdict. {@code players} holds the post-verdict sample (may be empty); {@code honeypot}
-     * marks the server itself as flagged.
+     * verdict. {@code players} holds the post-verdict, post-identity sample (may be empty);
+     * {@code honeypot} marks the server itself as flagged.
      */
     public record ServerSnapshot(
             String ip,
@@ -93,6 +93,7 @@ public class ServerTrackerVerifier {
     private final HoneypotDetector honeypotDetector;
     private final ServerTrackerSink serverSink;
     private final PlayerHarvester harvester;
+    private final PlayerSampleVerifier playerSampleVerifier;
     private final ServerTrackerMetric metrics; // nullable: metrics recording is optional
     private final int window;
     private final int maxPort;
@@ -104,6 +105,7 @@ public class ServerTrackerVerifier {
             HoneypotDetector honeypotDetector,
             ServerTrackerSink serverSink,
             PlayerHarvester harvester,
+            PlayerSampleVerifier playerSampleVerifier,
             ServerTrackerMetric metrics,
             @Value("${mc-utils.server-tracker.ports.window:10}") int window,
             @Value("${mc-utils.server-tracker.ports.max:65535}") int maxPort,
@@ -114,6 +116,7 @@ public class ServerTrackerVerifier {
         this.honeypotDetector = honeypotDetector;
         this.serverSink = serverSink;
         this.harvester = harvester;
+        this.playerSampleVerifier = playerSampleVerifier;
         this.metrics = metrics;
         this.window = window;
         this.maxPort = maxPort;
@@ -184,8 +187,12 @@ public class ServerTrackerVerifier {
             metrics.recordPlayersHarvested(verdict.players().size());
         }
 
-        serverSink.recordServer(buildSnapshot(ip, port, token, latencyMs, verdict));
-        int enqueued = verdict.players().isEmpty() ? 0 : harvester.harvest(verdict.players());
+        // The honeypot verdict sees the raw sample; identity verification then drops entries
+        // whose (name, uuid) pair does not match Mojang before anything is persisted/enqueued.
+        List<HoneypotDetector.SampleEntry> verifiedPlayers = playerSampleVerifier.verify(verdict.players());
+
+        serverSink.recordServer(buildSnapshot(ip, port, token, latencyMs, verifiedPlayers, verdict.honeypotServer()));
+        int enqueued = verifiedPlayers.isEmpty() ? 0 : harvester.harvest(verifiedPlayers);
         return new ServerOutcome(enqueued, verdict.honeypotServer());
     }
 
@@ -204,7 +211,8 @@ public class ServerTrackerVerifier {
         return detector.evaluate(ip, port, players.online(), players.max(), sample);
     }
 
-    public static ServerSnapshot buildSnapshot(String ip, int port, JavaServerStatusToken token, Integer latencyMs, HoneypotDetector.Verdict verdict) {
+    public static ServerSnapshot buildSnapshot(String ip, int port, JavaServerStatusToken token, Integer latencyMs,
+                                               List<HoneypotDetector.SampleEntry> players, boolean honeypot) {
         String versionName = token.getVersion().getName();
         String motd = motdText(token.getDescription());
         return new ServerSnapshot(
@@ -223,8 +231,8 @@ public class ServerTrackerVerifier {
                 token.isPreventsChatReports(),
                 token.isEnforcesSecureChat(),
                 token.isPreviewsChat(),
-                List.copyOf(verdict.players()),
-                verdict.honeypotServer()
+                List.copyOf(players),
+                honeypot
         );
     }
 
@@ -237,7 +245,11 @@ public class ServerTrackerVerifier {
             return null;
         }
         String[] parts = versionName.split(" ");
-        return parts.length == 2 ? parts[0] : null;
+        if (parts.length != 2) {
+            return null;
+        }
+        String platform = ColorUtils.stripColor(parts[0]); // Strip legacy/modern color codes ("§4Paper" -> "Paper")
+        return platform.isBlank() ? null : platform;
     }
 
     /**

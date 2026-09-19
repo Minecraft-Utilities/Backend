@@ -184,7 +184,11 @@ Notes:
 - Backfilled rows start with `online_count = 0` and NULL `version`/`protocol`/`platform`/
   `country`/`asn` (not known historically); `last_refreshed = epoch` makes them refreshable
   immediately — they converge on the first cycles.
-- Only post-honeypot-verdict players are written (same list the harvester gets).
+- Only post-honeypot-verdict players are written (same list the harvester gets), and only
+  after the sample-identity gate: each (name, uuid) pair must match the players table — the
+  Mojang-verified identity store, consulted cache-only via `PlayerService.getCachedPlayer` —
+  else the entry is dropped (`fake_identity`) or ignored when unknown (`unverified`). No
+  Mojang lookups here; the submit pipeline owns the only profile lookup.
 - `motd` is stored truncated to 1024 chars (cleaned text); `motd_hash`/`favicon_hash` are
   SHA-256 of the raw canonical payloads (32-byte `BYTEA`).
 - Store write semantics are upserts, not inserts: `tracker_servers` conflicts on `(ip, port)` —
@@ -326,6 +330,7 @@ mc-utils.server-tracker.enqueue.rate-per-minute: 3000
 mc-utils.server-tracker.honeypot.max-distinct-nets-per-fingerprint: 50
 mc-utils.server-tracker.honeypot.window-hours: 24
 mc-utils.server-tracker.honeypot.max-identical-port-samples: 3
+mc-utils.server-tracker.sample-verify.enabled: true        # require (name,uuid) to match the players table (cache-only)
 mc-utils.server-tracker.progress-log-interval-seconds: 60
 mc-utils.server-tracker.ip.exclude-extra-cidrs: ""
 mc-utils.server-tracker.ip.include-cidrs: ""
@@ -370,8 +375,9 @@ the submit pipeline) and is omitted:
 - discovery (renamed): `ip_probes_total`, `connect_open_total`, `servers_verified_total`,
   `ports_probed_walk_total`, `players_harvested_total`, `players_enqueued_total`,
   `tracker_progress_24s` gauge;
-- anti-honeypot (renamed): `sample_entries_dropped_total{reason}`,
-  `honeypot_servers_flagged_total`, `honeypot_fingerprints_blocked_total`;
+- anti-honeypot (renamed): `sample_entries_dropped_total{reason}` (incl. `fake_identity`,
+  `unverified` from the sample-identity gate), `honeypot_servers_flagged_total`,
+  `honeypot_fingerprints_blocked_total`;
 - tracked dataset (new): `tracker_servers` gauge — **single-sourced from the
   `TrackerStatsService` snapshot** (never a second counter in the store/refresh paths),
   `players_seen_first_total`, `geo_lookup_failures_total`;

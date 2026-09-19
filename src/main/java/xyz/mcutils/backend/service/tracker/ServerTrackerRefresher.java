@@ -50,6 +50,7 @@ public class ServerTrackerRefresher {
     private final JavaMinecraftServerPinger pinger;
     private final HoneypotDetector honeypotDetector;
     private final ServerTrackerStore store;
+    private final PlayerSampleVerifier playerSampleVerifier;
     private final ServerTrackerMetric metrics; // nullable: metrics recording is optional
     private final Runnable afterChunk;
     private final int chunkSize;
@@ -66,6 +67,7 @@ public class ServerTrackerRefresher {
             JavaMinecraftServerPinger pinger,
             HoneypotDetector honeypotDetector,
             ServerTrackerStore store,
+            PlayerSampleVerifier playerSampleVerifier,
             ServerTrackerMetric metrics, // nullable
             Runnable afterChunk,
             int chunkSize,
@@ -77,6 +79,7 @@ public class ServerTrackerRefresher {
         this.pinger = pinger;
         this.honeypotDetector = honeypotDetector;
         this.store = store;
+        this.playerSampleVerifier = playerSampleVerifier;
         this.metrics = metrics;
         this.afterChunk = afterChunk;
         this.chunkSize = chunkSize;
@@ -244,7 +247,9 @@ public class ServerTrackerRefresher {
                     metrics.recordSampleDropped(reason);
                 }
             }
-            store.record(ServerTrackerVerifier.buildSnapshot(server.ip(), server.port(), token, latencyMs, verdict));
+            // Same identity gate as the discovery path: fabricated samples never reach the store.
+            List<HoneypotDetector.SampleEntry> verifiedPlayers = playerSampleVerifier.verify(verdict.players());
+            store.record(ServerTrackerVerifier.buildSnapshot(server.ip(), server.port(), token, latencyMs, verifiedPlayers, verdict.honeypotServer()));
             persisted.incrementAndGet();
         } catch (Exception e) {
             recordOffline(server.uuid());

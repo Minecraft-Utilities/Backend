@@ -135,6 +135,23 @@ public class PlayerService {
         });
     }
 
+    /**
+     * Cache-only player lookup: returns the already-known player row for a username (≤16
+     * chars) or a dashed UUID, without any Mojang call and without creating the player. The
+     * players table is only ever populated from Mojang-verified profiles, so a match here
+     * proves the identity; used by the tracker's sample-identity gate, where resolving per
+     * sample entry would flood Mojang. Same single-argument query contract as
+     * {@link #getPlayer} (which remains the compatibility entry point); this is its read-only
+     * twin.
+     */
+    @Transactional(readOnly = true)
+    public Optional<PlayerRow> getCachedPlayer(String query) {
+        if (query.length() <= 16) {
+            return this.playerRepository.findByUsernameIgnoreCase(query);
+        }
+        return this.playerRepository.findById(UUIDUtils.parseUuid(query));
+    }
+
     @Transactional
     public PlayerRow createPlayer(MojangProfileToken token) {
         UUID id = UUIDUtils.parseUuid(token.getId());

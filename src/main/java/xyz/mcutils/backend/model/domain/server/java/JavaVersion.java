@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NonNull;
 import xyz.mcutils.backend.common.JavaMinecraftVersion;
+import xyz.mcutils.backend.common.color.ColorUtils;
 
 @AllArgsConstructor
 @Getter
@@ -38,7 +39,10 @@ public class JavaVersion {
         if (name.contains(" ")) { // Parse the server platform
             String[] split = name.split(" ");
             if (split.length == 2) {
-                platform = split[0];
+                platform = ColorUtils.stripColor(split[0]); // Strip legacy/modern color codes ("§4Paper" -> "Paper")
+                if (platform.isBlank()) {
+                    platform = null;
+                }
             }
         }
         JavaMinecraftVersion minecraftVersion = JavaMinecraftVersion.byProtocol(protocol);

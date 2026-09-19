@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.service.tracker;
 
 import org.junit.jupiter.api.Test;
+import xyz.mcutils.backend.service.PlayerService;
 import xyz.mcutils.backend.service.pinger.impl.JavaMinecraftServerPinger;
 
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 /**
  * Integration tests for {@link ServerTrackerVerifier} against a real Java status protocol server
@@ -27,6 +29,9 @@ class ServerTrackerVerifierTest {
 
     private record SinkRecord(String ip, int port, int sampleCount, boolean honeypot) {}
 
+    /** Identity verification is a no-op for these protocol-level integration tests. */
+    private static final PlayerSampleVerifier PASS_THROUGH = new PlayerSampleVerifier(mock(PlayerService.class), false);
+
     private static final class TestHarness implements AutoCloseable {
         final FakeMinecraftServer server;
         final List<SinkRecord> sink = new CopyOnWriteArrayList<>();
@@ -38,10 +43,18 @@ class ServerTrackerVerifierTest {
         }
 
         ServerTrackerVerifier verifier(int window, int probeCap) {
-            return verifier(window, probeCap, 50, 3);
+            return verifier(window, probeCap, 50, 3, PASS_THROUGH);
         }
 
         ServerTrackerVerifier verifier(int window, int probeCap, int maxNets, int maxPorts) {
+            return verifier(window, probeCap, maxNets, maxPorts, PASS_THROUGH);
+        }
+
+        ServerTrackerVerifier verifier(int window, int probeCap, PlayerSampleVerifier sampleVerifier) {
+            return verifier(window, probeCap, 50, 3, sampleVerifier);
+        }
+
+        ServerTrackerVerifier verifier(int window, int probeCap, int maxNets, int maxPorts, PlayerSampleVerifier sampleVerifier) {
             HoneypotDetector detector = new HoneypotDetector(store, maxNets, 24, maxPorts);
             ServerTrackerVerifier.PlayerHarvester harvester = players -> {
                 harvested.addAll(players);
@@ -49,7 +62,7 @@ class ServerTrackerVerifierTest {
             };
             ServerTrackerVerifier.ServerTrackerSink sink = snapshot ->
                 this.sink.add(new SinkRecord(snapshot.ip(), snapshot.port(), snapshot.players().size(), snapshot.honeypot()));
-            return new ServerTrackerVerifier(new JavaMinecraftServerPinger(), detector, sink, harvester,
+            return new ServerTrackerVerifier(new JavaMinecraftServerPinger(), detector, sink, harvester, sampleVerifier,
                     null, window, 65535, probeCap, 1_500);
         }
 
@@ -206,6 +219,32 @@ class ServerTrackerVerifierTest {
             assertTrue(result.honeypot());
             assertEquals(0, harness.harvested.size(), "nothing from a flagged honeypot host is harvested");
             assertEquals(1, harness.sink.size(), "the flagged server itself is still recorded");
+        }
+    }
+
+    @Test
+    void fakeIdentitySamplesAreExcludedFromSinkAndHarvest() throws Exception {
+        // Identity verification runs after the honeypot verdict and before the sink + harvest:
+        // a sample dropped there must vanish from BOTH the persisted snapshot and the queue.
+        int base = FakeMinecraftServer.findBasePort(0, 1);
+        String json = FakeMinecraftServer.statusJson("1.21", 2, 100,
+                "[" + FakeMinecraftServer.sampleEntry("Steve", STEVE.toString()) + ","
+                        + FakeMinecraftServer.sampleEntry("Alex", ALEX.toString()) + "]");
+        PlayerSampleVerifier dropsAlex = new PlayerSampleVerifier(mock(PlayerService.class), true) {
+            @Override
+            public List<HoneypotDetector.SampleEntry> verify(List<HoneypotDetector.SampleEntry> entries) {
+                return entries.stream().filter(e -> !e.name().equals("Alex")).toList();
+            }
+        };
+        try (TestHarness harness = new TestHarness(new FakeMinecraftServer(
+                List.of(base), List.of(json)))) {
+            ServerTrackerVerifier verifier = harness.verifier(10, 200, dropsAlex);
+            ServerTrackerVerifier.HostResult result = verifier.verifyHost(IP, base);
+
+            assertEquals(1, result.playersEnqueued(), "only verified identities reach the queue");
+            assertEquals(1, harness.sink.get(0).sampleCount(), "the persisted snapshot carries only verified players");
+            assertEquals(List.of("Steve"),
+                    harness.harvested.stream().map(HoneypotDetector.SampleEntry::name).toList());
         }
     }
 }
