@@ -30,6 +30,22 @@ public final class JavaMinecraftServerPinger implements MinecraftServerPinger<Ja
      */
     @Override
     public JavaMinecraftServer ping(String hostname, String ip, int port, DNSRecord[] records, int timeout) {
+        return JavaMinecraftServer.create(hostname, ip, port, records, pingToken(hostname, ip, port, records, timeout));
+    }
+
+    /**
+     * Performs the Java status protocol handshake and returns the raw status token, skipping the
+     * expensive domain-object materialization ({@link JavaMinecraftServer#create} decodes the
+     * favicon, colorizes sample names, and serializes MOTD components). The server scanner uses
+     * this token path at scan scale; {@link #ping} delegates to it so behavior is unchanged.
+     *
+     * @param hostname the hostname of the server
+     * @param ip       the resolved ip of the server, may be null to resolve the hostname
+     * @param port     the port of the server
+     * @param timeout  the connect/read timeout in milliseconds
+     * @return the parsed status token
+     */
+    public JavaServerStatusToken pingToken(String hostname, String ip, int port, DNSRecord[] records, int timeout) {
         log.debug("Pinging {}:{}...", hostname, port);
 
         // Open a socket connection to the server
@@ -54,8 +70,7 @@ public final class JavaMinecraftServerPinger implements MinecraftServerPinger<Ja
                 packetStatusInStart.process(inputStream, outputStream);
                 outputStream.flush();
 
-                JavaServerStatusToken token = Constants.GSON.fromJson(packetStatusInStart.getResponse(), JavaServerStatusToken.class);
-                return JavaMinecraftServer.create(hostname, ip, port, records, token);
+                return Constants.GSON.fromJson(packetStatusInStart.getResponse(), JavaServerStatusToken.class);
             }
         } catch (IOException ex) {
             if (ex instanceof UnknownHostException) {

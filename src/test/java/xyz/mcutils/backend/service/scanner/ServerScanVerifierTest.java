@@ -1,0 +1,173 @@
+package xyz.mcutils.backend.service.scanner;
+
+import org.junit.jupiter.api.Test;
+import xyz.mcutils.backend.service.pinger.impl.JavaMinecraftServerPinger;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Integration tests for {@link ServerScanVerifier} against a real Java status protocol server
+ * on 127.0.0.1: real handshake, real token parsing, real port walk, real honeypot filtering.
+ */
+class ServerScanVerifierTest {
+
+    private static final String IP = "127.0.0.1";
+    private static final UUID STEVE = UUID.fromString("eeab5f8a-18dd-4d58-af78-2b3c4543da48");
+    private static final UUID ALEX = UUID.fromString("853c80ef-3c37-49fd-aa49-938b674adae6");
+    private static final UUID JEB = UUID.fromString("b876ec32-e396-476b-a115-8438d83c67d4");
+
+    private record SinkRecord(String ip, int port, int sampleCount, boolean honeypot) {}
+
+    private static final class TestHarness implements AutoCloseable {
+        final FakeMinecraftServer server;
+        final List<SinkRecord> sink = new CopyOnWriteArrayList<>();
+        final List<HoneypotDetector.SampleEntry> harvested = Collections.synchronizedList(new ArrayList<>());
+        final InMemoryScanFingerprintStore store = new InMemoryScanFingerprintStore();
+
+        TestHarness(FakeMinecraftServer server) {
+            this.server = server;
+        }
+
+        ServerScanVerifier verifier(int basePort, int window, int probeCap) {
+            return verifier(basePort, window, probeCap, 50, 3);
+        }
+
+        ServerScanVerifier verifier(int basePort, int window, int probeCap, int maxNets, int maxPorts) {
+            HoneypotDetector detector = new HoneypotDetector(store, maxNets, 24, maxPorts);
+            ServerScanVerifier.PlayerHarvester harvester = players -> {
+                harvested.addAll(players);
+                return players.size();
+            };
+            ServerScanVerifier.ScannedServerSink sink = (ip, port, count, honeypot) ->
+                    this.sink.add(new SinkRecord(ip, port, count, honeypot));
+            return new ServerScanVerifier(new JavaMinecraftServerPinger(), detector, sink, harvester,
+                    null, basePort, window, 65535, probeCap, 1_500);
+        }
+
+        @Override
+        public void close() {
+            server.close();
+        }
+    }
+
+    @Test
+    void findsGappedMultiServerHost() throws Exception {
+        int base = FakeMinecraftServer.findBasePort(0, 1, 6);
+        String jsonBase = FakeMinecraftServer.statusJson("1.21", 1, 100,
+                "[" + FakeMinecraftServer.sampleEntry("Steve", STEVE.toString()) + "]");
+        String jsonNext = FakeMinecraftServer.statusJson("1.21", 1, 100,
+                "[" + FakeMinecraftServer.sampleEntry("Alex", ALEX.toString()) + "]");
+        String jsonFar = FakeMinecraftServer.statusJson("1.20", 1, 100,
+                "[" + FakeMinecraftServer.sampleEntry("jeb_", JEB.toString()) + "]");
+        try (TestHarness harness = new TestHarness(new FakeMinecraftServer(
+                List.of(base, base + 1, base + 6), List.of(jsonBase, jsonNext, jsonFar)))) {
+            ServerScanVerifier verifier = harness.verifier(base, 10, 200);
+            ServerScanVerifier.HostResult result = verifier.verifyHost(IP);
+
+            assertEquals(3, result.serversFound(), "all three gapped servers must be found");
+            assertEquals(3, result.playersEnqueued());
+            assertFalse(result.honeypot());
+            assertEquals(3, harness.sink.size(), "one sink record per discovered server");
+            assertTrue(harness.sink.stream().anyMatch(r -> r.port() == base));
+            assertTrue(harness.sink.stream().anyMatch(r -> r.port() == base + 1));
+            assertTrue(harness.sink.stream().anyMatch(r -> r.port() == base + 6));
+            assertEquals(3, harness.harvested.size());
+        }
+    }
+
+    @Test
+    void silentPortDoesNotReanchorTheWalk() throws Exception {
+        int base = FakeMinecraftServer.findBasePort(0, 1);
+        String jsonBase = FakeMinecraftServer.statusJson("1.21", 1, 100,
+                "[" + FakeMinecraftServer.sampleEntry("Steve", STEVE.toString()) + "]");
+        try (TestHarness harness = new TestHarness(new FakeMinecraftServer(
+                List.of(base, base + 1), java.util.Arrays.asList(jsonBase, null)))) { // base+1 is a silent non-MC service
+            ServerScanVerifier verifier = harness.verifier(base, 3, 200);
+            ServerScanVerifier.HostResult result = verifier.verifyHost(IP);
+
+            assertEquals(1, result.serversFound(), "silent port must not count as a server");
+            assertEquals(1, harness.sink.size());
+            assertEquals(base, harness.sink.get(0).port());
+            assertEquals(1, harness.harvested.size());
+        }
+    }
+
+    @Test
+    void closedBasePortYieldsNoServers() throws Exception {
+        int base = FakeMinecraftServer.findBasePort(1); // only base+1 is bound
+        String json = FakeMinecraftServer.statusJson("1.21", 1, 100,
+                "[" + FakeMinecraftServer.sampleEntry("Steve", STEVE.toString()) + "]");
+        try (TestHarness harness = new TestHarness(new FakeMinecraftServer(
+                List.of(base + 1), List.of(json)))) {
+            ServerScanVerifier verifier = harness.verifier(base, 10, 200);
+            ServerScanVerifier.HostResult result = verifier.verifyHost(IP);
+
+            assertEquals(ServerScanVerifier.NOT_A_SERVER, result);
+            assertTrue(harness.sink.isEmpty(), "no walk when the base port has no server");
+            assertTrue(harness.harvested.isEmpty());
+        }
+    }
+
+    @Test
+    void windowCapsTheWalk() throws Exception {
+        int base = FakeMinecraftServer.findBasePort(0, 5);
+        String jsonBase = FakeMinecraftServer.statusJson("1.21", 1, 100,
+                "[" + FakeMinecraftServer.sampleEntry("Steve", STEVE.toString()) + "]");
+        String jsonFar = FakeMinecraftServer.statusJson("1.21", 1, 100,
+                "[" + FakeMinecraftServer.sampleEntry("Alex", ALEX.toString()) + "]");
+        try (TestHarness harness = new TestHarness(new FakeMinecraftServer(
+                List.of(base, base + 5), List.of(jsonBase, jsonFar)))) {
+            // Window 2: base+5 is beyond base+2, so the walk never reaches it.
+            ServerScanVerifier verifier = harness.verifier(base, 2, 200);
+            ServerScanVerifier.HostResult result = verifier.verifyHost(IP);
+
+            assertEquals(1, result.serversFound());
+            assertEquals(1, harness.sink.size());
+            assertEquals(base, harness.sink.get(0).port());
+        }
+    }
+
+    @Test
+    void offlineModePlayersAreFilteredOutOfTheHarvest() throws Exception {
+        int base = FakeMinecraftServer.findBasePort(0);
+        UUID offline = UUID.nameUUIDFromBytes("OfflinePlayer:Steve".getBytes());
+        String json = FakeMinecraftServer.statusJson("1.21", 2, 100,
+                "[" + FakeMinecraftServer.sampleEntry("Cracked", offline.toString())
+                        + "," + FakeMinecraftServer.sampleEntry("Steve", STEVE.toString()) + "]");
+        try (TestHarness harness = new TestHarness(new FakeMinecraftServer(
+                List.of(base), List.of(json)))) {
+            ServerScanVerifier verifier = harness.verifier(base, 2, 200);
+            ServerScanVerifier.HostResult result = verifier.verifyHost(IP);
+
+            assertEquals(1, result.serversFound());
+            assertEquals(1, result.playersEnqueued(), "only the online-mode player is enqueued");
+            assertEquals(1, harness.harvested.size());
+            assertEquals(STEVE, harness.harvested.get(0).uuid());
+            assertEquals(1, harness.sink.get(0).sampleCount());
+        }
+    }
+
+    @Test
+    void sameHostSampleOnManyPortsIsFlaggedAsHoneypot() throws Exception {
+        int base = FakeMinecraftServer.findBasePort(0, 1, 2);
+        String json = FakeMinecraftServer.statusJson("1.21", 1, 100,
+                "[" + FakeMinecraftServer.sampleEntry("Steve", STEVE.toString()) + "]");
+        try (TestHarness harness = new TestHarness(new FakeMinecraftServer(
+                List.of(base, base + 1, base + 2), List.of(json, json, json)))) {
+            ServerScanVerifier verifier = harness.verifier(base, 3, 200, 50, 3);
+            ServerScanVerifier.HostResult result = verifier.verifyHost(IP);
+
+            assertEquals(3, result.serversFound());
+            assertTrue(result.honeypot(), "identical sample on 3 ports of one host flags the host");
+            assertTrue(harness.harvested.size() < 3, "the repeated sample's players are dropped");
+        }
+    }
+}

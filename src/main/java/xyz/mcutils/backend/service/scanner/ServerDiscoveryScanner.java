@@ -1,0 +1,271 @@
+package xyz.mcutils.backend.service.scanner;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import xyz.mcutils.backend.metric.impl.scanner.ServerScannerMetric;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.StandardSocketOptions;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.SocketChannel;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+/**
+ * Discovery stage of the internet scanner: asynchronous TCP connect probes on the base port
+ * across the whole IPv4 space, using {@code java.nio} non-blocking channels with a single
+ * selector thread. Hosts are probed in a seeded random order (per /16, per /24, per host), one
+ * probe per IP, no retries; the in-flight cap doubles as the pacing mechanism.
+ * <p>
+ * Only the base port is probed here — the port walk happens in {@link ServerScanVerifier} on
+ * hosts whose base port already verified. Open ports are handed to the verifier via the
+ * {@link OpenPortHandler} callback (invoked on the selector thread; dispatch to a pool belongs
+ * to the caller).
+ */
+@Component
+@Slf4j
+public class ServerDiscoveryScanner {
+
+    /**
+     * Receives an IP whose base port accepted a TCP connect. Called from the selector loop.
+     */
+    public interface OpenPortHandler {
+        void handle(String ip);
+    }
+
+    private static final int SELECT_TIMEOUT_MS = 100;
+    private static final Duration PENDING_SWEEP_INTERVAL = Duration.ofMillis(500);
+
+    private final Ipv4Space space;
+    private final int basePort;
+    private final int concurrency;
+    private final Duration connectTimeout;
+    private final OpenPortHandler openPortHandler;
+    private final ServerScannerMetric metrics; // nullable: metrics recording is optional
+    private final AtomicBoolean running = new AtomicBoolean(false);
+
+    // Selector-loop state
+    private Selector selector;
+    private final Map<SocketChannel, Long> pending = new HashMap<>();
+    private long lastSweep;
+
+    // Iteration state
+    private long current24 = -1;
+    private long[] currentHosts = new long[0];
+    private int hostIndex;
+    private boolean spaceExhausted;
+    private volatile Ipv4Space.Progress cursor;
+    private volatile long completed24s;
+
+    public ServerDiscoveryScanner(
+            Ipv4Space space,
+            OpenPortHandler openPortHandler,
+            ServerScannerMetric metrics,
+            @Value("${mc-utils.server-scanner.ports.base:25565}") int basePort,
+            @Value("${mc-utils.server-scanner.discovery.concurrency:5000}") int concurrency,
+            @Value("${mc-utils.server-scanner.discovery.connect-timeout-ms:2000}") long connectTimeoutMs
+    ) {
+        this.space = space;
+        this.openPortHandler = openPortHandler;
+        this.metrics = metrics;
+        this.basePort = basePort;
+        this.concurrency = concurrency;
+        this.connectTimeout = Duration.ofMillis(connectTimeoutMs);
+    }
+
+    public Ipv4Space.Progress cursor() {
+        return cursor;
+    }
+
+    public long completed24s() {
+        return completed24s;
+    }
+
+    public boolean isRunning() {
+        return running.get();
+    }
+
+    /**
+     * @return true once the entire space has been iterated (the loop may still be draining
+     *         in-flight connections)
+     */
+    public boolean isComplete() {
+        return spaceExhausted;
+    }
+
+    /**
+     * Runs the discovery loop until the space is exhausted or {@link #close()} is called.
+     */
+    public void run() {
+        if (!running.compareAndSet(false, true)) {
+            throw new IllegalStateException("Discovery scanner is already running");
+        }
+        try {
+            selector = Selector.open();
+            lastSweep = System.nanoTime();
+            while (running.get()) {
+                fillPending();
+                selector.select(SELECT_TIMEOUT_MS);
+                Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
+                while (keys.hasNext()) {
+                    SelectionKey key = keys.next();
+                    keys.remove();
+                    if (!key.isValid()) {
+                        abandon(key);
+                        continue;
+                    }
+                    SocketChannel channel = (SocketChannel) key.channel();
+                    try {
+                        if (channel.finishConnect()) {
+                            pending.remove(channel);
+                            if (metrics != null) {
+                                metrics.recordConnectOpen();
+                            }
+                            openPortHandler.handle((String) key.attachment());
+                        } else {
+                            abandon(key);
+                            continue;
+                        }
+                    } catch (IOException e) {
+                        abandon(key);
+                        continue;
+                    }
+                    try {
+                        channel.close();
+                    } catch (IOException ignored) {
+                    }
+                }
+                sweepExpired();
+                if (exhaustedAndIdle()) {
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            log.error("Discovery scanner selector failed", e);
+        } finally {
+            closeAll();
+            running.set(false);
+        }
+    }
+
+    /**
+     * Requests the loop to stop; the loop closes all pending channels itself.
+     */
+    public void close() {
+        running.set(false);
+        if (selector != null) {
+            selector.wakeup();
+        }
+    }
+
+    private void fillPending() {
+        while (running.get() && pending.size() < concurrency) {
+            long ip = nextHost();
+            if (ip < 0) {
+                return; // space exhausted
+            }
+            String ipString = Ipv4Space.longToIpv4(ip);
+            try {
+                SocketChannel channel = SocketChannel.open();
+                channel.configureBlocking(false);
+                channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
+                channel.register(selector, SelectionKey.OP_CONNECT, ipString);
+                channel.connect(new InetSocketAddress(ipString, basePort));
+                pending.put(channel, System.nanoTime());
+                if (metrics != null) {
+                    metrics.recordProbe();
+                }
+            } catch (IOException e) {
+                if (metrics != null) { // unresolvable/unroutable still counts as one probe
+                    metrics.recordProbe();
+                }
+            }
+        }
+    }
+
+    private void sweepExpired() {
+        long now = System.nanoTime();
+        if (now - lastSweep < PENDING_SWEEP_INTERVAL.toNanos()) {
+            return;
+        }
+        lastSweep = now;
+        List<SelectionKey> expired = new ArrayList<>();
+        for (Map.Entry<SocketChannel, Long> entry : pending.entrySet()) {
+            if (now - entry.getValue() >= connectTimeout.toNanos()) {
+                SelectionKey key = entry.getKey().keyFor(selector);
+                if (key != null) {
+                    expired.add(key);
+                }
+            }
+        }
+        for (SelectionKey key : expired) {
+            abandon(key);
+        }
+    }
+
+    private void abandon(SelectionKey key) {
+        SocketChannel channel = (SocketChannel) key.channel();
+        pending.remove(channel);
+        key.cancel();
+        try {
+            channel.close();
+        } catch (IOException ignored) {
+        }
+    }
+
+    private void closeAll() {
+        if (selector == null) {
+            return;
+        }
+        for (SocketChannel channel : pending.keySet()) {
+            try {
+                channel.close();
+            } catch (IOException ignored) {
+            }
+        }
+        pending.clear();
+        try {
+            selector.close();
+        } catch (IOException ignored) {
+        }
+    }
+
+    private boolean exhaustedAndIdle() {
+        return spaceExhausted && pending.isEmpty();
+    }
+
+    /**
+     * @return the next host to probe as an unsigned 32-bit long, or -1 when the space is exhausted
+     */
+    private long nextHost() {
+        while (true) {
+            if (current24 >= 0 && hostIndex < currentHosts.length) {
+                return currentHosts[hostIndex++];
+            }
+            if (current24 >= 0) { // finished this /24
+                long completed = ++completed24s;
+                this.cursor = space.progress();
+                if (metrics != null) {
+                    ServerScannerMetric.updateProgress(completed);
+                }
+                current24 = -1;
+            }
+            long next24 = space.next24();
+            if (next24 < 0) {
+                spaceExhausted = true;
+                return -1;
+            }
+            current24 = next24;
+            currentHosts = Ipv4Space.hostsIn24(current24, space.seed());
+            hostIndex = 0;
+        }
+    }
+}
