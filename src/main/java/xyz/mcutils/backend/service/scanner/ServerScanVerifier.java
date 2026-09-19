@@ -1,6 +1,5 @@
 package xyz.mcutils.backend.service.scanner;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import xyz.mcutils.backend.metric.impl.scanner.ServerScannerMetric;
 import xyz.mcutils.backend.model.domain.dns.DNSRecord;
@@ -20,7 +19,6 @@ import java.util.List;
  * Not a Spring bean: {@link ServerScannerService} constructs it (and its collaborators) after
  * the context is ready, so nothing here needs to be eagerly instantiable.
  */
-@Slf4j
 public class ServerScanVerifier {
 
     private static final DNSRecord[] NO_RECORDS = new DNSRecord[0];

@@ -1,7 +1,6 @@
 package xyz.mcutils.backend.service.scanner;
 
 import com.google.common.hash.Hashing;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import xyz.mcutils.backend.common.UUIDUtils;
@@ -35,7 +34,6 @@ import java.util.regex.Pattern;
  * cannot resolve is silently discarded there.
  */
 @Component
-@Slf4j
 public class HoneypotDetector {
 
     private static final Pattern NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_]{1,16}$");
@@ -129,7 +127,7 @@ public class HoneypotDetector {
         return new Verdict(true, kept, false, dropReasons);
     }
 
-    public static boolean isValidName(String rawName) {
+    static boolean isValidName(String rawName) {
         if (rawName == null) {
             return false;
         }

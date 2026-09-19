@@ -180,7 +180,14 @@ public class ServerScannerService {
         this.harvester = new BufferedHarvester(
                 playerSubmitService, metrics, enqueueBatchSize, enqueueRatePerMinute, surgeGuard
         );
-        ServerScanVerifier.ScannedServerSink serverSink = this::persistScannedServer;
+        ServerScanVerifier.ScannedServerSink serverSink = (ip, port, sampleCount, honeypot) -> {
+            if (surgeGuard.report(honeypot) && metrics != null) {
+                metrics.recordHarvestPause();
+                log.warn("Honeypot surge detected (>={} of last {} verified servers flagged), harvesting paused for {}s",
+                        surgeMaxFlagged, surgeWindow, surgeCooldownSeconds);
+            }
+            persistScannedServer(ip, port, sampleCount, honeypot);
+        };
         ServerScanVerifier verifier = new ServerScanVerifier(
                 new JavaMinecraftServerPinger(), honeypotDetector, serverSink, harvester::harvest, metrics,
                 basePort, portWindow, maxPort, probeCapPerIp, verifyTimeoutMs

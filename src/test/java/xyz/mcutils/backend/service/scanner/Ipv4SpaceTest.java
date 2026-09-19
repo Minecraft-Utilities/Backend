@@ -17,25 +17,25 @@ class Ipv4SpaceTest {
     @Test
     void defaultExclusionsCoverPrivateAndReservedRanges() {
         Ipv4Space space = space(1);
-        assertTrue(space.isExcluded(Ipv4Space.ipv4(10, 0, 0, 0)));
-        assertTrue(space.isExcluded(Ipv4Space.ipv4(127, 0, 0, 0)));
-        assertTrue(space.isExcluded(Ipv4Space.ipv4(172, 31, 0, 0)));
-        assertTrue(space.isExcluded(Ipv4Space.ipv4(192, 168, 1, 0)));
-        assertTrue(space.isExcluded(Ipv4Space.ipv4(169, 254, 0, 0)));
-        assertTrue(space.isExcluded(Ipv4Space.ipv4(100, 64, 0, 0)));
-        assertTrue(space.isExcluded(Ipv4Space.ipv4(224, 0, 0, 0)));  // multicast
-        assertTrue(space.isExcluded(Ipv4Space.ipv4(240, 0, 0, 0)));  // reserved
-        assertTrue(space.isExcluded(Ipv4Space.ipv4(6, 0, 0, 0)));    // DoD
-        assertTrue(space.isExcluded(Ipv4Space.ipv4(214, 1, 0, 0)));  // DoD
+        assertTrue(space.isExcluded(ip(10, 0, 0, 0)));
+        assertTrue(space.isExcluded(ip(127, 0, 0, 0)));
+        assertTrue(space.isExcluded(ip(172, 31, 0, 0)));
+        assertTrue(space.isExcluded(ip(192, 168, 1, 0)));
+        assertTrue(space.isExcluded(ip(169, 254, 0, 0)));
+        assertTrue(space.isExcluded(ip(100, 64, 0, 0)));
+        assertTrue(space.isExcluded(ip(224, 0, 0, 0)));  // multicast
+        assertTrue(space.isExcluded(ip(240, 0, 0, 0)));  // reserved
+        assertTrue(space.isExcluded(ip(6, 0, 0, 0)));    // DoD
+        assertTrue(space.isExcluded(ip(214, 1, 0, 0)));  // DoD
     }
 
     @Test
     void publicAddressesAreNotExcluded() {
         Ipv4Space space = space(1);
-        assertFalse(space.isExcluded(Ipv4Space.ipv4(8, 8, 8, 0)));
-        assertFalse(space.isExcluded(Ipv4Space.ipv4(1, 1, 1, 0)));
-        assertFalse(space.isExcluded(Ipv4Space.ipv4(4, 4, 4, 0)));
-        assertFalse(space.isExcluded(Ipv4Space.ipv4(9, 9, 9, 0)));
+        assertFalse(space.isExcluded(ip(8, 8, 8, 0)));
+        assertFalse(space.isExcluded(ip(1, 1, 1, 0)));
+        assertFalse(space.isExcluded(ip(4, 4, 4, 0)));
+        assertFalse(space.isExcluded(ip(9, 9, 9, 0)));
     }
 
     @Test
@@ -75,32 +75,32 @@ class Ipv4SpaceTest {
     void scopedModeScansOnlyIncludedCidr() {
         Ipv4Space test = new Ipv4Space(List.of(), List.of("127.0.0.1/32"), 1);
         assertTrue(test.hasIncludeScope());
-        assertEquals(Ipv4Space.ipv4(127, 0, 0, 0), test.next24());
+        assertEquals(ip(127, 0, 0, 0), test.next24());
         assertEquals(-1, test.next24(), "scoped mode must be exhausted after the included /24");
     }
 
     @Test
     void extraExclusionsAreRespected() {
         Ipv4Space space = new Ipv4Space(List.of("8.8.8.0/24"), List.of(), 1);
-        assertTrue(space.isExcluded(Ipv4Space.ipv4(8, 8, 8, 0)));
-        assertFalse(space.isExcluded(Ipv4Space.ipv4(8, 8, 4, 0)));
+        assertTrue(space.isExcluded(ip(8, 8, 8, 0)));
+        assertFalse(space.isExcluded(ip(8, 8, 4, 0)));
     }
 
     @Test
     void hostsSkipNetworkAndBroadcastAddresses() {
-        long[] hosts = Ipv4Space.hostsIn24(Ipv4Space.ipv4(8, 8, 8, 0), 5);
+        long[] hosts = Ipv4Space.hostsIn24(ip(8, 8, 8, 0), 5);
         assertEquals(254, hosts.length);
         for (long host : hosts) {
-            assertTrue(host >= Ipv4Space.ipv4(8, 8, 8, 1));
-            assertTrue(host <= Ipv4Space.ipv4(8, 8, 8, 254));
+            assertTrue(host >= ip(8, 8, 8, 1));
+            assertTrue(host <= ip(8, 8, 8, 254));
         }
     }
 
     @Test
     void parseCidrComputesRangeBounds() {
         Ipv4Space.Cidr cidr = Ipv4Space.parseCidr("192.168.1.0/24");
-        assertEquals(Ipv4Space.ipv4(192, 168, 1, 0), cidr.start());
-        assertEquals(Ipv4Space.ipv4(192, 168, 1, 255), cidr.endInclusive());
+        assertEquals(ip(192, 168, 1, 0), cidr.start());
+        assertEquals(ip(192, 168, 1, 255), cidr.endInclusive());
     }
 
     @Test
@@ -115,4 +115,9 @@ class Ipv4SpaceTest {
         Ipv4Space scoped = new Ipv4Space(List.of(), List.of("127.0.0.1/32"), 1);
         assertEquals(-1, scoped.public24Count());
     }
+
+    private static long ip(int a, int b, int c, int d) {
+        return Ipv4Space.ipv4ToLong(new byte[]{(byte) a, (byte) b, (byte) c, (byte) d});
+    }
+
 }

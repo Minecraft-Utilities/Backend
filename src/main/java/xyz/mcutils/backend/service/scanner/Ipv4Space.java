@@ -299,13 +299,6 @@ public final class Ipv4Space {
     }
 
     /**
-     * Convenience for literals: {@code ipv4(8, 8, 8, 0)}.
-     */
-    public static long ipv4(int a, int b, int c, int d) {
-        return ipv4ToLong(new byte[]{(byte) a, (byte) b, (byte) c, (byte) d});
-    }
-
-    /**
      * Formats an unsigned 32-bit long as a dotted-quad string.
      */
     public static String longToIpv4(long address) {

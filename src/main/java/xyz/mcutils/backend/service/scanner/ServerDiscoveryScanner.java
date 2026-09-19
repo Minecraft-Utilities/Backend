@@ -90,10 +90,6 @@ public class ServerDiscoveryScanner {
         return completed24s;
     }
 
-    public boolean isRunning() {
-        return running.get();
-    }
-
     /**
      * @return true once the entire space has been iterated (the loop may still be draining
      *         in-flight connections)
