@@ -198,3 +198,43 @@ mc-utils:
     concurrent-fetches: 200
     mojang-rate-limit: 600
     concurrent-persists: 64
+
+  # Internet server scanner: sweeps the public IPv4 space for Java Minecraft servers
+  # and feeds harvested online players into the submit queue (attributed to ImFascinated).
+  # Opt-in: the scanner does nothing at boot while enabled is false.
+  server-scanner:
+    enabled: false
+    discovery:
+      # Concurrent in-flight TCP connect probes (also paces the scan rate).
+      concurrency: 5000
+      connect-timeout-ms: 2000
+    verify:
+      # Parallel full status-pings on hosts whose base port connected.
+      concurrency: 100
+      timeout-ms: 5000
+    ports:
+      base: 25565
+      # Probe up to lastWorkingPort + window ports per host (sliding ceiling).
+      window: 10
+      max: 65535
+      # Absolute cap on ports probed per host.
+      probe-cap-per-ip: 200
+    enqueue:
+      # Players per submit-queue flush, and max flush rate (min 1/min).
+      batch-size: 1000
+      rate-per-minute: 3000
+    honeypot:
+      # Sample fingerprint seen from >N distinct /24s within the window = farm.
+      max-distinct-nets-per-fingerprint: 50
+      window-hours: 24
+      # Identical sample on >N ports of one host flags the host.
+      max-identical-port-samples: 3
+      # Automated harvest pause when N of the last window verified servers are honeypots.
+      surge-window: 100
+      surge-max-flagged: 10
+      surge-cooldown-seconds: 300
+    ip:
+      # Comma-separated extra CIDRs to skip (RFC 6890 + DoD ranges are always skipped).
+      exclude-extra-cidrs: ""
+      # Comma-separated CIDRs to scan INSTEAD of the full space (scoped/CI mode).
+      include-cidrs: ""
