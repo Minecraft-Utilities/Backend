@@ -4959,11 +4959,11 @@
                     "version": "v0",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "username_discovery_queue_size{job=\"mc_utils\"}",
+                      "expr": "rate(server_scanner_ip_probes_total{job=\"mc_utils\"}[1m])",
                       "format": "time_series",
                       "legendFormat": "__auto",
-                      "range": false,
-                      "instant": true
+                      "range": true,
+                      "instant": false
                     }
                   },
                   "refId": "A"
@@ -4977,7 +4977,7 @@
         "description": "",
         "id": 53,
         "links": [],
-        "title": "\ud83d\udce5 Discovery Queue",
+        "title": "\ud83d\udd0e IP Probes/s",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
@@ -5043,11 +5043,11 @@
                     "version": "v0",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "username_discovery_seen_set_size{job=\"mc_utils\"}",
+                      "expr": "rate(server_scanner_connect_open_total{job=\"mc_utils\"}[1m])",
                       "format": "time_series",
                       "legendFormat": "__auto",
-                      "range": false,
-                      "instant": true
+                      "range": true,
+                      "instant": false
                     }
                   },
                   "refId": "A"
@@ -5061,7 +5061,7 @@
         "description": "",
         "id": 54,
         "links": [],
-        "title": "\ud83d\uddc2\ufe0f Seen Usernames",
+        "title": "\u2705 Open Connects/s",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
@@ -5069,19 +5069,19 @@
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "fixedColor": "blue",
+                  "fixedColor": "green",
                   "mode": "fixed"
                 },
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "blue",
+                      "color": "green",
                       "value": 0
                     }
                   ]
                 },
-                "unit": "locale"
+                "unit": "short"
               },
               "overrides": []
             },
@@ -5127,11 +5127,11 @@
                     "version": "v0",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "sum(rate(username_discovery_hits_total{job=\"mc_utils\"}[5m])) / sum(rate(username_discovery_candidates_checked_total{job=\"mc_utils\"}[5m]))",
+                      "expr": "rate(server_scanner_servers_verified_total{job=\"mc_utils\"}[1m])",
                       "format": "time_series",
                       "legendFormat": "__auto",
-                      "range": false,
-                      "instant": true
+                      "range": true,
+                      "instant": false
                     }
                   },
                   "refId": "A"
@@ -5145,7 +5145,7 @@
         "description": "",
         "id": 55,
         "links": [],
-        "title": "\ud83c\udfaf Discovery Hit Rate",
+        "title": "\ud83d\udda5\ufe0f Verified Servers/s",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
@@ -5153,19 +5153,19 @@
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "fixedColor": "green",
+                  "fixedColor": "blue",
                   "mode": "fixed"
                 },
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "green",
+                      "color": "blue",
                       "value": 0
                     }
                   ]
                 },
-                "unit": "percentunit"
+                "unit": "short"
               },
               "overrides": []
             },
@@ -5211,11 +5211,11 @@
                     "version": "v0",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "sum(rate(username_discovery_hits_total{job=\"mc_utils\"}[5m]))",
+                      "expr": "rate(server_scanner_ports_probed_walk_total{job=\"mc_utils\"}[1m])",
                       "format": "time_series",
                       "legendFormat": "__auto",
-                      "range": false,
-                      "instant": true
+                      "range": true,
+                      "instant": false
                     }
                   },
                   "refId": "A"
@@ -5229,7 +5229,7 @@
         "description": "",
         "id": 56,
         "links": [],
-        "title": "\u2728 Discovery Hits/s",
+        "title": "\ud83d\udd22 Port Walk Probes/s",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
@@ -5295,10 +5295,11 @@
                     "version": "v0",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "sum(rate(username_discovery_candidates_checked_total{job=\"mc_utils\"}[1m]))",
+                      "expr": "rate(server_scanner_players_enqueued_total{job=\"mc_utils\"}[1m])",
                       "format": "time_series",
                       "legendFormat": "__auto",
-                      "range": true
+                      "range": true,
+                      "instant": false
                     }
                   },
                   "refId": "A"
@@ -5312,49 +5313,16 @@
         "description": "",
         "id": 57,
         "links": [],
-        "title": "\ud83d\udd0e Candidates Checked/s",
+        "title": "\ud83d\udce6 Players Enqueued/s",
         "vizConfig": {
-          "group": "timeseries",
+          "group": "stat",
           "kind": "VizConfig",
           "spec": {
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "axisBorderShow": false,
-                  "axisCenteredZero": false,
-                  "axisColorMode": "text",
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "barWidthFactor": 0.6,
-                  "drawStyle": "line",
-                  "fillOpacity": 25,
-                  "gradientMode": "opacity",
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  },
-                  "insertNulls": false,
-                  "lineInterpolation": "smooth",
-                  "lineWidth": 2,
-                  "pointSize": 5,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "showPoints": "auto",
-                  "showValues": false,
-                  "spanNulls": false,
-                  "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                  },
-                  "thresholdsStyle": {
-                    "mode": "off"
-                  }
+                  "fixedColor": "green",
+                  "mode": "fixed"
                 },
                 "thresholds": {
                   "mode": "absolute",
@@ -5365,29 +5333,26 @@
                     }
                   ]
                 },
-                "unit": "short",
-                "displayName": "Checked/s"
+                "unit": "short"
               },
               "overrides": []
             },
             "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
+              "colorMode": "background",
+              "graphMode": "sparkline",
+              "justifyMode": "center",
+              "orientation": "horizontal",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
               },
-              "legend": {
-                "calcs": [],
-                "displayMode": "list",
-                "enableFacetedFilter": false,
-                "overflow": "ellipsis",
-                "placement": "bottom",
-                "showLegend": true
-              },
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "single",
-                "sort": "none"
-              }
+              "showPercentChange": false,
+              "textMode": "auto",
+              "wideLayout": true
             }
           },
           "version": "13.1.1"
@@ -5414,10 +5379,11 @@
                     "version": "v0",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "sum by (strategy) (rate(username_discovery_hits_total{job=\"mc_utils\"}[1m]))",
+                      "expr": "server_scanner_progress_24s{job=\"mc_utils\"}",
                       "format": "time_series",
-                      "legendFormat": "{{strategy}}",
-                      "range": true
+                      "legendFormat": "__auto",
+                      "range": false,
+                      "instant": true
                     }
                   },
                   "refId": "A"
@@ -5431,55 +5397,22 @@
         "description": "",
         "id": 58,
         "links": [],
-        "title": "\u2705 Hits/s by Strategy",
+        "title": "\ud83d\uddfa\ufe0f Progress (/24 subnets)",
         "vizConfig": {
-          "group": "timeseries",
+          "group": "stat",
           "kind": "VizConfig",
           "spec": {
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "axisBorderShow": false,
-                  "axisCenteredZero": false,
-                  "axisColorMode": "text",
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "barWidthFactor": 0.6,
-                  "drawStyle": "line",
-                  "fillOpacity": 25,
-                  "gradientMode": "opacity",
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  },
-                  "insertNulls": false,
-                  "lineInterpolation": "smooth",
-                  "lineWidth": 2,
-                  "pointSize": 5,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "showPoints": "auto",
-                  "showValues": false,
-                  "spanNulls": false,
-                  "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                  },
-                  "thresholdsStyle": {
-                    "mode": "off"
-                  }
+                  "fixedColor": "blue",
+                  "mode": "fixed"
                 },
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "green",
+                      "color": "blue",
                       "value": 0
                     }
                   ]
@@ -5489,23 +5422,21 @@
               "overrides": []
             },
             "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
+              "colorMode": "background",
+              "graphMode": "sparkline",
+              "justifyMode": "center",
+              "orientation": "horizontal",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
               },
-              "legend": {
-                "calcs": [],
-                "displayMode": "list",
-                "enableFacetedFilter": false,
-                "overflow": "ellipsis",
-                "placement": "bottom",
-                "showLegend": true
-              },
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "multi",
-                "sort": "desc"
-              }
+              "showPercentChange": false,
+              "textMode": "auto",
+              "wideLayout": true
             }
           },
           "version": "13.1.1"
@@ -5532,13 +5463,57 @@
                     "version": "v0",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "sum by (strategy) (rate(username_discovery_candidates_enqueued_total{job=\"mc_utils\"}[1m]))",
+                      "expr": "rate(server_scanner_ip_probes_total{job=\"mc_utils\"}[1m])",
                       "format": "time_series",
-                      "legendFormat": "{{strategy}}",
+                      "legendFormat": "probes",
                       "range": true
                     }
                   },
                   "refId": "A"
+                }
+              },
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "rate(server_scanner_connect_open_total{job=\"mc_utils\"}[1m])",
+                      "format": "time_series",
+                      "legendFormat": "open connects",
+                      "range": true
+                    }
+                  },
+                  "refId": "B"
+                }
+              },
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "rate(server_scanner_servers_verified_total{job=\"mc_utils\"}[1m])",
+                      "format": "time_series",
+                      "legendFormat": "servers verified",
+                      "range": true
+                    }
+                  },
+                  "refId": "C"
                 }
               }
             ],
@@ -5549,7 +5524,7 @@
         "description": "",
         "id": 59,
         "links": [],
-        "title": "\ud83d\udce4 Enqueued/s by Strategy",
+        "title": "\ud83c\udf10 Discovery Throughput/s",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -5650,13 +5625,57 @@
                     "version": "v0",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "sum by (reason) (rate(username_discovery_candidates_skipped_total{job=\"mc_utils\"}[1m]))",
+                      "expr": "rate(server_scanner_players_harvested_total{job=\"mc_utils\"}[1m])",
                       "format": "time_series",
-                      "legendFormat": "{{reason}}",
+                      "legendFormat": "harvested",
                       "range": true
                     }
                   },
                   "refId": "A"
+                }
+              },
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "rate(server_scanner_players_enqueued_total{job=\"mc_utils\"}[1m])",
+                      "format": "time_series",
+                      "legendFormat": "enqueued",
+                      "range": true
+                    }
+                  },
+                  "refId": "B"
+                }
+              },
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "ffbmdvoh37lkwe"
+                    },
+                    "group": "victoriametrics-metrics-datasource",
+                    "kind": "DataQuery",
+                    "version": "v0",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "rate(server_scanner_ports_probed_walk_total{job=\"mc_utils\"}[1m])",
+                      "format": "time_series",
+                      "legendFormat": "walk probes",
+                      "range": true
+                    }
+                  },
+                  "refId": "C"
                 }
               }
             ],
@@ -5667,7 +5686,7 @@
         "description": "",
         "id": 60,
         "links": [],
-        "title": "\u23ed\ufe0f Skipped/s by Reason",
+        "title": "\ud83d\udd04 Harvest vs Enqueue/s",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -5768,9 +5787,9 @@
                     "version": "v0",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "sum by (outcome) (rate(username_discovery_bulk_lookups_total{job=\"mc_utils\"}[1m]))",
+                      "expr": "sum by (reason) (rate(server_scanner_sample_entries_dropped_total{job=\"mc_utils\"}[1m]))",
                       "format": "time_series",
-                      "legendFormat": "{{outcome}}",
+                      "legendFormat": "{{reason}}",
                       "range": true
                     }
                   },
@@ -5785,7 +5804,7 @@
         "description": "",
         "id": 61,
         "links": [],
-        "title": "\ud83c\udf10 Bulk Lookup Outcomes/s",
+        "title": "\ud83d\uddd1\ufe0f Sample Drops/s by Reason",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -5833,7 +5852,7 @@
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "green",
+                      "color": "red",
                       "value": 0
                     }
                   ]
@@ -5886,127 +5905,9 @@
                     "version": "v0",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "histogram_quantile(0.50, sum(rate(username_discovery_bulk_lookup_duration_milliseconds_bucket{job=\"mc_utils\"}[1m])) by (le))",
+                      "expr": "rate(server_scanner_honeypot_servers_flagged_total{job=\"mc_utils\"}[1m])",
                       "format": "time_series",
-                      "legendFormat": "p50",
-                      "range": true
-                    }
-                  },
-                  "refId": "A"
-                }
-              }
-            ],
-            "queryOptions": {},
-            "transformations": []
-          }
-        },
-        "description": "",
-        "id": 62,
-        "links": [],
-        "title": "\u23f1\ufe0f Bulk Lookup Duration p50 (ms)",
-        "vizConfig": {
-          "group": "timeseries",
-          "kind": "VizConfig",
-          "spec": {
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "axisBorderShow": false,
-                  "axisCenteredZero": false,
-                  "axisColorMode": "text",
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "barWidthFactor": 0.6,
-                  "drawStyle": "line",
-                  "fillOpacity": 25,
-                  "gradientMode": "opacity",
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  },
-                  "insertNulls": false,
-                  "lineInterpolation": "smooth",
-                  "lineWidth": 2,
-                  "pointSize": 5,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "showPoints": "auto",
-                  "showValues": false,
-                  "spanNulls": false,
-                  "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                  },
-                  "thresholdsStyle": {
-                    "mode": "off"
-                  }
-                },
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    }
-                  ]
-                },
-                "unit": "ms"
-              },
-              "overrides": []
-            },
-            "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
-              },
-              "legend": {
-                "calcs": [],
-                "displayMode": "list",
-                "enableFacetedFilter": false,
-                "overflow": "ellipsis",
-                "placement": "bottom",
-                "showLegend": true
-              },
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "single",
-                "sort": "none"
-              }
-            }
-          },
-          "version": "13.1.1"
-        }
-      }
-    },
-    "panel-63": {
-      "kind": "Panel",
-      "spec": {
-        "data": {
-          "kind": "QueryGroup",
-          "spec": {
-            "queries": [
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "ffbmdvoh37lkwe"
-                    },
-                    "group": "victoriametrics-metrics-datasource",
-                    "kind": "DataQuery",
-                    "version": "v0",
-                    "spec": {
-                      "editorMode": "code",
-                      "expr": "rate(username_discovery_producer_players_scanned_total{job=\"mc_utils\"}[1m])",
-                      "format": "time_series",
-                      "legendFormat": "Players Scanned/s",
+                      "legendFormat": "servers flagged",
                       "range": true
                     }
                   },
@@ -6026,9 +5927,9 @@
                     "version": "v0",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "rate(username_discovery_submit_enqueued_total{job=\"mc_utils\"}[1m])",
+                      "expr": "rate(server_scanner_honeypot_fingerprints_blocked_total{job=\"mc_utils\"}[1m])",
                       "format": "time_series",
-                      "legendFormat": "Submit Enqueued/s",
+                      "legendFormat": "fingerprint farms blocked",
                       "range": true
                     }
                   },
@@ -6048,9 +5949,9 @@
                     "version": "v0",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "rate(username_discovery_producer_cycles_total{job=\"mc_utils\"}[1m])",
+                      "expr": "rate(server_scanner_harvest_pauses_total{job=\"mc_utils\"}[1m])",
                       "format": "time_series",
-                      "legendFormat": "Producer Cycles/s",
+                      "legendFormat": "harvest pauses",
                       "range": true
                     }
                   },
@@ -6063,9 +5964,9 @@
           }
         },
         "description": "",
-        "id": 63,
+        "id": 62,
         "links": [],
-        "title": "\ud83c\udfed Producer & Ingest Throughput/s",
+        "title": "\ud83d\udee1\ufe0f Honeypot Flags & Pauses/s",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -6113,7 +6014,7 @@
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "green",
+                      "color": "red",
                       "value": 0
                     }
                   ]
@@ -6139,333 +6040,6 @@
                 "hideZeros": false,
                 "mode": "multi",
                 "sort": "desc"
-              }
-            }
-          },
-          "version": "13.1.1"
-        }
-      }
-    },
-    "panel-64": {
-      "kind": "Panel",
-      "spec": {
-        "data": {
-          "kind": "QueryGroup",
-          "spec": {
-            "queries": [
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "ffbmdvoh37lkwe"
-                    },
-                    "group": "victoriametrics-metrics-datasource",
-                    "kind": "DataQuery",
-                    "version": "v0",
-                    "spec": {
-                      "editorMode": "code",
-                      "expr": "topk(10, sum by (strategy) (rate(username_discovery_hits_total{job=\"mc_utils\"}[5m])))",
-                      "format": "time_series",
-                      "legendFormat": "{{strategy}}",
-                      "range": false,
-                      "instant": true
-                    }
-                  },
-                  "refId": "A"
-                }
-              }
-            ],
-            "queryOptions": {},
-            "transformations": []
-          }
-        },
-        "description": "Top strategies by discovery hit rate",
-        "id": 64,
-        "links": [],
-        "title": "\ud83c\udfc6 Top Strategies by Hits/s",
-        "vizConfig": {
-          "group": "bargauge",
-          "kind": "VizConfig",
-          "spec": {
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "thresholds"
-                },
-                "thresholds": {
-                  "mode": "percentage",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    }
-                  ]
-                },
-                "unit": "short"
-              },
-              "overrides": []
-            },
-            "options": {
-              "displayMode": "gradient",
-              "legend": {
-                "calcs": [],
-                "displayMode": "list",
-                "overflow": "ellipsis",
-                "placement": "bottom",
-                "showLegend": false
-              },
-              "maxVizHeight": 300,
-              "minVizHeight": 16,
-              "minVizWidth": 8,
-              "namePlacement": "auto",
-              "orientation": "horizontal",
-              "reduceOptions": {
-                "calcs": [
-                  "lastNotNull"
-                ],
-                "fields": "",
-                "values": false
-              },
-              "showUnfilled": true,
-              "sizing": "auto",
-              "valueMode": "text"
-            }
-          },
-          "version": "13.1.1"
-        }
-      }
-    },
-    "panel-65": {
-      "kind": "Panel",
-      "spec": {
-        "data": {
-          "kind": "QueryGroup",
-          "spec": {
-            "queries": [
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "ffbmdvoh37lkwe"
-                    },
-                    "group": "victoriametrics-metrics-datasource",
-                    "kind": "DataQuery",
-                    "version": "v0",
-                    "spec": {
-                      "editorMode": "code",
-                      "expr": "sum by (strategy) (rate(username_discovery_candidates_generated_total{job=\"mc_utils\"}[1m]))",
-                      "format": "time_series",
-                      "legendFormat": "{{strategy}}",
-                      "range": true
-                    }
-                  },
-                  "refId": "A"
-                }
-              }
-            ],
-            "queryOptions": {},
-            "transformations": []
-          }
-        },
-        "description": "",
-        "id": 65,
-        "links": [],
-        "title": "\ud83e\uddec Generated/s by Strategy",
-        "vizConfig": {
-          "group": "timeseries",
-          "kind": "VizConfig",
-          "spec": {
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "axisBorderShow": false,
-                  "axisCenteredZero": false,
-                  "axisColorMode": "text",
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "barWidthFactor": 0.6,
-                  "drawStyle": "line",
-                  "fillOpacity": 25,
-                  "gradientMode": "opacity",
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  },
-                  "insertNulls": false,
-                  "lineInterpolation": "smooth",
-                  "lineWidth": 2,
-                  "pointSize": 5,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "showPoints": "auto",
-                  "showValues": false,
-                  "spanNulls": false,
-                  "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                  },
-                  "thresholdsStyle": {
-                    "mode": "off"
-                  }
-                },
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    }
-                  ]
-                },
-                "unit": "short"
-              },
-              "overrides": []
-            },
-            "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
-              },
-              "legend": {
-                "calcs": [],
-                "displayMode": "list",
-                "enableFacetedFilter": false,
-                "overflow": "ellipsis",
-                "placement": "bottom",
-                "showLegend": true
-              },
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "multi",
-                "sort": "desc"
-              }
-            }
-          },
-          "version": "13.1.1"
-        }
-      }
-    },
-    "panel-66": {
-      "kind": "Panel",
-      "spec": {
-        "data": {
-          "kind": "QueryGroup",
-          "spec": {
-            "queries": [
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "ffbmdvoh37lkwe"
-                    },
-                    "group": "victoriametrics-metrics-datasource",
-                    "kind": "DataQuery",
-                    "version": "v0",
-                    "spec": {
-                      "editorMode": "code",
-                      "expr": "histogram_quantile(0.50, sum(rate(username_discovery_producer_duration_milliseconds_bucket{job=\"mc_utils\"}[1m])) by (le))",
-                      "format": "time_series",
-                      "legendFormat": "p50",
-                      "range": true
-                    }
-                  },
-                  "refId": "A"
-                }
-              }
-            ],
-            "queryOptions": {},
-            "transformations": []
-          }
-        },
-        "description": "",
-        "id": 66,
-        "links": [],
-        "title": "\u23f1\ufe0f Producer Batch Duration p50 (ms)",
-        "vizConfig": {
-          "group": "timeseries",
-          "kind": "VizConfig",
-          "spec": {
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "axisBorderShow": false,
-                  "axisCenteredZero": false,
-                  "axisColorMode": "text",
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "barWidthFactor": 0.6,
-                  "drawStyle": "line",
-                  "fillOpacity": 25,
-                  "gradientMode": "opacity",
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  },
-                  "insertNulls": false,
-                  "lineInterpolation": "smooth",
-                  "lineWidth": 2,
-                  "pointSize": 5,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "showPoints": "auto",
-                  "showValues": false,
-                  "spanNulls": false,
-                  "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                  },
-                  "thresholdsStyle": {
-                    "mode": "off"
-                  }
-                },
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    }
-                  ]
-                },
-                "unit": "ms"
-              },
-              "overrides": []
-            },
-            "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
-              },
-              "legend": {
-                "calcs": [],
-                "displayMode": "list",
-                "enableFacetedFilter": false,
-                "overflow": "ellipsis",
-                "placement": "bottom",
-                "showLegend": true
-              },
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "single",
-                "sort": "none"
               }
             }
           },
@@ -6797,7 +6371,7 @@
                         "name": "panel-53"
                       },
                       "height": 7,
-                      "width": 6,
+                      "width": 4,
                       "x": 0,
                       "y": 0
                     }
@@ -6810,8 +6384,8 @@
                         "name": "panel-54"
                       },
                       "height": 7,
-                      "width": 6,
-                      "x": 6,
+                      "width": 4,
+                      "x": 4,
                       "y": 0
                     }
                   },
@@ -6823,8 +6397,8 @@
                         "name": "panel-55"
                       },
                       "height": 7,
-                      "width": 6,
-                      "x": 12,
+                      "width": 4,
+                      "x": 8,
                       "y": 0
                     }
                   },
@@ -6836,8 +6410,8 @@
                         "name": "panel-56"
                       },
                       "height": 7,
-                      "width": 6,
-                      "x": 18,
+                      "width": 4,
+                      "x": 12,
                       "y": 0
                     }
                   },
@@ -6848,10 +6422,10 @@
                         "kind": "ElementReference",
                         "name": "panel-57"
                       },
-                      "height": 8,
-                      "width": 8,
-                      "x": 0,
-                      "y": 7
+                      "height": 7,
+                      "width": 4,
+                      "x": 16,
+                      "y": 0
                     }
                   },
                   {
@@ -6861,23 +6435,10 @@
                         "kind": "ElementReference",
                         "name": "panel-58"
                       },
-                      "height": 8,
-                      "width": 8,
-                      "x": 8,
-                      "y": 7
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-61"
-                      },
-                      "height": 8,
-                      "width": 8,
-                      "x": 16,
-                      "y": 7
+                      "height": 7,
+                      "width": 4,
+                      "x": 20,
+                      "y": 0
                     }
                   },
                   {
@@ -6890,7 +6451,7 @@
                       "height": 8,
                       "width": 12,
                       "x": 0,
-                      "y": 15
+                      "y": 7
                     }
                   },
                   {
@@ -6903,6 +6464,19 @@
                       "height": 8,
                       "width": 12,
                       "x": 12,
+                      "y": 7
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-61"
+                      },
+                      "height": 8,
+                      "width": 12,
+                      "x": 0,
                       "y": 15
                     }
                   },
@@ -6914,67 +6488,15 @@
                         "name": "panel-62"
                       },
                       "height": 8,
-                      "width": 8,
-                      "x": 0,
-                      "y": 23
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-63"
-                      },
-                      "height": 8,
-                      "width": 8,
-                      "x": 8,
-                      "y": 23
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-66"
-                      },
-                      "height": 8,
-                      "width": 8,
-                      "x": 16,
-                      "y": 23
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-65"
-                      },
-                      "height": 9,
-                      "width": 12,
-                      "x": 0,
-                      "y": 31
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-64"
-                      },
-                      "height": 9,
                       "width": 12,
                       "x": 12,
-                      "y": 31
+                      "y": 15
                     }
                   }
                 ]
               }
             },
-            "title": "\ud83d\udd0d Username Discovery"
+            "title": "\ud83d\udef0\ufe0f Server Scanner"
           }
         },
         {
