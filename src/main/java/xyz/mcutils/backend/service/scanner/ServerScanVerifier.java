@@ -2,7 +2,6 @@ package xyz.mcutils.backend.service.scanner;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 import xyz.mcutils.backend.metric.impl.scanner.ServerScannerMetric;
 import xyz.mcutils.backend.model.domain.dns.DNSRecord;
 import xyz.mcutils.backend.model.token.server.JavaServerStatusToken;
@@ -17,8 +16,10 @@ import java.util.List;
  * is always {@code lastWorkingPort + window}, recomputed after every verified server, so gapped
  * multi-server hosts (25565, 25566, 25571, 25580) are fully discovered while non-MC services
  * like RCON occupying adjacent ports never extend the search.
+ * <p>
+ * Not a Spring bean: {@link ServerScannerService} constructs it (and its collaborators) after
+ * the context is ready, so nothing here needs to be eagerly instantiable.
  */
-@Component
 @Slf4j
 public class ServerScanVerifier {
 

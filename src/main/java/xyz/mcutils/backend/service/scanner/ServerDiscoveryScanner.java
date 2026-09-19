@@ -2,7 +2,6 @@ package xyz.mcutils.backend.service.scanner;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 import xyz.mcutils.backend.metric.impl.scanner.ServerScannerMetric;
 
 import java.io.IOException;
@@ -29,8 +28,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * hosts whose base port already verified. Open ports are handed to the verifier via the
  * {@link OpenPortHandler} callback (invoked on the selector thread; dispatch to a pool belongs
  * to the caller).
+ * <p>
+ * Not a Spring bean: {@link ServerScannerService} constructs it (and its collaborators) after
+ * the context is ready, so nothing here needs to be eagerly instantiable.
  */
-@Component
 @Slf4j
 public class ServerDiscoveryScanner {
 
