@@ -102,4 +102,17 @@ class Ipv4SpaceTest {
         assertEquals(Ipv4Space.ipv4(192, 168, 1, 0), cidr.start());
         assertEquals(Ipv4Space.ipv4(192, 168, 1, 255), cidr.endInclusive());
     }
+
+    @Test
+    void public24CountReflectsExclusionCoverage() {
+        // 2^24 total /24s minus the default exclusion ranges (~2.97M /24s) -> ~13.8M public.
+        long count = space(1).public24Count();
+        assertTrue(count > 13_000_000 && count < 16_777_216, "unexpected public /24 count " + count);
+    }
+
+    @Test
+    void scopedModeHasNoPublicCount() {
+        Ipv4Space scoped = new Ipv4Space(List.of(), List.of("127.0.0.1/32"), 1);
+        assertEquals(-1, scoped.public24Count());
+    }
 }

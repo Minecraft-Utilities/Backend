@@ -124,6 +124,24 @@ public final class Ipv4Space {
         return !includes.isEmpty();
     }
 
+    /**
+     * Approximate number of /24 subnets in the scan space (full mode only), used for ETA
+     * logging: total /24s minus those covered by the exclusion list. Exclusions are disjoint,
+     * so overlap is not a concern; operator extras count toward the sum.
+     *
+     * @return public /24 count, or -1 in scoped mode where the space has no fixed size
+     */
+    public long public24Count() {
+        if (hasIncludeScope()) {
+            return -1;
+        }
+        long excluded = 0;
+        for (Cidr cidr : exclusions) {
+            excluded += ((cidr.endInclusive() - cidr.start()) >> 8) + 1;
+        }
+        return Math.max(1, (1L << 24) - excluded);
+    }
+
     public long seed() {
         return seed;
     }

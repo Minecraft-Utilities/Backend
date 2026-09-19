@@ -204,6 +204,8 @@ mc-utils:
   # Opt-in: the scanner does nothing at boot while enabled is false.
   server-scanner:
     enabled: false
+    # Console progress summary interval in seconds (min 10).
+    progress-log-interval-seconds: 60
     discovery:
       # Concurrent in-flight TCP connect probes (also paces the scan rate).
       concurrency: 5000

@@ -59,6 +59,7 @@ public class ServerScannerService {
     private final int surgeWindow;
     private final int surgeMaxFlagged;
     private final long surgeCooldownSeconds;
+    private final int progressLogIntervalSeconds;
     private final List<String> excludeExtraCidrs;
     private final List<String> includeCidrs;
     private final int basePort;
@@ -71,9 +72,15 @@ public class ServerScannerService {
 
     private final AtomicBoolean running = new AtomicBoolean(false);
 
+    /** Verified servers (sink calls) and players handed to the queue, for progress logging. */
+    private final java.util.concurrent.atomic.AtomicLong serversFound = new java.util.concurrent.atomic.AtomicLong();
+    private volatile long lastLogCompleted24s;
+    private volatile long lastLogNanos = System.nanoTime();
+
     private ServerDiscoveryScanner discovery;
     private Ipv4Space space;
     private ServerScannerMetric metrics;
+    private BufferedHarvester harvester;
     private ExecutorService verifierExecutor;
     private ScheduledExecutorService upkeepExecutor;
     private Thread discoveryThread;
@@ -97,6 +104,7 @@ public class ServerScannerService {
             @Value("${mc-utils.server-scanner.honeypot.surge-window:100}") int surgeWindow,
             @Value("${mc-utils.server-scanner.honeypot.surge-max-flagged:10}") int surgeMaxFlagged,
             @Value("${mc-utils.server-scanner.honeypot.surge-cooldown-seconds:300}") long surgeCooldownSeconds,
+            @Value("${mc-utils.server-scanner.progress-log-interval-seconds:60}") int progressLogIntervalSeconds,
             @Value("${mc-utils.server-scanner.ip.exclude-extra-cidrs:}") String excludeExtraCidrs,
             @Value("${mc-utils.server-scanner.ip.include-cidrs:}") String includeCidrs
     ) {
@@ -118,6 +126,7 @@ public class ServerScannerService {
         this.surgeWindow = surgeWindow;
         this.surgeMaxFlagged = surgeMaxFlagged;
         this.surgeCooldownSeconds = surgeCooldownSeconds;
+        this.progressLogIntervalSeconds = Math.max(10, progressLogIntervalSeconds);
         this.excludeExtraCidrs = splitCidrs(excludeExtraCidrs);
         this.includeCidrs = splitCidrs(includeCidrs);
     }
@@ -165,7 +174,7 @@ public class ServerScannerService {
         );
 
         HoneypotSurgeGuard surgeGuard = new HoneypotSurgeGuard(surgeWindow, surgeMaxFlagged, surgeCooldownSeconds);
-        BufferedHarvester harvester = new BufferedHarvester(
+        this.harvester = new BufferedHarvester(
                 playerSubmitService, metrics, enqueueBatchSize, enqueueRatePerMinute, surgeGuard
         );
         ServerScanVerifier.ScannedServerSink serverSink = this::persistScannedServer;
@@ -192,6 +201,7 @@ public class ServerScannerService {
                 log.warn("Scanner progress persist task failed", e);
             }
         }, PROGRESS_PERSIST_INTERVAL_SECONDS, PROGRESS_PERSIST_INTERVAL_SECONDS, TimeUnit.SECONDS);
+        upkeepExecutor.scheduleAtFixedRate(this::logProgress, progressLogIntervalSeconds, progressLogIntervalSeconds, TimeUnit.SECONDS);
 
         running.set(true);
         this.discoveryThread = Thread.ofPlatform().daemon(true).name("server-scanner").start(discovery::run);
@@ -225,6 +235,7 @@ public class ServerScannerService {
     }
 
     private void persistScannedServer(String ip, int port, int sampleCount, boolean honeypot) {
+        serversFound.incrementAndGet();
         try {
             Instant now = Instant.now();
             Optional<ScannedServerRow> existing = serverScannerRepository.findByIpAndPort(ip, port);
@@ -244,6 +255,55 @@ public class ServerScannerService {
 
     private void persistProgress() {
         persistProgress(false);
+    }
+
+    /**
+     * Periodic console summary of the scan. Logs once per tick only when progress moved, so a
+     * wedged loop is visible as silence rather than noisy repetition.
+     */
+    private void logProgress() {
+        if (discovery == null || space == null || harvester == null) {
+            return;
+        }
+        if (discovery.isComplete()) {
+            log.info("Server scanner completed: {} /24 subnets, servers found={}, players enqueued={}",
+                    discovery.completed24s(), serversFound.get(), harvester.totalEnqueued());
+            return;
+        }
+        long completed = discovery.completed24s();
+        long now = System.nanoTime();
+        if (completed == lastLogCompleted24s) {
+            return; // no movement since the last tick
+        }
+        double minutes = (now - lastLogNanos) / 60_000_000_000.0;
+        long perMinute = minutes > 0 ? (long) ((completed - lastLogCompleted24s) / minutes) : 0;
+        this.lastLogCompleted24s = completed;
+        this.lastLogNanos = now;
+
+        long total = space.public24Count();
+        if (total > 0) {
+            double percent = completed * 100.0 / total;
+            String eta = perMinute > 0 ? ", ETA " + formatEta((long) ((total - completed) / (perMinute / 60.0))) : "";
+            log.info("Server scanner progress: {} / {} /24 subnets ({}%), {} /24s/min, ~{} probes/s{}, servers found={}, players enqueued={}",
+                    completed, total, String.format(java.util.Locale.ROOT, "%.1f", percent),
+                    perMinute, perMinute * 254L / 60L, eta, serversFound.get(), harvester.totalEnqueued());
+        } else {
+            log.info("Server scanner progress (scoped): {} /24 subnets, {} /24s/min, servers found={}, players enqueued={}",
+                    completed, perMinute, serversFound.get(), harvester.totalEnqueued());
+        }
+    }
+
+    private static String formatEta(long seconds) {
+        long days = seconds / 86_400;
+        long hours = (seconds % 86_400) / 3_600;
+        long minutes = (seconds % 3_600) / 60;
+        if (days > 0) {
+            return days + "d " + hours + "h";
+        }
+        if (hours > 0) {
+            return hours + "h " + minutes + "m";
+        }
+        return minutes + "m";
     }
 
     private void persistProgress(boolean stopping) {
@@ -298,6 +358,7 @@ public class ServerScannerService {
         private final HoneypotSurgeGuard surgeGuard;
         private final List<HoneypotDetector.SampleEntry> buffer = new ArrayList<>();
         private long lastFlush;
+        private long totalEnqueued;
 
         BufferedHarvester(PlayerSubmitService submitService, ServerScannerMetric metrics, int batchSize,
                           long enqueueRatePerMinute, HoneypotSurgeGuard surgeGuard) {
@@ -340,10 +401,15 @@ public class ServerScannerService {
                 return 0;
             }
             int enqueued = submitService.submitPlayers(uuids, SUBMITTED_BY.toString());
+            this.totalEnqueued += enqueued;
             if (metrics != null) {
                 metrics.recordPlayersEnqueued(enqueued);
             }
             return enqueued;
+        }
+
+        synchronized long totalEnqueued() {
+            return totalEnqueued;
         }
     }
 
