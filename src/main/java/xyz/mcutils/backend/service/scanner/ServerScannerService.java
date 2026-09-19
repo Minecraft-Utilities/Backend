@@ -98,7 +98,7 @@ public class ServerScannerService {
             @Value("${mc-utils.server-scanner.discovery.connect-timeout-ms:1000}") long connectTimeoutMs,
             @Value("${mc-utils.server-scanner.verify.concurrency:500}") int verifyConcurrency,
             @Value("${mc-utils.server-scanner.verify.timeout-ms:5000}") int verifyTimeoutMs,
-            @Value("${mc-utils.server-scanner.ports.discovery:25564,25565,25566,25567,25568,25569,25570,25575,25580,25585,25590,25600}") String discoveryPortsCsv,
+            @Value("${mc-utils.server-scanner.ports.discovery:25564,25565,25566,25567}") String discoveryPortsCsv,
             @Value("${mc-utils.server-scanner.ports.window:10}") int portWindow,
             @Value("${mc-utils.server-scanner.ports.max:65535}") int maxPort,
             @Value("${mc-utils.server-scanner.ports.probe-cap-per-ip:500}") int probeCapPerIp,

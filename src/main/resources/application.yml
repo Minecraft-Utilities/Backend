@@ -220,12 +220,10 @@ mc-utils:
       concurrency: 500
       timeout-ms: 5000
     ports:
-      # Ports probed on EVERY host during discovery. Each port costs one full
-      # sweep, so keep the list purposeful: 25565 plus the common alternates
-      # (25564, 25566-25570, 25575, 25580, 25585, 25590, 25600). Note the +window
-      # walk already auto-covers 25566-25575 on hosts whose 25565 verifies, so
-      # these matter most for servers running ONLY on a non-standard port.
-      discovery: "25564,25565,25566,25567,25568,25569,25570,25575,25580,25585,25590,25600"
+      # Ports probed on EVERY host during discovery. Keep the list lean: each
+      # port costs one full sweep. 25565 plus the closest alternates; the
+      # +window walk auto-covers 25568-25575 once any of these verifies.
+      discovery: "25564,25565,25566,25567"
       # Probe up to lastWorkingPort + window ports per host (sliding ceiling,
       # applied after a discovery port verifies as a server).
       window: 10
