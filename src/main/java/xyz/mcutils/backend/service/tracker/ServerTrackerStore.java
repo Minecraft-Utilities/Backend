@@ -18,7 +18,9 @@ import xyz.mcutils.backend.service.MetricService;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
@@ -160,11 +162,33 @@ public class ServerTrackerStore {
                 });
             }
 
-            // Parent rows first: the tracker_servers upsert returns the canonical uuid of every
+// One upsert row per server: PostgreSQL rejects a multi-row ON CONFLICT DO UPDATE
+            // whose VALUES rows target the same (ip, port) ("cannot affect row a second time"),
+            // and the same server is routinely recorded twice within one flush window
+            // (discovery + refresh overlap). The last snapshot in the batch wins the server
+            // row, while every pending keeps its own player/history rows below.
+            Map<String, Integer> serverRowIndexByKey = new LinkedHashMap<>();
+            List<Object[]> uniqueServerRows = new ArrayList<>();
+            int[] pendingToUniqueRow = new int[serverRows.size()];
+            for (int i = 0; i < serverRows.size(); i++) {
+                Object[] serverRow = serverRows.get(i);
+                String key = serverRow[1] + "," + serverRow[2];
+                Integer existing = serverRowIndexByKey.get(key);
+                if (existing == null) {
+                    serverRowIndexByKey.put(key, uniqueServerRows.size());
+                    uniqueServerRows.add(serverRow);
+                    pendingToUniqueRow[i] = uniqueServerRows.size() - 1;
+                } else {
+                    uniqueServerRows.set(existing, serverRow);
+                    pendingToUniqueRow[i] = existing;
+                }
+            }
+
+            // Parent rows first: the tracked_servers upsert returns the canonical uuid of every
             // row (a losing random candidate from a concurrent flush on the same new server is
             // discarded by ON CONFLICT (ip, port)); the child rows below must reference a uuid
-            // that actually exists in tracker_servers or the foreign keys reject them.
-            List<UUID> serverUuids = executeChunkedReturningUuids(serverUpsertSql(), rows -> placeholders(rows, 24), serverRows);
+            // that actually exists in tracked_servers or the foreign keys reject them.
+            List<UUID> serverUuids = executeChunkedReturningUuids(serverUpsertSql(), rows -> placeholders(rows, 24), uniqueServerRows);
 
             List<Object[]> playerMatches = new ArrayList<>();
             List<Object[]> playerInserts = new ArrayList<>();
@@ -172,7 +196,7 @@ public class ServerTrackerStore {
             for (int i = 0; i < resolved.size(); i++) {
                 Resolved r = resolved.get(i);
                 Pending pending = r.pending();
-                UUID serverUuid = serverUuids.get(i);
+                UUID serverUuid = serverUuids.get(pendingToUniqueRow[i]);
                 ServerTrackerVerifier.ServerSnapshot snapshot = pending.snapshot();
                 historyRows.add(new Object[]{serverUuid, pending.seenAt(), snapshot.online(), snapshot.maxPlayers(), truncate(snapshot.version(), MAX_VERSION_LENGTH)});
                 for (HoneypotDetector.SampleEntry entry : snapshot.players()) {

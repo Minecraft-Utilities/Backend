@@ -51,7 +51,11 @@ class ServerTrackerStoreTest {
     private static final int TRACKED_SERVER_COLUMNS = 24;
 
     private ServerTrackerVerifier.ServerSnapshot snapshot(int online) {
-        return new ServerTrackerVerifier.ServerSnapshot(IP, PORT, online, 100, "Paper 1.21.4", 769, "Paper",
+        return snapshot(online, IP, PORT);
+    }
+
+    private ServerTrackerVerifier.ServerSnapshot snapshot(int online, String ip, int port) {
+        return new ServerTrackerVerifier.ServerSnapshot(ip, port, online, 100, "Paper 1.21.4", 769, "Paper",
                 "a test motd", null, null, false, 12, false, false, false,
                 List.of(new HoneypotDetector.SampleEntry(PLAYER_UUID, "Steve")), false);
     }
@@ -96,7 +100,7 @@ class ServerTrackerStoreTest {
 
         ServerTrackerStore store = new ServerTrackerStore(jdbc, repo, mock(MaxMindService.class), true, true);
         store.record(snapshot(5));
-        store.record(snapshot(6));
+        store.record(snapshot(6, "1.2.3.5", PORT));
         assertEquals(2, store.flush());
 
         // 2 snapshots x 24 columns = one statement with 48 args: both rows batched together.
@@ -212,6 +216,38 @@ class ServerTrackerStoreTest {
         assertNotEquals(winner, candidate, "the flush submits its own candidate uuid for a new server");
         assertEquals(winner, captured.argsFor("INSERT INTO tracker_player_history").get(0)[0], "player rows key on the canonical uuid");
         assertEquals(winner, captured.argsFor("INSERT INTO tracker_server_online_history").get(0)[0], "history rows key on the canonical uuid");
+    }
+
+    @Test
+    void duplicateServerInOneBatchIsDeduplicatedForTheUpsert() throws Exception {
+        // Same server recorded twice within one flush window (discovery + refresh overlap):
+        // PostgreSQL rejects a multi-row ON CONFLICT DO UPDATE targeting the same (ip, port)
+        // ("cannot affect row a second time"), so the flush upserts one row per server — last
+        // snapshot wins — while every pending keeps its own player/history rows.
+        JdbcTemplate jdbc = mock(JdbcTemplate.class);
+        ServerTrackerRepository repo = mock(ServerTrackerRepository.class);
+        TrackedServerRow existing = new TrackedServerRow();
+        existing.setUuid(SERVER_UUID);
+        existing.setIp(IP);
+        existing.setPort(PORT);
+        when(repo.findByIpAndPort(IP, PORT)).thenReturn(Optional.of(existing));
+
+        CapturedUpdates captured = captureUpdates(jdbc);
+
+        ServerTrackerStore store = new ServerTrackerStore(jdbc, repo, mock(MaxMindService.class), true, true);
+        store.record(snapshot(5));
+        store.record(snapshot(6));
+        assertEquals(2, store.flush());
+
+        List<Object[]> serverRows = captured.argsFor("INSERT INTO tracker_servers");
+        assertEquals(1, serverRows.size(), "one upsert row per server, duplicates merged");
+        assertEquals(24, serverRows.get(0).length);
+        assertEquals(6, serverRows.get(0)[5], "the later snapshot in the window wins the server row");
+
+        Object[] history = captured.argsFor("INSERT INTO tracker_server_online_history").get(0);
+        assertEquals(10, history.length, "both pendings still get their own history samples");
+        Object[] historyRowTwo = captured.argsFor("INSERT INTO tracker_server_online_history").get(0);
+        assertEquals(SERVER_UUID, historyRowTwo[5], "second sample keyed on the same canonical uuid");
     }
 
     /** Captures every (sql, args) pair the store sends, replaying the setters via a proxy. */
