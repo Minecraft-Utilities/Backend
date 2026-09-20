@@ -7,7 +7,7 @@ import lombok.ToString;
 
 /**
  * @author Braydon
- * @see <a href="https://minecraft.fandom.com/wiki/Protocol_version">Protocol Version Numbers</a>
+ * @see <a href="https://minecraft.wiki/w/Module:Protocol_version/Versions">Protocol Version Numbers</a>
  * @see <a href="https://www.spigotmc.org/wiki/spigot-nms-and-minecraft-versions-1-21">Spigot NMS (1.21+)</a>
  * @see <a href="https://www.spigotmc.org/wiki/spigot-nms-and-minecraft-versions-1-16">Spigot NMS (1.16 - 1.20)</a>
  * @see <a href="https://www.spigotmc.org/wiki/spigot-nms-and-minecraft-versions-1-10-1-15">Spigot NMS (1.10 - 1.15)</a>
@@ -17,6 +17,10 @@ import lombok.ToString;
 @Getter
 @ToString
 public enum JavaMinecraftVersion {
+    V26_3(777, "Unknown"), // 26.3
+    V26_2(776, "Unknown"), // 26.2
+    V26_1(775, "Unknown"), // 26.1 - 26.1.2
+
     V1_21_11(774, "1_21_R5"), // 1.21.11
     V1_21_9(773, "1_21_R5"), // 1.21.9 & 1.21.10
     V1_21_7(772, "1_21_R5"), // 1.21.7 & 1.21.8

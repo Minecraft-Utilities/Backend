@@ -24,7 +24,7 @@ public interface ServerTrackerRepository extends JpaRepository<TrackedServerRow,
     @Query("SELECT LOWER(COALESCE(t.platform, 'unknown')) AS groupKey, COUNT(t) AS total FROM TrackedServerRow t GROUP BY LOWER(COALESCE(t.platform, 'unknown')) ORDER BY COUNT(t) DESC")
     List<Breakdown> topPlatforms(Pageable pageable);
 
-    @Query("SELECT t.protocol AS groupKey, COUNT(t) AS total FROM TrackedServerRow t WHERE t.protocol IS NOT NULL GROUP BY t.protocol ORDER BY COUNT(t) DESC")
+    @Query("SELECT t.protocol AS groupKey, COUNT(t) AS total FROM TrackedServerRow t WHERE t.protocol IS NOT NULL AND t.protocol <> -1 GROUP BY t.protocol ORDER BY COUNT(t) DESC")
     List<Breakdown> topProtocols(Pageable pageable);
 
     interface Breakdown {
