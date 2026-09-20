@@ -13,12 +13,13 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <lombok.version>1.18.48</lombok.version>
     </properties>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.3</version>
+        <version>4.1.1</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
@@ -47,7 +48,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.15.0</version>
+                <version>3.16.0</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>
@@ -64,14 +65,6 @@
             </plugin>
         </plugins>
     </build>
-
-    <repositories>
-        <!-- Jitpack - Used for dnsjava -->
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
-    </repositories>
 
     <dependencies>
         <!-- Spring -->
@@ -133,7 +126,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.42</version>
+            <version>${lombok.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -151,13 +144,13 @@
         <dependency>
             <groupId>org.apache.httpcomponents.client5</groupId>
             <artifactId>httpclient5</artifactId>
-            <version>5.6.1</version>
+            <version>5.6.4</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.httpcomponents.core5</groupId>
             <artifactId>httpcore5</artifactId>
-            <version>5.4.2</version>
+            <version>5.4.3</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
@@ -168,13 +161,13 @@
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp-urlconnection</artifactId>
-            <version>5.3.2</version>
+            <version>5.5.0</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.kohsuke</groupId>
             <artifactId>github-api</artifactId>
-            <version>2.0-rc.6</version>
+            <version>2.0-rc.7</version>
             <scope>compile</scope>
         </dependency>
 
@@ -182,27 +175,27 @@
         <dependency>
             <groupId>net.kyori</groupId>
             <artifactId>adventure-text-serializer-gson</artifactId>
-            <version>4.26.1</version>
+            <version>5.2.0</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>net.kyori</groupId>
             <artifactId>adventure-text-serializer-legacy</artifactId>
-            <version>4.26.1</version>
+            <version>5.2.0</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>33.5.0-jre</version>
+            <version>33.7.1-jre</version>
             <scope>compile</scope>
         </dependency>
 
         <!-- DNS Lookup -->
         <dependency>
-            <groupId>com.github.dnsjava</groupId>
+            <groupId>dnsjava</groupId>
             <artifactId>dnsjava</artifactId>
-            <version>v3.5.2</version>
+            <version>3.6.5</version>
             <scope>compile</scope>
         </dependency>
 
@@ -210,7 +203,7 @@
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>3.0.2</version>
+            <version>3.1.1</version>
             <scope>compile</scope>
         </dependency>
 
@@ -218,7 +211,7 @@
         <dependency>
             <groupId>com.maxmind.geoip2</groupId>
             <artifactId>geoip2</artifactId>
-            <version>5.0.2</version>
+            <version>5.2.0</version>
             <scope>compile</scope>
         </dependency>
 
@@ -226,7 +219,7 @@
         <dependency>
             <groupId>org.codehaus.plexus</groupId>
             <artifactId>plexus-archiver</artifactId>
-            <version>4.11.0</version>
+            <version>4.14.0</version>
             <scope>compile</scope>
         </dependency>
 
@@ -234,7 +227,7 @@
         <dependency>
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>
-            <version>8.6.0</version>
+            <version>9.0.3</version>
             <scope>compile</scope>
         </dependency>
 
@@ -242,19 +235,19 @@
         <dependency>
             <groupId>io.prometheus</groupId>
             <artifactId>prometheus-metrics-core</artifactId>
-            <version>1.6.1</version>
+            <version>1.9.0</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.prometheus</groupId>
             <artifactId>prometheus-metrics-exposition-formats</artifactId>
-            <version>1.6.1</version>
+            <version>1.9.0</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.prometheus</groupId>
             <artifactId>prometheus-metrics-model</artifactId>
-            <version>1.6.1</version>
+            <version>1.9.0</version>
             <scope>compile</scope>
         </dependency>
 

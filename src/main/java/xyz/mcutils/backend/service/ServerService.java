@@ -1,7 +1,7 @@
 package xyz.mcutils.backend.service;
 
 import com.google.common.net.InetAddresses;
-import io.minio.org.apache.commons.validator.routines.InetAddressValidator;
+import io.minio.Utils.InetAddressValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;

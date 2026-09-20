@@ -55,7 +55,7 @@ public class StorageService {
     public void upload(Bucket bucket, String fileName, String contentType, byte[] data) {
         long before = System.currentTimeMillis();
         try {
-            this.minioClient.putObject(PutObjectArgs.builder().bucket(bucket.getName()).object(fileName).stream(new ByteArrayInputStream(data), data.length, -1).contentType(contentType)
+            this.minioClient.putObject(PutObjectArgs.builder().bucket(bucket.getName()).object(fileName).stream(new ByteArrayInputStream(data), (long) data.length, -1L).contentType(contentType)
 
                     .build());
             if (this.objectCache != null) {
