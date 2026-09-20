@@ -181,11 +181,12 @@ mc-utils:
     progress-log-interval-seconds: 60
     discovery:
       # Concurrent in-flight TCP connect probes. Throughput = concurrency / connect-timeout.
-      # The NIC caps the real rate at ~20k probes/s (measured), so 12000 concurrency was
-      # holding 2x more sockets than the network can absorb — pure open/close syscall churn
-      # (~1.3 cores of stime). 6000 keeps the same NIC-bound ~20k/s with half the kernel
-      # churn (~0.7 cores); the sweep is paced by the wire, not the credit counter.
-      concurrency: 6000
+      # 12000 is the tested sweet spot: it drives the NIC-bound ~20k probes/s. Lowering it
+      # (6000) cut CPU ~60% but also dropped the scan rate to ~11k/s — the user's priority is
+      # scan speed, so the churn cost is accepted. The kernel churn (socket open/close) is
+      # inherent to TCP-connect probing; a raw-SYN engine would remove it but needs L2
+      # framing that isn't worth the complexity here.
+      concurrency: 12000
       # Timeout for a dead host. Shorter = faster sweep, but too short misses slow networks.
       connect-timeout-ms: 300
     verify:
