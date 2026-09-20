@@ -3,6 +3,7 @@ package xyz.mcutils.backend.model.persistence.postgres;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -59,7 +60,8 @@ public class TrackedServerRow {
     @Column(name = "platform", length = 32)
     private String platform;
 
-    @Column(name = "motd", length = 1024)
+    @Column(name = "motd")
+    @Lob
     private String motd;
 
     @Column(name = "motd_hash")

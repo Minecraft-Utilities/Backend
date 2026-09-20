@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementSetter;
 import org.springframework.stereotype.Service;
+import xyz.mcutils.backend.common.StringUtils;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
 import xyz.mcutils.backend.metric.impl.tracker.ServerTrackerMetric;
@@ -146,13 +147,13 @@ public class ServerTrackerStore {
                 }
                 resolved.add(new Resolved(pending, country, asn));
 
-                String motd = truncate(snapshot.motd(), MAX_MOTD_LENGTH);
+                String motd = StringUtils.truncate(snapshot.motd(), MAX_MOTD_LENGTH);
                 serverRows.add(new Object[]{
                         serverUuid, snapshot.ip(), snapshot.port(),
                         pending.seenAt(), pending.seenAt(),
                         snapshot.online(), snapshot.maxPlayers(),
-                        truncate(snapshot.version(), MAX_VERSION_LENGTH), snapshot.protocol(),
-                        truncate(snapshot.platform(), MAX_PLATFORM_LENGTH),
+                        StringUtils.truncate(snapshot.version(), MAX_VERSION_LENGTH), snapshot.protocol(),
+                        StringUtils.truncate(snapshot.platform(), MAX_PLATFORM_LENGTH),
                         motd, snapshot.motdHash(), snapshot.faviconHash(),
                         snapshot.modded(), snapshot.latencyMs(),
                         snapshot.preventsChatReports(), snapshot.enforcesSecureChat(), snapshot.previewsChat(),
@@ -198,7 +199,7 @@ public class ServerTrackerStore {
                 UUID serverUuid = serverUuids.get(pendingToUniqueRow[i]);
                 ServerTrackerVerifier.ServerSnapshot snapshot = pending.snapshot();
                 for (HoneypotDetector.SampleEntry entry : snapshot.players()) {
-                    String username = truncate(entry.name(), MAX_USERNAME_LENGTH);
+                    String username = StringUtils.truncate(entry.name(), MAX_USERNAME_LENGTH);
                     playerMatches.add(new Object[]{serverUuid, entry.uuid(), username, pending.seenAt()});
                     playerInserts.add(new Object[]{serverUuid, entry.uuid(), username, pending.seenAt(), pending.seenAt()});
                 }
@@ -384,20 +385,6 @@ public class ServerTrackerStore {
                     consecutive_offline = 0
                 RETURNING uuid
                 """;
-    }
-
-    /**
-     * Caps a value at {@code maxLength} characters (code points), matching how PostgreSQL
-     * counts {@code VARCHAR(n)}. Truncating by UTF-16 units instead could split a surrogate
-     * pair and, more importantly, disagree with the server's character count on astral
-     * characters — the DB accepts a value with at most {@code maxLength} code points, so
-     * cutting on a code-point boundary is the only safe cut.
-     */
-    private static String truncate(String value, int maxLength) {
-        if (value == null || value.codePointCount(0, value.length()) <= maxLength) {
-            return value;
-        }
-        return value.substring(0, value.offsetByCodePoints(0, maxLength));
     }
 
     private record Geo(String country, Long asn, boolean failed) {}
