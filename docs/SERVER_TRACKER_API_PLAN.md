@@ -20,11 +20,18 @@ is the first consumer of the dataset.
 |---|---|---|
 | `trackedServers` | total servers in `tracker_servers` (incl. honeypot-flagged) | `SELECT COUNT(*) FROM tracker_servers` |
 | `trackedPlayers` | distinct players ever seen across all tracked servers | `SELECT COUNT(DISTINCT player_uuid) FROM tracker_player_history` |
-| `onlinePlayers` | sum of `online_count` over **alive, non-honeypot** servers | `SELECT COALESCE(SUM(online_count), 0) FROM tracker_servers WHERE consecutive_offline = 0 AND NOT honeypot` |
+| `verifiedOnlinePlayers` | distinct players present in the **latest player sample** of alive, non-honeypot servers | `SELECT COUNT(*) FROM (SELECT DISTINCT ph.player_uuid FROM tracker_player_history ph JOIN tracker_servers s ON s.uuid = ph.server_uuid WHERE s.consecutive_offline = 0 AND NOT s.honeypot AND ph.last_seen >= s.last_updated - make_interval(secs => 120)) v` |
 
-Why exclude honeypots from `onlinePlayers`: their counts are fabricated sample-bait; including
-them pollutes the headline number. `trackedServers` still counts them (they are tracked and
-flagged — that flag is part of the dataset).
+The headline is *verified*, not advertised: the server-controlled `online_count` can be
+falsified (fake counts, inflated lists for bait), so only players actually **observed in a
+sample** count. Every `tracker_player_history` row is identity-verified upstream (the
+`fake_identity`/`unverified` sample gate), and `last_seen` ≈ the server's `last_updated`
+(120s grace for the store flush window) ties a player to the freshest absorbed sample.
+Players drop out at the first refresh whose sample omits them (refresh cadence is hours).
+
+Why exclude honeypots from `verifiedOnlinePlayers`: their counts and samples are fabricated
+sample-bait; including them pollutes the headline number. `trackedServers` still counts them
+(they are tracked and flagged — that flag is part of the dataset).
 
 **Breakdowns (top 10 by server count each)**
 
@@ -53,14 +60,14 @@ JSON (camelCase):
 {
   "trackedServers": 48213,
   "trackedPlayers": 1923553,
-  "onlinePlayers": 10487,
+  "verifiedOnlinePlayers": 10487,
   "geo": { "US": 10234, "DE": 4300, "FR": 1200 },
   "platform": { "paper": 20000, "vanilla": 8000, "forge": 2500 },
   "protocol": { "769": 30000, "767": 5000, "763": 2100 }
 }
 ```
 
-Response record: `model/dto/response/TrackerStatsResponse(long trackedServers, long trackedPlayers, long onlinePlayers, Map<String, Long> geo, Map<String, Long> platform, Map<String, Long> protocol)`.
+Response record: `model/dto/response/TrackerStatsResponse(long trackedServers, long trackedPlayers, long verifiedOnlinePlayers, Map<String, Long> geo, Map<String, Long> platform, Map<String, Long> protocol)`.
 
 Caching: `CacheControl.maxAge(60, SECONDS).cachePublic()` — the snapshot refreshes every
 `stats.refresh-seconds` (300) and after refresh chunks; a 60s public cache is safe and absorbs
@@ -81,7 +88,7 @@ Controller: new `controller/TrackerController` — `@RestController`, `@RequestM
 
 Follows the existing `StatisticsService` pattern (in-memory counters, async DB load):
 
-- `AtomicLong` per counter (`trackedServers`, `trackedPlayers`, `onlinePlayers`) + a cached
+- `AtomicLong` per counter (`trackedServers`, `trackedPlayers`, `verifiedOnlinePlayers`) + a cached
   `Map<String, Long>` per breakdown (geo, platform, protocol) — all held as one immutable
   snapshot so a request sees consistent values.
 - Load once at `ApplicationReadyEvent` via `CompletableFuture.supplyAsync(..., Main.EXECUTOR)` —

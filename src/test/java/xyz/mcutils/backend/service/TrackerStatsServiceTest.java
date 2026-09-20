@@ -11,6 +11,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -38,7 +39,7 @@ class TrackerStatsServiceTest {
     void refreshLoadsCountersAndBreakdowns() {
         when(serverRepository.countTrackedServers()).thenReturn(42L);
         when(playerRepository.countDistinctPlayers()).thenReturn(7L);
-        when(serverRepository.sumOnlinePlayers()).thenReturn(3L);
+        when(serverRepository.countVerifiedOnlinePlayers(anyInt())).thenReturn(3L);
         when(serverRepository.topCountries(any())).thenReturn(List.of(breakdown("US", 10L), breakdown("DE", 4L)));
         when(serverRepository.topPlatforms(any())).thenReturn(List.of(breakdown("paper", 9L)));
         when(serverRepository.topProtocols(any())).thenReturn(List.of(breakdown("769", 8L)));
@@ -48,7 +49,7 @@ class TrackerStatsServiceTest {
         TrackerStatsResponse stats = service.getStats();
         assertEquals(42L, stats.trackedServers());
         assertEquals(7L, stats.trackedPlayers());
-        assertEquals(3L, stats.onlinePlayers());
+        assertEquals(3L, stats.verifiedOnlinePlayers());
         assertEquals(Map.of("US", 10L, "DE", 4L), stats.geo());
         assertEquals(Map.of("paper", 9L), stats.platform());
         assertEquals(Map.of("769", 8L), stats.protocol());
@@ -58,7 +59,7 @@ class TrackerStatsServiceTest {
     void getStatsServesSnapshotWithoutRequeryingRepositories() {
         when(serverRepository.countTrackedServers()).thenReturn(5L);
         when(playerRepository.countDistinctPlayers()).thenReturn(2L);
-        when(serverRepository.sumOnlinePlayers()).thenReturn(1L);
+        when(serverRepository.countVerifiedOnlinePlayers(anyInt())).thenReturn(1L);
         when(serverRepository.topCountries(any())).thenReturn(List.of());
         when(serverRepository.topPlatforms(any())).thenReturn(List.of());
         when(serverRepository.topProtocols(any())).thenReturn(List.of());
@@ -68,7 +69,7 @@ class TrackerStatsServiceTest {
         assertEquals(5L, stats.trackedServers());
 
         verify(serverRepository).countTrackedServers();
-        verify(serverRepository).sumOnlinePlayers();
+        verify(serverRepository).countVerifiedOnlinePlayers(anyInt());
         verify(serverRepository).topCountries(any());
         verify(serverRepository).topPlatforms(any());
         verify(serverRepository).topProtocols(any());
@@ -85,7 +86,7 @@ class TrackerStatsServiceTest {
         TrackerStatsResponse stats = disabled.getStats();
         assertEquals(0L, stats.trackedServers());
         assertEquals(0L, stats.trackedPlayers());
-        assertEquals(0L, stats.onlinePlayers());
+        assertEquals(0L, stats.verifiedOnlinePlayers());
         assertEquals(Map.of(), stats.geo());
         verifyNoInteractions(serverRepository, playerRepository);
     }
@@ -94,7 +95,7 @@ class TrackerStatsServiceTest {
     void refreshFailureKeepsLastSnapshot() {
         when(serverRepository.countTrackedServers()).thenReturn(5L);
         when(playerRepository.countDistinctPlayers()).thenReturn(2L);
-        when(serverRepository.sumOnlinePlayers()).thenReturn(1L);
+        when(serverRepository.countVerifiedOnlinePlayers(anyInt())).thenReturn(1L);
         when(serverRepository.topCountries(any())).thenReturn(List.of());
         when(serverRepository.topPlatforms(any())).thenReturn(List.of());
         when(serverRepository.topProtocols(any())).thenReturn(List.of());

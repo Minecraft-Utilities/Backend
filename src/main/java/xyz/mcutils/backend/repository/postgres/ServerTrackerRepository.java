@@ -3,6 +3,7 @@ package xyz.mcutils.backend.repository.postgres;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import xyz.mcutils.backend.model.persistence.postgres.TrackedServerRow;
 
 import java.util.List;
@@ -15,8 +16,26 @@ public interface ServerTrackerRepository extends JpaRepository<TrackedServerRow,
     @Query("SELECT COUNT(t) FROM TrackedServerRow t")
     long countTrackedServers();
 
-    @Query("SELECT COALESCE(SUM(t.onlineCount), 0) FROM TrackedServerRow t WHERE t.consecutiveOffline = 0 AND t.honeypot = false")
-    long sumOnlinePlayers();
+    /**
+     * Distinct players currently present in the most recent player sample of an alive,
+     * non-honeypot server. The server-advertised {@code online_count} is untrusted (servers can
+     * falsify it), so only players actually observed in a sample count. {@code last_seen} is
+     * the absorption time of the snapshot that contained the player; the grace seconds absorb
+     * the store flush window so a player seen in the latest absorbed sample still matches a
+     * marginally newer {@code last_updated}. Players drop out at the first refresh whose sample
+     * no longer contains them (refresh cadence is hours, far beyond the grace).
+     */
+    @Query(value = """
+            SELECT COUNT(*) FROM (
+                SELECT DISTINCT ph.player_uuid
+                FROM tracker_player_history ph
+                JOIN tracker_servers s ON s.uuid = ph.server_uuid
+                WHERE s.consecutive_offline = 0
+                  AND s.honeypot = false
+                  AND ph.last_seen >= s.last_updated - make_interval(secs => ?1)
+            ) verified
+            """, nativeQuery = true)
+    long countVerifiedOnlinePlayers(@Param("graceSeconds") int graceSeconds);
 
     @Query("SELECT t.country AS groupKey, COUNT(t) AS total FROM TrackedServerRow t WHERE t.country IS NOT NULL GROUP BY t.country ORDER BY COUNT(t) DESC")
     List<Breakdown> topCountries(Pageable pageable);

@@ -37,6 +37,15 @@ public class TrackerStatsService {
     private static final TrackerStatsResponse EMPTY =
             new TrackerStatsResponse(0, 0, 0, Map.of(), Map.of(), Map.of());
 
+    /**
+     * Skew allowed between a player's {@code last_seen} and the server's {@code last_updated}
+     * for the player to count as verified online. The store flush window spans seconds to a
+     * couple of minutes, while the refresh cycle re-samples each server only every
+     * {@code refresh.min-gap-hours} — so this grace covers batch skew without keeping departed
+     * players counted (they drop at the first refresh whose sample omits them).
+     */
+    private static final int SAMPLE_GRACE_SECONDS = 120;
+
     private final ServerTrackerRepository serverTrackerRepository;
     private final PlayerHistoryRepository playerHistoryRepository;
     private final boolean trackingEnabled;
@@ -96,11 +105,11 @@ public class TrackerStatsService {
     private TrackerStatsResponse load() {
         long trackedServers = serverTrackerRepository.countTrackedServers();
         long trackedPlayers = playerHistoryRepository.countDistinctPlayers();
-        long onlinePlayers = serverTrackerRepository.sumOnlinePlayers();
+        long verifiedOnlinePlayers = serverTrackerRepository.countVerifiedOnlinePlayers(SAMPLE_GRACE_SECONDS);
         return new TrackerStatsResponse(
                 trackedServers,
                 trackedPlayers,
-                onlinePlayers,
+                verifiedOnlinePlayers,
                 toCountMap(serverTrackerRepository.topCountries(PageRequest.of(0, 10))),
                 toCountMap(serverTrackerRepository.topPlatforms(PageRequest.of(0, 10))),
                 toCountMap(serverTrackerRepository.topProtocols(PageRequest.of(0, 10)))

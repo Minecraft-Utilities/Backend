@@ -234,7 +234,8 @@ no port walk, nothing harvested from the IP (it's just a honeypot — no harvest
 - **failure** → `consecutive_offline++`; the server rotates back after the gap like everyone
   else — dead servers cost the same single probe per pass. The counter exists for
   stats/metrics only: "alive" = `consecutive_offline = 0`, and the stats endpoint's
-  `onlinePlayers` excludes dead and honeypot servers;
+  `verifiedOnlinePlayers` (players in the latest sample of an alive, non-honeypot server)
+  excludes dead and honeypot servers;
 - honeypot servers refresh counts/version only, never samples.
 
 **Stats hook**: each finished chunk signals `TrackerStatsService` to refresh
