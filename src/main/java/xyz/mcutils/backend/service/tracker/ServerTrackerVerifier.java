@@ -211,10 +211,12 @@ public class ServerTrackerVerifier {
         return detector.evaluate(ip, port, players.online(), players.max(), sample);
     }
 
+    private static final int MAX_MOTD_LENGTH = 1024;
+
     public static ServerSnapshot buildSnapshot(String ip, int port, JavaServerStatusToken token, Integer latencyMs,
                                                List<HoneypotDetector.SampleEntry> players, boolean honeypot) {
         String versionName = token.getVersion().getName();
-        String motd = motdText(token.getDescription());
+        String motd = truncateMotd(motdText(token.getDescription()));
         return new ServerSnapshot(
                 ip,
                 port,
@@ -264,6 +266,18 @@ public class ServerTrackerVerifier {
             return ColorUtils.stripColor(legacy);
         }
         return Constants.GSON.toJson(description);
+    }
+
+    /**
+     * Caps the MOTD at the storage limit (1024 chars) by code point, so the value can never
+     * exceed {@code tracker_servers.motd VARCHAR(1024)} and the hash below always matches the
+     * stored text. Emoji/astral chars cost one code point each, not two UTF-16 units.
+     */
+    private static String truncateMotd(String motd) {
+        if (motd == null || motd.codePointCount(0, motd.length()) <= MAX_MOTD_LENGTH) {
+            return motd;
+        }
+        return motd.substring(0, motd.offsetByCodePoints(0, MAX_MOTD_LENGTH));
     }
 
     private static byte[] sha256(String value) {
