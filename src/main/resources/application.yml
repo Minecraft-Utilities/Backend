@@ -180,13 +180,10 @@ mc-utils:
     # Console progress summary interval in seconds (min 10).
     progress-log-interval-seconds: 60
     discovery:
-      # Concurrent in-flight TCP connect probes (also paces the scan rate).
-      # Modest default: comfortably inside typical container fd limits while
-      # still ~4-8x faster than the original baseline.
-      concurrency: 20000
-      # Timeout for a dead host. Shorter = faster sweep, but too short misses
-      # slow networks; 1000ms is a good balance for the open internet.
-      connect-timeout-ms: 1000
+      # Concurrent in-flight TCP connect probes. Throughput = concurrency / connect-timeout.
+      concurrency: 80000
+      # Timeout for a dead host. Shorter = faster sweep, but too short misses slow networks.
+      connect-timeout-ms: 300
     verify:
       # Parallel full status-pings on hosts whose base port connected.
       concurrency: 200
