@@ -386,11 +386,18 @@ public class ServerTrackerStore {
                 """;
     }
 
+    /**
+     * Caps a value at {@code maxLength} characters (code points), matching how PostgreSQL
+     * counts {@code VARCHAR(n)}. Truncating by UTF-16 units instead could split a surrogate
+     * pair and, more importantly, disagree with the server's character count on astral
+     * characters — the DB accepts a value with at most {@code maxLength} code points, so
+     * cutting on a code-point boundary is the only safe cut.
+     */
     private static String truncate(String value, int maxLength) {
-        if (value == null || value.length() <= maxLength) {
+        if (value == null || value.codePointCount(0, value.length()) <= maxLength) {
             return value;
         }
-        return value.substring(0, maxLength);
+        return value.substring(0, value.offsetByCodePoints(0, maxLength));
     }
 
     private record Geo(String country, Long asn, boolean failed) {}
