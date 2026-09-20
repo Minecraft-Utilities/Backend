@@ -4421,7 +4421,7 @@
                         "editorMode": "code",
                         "expr": "rate(player_changes_detected_total{job=\"mc_utils\"}[5m])",
                         "format": "time_series",
-                        "legendFormat": "__auto",
+                        "legendFormat": "{{type}}",
                         "range": true
                       },
                       "version": "v0"
@@ -4481,7 +4481,6 @@
                       "mode": "off"
                     }
                   },
-                  "displayName": "Changes/s",
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -4510,7 +4509,7 @@
                 },
                 "tooltip": {
                   "hideZeros": false,
-                  "mode": "single",
+                  "mode": "all",
                   "sort": "none"
                 }
               }
