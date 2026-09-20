@@ -34,7 +34,7 @@ class TrackerControllerTest {
         TrackerStatsResponse body = response.getBody();
         assertEquals(12L, body.trackedServers());
         assertEquals(34L, body.trackedPlayers());
-        assertEquals(5L, body.verifiedOnlinePlayers());
+        assertEquals(5L, body.onlinePlayers());
         assertEquals(Map.of("US", 8L), body.geo());
         assertEquals(Map.of("paper", 7L), body.platform());
         assertEquals(Map.of("769", 6L), body.protocol());
@@ -52,7 +52,7 @@ class TrackerControllerTest {
 
         TrackerStatsResponse body = response.getBody();
         assertEquals(0L, body.trackedServers());
-        assertEquals(0L, body.verifiedOnlinePlayers());
+        assertEquals(0L, body.onlinePlayers());
         assertEquals(Map.of(), body.geo());
         assertEquals(Map.of(), body.platform());
         assertEquals(Map.of(), body.protocol());

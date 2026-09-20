@@ -105,11 +105,11 @@ public class TrackerStatsService {
     private TrackerStatsResponse load() {
         long trackedServers = serverTrackerRepository.countTrackedServers();
         long trackedPlayers = playerHistoryRepository.countDistinctPlayers();
-        long verifiedOnlinePlayers = serverTrackerRepository.countVerifiedOnlinePlayers(SAMPLE_GRACE_SECONDS);
+        long onlinePlayers = serverTrackerRepository.countVerifiedOnlinePlayers(SAMPLE_GRACE_SECONDS);
         return new TrackerStatsResponse(
                 trackedServers,
                 trackedPlayers,
-                verifiedOnlinePlayers,
+                onlinePlayers,
                 toCountMap(serverTrackerRepository.topCountries(PageRequest.of(0, 10))),
                 toCountMap(serverTrackerRepository.topPlatforms(PageRequest.of(0, 10))),
                 toCountMap(serverTrackerRepository.topProtocols(PageRequest.of(0, 10)))

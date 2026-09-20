@@ -49,7 +49,7 @@ class TrackerStatsServiceTest {
         TrackerStatsResponse stats = service.getStats();
         assertEquals(42L, stats.trackedServers());
         assertEquals(7L, stats.trackedPlayers());
-        assertEquals(3L, stats.verifiedOnlinePlayers());
+        assertEquals(3L, stats.onlinePlayers());
         assertEquals(Map.of("US", 10L, "DE", 4L), stats.geo());
         assertEquals(Map.of("paper", 9L), stats.platform());
         assertEquals(Map.of("769", 8L), stats.protocol());
@@ -86,7 +86,7 @@ class TrackerStatsServiceTest {
         TrackerStatsResponse stats = disabled.getStats();
         assertEquals(0L, stats.trackedServers());
         assertEquals(0L, stats.trackedPlayers());
-        assertEquals(0L, stats.verifiedOnlinePlayers());
+        assertEquals(0L, stats.onlinePlayers());
         assertEquals(Map.of(), stats.geo());
         verifyNoInteractions(serverRepository, playerRepository);
     }
