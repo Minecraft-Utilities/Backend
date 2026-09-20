@@ -3,8 +3,8 @@ server:
   port: 80
   servlet:
     context-path: /
-  # Bound request concurrency: virtual threads remove the old thread-pool ceiling,
-  # so cap connections explicitly to keep load spikes bounded against the DB/Redis pools.
+  # Bound request concurrency: virtual threads remove the need for a request thread-pool
+  # ceiling, so cap connections explicitly to keep load spikes bounded against the DB/Redis pools.
   tomcat:
     max-connections: 1024
     accept-count: 200
@@ -48,7 +48,7 @@ spring:
     hikari:
       maximum-pool-size: 200
       minimum-idle: 10
-      # Fail fast under load instead of letting request threads pile up for 30s.
+      # Fail fast under load so request threads don't pile up.
       connection-timeout: 5000
       idle-timeout: 600000
       max-lifetime: 1800000
@@ -181,12 +181,8 @@ mc-utils:
     progress-log-interval-seconds: 60
     discovery:
       # Concurrent in-flight TCP connect probes. Throughput = concurrency / connect-timeout.
-      # 12000 is the tested sweet spot: it drives the NIC-bound ~20k probes/s. Lowering it
-      # (6000) cut CPU ~60% but also dropped the scan rate to ~11k/s — the user's priority is
-      # scan speed, so the churn cost is accepted. The kernel churn (socket open/close) is
-      # inherent to TCP-connect probing; a raw-SYN engine would remove it but needs L2
-      # framing that isn't worth the complexity here.
-      concurrency: 12000
+      # 5000 balances scan rate against kernel socket churn (open/close per probe).
+      concurrency: 5000
       # Timeout for a dead host. Shorter = faster sweep, but too short misses slow networks.
       connect-timeout-ms: 300
     verify:
@@ -217,7 +213,7 @@ mc-utils:
     ip:
       # Comma-separated extra CIDRs to skip (RFC 6890 + DoD ranges are always skipped).
       exclude-extra-cidrs: ""
-      # Comma-separated CIDRs to scan INSTEAD of the full space (scoped/CI mode).
+      # Comma-separated CIDRs to scan instead of the full space (scoped/CI mode).
       include-cidrs: ""
     tracking:
       # Persist per-server telemetry (tracked_servers, player_history, online history).
