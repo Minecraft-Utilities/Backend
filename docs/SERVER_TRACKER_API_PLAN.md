@@ -71,8 +71,7 @@ Controller: new `controller/TrackerController` — `@RestController`, `@RequestM
 ### Roadmap (not built now)
 
 - `GET /servers/tracker` — paginated tracked-server list (uuid, ip, port, version, online, last_updated).
-- `GET /servers/tracker/{uuid}` — single-server detail + latest online-history point.
-- `GET /servers/tracker/{uuid}/history` — `tracker_server_online_history` series.
+- `GET /servers/tracker/{uuid}` — single-server detail.
 - `GET /servers/tracker/players/{uuid}` — reverse `tracker_player_history` lookup: servers a player was seen on, with first/last seen.
 - `GET /servers/tracker/stats` remains backward-compatible through all of these (fields may only grow).
 

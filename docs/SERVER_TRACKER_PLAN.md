@@ -6,7 +6,7 @@ scanner → tracker shipped (package `service.tracker`, `mc-utils.server-tracker
 `server_tracker_*` metrics, `tracker_progress`, dashboard updated), `V43__server_tracker.sql`
 applied, and every section below is live code. `mvn test` green (56 tests). End-to-end smoke
 verified against a real Postgres/Redis + a live status-protocol server: refresh claim →
-ping → store upserts (server telemetry/player history/online history), `times_seen`
+ping → store upserts (server telemetry/player history), `times_seen`
 increments, offline counting, and the stats endpoint + cache header. Public API surface:
 `docs/SERVER_TRACKER_API_PLAN.md`.
 
@@ -43,7 +43,7 @@ Constraints: no `pom.xml` changes; strict Controller → Service → Repository 
 │                                                                  ServerTrackerStore│
 │  Refresh cycle ──► ServerTrackerRefresher ────────────────────────► (upserts,     │
 │  (last_refreshed    (token pings, shared                         player history,  │
-│   cycle, min-gap)    verify pool)                                geo, online ts)  │
+│   cycle, min-gap)    verify pool)                                geo)             │
 │                                                                        │ stats hook│
 └────────────────────────────────────────────────────────────────────────▼──────────┘
                                                            TrackerStatsService ──► API
@@ -157,14 +157,6 @@ CREATE TABLE tracker_player_history (
 CREATE INDEX idx_player_history_player ON tracker_player_history (player_uuid);
 CREATE INDEX idx_player_history_username ON tracker_player_history (username);
 
-CREATE TABLE tracker_server_online_history (                       -- popularity/uptime time series
-    server_uuid UUID        NOT NULL REFERENCES tracker_servers(uuid) ON DELETE CASCADE,
-    sampled_at  TIMESTAMPTZ NOT NULL,
-    online      INTEGER     NOT NULL,
-    max         INTEGER     NOT NULL,
-    version     VARCHAR(64),
-    PRIMARY KEY (server_uuid, sampled_at)
-);
 -- optional later: tracked_server_mods (server_uuid, mod_id, version) from ForgeData.mods
 
 -- Backfill old scanner rows into tracker_servers, then drop the old table
@@ -192,10 +184,8 @@ Notes:
 - `motd` is stored truncated to 1024 chars (cleaned text); `motd_hash`/`favicon_hash` are
   SHA-256 of the raw canonical payloads (32-byte `BYTEA`).
 - Store write semantics are upserts, not inserts: `tracker_servers` conflicts on `(ip, port)` —
-  first_seen preserved, all other fields overwritten; `tracker_server_online_history` conflicts on
-  `(server_uuid, sampled_at)` — last write in a flush window wins (two refreshes of the same
-  server can land in one flush); `tracker_player_history` conflicts on the PK — first_seen preserved,
-  username/last_seen/times_seen updated (`times_seen++`).
+  first_seen preserved, all other fields overwritten; `tracker_player_history` conflicts on the PK —
+  first_seen preserved, username/last_seen/times_seen updated (`times_seen++`).
 
 ---
 
@@ -238,7 +228,7 @@ same `HoneypotDetector` evaluate as discovery; the verdict gates both `tracker_p
 and queue harvest identically — a server newly flagged as honeypot on a refresh gets flagged in
 the store and its sample dropped. Honeypot-flagged hosts are skipped entirely by the verifier:
 no port walk, nothing harvested from the IP (it's just a honeypot — no harvest pauses):
-- **success** → `ServerTrackerStore` upsert (server row + players + history row), reset
+- **success** → `ServerTrackerStore` upsert (server row + players), reset
   `consecutive_offline`; `last_updated` advances (data freshness), `last_refreshed` already
   advanced at claim (attempt time);
 - **failure** → `consecutive_offline++`; the server rotates back after the gap like everyone
@@ -265,7 +255,7 @@ worker time spread across the day — negligible vs. the discovery campaign.
   no extra pings; latency = nanoTime around the existing `ping()` call.
 - `persistScannedServer` moves into `ServerTrackerStore` (Spring service): upsert server row +
   one batched `INSERT ... ON CONFLICT` for tracker_player_history (native multi-row statement via
-  JdbcTemplate — **no pom.xml changes**) + one `tracker_server_online_history` row per sighting.
+  JdbcTemplate — **no pom.xml changes**).
 - **Geo enrichment** — `MaxMindService.lookupIp(ip)` (`@Cacheable "geoLookup"`, returns
   `IpLookup` with `GeoLocation` + `AsnLookup`): once per **new** server (first sight, inside
   the store flush, not on refresh), gated by `tracking.geo.enabled`. `platform`/`protocol`
@@ -287,11 +277,11 @@ worker time spread across the day — negligible vs. the discovery campaign.
 
 ---
 
-## 7. Retention janitor
+## 7. Retention
 
-`tracker_server_online_history` grows ~400k rows/day at the 6h cadence → scheduled prune: raw rows
-kept 30 days, downsampled to hourly for 90, then deleted. `tracker_player_history` is bounded by
-distinct (server, player) pairs and needs no janitor.
+No janitor: `tracker_player_history` is bounded by distinct (server, player) pairs and
+`tracker_servers` holds one row per server (upserted in place), so neither table grows
+unboundedly and nothing needs pruning.
 
 ---
 
@@ -303,8 +293,8 @@ when a server changes IP), latency, secure-chat flags (public "chat-report-safe"
 country+ASN (server distribution stats).
 
 **Tier 2 — later, cheap:** mod lists (`tracked_server_mods`) → most common mods on public
-servers; version drift detection (from `tracker_server_online_history.version`); player networks
-(players seen on ≥2 servers ⇒ networked hosts, one query over `tracker_player_history`); uptime stats.
+servers; player networks (players seen on ≥2 servers ⇒ networked hosts, one query over
+`tracker_player_history`); uptime stats.
 
 **Out of scope:** Bedrock probing, per-player session tracking (status protocol samples only).
 
@@ -341,15 +331,13 @@ mc-utils.server-tracker.refresh.min-gap-hours: 6           # min hours between r
 mc-utils.server-tracker.refresh.chunk-size: 2500           # mirrors player-refresh
 mc-utils.server-tracker.refresh.concurrent-fetches: 200    # mirrors player-refresh
 mc-utils.server-tracker.refresh.timeout-ms: 5000
-mc-utils.server-tracker.history.raw-retention-days: 30
-mc-utils.server-tracker.history.hourly-retention-days: 90
 mc-utils.server-tracker.stats.refresh-seconds: 300         # API stats recompute (see API plan §4)
 ```
 
 **Feature-flag interplay (explicit):**
 - `enabled` (discovery): when false, no IP-space probing. The refresh cycle and stats still
   work standalone over already-tracked rows (e.g. after a previous campaign).
-- `tracking.enabled` gates **all store writes** (server rows, player history, online history).
+- `tracking.enabled` gates **all store writes** (server rows, player history).
   When false: discovery still probes/verifies/harvests players exactly like v1, but persists
   nothing (progress only), and the refresh cycle idles on an empty table.
 - `refresh.enabled` gates only the refresh loop; discovery updates still land in the store
@@ -382,8 +370,7 @@ the submit pipeline) and is omitted:
   `TrackerStatsService` snapshot** (never a second counter in the store/refresh paths),
   `players_seen_first_total`, `geo_lookup_failures_total`;
 - refresh (new): `refresh_pings_total`, `refresh_persisted_total`,
-  `refresh_failed_total{reason}`;
-- janitor (new): `history_rows_pruned_total`.
+  `refresh_failed_total{reason}`.
 
 ---
 
@@ -406,7 +393,6 @@ against real Postgres in the staged rollout.
   column ordering);
 - dead-server handling (`consecutive_offline` increments, same gap rotates everyone back,
   `last_updated` freezes while `last_refreshed` advances);
-- janitor retention math;
 - `TrackerIntegrationTest` (existing `ScannerIntegrationTest`, renamed, reusing
   `FakeMinecraftServer`) extended to assert version/online/max/platform land in
   `tracker_servers` and player history rows are written exactly for post-verdict players.
@@ -419,13 +405,13 @@ against real Postgres in the staged rollout.
    renames per §2, `scan_progress` → `tracker_progress` via migration; **migrate deployment
    env vars to `mc-utils.server-tracker.*` and update `dashboard.json` metric names** (see §9
    hazard note); `mvn test` green (behavior unchanged).
-2. `V43__server_tracker.sql` (tracker_servers + tracker_player_history + tracker_server_online_history +
-   backfill + drop + rename) + entities/repos.
+2. `V43__server_tracker.sql` (tracker_servers + tracker_player_history + backfill + drop + rename)
+   + entities/repos.
 3. `ServerSnapshot` + verifier sink refactor + latency capture; update existing tests.
 4. `ServerTrackerStore` (batched upserts, buffered flush, geo enrichment) wired into
    `ServerTrackerService`.
 5. `ServerTrackerRefresher` (continuous claim cycle: min-gap filter, claim bump, `SKIP LOCKED`,
    chunk loop, dead-server counting) + lifecycle + config.
-6. Retention janitor, metrics.
+6. Metrics.
 7. Stats endpoint (see `docs/SERVER_TRACKER_API_PLAN.md`) + integration test + staged rollout
    via `include-cidrs` scoped scan, then refresh on real data.

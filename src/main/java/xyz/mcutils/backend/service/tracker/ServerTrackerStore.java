@@ -27,14 +27,14 @@ import java.util.function.Function;
 
 /**
  * Persists verified-server snapshots into the tracker dataset: {@code tracker_servers} rows
- * (full telemetry upsert, {@code first_seen} preserved), {@code tracker_player_history} rows (UUID-keyed
- * upsert: existing rows bump {@code times_seen} + {@code last_seen}, new rows count as first
- * sightings) and {@code tracker_server_online_history} samples.
+ * (full telemetry upsert, {@code first_seen} preserved) and {@code tracker_player_history} rows
+ * (UUID-keyed upsert: existing rows bump {@code times_seen} + {@code last_seen}, new rows count
+ * as first sightings).
  * <p>
  * Buffered like {@code BufferedHarvester}: callers (verify pool, refresh cycle) never block on
  * the database — snapshots accumulate and {@link #flush()} writes them in a few batched,
  * multi-row statements. Every flush upserts the {@code tracker_servers} rows first and keys
- * the player/history rows by the canonical uuid that upsert returns, so the foreign keys always
+ * the player rows by the canonical uuid that upsert returns, so the foreign keys always
  * resolve — brand-new discovery finds and concurrent flushes cannot orphan child rows. Geo
  * enrichment runs once per <b>new</b> server inside the flush, never on refresh.
  * <p>
@@ -166,7 +166,7 @@ public class ServerTrackerStore {
             // whose VALUES rows target the same (ip, port) ("cannot affect row a second time"),
             // and the same server is routinely recorded twice within one flush window
             // (discovery + refresh overlap). The last snapshot in the batch wins the server
-            // row, while every pending keeps its own player/history rows below.
+            // row, while every pending keeps its own player rows below.
             Map<String, Integer> serverRowIndexByKey = new LinkedHashMap<>();
             List<Object[]> uniqueServerRows = new ArrayList<>();
             int[] pendingToUniqueRow = new int[serverRows.size()];
@@ -192,13 +192,11 @@ public class ServerTrackerStore {
 
             List<Object[]> playerMatches = new ArrayList<>();
             List<Object[]> playerInserts = new ArrayList<>();
-            List<Object[]> historyRows = new ArrayList<>();
             for (int i = 0; i < resolved.size(); i++) {
                 Resolved r = resolved.get(i);
                 Pending pending = r.pending();
                 UUID serverUuid = serverUuids.get(pendingToUniqueRow[i]);
                 ServerTrackerVerifier.ServerSnapshot snapshot = pending.snapshot();
-                historyRows.add(new Object[]{serverUuid, pending.seenAt(), snapshot.online(), snapshot.maxPlayers(), truncate(snapshot.version(), MAX_VERSION_LENGTH)});
                 for (HoneypotDetector.SampleEntry entry : snapshot.players()) {
                     String username = truncate(entry.name(), MAX_USERNAME_LENGTH);
                     playerMatches.add(new Object[]{serverUuid, entry.uuid(), username, pending.seenAt()});
@@ -217,9 +215,6 @@ public class ServerTrackerStore {
                 if (metrics != null && firstSightings > 0) {
                     metrics.recordPlayersSeenFirst(firstSightings);
                 }
-            }
-            if (!historyRows.isEmpty()) {
-                executeChunked(onlineHistoryUpsertSql(), rows -> placeholders(rows, 5), historyRows);
             }
             return batch.size();
         } catch (Exception e) {
@@ -358,17 +353,6 @@ public class ServerTrackerStore {
             sb.append("(?,?,?,?,?,1)");
         }
         return sb.toString();
-    }
-
-    private static String onlineHistoryUpsertSql() {
-        return """
-                INSERT INTO tracker_server_online_history (server_uuid, sampled_at, online, max, version)
-                VALUES %s
-                ON CONFLICT (server_uuid, sampled_at) DO UPDATE SET
-                    online = EXCLUDED.online,
-                    max = EXCLUDED.max,
-                    version = EXCLUDED.version
-                """;
     }
 
     private static String serverUpsertSql() {

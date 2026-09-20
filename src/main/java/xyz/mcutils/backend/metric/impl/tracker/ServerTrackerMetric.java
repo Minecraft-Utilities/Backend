@@ -82,10 +82,6 @@ public class ServerTrackerMetric extends Metric<ServerTrackerMetric.Holder> {
                         .help("Refresh-cycle ping failures by reason")
                         .labelNames("reason")
                         .register(MetricService.REGISTRY),
-                Counter.builder()
-                        .name("server_tracker_history_rows_pruned_total")
-                        .help("Online-history rows deleted by the retention janitor")
-                        .register(MetricService.REGISTRY),
                 GaugeWithCallback.builder()
                         .name("server_tracker_tracked_servers")
                         .help("Tracked servers currently in tracker_servers")
@@ -157,10 +153,6 @@ public class ServerTrackerMetric extends Metric<ServerTrackerMetric.Holder> {
         getValue().refreshFailed.labelValues(reason).inc();
     }
 
-    public void recordHistoryPruned(long count) {
-        getValue().historyPruned.inc(count);
-    }
-
     public static void updateProgress(long completed24s) {
         SCAN_PROGRESS.set(completed24s);
     }
@@ -184,7 +176,6 @@ public class ServerTrackerMetric extends Metric<ServerTrackerMetric.Holder> {
             Counter refreshPings,
             Counter refreshPersisted,
             Counter refreshFailed,
-            Counter historyPruned,
             GaugeWithCallback trackedServers,
             GaugeWithCallback progress
     ) {}

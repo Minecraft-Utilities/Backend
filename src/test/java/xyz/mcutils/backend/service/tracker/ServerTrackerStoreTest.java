@@ -37,7 +37,7 @@ import static org.mockito.Mockito.when;
 /**
  * Exercises {@link ServerTrackerStore}: buffering (no DB until flush), tracking-disabled no-op,
  * the batched multi-row statement arities (tracker_servers rows carry 24 columns, player inserts
- * 5, player updates 4, online history 5), geo enrichment on new servers and geo-failure
+ * 5, player updates 4), geo enrichment on new servers and geo-failure
  * resilience. The SQL semantics themselves are verified against real Postgres in the staged
  * rollout (the project has no DB test harness).
  */
@@ -121,10 +121,6 @@ class ServerTrackerStoreTest {
         List<Object[]> updateArgs = captured.argsFor("UPDATE tracker_player_history");
         assertEquals(1, updateArgs.size());
         assertEquals(8, updateArgs.get(0).length, "two player updates x 4 columns");
-
-        List<Object[]> historyArgs = captured.argsFor("INSERT INTO tracker_server_online_history");
-        assertEquals(1, historyArgs.size());
-        assertEquals(10, historyArgs.get(0).length, "two history rows x 5 columns");
 
         verify(repo, atLeastOnce()).findByIpAndPort(IP, PORT);
         verify(repo, never()).save(any());
@@ -215,7 +211,6 @@ class ServerTrackerStoreTest {
         UUID candidate = (UUID) serverRow[0];
         assertNotEquals(winner, candidate, "the flush submits its own candidate uuid for a new server");
         assertEquals(winner, captured.argsFor("INSERT INTO tracker_player_history").get(0)[0], "player rows key on the canonical uuid");
-        assertEquals(winner, captured.argsFor("INSERT INTO tracker_server_online_history").get(0)[0], "history rows key on the canonical uuid");
     }
 
     @Test
@@ -223,7 +218,7 @@ class ServerTrackerStoreTest {
         // Same server recorded twice within one flush window (discovery + refresh overlap):
         // PostgreSQL rejects a multi-row ON CONFLICT DO UPDATE targeting the same (ip, port)
         // ("cannot affect row a second time"), so the flush upserts one row per server — last
-        // snapshot wins — while every pending keeps its own player/history rows.
+        // snapshot wins — while every pending keeps its own player rows.
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         ServerTrackerRepository repo = mock(ServerTrackerRepository.class);
         TrackedServerRow existing = new TrackedServerRow();
@@ -243,11 +238,6 @@ class ServerTrackerStoreTest {
         assertEquals(1, serverRows.size(), "one upsert row per server, duplicates merged");
         assertEquals(24, serverRows.get(0).length);
         assertEquals(6, serverRows.get(0)[5], "the later snapshot in the window wins the server row");
-
-        Object[] history = captured.argsFor("INSERT INTO tracker_server_online_history").get(0);
-        assertEquals(10, history.length, "both pendings still get their own history samples");
-        Object[] historyRowTwo = captured.argsFor("INSERT INTO tracker_server_online_history").get(0);
-        assertEquals(SERVER_UUID, historyRowTwo[5], "second sample keyed on the same canonical uuid");
     }
 
     /** Captures every (sql, args) pair the store sends, replaying the setters via a proxy. */
