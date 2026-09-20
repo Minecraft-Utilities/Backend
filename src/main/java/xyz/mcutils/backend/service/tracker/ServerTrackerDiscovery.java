@@ -28,7 +28,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * CPU-conscious by design: the pending set is tracked only by an integer counter plus the
  * per-key attachment (no side map, no boxed deadlines), connects that complete synchronously
  * are finished immediately without a selector round-trip, and the expiry sweep walks the
- * selector's key set at most once per second.
+ * selector's key set at most once per quarter second (aligned with the connect timeout, so
+ * dead sockets are abandoned near their true deadline instead of lingering for a full second
+ * and inflating the in-flight set / FD usage).
  * <p>
  * Only the configured discovery ports are probed here — the port walk happens in
  * {@link ServerTrackerVerifier} on hosts where a discovery port verified. Open ports are handed to
@@ -54,7 +56,7 @@ public class ServerTrackerDiscovery {
     private record Pending(String ip, int port, long deadline) {}
 
     private static final int SELECT_TIMEOUT_MS = 100;
-    private static final Duration PENDING_SWEEP_INTERVAL = Duration.ofSeconds(1);
+    private static final Duration PENDING_SWEEP_INTERVAL = Duration.ofMillis(250);
 
     private final Ipv4Space space;
     private final List<Integer> discoveryPorts;
@@ -190,27 +192,23 @@ public class ServerTrackerDiscovery {
                 if (metrics != null) {
                     metrics.recordProbe();
                 }
-                try {
-                    SocketChannel channel = SocketChannel.open();
+                try (SocketChannel channel = SocketChannel.open()) {
                     channel.configureBlocking(false);
                     channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
                     if (channel.connect(new InetSocketAddress(ipString, port))) {
                         // Connected synchronously: finish immediately, no selector round-trip.
-                        try {
-                            if (metrics != null) {
-                                metrics.recordConnectOpen();
-                            }
-                            openPortHandler.handle(ipString, port);
-                        } finally {
-                            channel.close();
+                        if (metrics != null) {
+                            metrics.recordConnectOpen();
                         }
+                        openPortHandler.handle(ipString, port);
                     } else {
                         channel.register(selector, SelectionKey.OP_CONNECT,
                                 new Pending(ipString, port, System.nanoTime() + connectTimeout.toNanos()));
                         pendingCount.incrementAndGet();
                     }
                 } catch (IOException e) {
-                    // Unresolvable/unroutable (e.g. no route): the probe already counted, move on.
+                    // Connect failed (unresolvable/unroutable/RST) or register failed: the channel
+                    // is closed by the try-with-resources, so no socket FD leaks on hot paths.
                 }
             }
         }

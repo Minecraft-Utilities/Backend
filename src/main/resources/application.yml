@@ -181,7 +181,11 @@ mc-utils:
     progress-log-interval-seconds: 60
     discovery:
       # Concurrent in-flight TCP connect probes. Throughput = concurrency / connect-timeout.
-      concurrency: 80000
+      # 80000 was pinning ~80k sockets + kernel TIME_WAIT churn on an 8-core LXC; each probe
+      # holds one FD until the timeout, and the container's PID/FD cap (~71k) made it the
+      # limiter, not the network. 12000 keeps the same sweep cadence on gigabit with a
+      # fraction of the kernel pressure.
+      concurrency: 12000
       # Timeout for a dead host. Shorter = faster sweep, but too short misses slow networks.
       connect-timeout-ms: 300
     verify:
