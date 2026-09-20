@@ -56,7 +56,13 @@ public class ServerTrackerDiscovery {
     private record Pending(String ip, int port, long deadline) {}
 
     private static final int SELECT_TIMEOUT_MS = 100;
-    private static final Duration PENDING_SWEEP_INTERVAL = Duration.ofMillis(250);
+    /**
+     * How often the expiry sweep scans the registered key set. Aligned to the connect timeout:
+     * a pending socket is abandoned within one connect-timeout of its deadline, while the scan
+     * cost stays O(keys) per interval regardless of concurrency — a much faster cadence would
+     * spend all its time rescanning the in-flight set and starve {@code fillPending()}.
+     */
+    private static final Duration SWEEP_INTERVAL = Duration.ofMillis(250);
 
     private final Ipv4Space space;
     private final List<Integer> discoveryPorts;
@@ -192,7 +198,12 @@ public class ServerTrackerDiscovery {
                 if (metrics != null) {
                     metrics.recordProbe();
                 }
-                try (SocketChannel channel = SocketChannel.open()) {
+                // Deliberately NOT try-with-resources: the channel is owned by the selector once
+                // registered, so it must stay open until the selector finishes/abandons it. Only
+                // the synchronous-success and immediate-failure paths close here.
+                SocketChannel channel = null;
+                try {
+                    channel = SocketChannel.open();
                     channel.configureBlocking(false);
                     channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
                     if (channel.connect(new InetSocketAddress(ipString, port))) {
@@ -201,14 +212,22 @@ public class ServerTrackerDiscovery {
                             metrics.recordConnectOpen();
                         }
                         openPortHandler.handle(ipString, port);
+                        channel.close();
                     } else {
                         channel.register(selector, SelectionKey.OP_CONNECT,
                                 new Pending(ipString, port, System.nanoTime() + connectTimeout.toNanos()));
                         pendingCount.incrementAndGet();
+                        channel = null; // ownership handed to the selector
                     }
                 } catch (IOException e) {
-                    // Connect failed (unresolvable/unroutable/RST) or register failed: the channel
-                    // is closed by the try-with-resources, so no socket FD leaks on hot paths.
+                    // Connect failed (unresolvable/unroutable/RST) or register failed: close the
+                    // channel if we still own it, so no socket FD leaks on hot paths.
+                    if (channel != null) {
+                        try {
+                            channel.close();
+                        } catch (IOException ignored) {
+                        }
+                    }
                 }
             }
         }
@@ -216,12 +235,15 @@ public class ServerTrackerDiscovery {
 
     private void sweepExpired() {
         long now = System.nanoTime();
-        if (now - lastSweep < PENDING_SWEEP_INTERVAL.toNanos()) {
+        if (now - lastSweep < SWEEP_INTERVAL.toNanos()) {
             return;
         }
         lastSweep = now;
         // No side map: deadlines live in each key's attachment, and the selector owns the set.
         // Collect first, then abandon, so selector.keys() is never mutated mid-iteration.
+        // The sweep scans the key set even when nothing is expired, so a pending socket that
+        // fails to complete is abandoned within one connect-timeout of its deadline; the
+        // pendingCount then drops and fillPending() replenishes immediately.
         List<SelectionKey> expired = new ArrayList<>();
         for (SelectionKey key : selector.keys()) {
             if (key.attachment() instanceof Pending pending && now >= pending.deadline()) {
