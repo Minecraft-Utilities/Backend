@@ -34,7 +34,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * are finished immediately without a selector round-trip, and the expiry sweep walks the
  * selector's key set at most once per quarter second (aligned with the connect timeout, so
  * dead sockets are abandoned near their true deadline instead of lingering for a full second
- * and inflating the in-flight set / FD usage).
+ * and inflating the in-flight set / FD usage). The counter and the attachment move together —
+ * clearing the attachment is what marks a probe settled — so the in-flight set, and with it the
+ * number of open sockets, stays capped by {@code concurrency} however late a connect resolves.
  * <p>
  * Only the configured discovery ports are probed here — the port walk happens in
  * {@link ServerTrackerVerifier} on hosts where a discovery port verified. Open ports are handed to
@@ -67,6 +69,11 @@ public class ServerTrackerDiscovery {
      * spend all its time rescanning the in-flight set and starve {@code fillPending()}.
      */
     private static final Duration SWEEP_INTERVAL = Duration.ofMillis(250);
+    /**
+     * Minimum gap between "could not open a socket" warnings: a descriptor shortage is a
+     * sustained condition, and one line per second of it is noise.
+     */
+    private static final Duration OPEN_FAILURE_WARN_INTERVAL = Duration.ofSeconds(5);
 
     private final Ipv4Space space;
     private final List<Integer> discoveryPorts;
@@ -80,6 +87,7 @@ public class ServerTrackerDiscovery {
     // Selector-loop state
     private Selector selector;
     private long lastSweep;
+    private long lastOpenFailureWarn;
 
     // Iteration state
     private long current24 = -1;
@@ -124,31 +132,29 @@ public class ServerTrackerDiscovery {
                 while (keys.hasNext()) {
                     SelectionKey key = keys.next();
                     keys.remove();
-                    if (!key.isValid()) {
-                        abandon(key);
+                    Pending pending = pendingOf(key);
+                    if (pending == null) {
+                        // Already settled: a settled key only leaves the selector's key set on the
+                        // next select(), so it can still surface here.
                         continue;
                     }
-                    SocketChannel channel = (SocketChannel) key.channel();
-                    try {
-                        if (channel.finishConnect()) {
-                            pendingCount.decrementAndGet();
-                            if (metrics != null) {
-                                metrics.recordConnectOpen();
-                            }
-                            Pending pending = (Pending) key.attachment();
-                            openPortHandler.handle(pending.ip(), pending.port());
-                        } else {
-                            abandon(key);
-                            continue;
+                    boolean connected = false;
+                    if (key.isValid()) {
+                        try {
+                            connected = ((SocketChannel) key.channel()).finishConnect();
+                        } catch (IOException e) {
+                            // Connect failed (refused/unreachable/reset): the socket is discarded
+                            // below, exactly like an expired one.
                         }
-                    } catch (IOException e) {
-                        abandon(key);
-                        continue;
                     }
-                    try {
-                        channel.close();
-                    } catch (IOException ignored) {
+                    settle(key);
+                    if (connected) {
+                        if (metrics != null) {
+                            metrics.recordConnectOpen();
+                        }
+                        openPortHandler.handle(pending.ip(), pending.port());
                     }
+                    discard(key);
                 }
                 sweepExpired();
             }
@@ -199,13 +205,20 @@ public class ServerTrackerDiscovery {
                         channel = null; // ownership handed to the selector
                     }
                 } catch (IOException e) {
+                    if (channel == null) {
+                        // Not even a socket could be created — typically the process is out of file
+                        // descriptors. Return so the selector runs: expiring probes there is what
+                        // closes sockets and frees descriptors again. Spinning on a failing open()
+                        // would never reach a select(), so the loop could never free anything and
+                        // would stay wedged at the descriptor ceiling.
+                        logOpenFailure(e);
+                        return;
+                    }
                     // Connect failed (unresolvable/unroutable/RST) or register failed: close the
                     // channel if we still own it, so no socket FD leaks on hot paths.
-                    if (channel != null) {
-                        try {
-                            channel.close();
-                        } catch (IOException ignored) {
-                        }
+                    try {
+                        channel.close();
+                    } catch (IOException ignored) {
                     }
                 }
             }
@@ -225,7 +238,8 @@ public class ServerTrackerDiscovery {
         // pendingCount then drops and fillPending() replenishes immediately.
         List<SelectionKey> expired = new ArrayList<>();
         for (SelectionKey key : selector.keys()) {
-            if (key.attachment() instanceof Pending pending && now >= pending.deadline()) {
+            Pending pending = pendingOf(key);
+            if (pending != null && now >= pending.deadline()) {
                 expired.add(key);
             }
         }
@@ -234,13 +248,54 @@ public class ServerTrackerDiscovery {
         }
     }
 
-    private void abandon(SelectionKey key) {
+    /**
+     * The probe still in flight on {@code key}, or {@code null} once it has been settled. The
+     * attachment is the single record of that state: {@link #settle(SelectionKey)} clears it, so a
+     * key that lingers in {@link Selector#keys()} after being settled cannot be settled twice.
+     */
+    private static Pending pendingOf(SelectionKey key) {
+        return key.attachment() instanceof Pending pending ? pending : null;
+    }
+
+    /**
+     * Takes a probe out of the in-flight set. Clearing the attachment first is what makes this
+     * idempotent, and that matters because cancelling a key only removes it from
+     * {@link Selector#keys()} during the <em>next</em> {@code select()}: the expiry sweep, which
+     * runs right after the selected keys, still sees every key this iteration settled. A second
+     * drop of the counter would silently raise the effective concurrency ceiling — the loop would
+     * then hold more sockets than configured and can run the process out of file descriptors.
+     */
+    private void settle(SelectionKey key) {
+        key.attach(null);
         pendingCount.decrementAndGet();
+    }
+
+    /** Cancels a settled key and closes its socket. */
+    private void discard(SelectionKey key) {
         key.cancel();
         try {
             key.channel().close();
         } catch (IOException ignored) {
         }
+    }
+
+    private void abandon(SelectionKey key) {
+        settle(key);
+        discard(key);
+    }
+
+    /**
+     * Warns that a probe could not even be given a socket, rate-limited to one line per
+     * {@link #OPEN_FAILURE_WARN_INTERVAL} so a descriptor shortage stays visible without drowning
+     * the log.
+     */
+    private void logOpenFailure(IOException cause) {
+        long now = System.nanoTime();
+        if (lastOpenFailureWarn != 0 && now - lastOpenFailureWarn < OPEN_FAILURE_WARN_INTERVAL.toNanos()) {
+            return;
+        }
+        lastOpenFailureWarn = now;
+        log.warn("Discovery probe could not open a socket (out of file descriptors?): {}", cause.toString());
     }
 
     private void closeAll() {
