@@ -6600,7 +6600,7 @@
                       "version": "v0",
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(server_tracker_refresh_failed_total{job=\"mc_utils\"}[1m])",
+                        "expr": "sum(rate(server_tracker_refresh_failed_total{job=\"mc_utils\"}[1m]))",
                         "format": "time_series",
                         "legendFormat": "failed",
                         "range": true,

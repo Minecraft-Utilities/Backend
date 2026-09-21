@@ -225,6 +225,8 @@ public class ServerTrackerRefresher {
         try {
             inflight.acquire();
         } catch (InterruptedException e) {
+            // No ping was issued, so this failure is not booked to the per-ping metric
+            // (refresh_failed_total can never exceed refresh_pings_total) — the log line carries it.
             Thread.currentThread().interrupt();
             failed.incrementAndGet();
             return;
@@ -234,12 +236,13 @@ public class ServerTrackerRefresher {
                 metrics.recordRefreshPing();
             }
             long startNanos = System.nanoTime();
-            JavaServerStatusToken token = ping(server);
-            if (token == null) {
+            PingOutcome outcome = ping(server);
+            if (outcome.token() == null) {
                 recordOffline(server.uuid());
-                failed.incrementAndGet();
+                fail(failed, failureReasons, outcome.reason());
                 return;
             }
+            JavaServerStatusToken token = outcome.token();
             int latencyMs = (int) ((System.nanoTime() - startNanos) / 1_000_000L);
             HoneypotDetector.Verdict verdict = ServerTrackerVerifier.evaluate(honeypotDetector, server.ip(), server.port(), token);
             for (String reason : verdict.dropReasons()) {
@@ -252,32 +255,42 @@ public class ServerTrackerRefresher {
             store.record(ServerTrackerVerifier.buildSnapshot(server.ip(), server.port(), token, latencyMs, verifiedPlayers, verdict.honeypotServer()));
             persisted.incrementAndGet();
         } catch (Exception e) {
+            // A valid status ping that failed downstream (honeypot verdict, sample filter, store) is
+            // still a failed refresh, attributed exactly like a failed ping so the chunk log line and
+            // the metric agree on the reason breakdown.
             recordOffline(server.uuid());
-            failed.incrementAndGet();
-            recordFailure(failureReasons, e.getClass().getSimpleName());
+            fail(failed, failureReasons, e.getClass().getSimpleName());
         } finally {
             inflight.release();
         }
     }
 
     /**
-     * @return the parsed token when the port answers a valid Java status ping, else null
+     * Status-pings the claimed server. The failure reason is returned rather than recorded here:
+     * every failure of an issued ping goes through {@link #fail}, so the chunk log and the metric
+     * can never disagree about which reasons were seen.
      */
-    private JavaServerStatusToken ping(ClaimedServer server) {
+    private PingOutcome ping(ClaimedServer server) {
         try {
             JavaServerStatusToken token = pinger.pingToken(server.ip(), server.ip(), server.port(), NO_RECORDS, timeoutMs);
             if (token == null || token.getVersion() == null || token.getPlayers() == null) {
-                if (metrics != null) {
-                    metrics.recordRefreshFailed("invalid_payload");
-                }
-                return null;
+                return PingOutcome.failure("invalid_payload");
             }
-            return token;
+            return PingOutcome.success(token);
         } catch (RuntimeException e) { // refused, timed out, or a non-MC service replied garbage
-            if (metrics != null) {
-                metrics.recordRefreshFailed(reasonFor(e));
-            }
-            return null;
+            return PingOutcome.failure(reasonFor(e));
+        }
+    }
+
+    /** Outcome of one status ping: the parsed token, or why the port did not answer a valid status. */
+    private record PingOutcome(JavaServerStatusToken token, String reason) {
+
+        static PingOutcome success(JavaServerStatusToken token) {
+            return new PingOutcome(token, null);
+        }
+
+        static PingOutcome failure(String reason) {
+            return new PingOutcome(null, reason);
         }
     }
 
@@ -303,8 +316,18 @@ public class ServerTrackerRefresher {
         }
     }
 
-    private static void recordFailure(ConcurrentHashMap<String, AtomicInteger> failureReasons, String reason) {
+    /**
+     * Books one failed refresh: the chunk counter and reason map behind the chunk-finished log line,
+     * plus {@code server_tracker_refresh_failed_total{reason}} for the dashboard. Both failure paths
+     * of an issued ping funnel through here, so "failed" means the same thing in the log and in
+     * Prometheus.
+     */
+    private void fail(AtomicInteger failed, ConcurrentHashMap<String, AtomicInteger> failureReasons, String reason) {
+        failed.incrementAndGet();
         failureReasons.computeIfAbsent(reason, ignored -> new AtomicInteger()).incrementAndGet();
+        if (metrics != null) {
+            metrics.recordRefreshFailed(reason);
+        }
     }
 
     private static String formatFailureReasons(ConcurrentHashMap<String, AtomicInteger> failureReasons) {

@@ -79,7 +79,7 @@ public class ServerTrackerMetric extends Metric<ServerTrackerMetric.Holder> {
                         .register(MetricService.REGISTRY),
                 Counter.builder()
                         .name("server_tracker_refresh_failed_total")
-                        .help("Refresh-cycle ping failures by reason")
+                        .help("Refresh-cycle failures by reason (one per failed ping, or per error after a valid ping)")
                         .labelNames("reason")
                         .register(MetricService.REGISTRY),
                 GaugeWithCallback.builder()

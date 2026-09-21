@@ -380,7 +380,9 @@ the submit pipeline) and is omitted:
   `TrackerStatsService` snapshot** (never a second counter in the store/refresh paths),
   `players_seen_first_total`, `geo_lookup_failures_total`;
 - refresh (new): `refresh_pings_total`, `refresh_persisted_total`,
-  `refresh_failed_total{reason}`.
+  `refresh_failed_total{reason}` — one increment per issued ping that did not produce a persisted
+  sample (failed ping, or an error after a valid ping such as the verdict/sample/store blowing
+  up), so `failed <= pings` holds and the reason breakdown matches the chunk-finished log line.
 
 ---
 
