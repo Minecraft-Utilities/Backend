@@ -181,10 +181,9 @@ mc-utils:
     progress-log-interval-seconds: 60
     discovery:
       # Concurrent in-flight TCP connect probes. Throughput = concurrency / connect-timeout.
-      # 5000 balances scan rate against kernel socket churn (open/close per probe).
-      concurrency: 5000
+      concurrency: 9000
       # Timeout for a dead host. Shorter = faster sweep, but too short misses slow networks.
-      connect-timeout-ms: 300
+      connect-timeout-ms: 450
     verify:
       # Parallel full status-pings on hosts whose base port connected.
       concurrency: 200
