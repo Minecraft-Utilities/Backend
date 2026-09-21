@@ -189,13 +189,12 @@ mc-utils:
       concurrency: 200
       timeout-ms: 5000
     ports:
-      # Ports probed on EVERY host during discovery. Keep the list lean: each
-      # port costs one full sweep. 25565 plus the closest alternates; the
-      # +window walk auto-covers 25568-25575 once any of these verifies.
-      discovery: "25565"
+      # Ports probed on EVERY host during discovery. Keep the list lean to avoid 
+      # wasting time on ports that are rarely used by servers.
+      discovery: "25565,25566"
       # Probe up to lastWorkingPort + window ports per host (sliding ceiling,
       # applied after a discovery port verifies as a server).
-      window: 10
+      window: 15
       max: 65535
       # Absolute cap on ports probed per host.
       probe-cap-per-ip: 300
