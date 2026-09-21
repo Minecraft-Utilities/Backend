@@ -8,20 +8,16 @@ import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.metric.impl.tracker.ServerTrackerMetric;
-import xyz.mcutils.backend.model.persistence.postgres.TrackerProgressRow;
-import xyz.mcutils.backend.repository.postgres.TrackerProgressRepository;
 import xyz.mcutils.backend.service.MetricService;
 import xyz.mcutils.backend.service.PlayerSubmitService;
 import xyz.mcutils.backend.service.TrackerStatsService;
 import xyz.mcutils.backend.service.pinger.impl.JavaMinecraftServerPinger;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,13 +28,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Orchestrates the internet server tracker: the discovery campaign (IPv4 sweep, verification,
- * harvest, progress persistence) and the refresh cycle (continuous equal-cadence re-ping of
- * tracked servers) run as independent daemon loops sharing the verify pool and the
+ * Orchestrates the internet server tracker: the discovery campaign (an endless random-order sweep
+ * of the IPv4 space with verification and harvest) and the refresh cycle (continuous equal-cadence
+ * re-ping of tracked servers) run as independent daemon loops sharing the verify pool and the
  * {@link ServerTrackerStore}. Discovery defaults to enabled ({@code mc-utils.server-tracker.enabled});
- * when disabled the refresh cycle still keeps tracked rows current (e.g. after a finished
- * campaign). Harvested players are fed into {@link PlayerSubmitService} attributed to
- * ImFascinated.
+ * when disabled the refresh cycle still keeps tracked rows current. The sweep keeps no cursor: when
+ * a cycle has walked the whole space it reshuffles and starts the next one, forever. Harvested
+ * players are fed into {@link PlayerSubmitService} attributed to ImFascinated.
  */
 @Service
 @Slf4j
@@ -50,12 +46,10 @@ public class ServerTrackerService {
      */
     public static final UUID SUBMITTED_BY = UUID.fromString("eeab5f8a-18dd-4d58-af78-2b3c4543da48");
 
-    private static final long PROGRESS_PERSIST_INTERVAL_SECONDS = 30;
     private static final long FLUSH_INTERVAL_SECONDS = 2;
 
     private final PlayerSubmitService playerSubmitService;
     private final ServerTrackerStore serverTrackerStore;
-    private final TrackerProgressRepository trackerProgressRepository;
     private final HoneypotDetector honeypotDetector;
     private final PlayerSampleVerifier playerSampleVerifier;
     private final JdbcTemplate jdbcTemplate;
@@ -85,7 +79,8 @@ public class ServerTrackerService {
 
     /** Verified servers (sink calls) and players handed to the queue, for progress logging. */
     private final AtomicLong serversFound = new AtomicLong();
-    private volatile long lastLogCompleted24s;
+    private volatile long lastLogSwept24s;
+    private volatile long lastLoggedCycle;
     private volatile long lastLogNanos = System.nanoTime();
 
     private ServerTrackerDiscovery discovery;
@@ -100,7 +95,6 @@ public class ServerTrackerService {
     public ServerTrackerService(
             PlayerSubmitService playerSubmitService,
             ServerTrackerStore serverTrackerStore,
-            TrackerProgressRepository trackerProgressRepository,
             HoneypotDetector honeypotDetector,
             PlayerSampleVerifier playerSampleVerifier,
             JdbcTemplate jdbcTemplate,
@@ -127,7 +121,6 @@ public class ServerTrackerService {
     ) {
         this.playerSubmitService = playerSubmitService;
         this.serverTrackerStore = serverTrackerStore;
-        this.trackerProgressRepository = trackerProgressRepository;
         this.honeypotDetector = honeypotDetector;
         this.playerSampleVerifier = playerSampleVerifier;
         this.jdbcTemplate = jdbcTemplate;
@@ -184,29 +177,8 @@ public class ServerTrackerService {
     }
 
     private void startDiscovery() {
-        TrackerProgressRow stored = trackerProgressRepository.findById(TrackerProgressRow.SINGLETON_ID).orElse(null);
-        long seed;
-        if (stored != null && !TrackerProgressRow.State.COMPLETED.name().equals(stored.getState())) {
-            seed = stored.getSeed();
-        } else {
-            seed = ThreadLocalRandom.current().nextLong();
-            if (stored == null) {
-                trackerProgressRepository.save(new TrackerProgressRow(
-                        TrackerProgressRow.SINGLETON_ID, seed, 0, 0,
-                        TrackerProgressRow.State.RUNNING.name(), Instant.now(), Instant.now()
-                ));
-            } else {
-                stored.setSeed(seed);
-                stored.setState(TrackerProgressRow.State.RUNNING.name());
-                stored.setUpdatedAt(Instant.now());
-                trackerProgressRepository.save(stored);
-            }
-        }
-
+        long seed = ThreadLocalRandom.current().nextLong();
         this.space = new Ipv4Space(excludeExtraCidrs, includeCidrs, seed);
-        if (stored != null && !TrackerProgressRow.State.COMPLETED.name().equals(stored.getState())) {
-            space.restore(new Ipv4Space.Progress(seed, stored.getPermuted16Pos(), stored.getOffset24()));
-        }
         this.metrics = MetricService.getMetric(ServerTrackerMetric.class);
         this.verifierExecutor = Executors.newFixedThreadPool(
                 verifyConcurrency,
@@ -229,17 +201,10 @@ public class ServerTrackerService {
                 discoveryPortsCsv, discoveryConcurrency, connectTimeoutMs
         );
 
-        upkeepExecutor.scheduleAtFixedRate(() -> {
-            try {
-                persistProgress();
-            } catch (Exception e) {
-                log.warn("Tracker progress persist task failed", e);
-            }
-        }, PROGRESS_PERSIST_INTERVAL_SECONDS, PROGRESS_PERSIST_INTERVAL_SECONDS, TimeUnit.SECONDS);
         upkeepExecutor.scheduleAtFixedRate(this::logProgress, progressLogIntervalSeconds, progressLogIntervalSeconds, TimeUnit.SECONDS);
 
         this.discoveryThread = Thread.ofPlatform().daemon(true).name("server-tracker").start(discovery::run);
-        log.info("Server tracker discovery started (scoped mode: {}, seed: {})", space.hasIncludeScope(), seed);
+        log.info("Server tracker discovery started (scoped mode: {}, seed: {})", space.hasIncludeScope(), space.rootSeed());
     }
 
     private void startRefresher() {
@@ -282,48 +247,47 @@ public class ServerTrackerService {
                 Thread.currentThread().interrupt();
             }
         }
-        persistProgress(true);
         log.info("Server tracker stopped");
     }
 
-    private void persistProgress() {
-        persistProgress(false);
-    }
-
     /**
-     * Periodic console summary of the scan. Logs once per tick only when progress moved, so a
-     * wedged loop is visible as silence rather than noisy repetition.
+     * Periodic console summary of the sweep. Logs once per tick only when probes moved, so a
+     * wedged loop is visible as silence rather than noisy repetition, plus one line per completed
+     * cycle (a full pass over the IPv4 space).
      */
     private void logProgress() {
         if (discovery == null || space == null || harvester == null) {
             return;
         }
-        if (discovery.isComplete()) {
-            log.info("Server tracker completed: {} /24 subnets, servers found={}, players enqueued={}",
-                    discovery.completed24s(), serversFound.get(), harvester.totalEnqueued());
-            return;
+        long cycle = space.cycle();
+        if (cycle > lastLoggedCycle) {
+            if (lastLoggedCycle > 0) {
+                log.info("Server tracker cycle {} complete, starting cycle {}", lastLoggedCycle, cycle);
+            }
+            this.lastLoggedCycle = cycle;
         }
-        long completed = discovery.completed24s();
+        long swept = space.total24s();
         long now = System.nanoTime();
-        if (completed == lastLogCompleted24s) {
+        if (swept == lastLogSwept24s) {
             return; // no movement since the last tick
         }
         double minutes = (now - lastLogNanos) / 60_000_000_000.0;
-        long perMinute = minutes > 0 ? (long) ((completed - lastLogCompleted24s) / minutes) : 0;
-        this.lastLogCompleted24s = completed;
+        long perMinute = minutes > 0 ? (long) ((swept - lastLogSwept24s) / minutes) : 0;
+        this.lastLogSwept24s = swept;
         this.lastLogNanos = now;
 
+        long completed = space.cycle24s();
         long total = space.public24Count();
         if (total > 0) {
             double percent = completed * 100.0 / total;
             String eta = perMinute > 0 ? ", ETA " + formatEta(Duration.ofSeconds(Math.max(0, (total - completed) * 60 / perMinute))) : "";
             long probesPerSecond = perMinute * 254L * discovery.discoveryPortCount() / 60L;
-            log.info("Server tracker progress: {} / {} /24 subnets ({}%), {} /24s/min, ~{} probes/s{}, servers found={}, players enqueued={}",
-                    completed, total, String.format(Locale.ROOT, "%.1f", percent),
+            log.info("Server tracker progress: cycle {}, {} / {} /24 subnets ({}%), {} /24s/min, ~{} probes/s{}, servers found={}, players enqueued={}",
+                    cycle, completed, total, String.format(Locale.ROOT, "%.1f", percent),
                     perMinute, probesPerSecond, eta, serversFound.get(), harvester.totalEnqueued());
         } else {
-            log.info("Server tracker progress (scoped): {} /24 subnets, {} /24s/min, servers found={}, players enqueued={}",
-                    completed, perMinute, serversFound.get(), harvester.totalEnqueued());
+            log.info("Server tracker progress (scoped): cycle {}, {} /24 subnets, {} /24s/min, servers found={}, players enqueued={}",
+                    cycle, completed, perMinute, serversFound.get(), harvester.totalEnqueued());
         }
     }
 
@@ -338,35 +302,6 @@ public class ServerTrackerService {
             return hours + "h " + minutes + "m";
         }
         return minutes + "m";
-    }
-
-    private void persistProgress(boolean stopping) {
-        if (space == null || discovery == null || !running.get() && !stopping) {
-            return;
-        }
-        try {
-            Ipv4Space.Progress cursor = discovery.cursor();
-            int permuted16Pos = cursor == null ? 0 : cursor.permuted16Pos();
-            int offset24 = cursor == null ? 0 : cursor.offset24();
-            String state = discovery.isComplete()
-                    ? TrackerProgressRow.State.COMPLETED.name()
-                    : TrackerProgressRow.State.PAUSED.name();
-            TrackerProgressRow stored = trackerProgressRepository.findById(TrackerProgressRow.SINGLETON_ID).orElseGet(() -> {
-                TrackerProgressRow created = new TrackerProgressRow(
-                        TrackerProgressRow.SINGLETON_ID, space.seed(), 0, 0,
-                        TrackerProgressRow.State.RUNNING.name(), Instant.now(), Instant.now()
-                );
-                return trackerProgressRepository.save(created);
-            });
-            stored.setSeed(space.seed());
-            stored.setPermuted16Pos(permuted16Pos);
-            stored.setOffset24(offset24);
-            stored.setState(state);
-            stored.setUpdatedAt(Instant.now());
-            trackerProgressRepository.save(stored);
-        } catch (Exception e) {
-            log.debug("Failed to persist tracker progress: {}", e.toString());
-        }
     }
 
     private static List<String> splitCidrs(String csv) {

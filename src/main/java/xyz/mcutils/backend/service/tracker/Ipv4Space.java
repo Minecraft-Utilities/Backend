@@ -8,16 +8,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Deterministic, resumable iterator over the public IPv4 space at /24 granularity.
+ * Endless, random-order sweep of the public IPv4 space at /24 granularity.
  * <p>
- * Full-space mode shuffles /16 prefixes with a seeded SplitMix64 PRNG (never materializing the
- * whole permutation), then each /16's /24s with a seed derived from the root seed and the /16.
+ * A <em>cycle</em> shuffles the 65536 /16 prefixes with a seeded SplitMix64 PRNG (never
+ * materializing the 2^24-entry /24 permutation) and shuffles the 256 /24s of each /16 as it enters
+ * it, so the /24s arrive in a random order and every public /24 is yielded exactly once per cycle.
+ * Finishing a cycle rolls straight into the next one with a fresh shuffle, so {@link #next24()}
+ * never runs out: the sweep loops over the whole space forever and nothing is persisted between
+ * cycles or restarts.
+ * <p>
  * All IANA special-purpose ranges (RFC 6890), the US DoD allocations (the "government" ranges),
  * and any operator-supplied extra CIDRs are skipped. A non-empty {@code includeCidrs} set puts
  * the iterator into <em>scoped mode</em>: only the /24s overlapping those CIDRs are yielded
- * (exclusions ignored), which lets an operator (or CI) scan a bounded network.
+ * (exclusions ignored), in order, cycling through them forever — which lets an operator (or CI)
+ * scan a bounded network.
  * <p>
- * Progress can be captured between {@link #next24()} calls and restored to resume after a crash.
+ * Cycle {@code n} is seeded with {@code mix(rootSeed, n)}, so one root seed reproduces the same
+ * sequence of orders.
  */
 public final class Ipv4Space {
 
@@ -69,37 +76,33 @@ public final class Ipv4Space {
         }
     }
 
-    /**
-     * Snapshot of the iteration position, sufficient to resume a scan anywhere.
-     *
-     * @param seed          the root permutation seed
-     * @param permuted16Pos index into the shuffled /16 order
-     * @param offset24      index into the current /16's shuffled /24 order
-     */
-    public record Progress(long seed, int permuted16Pos, int offset24) {}
-
     private final List<Cidr> exclusions;
     private final List<Cidr> includes;
-    private final long seed;
-    private final int[] permuted16s;
+    private final long rootSeed;
 
-    // Iteration state
+    // Cycle state
+    private long cycleSeed;
+    private long cycle;
+    private long cycle24s;
+    private long total24s;
+    private int[] permuted16s = new int[0];
     private int current16Pos;
     private int current24Index;
     private int[] current16Shuffle = new int[0];
     private boolean[] current16Excluded = new boolean[0];
-    private int includeIndex = -1;      // index into includes when in scoped mode
-    private long includeStart;          // current include cidr
-    private long includeEnd;            // current include cidr
-    private long includeBase = -1;      // next /24 base within the current include cidr
+
+    // Scoped-mode state
+    private int includeIndex;
+    private long includeBase;
+    private long includeEnd;
 
     /**
      * @param excludeCidrs extra CIDRs to exclude on top of {@link #DEFAULT_EXCLUSIONS}
      * @param includeCidrs when non-empty, restrict scanning to these CIDRs (scoped mode)
-     * @param seed         root seed for the permutation; same seed + progress → same ordering
+     * @param rootSeed     root seed for the cycle shuffles; same seed → same sequence of orders
      */
-    public Ipv4Space(@Nullable List<String> excludeCidrs, @Nullable List<String> includeCidrs, long seed) {
-        this.seed = seed;
+    public Ipv4Space(@Nullable List<String> excludeCidrs, @Nullable List<String> includeCidrs, long rootSeed) {
+        this.rootSeed = rootSeed;
         this.includes = includeCidrs == null || includeCidrs.isEmpty()
                 ? List.of()
                 : parseCidrs(includeCidrs);
@@ -108,15 +111,14 @@ public final class Ipv4Space {
             merged.addAll(parseCidrs(excludeCidrs));
         }
         this.exclusions = List.copyOf(merged);
-        this.permuted16s = shuffledIndexes(seed, 65536);
-        if (!this.includes.isEmpty()) { // scoped mode: start at the first include cidr
-            this.includeIndex = 0;
-            this.includeStart = this.includes.get(0).start() & ~0xFFL;
-            this.includeEnd = this.includes.get(0).endInclusive() & ~0xFFL;
-            this.includeBase = this.includeStart;
-        }
-        else {
-            enter16(permuted16s[0]);
+        this.cycleSeed = mix(rootSeed, 0);
+        if (hasIncludeScope()) { // scoped mode: cycle through the include cidrs
+            this.cycle = 1;
+            enterInclude(0);
+        } else if (public24Count() <= 0) {
+            throw new IllegalArgumentException("IPv4 exclusions cover the whole space: nothing left to scan");
+        } else {
+            startCycle();
         }
     }
 
@@ -125,9 +127,9 @@ public final class Ipv4Space {
     }
 
     /**
-     * Approximate number of /24 subnets in the scan space (full mode only), used for ETA
-     * logging: total /24s minus those covered by the exclusion list. Exclusions are disjoint,
-     * so overlap is not a concern; operator extras count toward the sum.
+     * Approximate number of /24 subnets swept per cycle (full mode only), used for ETA logging:
+     * total /24s minus those covered by the exclusion list. Exclusions are disjoint, so overlap is
+     * not a concern; operator extras count toward the sum.
      *
      * @return public /24 count, or -1 in scoped mode where the space has no fixed size
      */
@@ -139,72 +141,103 @@ public final class Ipv4Space {
         for (Cidr cidr : exclusions) {
             excluded += ((cidr.endInclusive() - cidr.start()) >> 8) + 1;
         }
-        return Math.max(1, (1L << 24) - excluded);
-    }
-
-    public long seed() {
-        return seed;
-    }
-
-    public Progress progress() {
-        return hasIncludeScope()
-                ? new Progress(seed, -1, 0)
-                : new Progress(seed, current16Pos, current24Index);
-    }
-
-    public void restore(Progress progress) {
-        if (progress == null) {
-            return;
-        }
-        if (hasIncludeScope()) {
-            return; // scoped mode resumes from the first include cidr
-        }
-        current16Pos = Math.clamp(progress.permuted16Pos(), 0, 65535);
-        enter16(permuted16s[current16Pos]);
-        // enter16 resets the index; re-apply the persisted offset into the shuffled /24 order.
-        current24Index = Math.clamp(progress.offset24(), 0, 255);
+        return (1L << 24) - excluded;
     }
 
     /**
-     * @return the next /24 network address as an unsigned 32-bit long, or -1 when exhausted
+     * @return the root seed, for logging/reproduction of the sweep order
+     */
+    public long rootSeed() {
+        return rootSeed;
+    }
+
+    /**
+     * @return seed of the shuffle in progress; also seeds the host order inside each /24
+     */
+    public long cycleSeed() {
+        return cycleSeed;
+    }
+
+    /**
+     * @return 1-based number of the sweep in progress; cycles have no end
+     */
+    public long cycle() {
+        return cycle;
+    }
+
+    /**
+     * @return /24s yielded since the current cycle started
+     */
+    public long cycle24s() {
+        return cycle24s;
+    }
+
+    /**
+     * @return /24s yielded since this instance was created (monotonic across cycle rollovers)
+     */
+    public long total24s() {
+        return total24s;
+    }
+
+    /**
+     * @return the next /24 network address as an unsigned 32-bit long; never fails, because a
+     *         finished cycle rolls straight into the next one
      */
     public long next24() {
         if (hasIncludeScope()) {
             return next24Scoped();
         }
-        while (current16Pos < 65536) {
-            while (current24Index < 256) {
-                long base = ((long) current16Shuffle[current24Index] & 0xFFL) << 8;
-                this.current24Index++;
-                if (!current16Excluded[current24Index - 1]) {
-                    return (((long) permuted16s[current16Pos] & 0xFFFFL) << 16) | base;
+        while (true) {
+            while (current16Pos < 65536) {
+                while (current24Index < 256) {
+                    long base = ((long) current16Shuffle[current24Index] & 0xFFL) << 8;
+                    this.current24Index++;
+                    if (!current16Excluded[current24Index - 1]) {
+                        this.cycle24s++;
+                        this.total24s++;
+                        return (((long) permuted16s[current16Pos] & 0xFFFFL) << 16) | base;
+                    }
+                }
+                this.current16Pos++;
+                if (current16Pos < 65536) {
+                    enter16(permuted16s[current16Pos]);
                 }
             }
-            this.current16Pos++;
-            if (current16Pos < 65536) {
-                enter16(permuted16s[current16Pos]);
-            }
+            startCycle(); // the sweep is over: shuffle again and keep going
         }
-        return -1;
     }
 
     private long next24Scoped() {
-        while (includeIndex < includes.size()) {
-            while (includeBase <= includeEnd) {
+        while (true) {
+            if (includeBase <= includeEnd) {
                 long base = includeBase;
                 includeBase += 256;
+                this.cycle24s++;
+                this.total24s++;
                 return base;
             }
-            includeIndex++;
-            if (includeIndex < includes.size()) {
-                long start = includes.get(includeIndex).start() & ~0xFFL;
-                long end = includes.get(includeIndex).endInclusive() & ~0xFFL;
-                includeStart = start;
-                includeEnd = end;
-                includeBase = start;
+            if (++includeIndex < includes.size()) {
+                enterInclude(includeIndex);
+            } else { // wrapped: another pass over the include ranges
+                this.cycle++;
+                this.cycle24s = 0;
+                includeIndex = 0;
+                enterInclude(0);
             }
         }
-        return -1;
+    }
+
+    /**
+     * Starts the next sweep with a shuffle derived from the root seed and the cycle number, so
+     * consecutive cycles never walk the space in the same order.
+     */
+    private void startCycle() {
+        this.cycleSeed = mix(rootSeed, cycle);
+        this.permuted16s = shuffledIndexes(cycleSeed, 65536);
+        this.current16Pos = 0;
+        this.cycle24s = 0;
+        this.cycle++;
+        enter16(permuted16s[0]);
     }
 
     /**
@@ -220,8 +253,14 @@ public final class Ipv4Space {
         return false;
     }
 
+    private void enterInclude(int index) {
+        Cidr cidr = includes.get(index);
+        this.includeBase = cidr.start() & ~0xFFL;
+        this.includeEnd = cidr.endInclusive() & ~0xFFL;
+    }
+
     private void enter16(int prefix16) {
-        current16Shuffle = shuffledIndexes(mix(seed, prefix16), 256);
+        current16Shuffle = shuffledIndexes(mix(cycleSeed, prefix16), 256);
         current16Excluded = new boolean[256];
         long network = ((long) prefix16 & 0xFFFFL) << 16;
         for (int i = 0; i < 256; i++) {

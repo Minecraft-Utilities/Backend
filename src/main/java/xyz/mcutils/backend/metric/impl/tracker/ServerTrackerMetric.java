@@ -89,7 +89,7 @@ public class ServerTrackerMetric extends Metric<ServerTrackerMetric.Holder> {
                         .register(MetricService.REGISTRY),
                 GaugeWithCallback.builder()
                         .name("server_tracker_progress_24s")
-                        .help("Number of /24 subnets completed since the scan started")
+                        .help("Number of /24 subnets completed in the discovery cycle in progress")
                         .callback(callback -> callback.call(SCAN_PROGRESS.get()))
                         .register(MetricService.REGISTRY)
         ));
@@ -153,8 +153,8 @@ public class ServerTrackerMetric extends Metric<ServerTrackerMetric.Holder> {
         getValue().refreshFailed.labelValues(reason).inc();
     }
 
-    public static void updateProgress(long completed24s) {
-        SCAN_PROGRESS.set(completed24s);
+    public static void updateProgress(long cycle24s) {
+        SCAN_PROGRESS.set(cycle24s);
     }
 
     public static void updateTrackedServers(long count) {

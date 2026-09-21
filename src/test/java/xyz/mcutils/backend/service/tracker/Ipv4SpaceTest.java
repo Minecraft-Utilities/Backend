@@ -2,10 +2,13 @@ package xyz.mcutils.backend.service.tracker;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
+import java.util.BitSet;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class Ipv4SpaceTest {
@@ -43,7 +46,6 @@ class Ipv4SpaceTest {
         Ipv4Space space = space(42);
         for (int i = 0; i < 500; i++) {
             long base = space.next24();
-            assertTrue(base >= 0, "space exhausted unexpectedly");
             assertFalse(space.isExcluded(base), "yielded excluded subnet " + Ipv4Space.longToIpv4(base));
         }
     }
@@ -57,26 +59,54 @@ class Ipv4SpaceTest {
         }
     }
 
+    /**
+     * The whole point of the sweep: one cycle covers every public /24 exactly once, then the space
+     * reshuffles and starts over instead of running out.
+     */
     @Test
-    void resumesExactlyFromProgress() {
-        Ipv4Space original = space(99);
-        for (int i = 0; i < 5; i++) {
-            assertTrue(original.next24() >= 0);
+    void sweepsEveryPublicSubnetExactlyOncePerCycle() {
+        Ipv4Space space = space(2026);
+        long perCycle = space.public24Count();
+        long[] firstOrder = new long[8];
+        BitSet seen = new BitSet(1 << 24);
+        for (long i = 0; i < perCycle; i++) {
+            long base = space.next24();
+            assertFalse(seen.get((int) (base >>> 8)), "duplicate /24 in one cycle: " + Ipv4Space.longToIpv4(base));
+            seen.set((int) (base >>> 8));
+            assertFalse(space.isExcluded(base), "yielded excluded subnet " + Ipv4Space.longToIpv4(base));
+            if (i < firstOrder.length) {
+                firstOrder[(int) i] = base;
+            }
         }
-        Ipv4Space.Progress progress = original.progress(); // position after the 5th /24
-        long expectedSixth = original.next24();
+        assertEquals(1, space.cycle(), "a cycle ends after every public /24 has been swept");
+        assertEquals(perCycle, space.cycle24s());
+        assertEquals(perCycle, space.total24s());
 
-        Ipv4Space resumed = space(99);
-        resumed.restore(progress);
-        assertEquals(expectedSixth, resumed.next24());
+        long[] nextOrder = new long[firstOrder.length];
+        for (int i = 0; i < nextOrder.length; i++) {
+            nextOrder[i] = space.next24();
+        }
+        assertEquals(2, space.cycle(), "the sweep rolls into the next cycle");
+        assertEquals(nextOrder.length, space.cycle24s());
+        assertFalse(Arrays.equals(firstOrder, nextOrder), "each cycle walks the space in a new order");
     }
 
     @Test
-    void scopedModeScansOnlyIncludedCidr() {
+    void scopedModeCyclesThroughIncludedCidr() {
         Ipv4Space test = new Ipv4Space(List.of(), List.of("127.0.0.1/32"), 1);
         assertTrue(test.hasIncludeScope());
+        assertEquals(1, test.cycle());
         assertEquals(ip(127, 0, 0, 0), test.next24());
-        assertEquals(-1, test.next24(), "scoped mode must be exhausted after the included /24");
+        assertEquals(ip(127, 0, 0, 0), test.next24(), "the include ranges are re-swept forever");
+        assertEquals(2, test.cycle());
+    }
+
+    @Test
+    void exclusionsCoveringTheWholeSpaceAreRejected() {
+        assertThrows(IllegalArgumentException.class, () -> new Ipv4Space(
+                List.of("0.0.0.0/1", "128.0.0.0/2", "192.0.0.0/3", "224.0.0.0/4", "240.0.0.0/4"),
+                List.of(), 1
+        ));
     }
 
     @Test

@@ -1,9 +1,9 @@
 # Server Tracker Plan
 
-Status: **implemented** (2026-09-20) — the internet **server tracker** is one feature: IPv4
-discovery sweep + per-server telemetry + equal-cadence refresh + public API. Rename of the v1
+Status: **implemented** (2026-09-20) — the internet **server tracker** is one feature: an endless
+IPv4 discovery sweep + per-server telemetry + equal-cadence refresh + public API. Rename of the v1
 scanner → tracker shipped (package `service.tracker`, `mc-utils.server-tracker.*` config,
-`server_tracker_*` metrics, `tracker_progress`, dashboard updated), `V43__server_tracker.sql`
+`server_tracker_*` metrics, dashboard updated), `V43__server_tracker.sql`
 applied, and every section below is live code. `mvn test` green (56 tests). End-to-end smoke
 verified against a real Postgres/Redis + a live status-protocol server: refresh claim →
 ping → store upserts (server telemetry/player history), `times_seen`
@@ -38,8 +38,8 @@ Constraints: no `pom.xml` changes; strict Controller → Service → Repository 
 ┌────────────────────────────── ServerTrackerService ──────────────────────────────┐
 │                                                                                   │
 │  Discovery loop ──► ServerTrackerDiscovery ──► ServerTrackerVerifier ──┐          │
-│  (IP space, NIO     (TCP connect probes,      (status ping + port      │          │
-│   probes, resumable) ports list)               walk + honeypot gate)   ▼          │
+│  (IPv4 space, NIO  (TCP connect probes,      (status ping + port      │          │
+│   probes, endless)  ports list)               walk + honeypot gate)   ▼          │
 │                                                                  ServerTrackerStore│
 │  Refresh cycle ──► ServerTrackerRefresher ────────────────────────► (upserts,     │
 │  (last_refreshed    (token pings, shared                         player history,  │
@@ -58,9 +58,9 @@ Components (old → new):
 | `ServerDiscoveryScanner` | `ServerTrackerDiscovery` | unchanged logic |
 | `ServerScanVerifier` | `ServerTrackerVerifier` | + `ServerSnapshot` sink (§6) |
 | `ServerScannerMetric` | `ServerTrackerMetric` | absorbs refresh + tracked metrics (§10) |
-| `ScanProgressRow` / `scan_progress` | `TrackerProgressRow` / `tracker_progress` | renamed in migration |
+| `ScanProgressRow` / `scan_progress` | `TrackerProgressRow` / `tracker_progress` | renamed in V43, dropped in V48 (the sweep keeps no cursor) |
 | `ScannedServerRow` / `scanned_servers` | `TrackedServerRow` / `tracker_servers` | full telemetry row (§4) |
-| `ServerScannerRepository` | `ServerTrackerRepository` | + `PlayerHistoryRepository`, `TrackerProgressRepository` |
+| `ServerScannerRepository` | `ServerTrackerRepository` | + `PlayerHistoryRepository` |
 | config `mc-utils.server-scanner.*` | `mc-utils.server-tracker.*` | §9 |
 | log prefix "Server scanner" | "Server tracker" | |
 | — | `ServerTrackerRefresher` | refresh cycle (§5) |
@@ -84,10 +84,12 @@ Discovery feeds new rows; the refresh cycle keeps everything current in between.
 
 Carried over from the implemented v1, renamed:
 
-- `Ipv4Space` public-space iterator (RFC 6890 + DoD exclusions, seeded /24 randomization,
-  resumable via `tracker_progress` singleton row).
+- `Ipv4Space` public-space iterator (RFC 6890 + DoD exclusions, seeded /24 randomization). It is a
+  **cycle**: every public /24 is yielded exactly once in a random order, then the space reshuffles
+  with a fresh seed and starts over, so `next24()` never runs out and discovery never stops. No
+  cursor is kept — nothing is persisted, and a restart simply begins a new cycle.
 - `ServerTrackerDiscovery` — NIO TCP-connect probes over the configurable port list, bounded
-  in-flight, pace distributed across /16s; single pass ≈ 8–9 days at 5k probes/s (tunable).
+  in-flight, pace distributed across /16s; one cycle ≈ 8–9 days at 5k probes/s (tunable).
 - `ServerTrackerVerifier` — status-ping verification, port walk (+10 beyond the last working
   port per IP, probe cap), harvest.
 - `HoneypotDetector` layers (structural v4-UUID/name checks, sample consistency, farm
@@ -109,7 +111,9 @@ beyond the defaults; run `mvn test` to prove equivalence before layering v2 on t
 
 ## 4. Telemetry schema — `V43__server_tracker.sql`
 
-Creates the tracked dataset, migrates `scanned_servers` rows, renames `scan_progress`:
+Creates the tracked dataset, migrates `scanned_servers` rows, renames `scan_progress`
+(`V48__drop_tracker_progress.sql` then drops it: the discovery sweep is endless and keeps no
+cursor):
 
 ```sql
 ALTER TABLE scan_progress RENAME TO tracker_progress;
@@ -337,10 +341,14 @@ mc-utils.server-tracker.stats.refresh-seconds: 300         # API stats recompute
 
 **Feature-flag interplay (explicit):**
 - `enabled` (discovery): when false, no IP-space probing. The refresh cycle and stats still
-  work standalone over already-tracked rows (e.g. after a previous campaign).
+  work standalone over already-tracked rows (from an earlier sweep).
 - `tracking.enabled` gates **all store writes** (server rows, player history).
   When false: discovery still probes/verifies/harvests players exactly like v1, but persists
-  nothing (progress only), and the refresh cycle idles on an empty table.
+  nothing, and the refresh cycle idles on an empty table.
+- `ip.include-cidrs` (scoped mode) ignores the exclusion list and re-sweeps only those CIDRs, in
+  order, forever — bounded-network scans for CI or a fresh deployment.
+- the sweep never ends and stores nothing between runs: a restart begins a new cycle with a random
+  order, and there is no resume/`COMPLETED` state to reason about.
 - `refresh.enabled` gates only the refresh loop; discovery updates still land in the store
   when tracking is on.
 - `geo.enabled` is independent of the others; false or missing MaxMind DB → `country`/`asn`
@@ -363,7 +371,8 @@ the submit pipeline) and is omitted:
 
 - discovery (renamed): `ip_probes_total`, `connect_open_total`, `servers_verified_total`,
   `ports_probed_walk_total`, `players_harvested_total`, `players_enqueued_total`,
-  `tracker_progress_24s` gauge;
+  `tracker_progress_24s` gauge (position inside the cycle in progress; it restarts every full
+  sweep of the IPv4 space);
 - anti-honeypot (renamed): `sample_entries_dropped_total{reason}` (incl. `fake_identity`,
   `unverified` from the sample-identity gate), `honeypot_servers_flagged_total`,
   `honeypot_fingerprints_blocked_total`;
@@ -381,6 +390,10 @@ Project has no DB test harness — unit tests with mocks/embedded fakes; the SQL
 against real Postgres in the staged rollout.
 
 - Rename phase: existing scanner tests keep passing unchanged (imports/names only);
+- endless sweep: one cycle yields every public /24 exactly once (no duplicates, none excluded) and
+  then reshuffles into the next cycle; a scoped space cycles through its CIDRs forever; exclusions
+  covering the whole space are rejected at construction; the discovery loop keeps probing across
+  cycle rollovers and stops only on `close()`;
 - store upsert semantics (first_seen preserved, last_updated bumped, username rename, platform/
   protocol/geo columns populated once, motd truncation, `times_seen` increments);
 - discovery-vs-refresh interplay (discovery re-sight advances `last_updated` + resets
@@ -416,3 +429,5 @@ against real Postgres in the staged rollout.
 6. Metrics.
 7. Stats endpoint (see `docs/SERVER_TRACKER_API_PLAN.md`) + integration test + staged rollout
    via `include-cidrs` scoped scan, then refresh on real data.
+8. `V48__drop_tracker_progress.sql`: the sweep became endless (a cycle reshuffles and restarts), so
+   the resumable cursor, its entity/repository and the progress-persist upkeep task were removed.

@@ -22,8 +22,12 @@ import java.util.concurrent.atomic.AtomicInteger;
  * IPv4 space, using {@code java.nio} non-blocking channels with a single selector thread.
  * Every host is probed on each configured discovery port (e.g. 25564, 25565, 25566), so servers
  * running only on non-standard ports are found too. Hosts are probed in a seeded random order
- * (per /16, per /24, per host), one probe per port, no retries; the in-flight cap doubles as the
- * pacing mechanism.
+ * (per cycle, per /16, per /24, per host), one probe per port, no retries; the in-flight cap
+ * doubles as the pacing mechanism.
+ * <p>
+ * The loop only ever ends on {@link #close()}: {@link Ipv4Space#next24()} never exhausts, it rolls
+ * into the next shuffled sweep of the whole IPv4 space, so discovery runs for the lifetime of the
+ * process.
  * <p>
  * CPU-conscious by design: the pending set is tracked only by an integer counter plus the
  * per-key attachment (no side map, no boxed deadlines), connects that complete synchronously
@@ -81,9 +85,6 @@ public class ServerTrackerDiscovery {
     private long current24 = -1;
     private long[] currentHosts = new long[0];
     private int hostIndex;
-    private boolean spaceExhausted;
-    private volatile Ipv4Space.Progress cursor;
-    private volatile long completed24s;
 
     public ServerTrackerDiscovery(
             Ipv4Space space,
@@ -105,24 +106,9 @@ public class ServerTrackerDiscovery {
         return discoveryPorts.size();
     }
 
-    public Ipv4Space.Progress cursor() {
-        return cursor;
-    }
-
-    public long completed24s() {
-        return completed24s;
-    }
-
     /**
-     * @return true once the entire space has been iterated (the loop may still be draining
-     *         in-flight connections)
-     */
-    public boolean isComplete() {
-        return spaceExhausted;
-    }
-
-    /**
-     * Runs the discovery loop until the space is exhausted or {@link #close()} is called.
+     * Runs the discovery loop until {@link #close()} is called: the space never exhausts, so the
+     * sweep restarts from a fresh shuffled order every time it has walked all of IPv4.
      */
     public void run() {
         if (!running.compareAndSet(false, true)) {
@@ -165,9 +151,6 @@ public class ServerTrackerDiscovery {
                     }
                 }
                 sweepExpired();
-                if (exhaustedAndIdle()) {
-                    break;
-                }
             }
         } catch (IOException e) {
             log.error("Discovery stage selector failed", e);
@@ -189,11 +172,7 @@ public class ServerTrackerDiscovery {
 
     private void fillPending() {
         while (running.get() && pendingCount.get() < concurrency) {
-            long ip = nextHost();
-            if (ip < 0) {
-                return; // space exhausted
-            }
-            String ipString = Ipv4Space.longToIpv4(ip);
+            String ipString = Ipv4Space.longToIpv4(nextHost());
             for (int port : discoveryPorts) {
                 if (metrics != null) {
                     metrics.recordProbe();
@@ -281,35 +260,24 @@ public class ServerTrackerDiscovery {
         }
     }
 
-    private boolean exhaustedAndIdle() {
-        return spaceExhausted && pendingCount.get() == 0;
-    }
-
     /**
-     * @return the next host to probe as an unsigned 32-bit long, or -1 when the space is exhausted
+     * @return the next host to probe as an unsigned 32-bit long; never runs out, because the
+     *         space rolls into its next sweep instead of ending
      */
     private long nextHost() {
-        while (true) {
-            if (current24 >= 0 && hostIndex < currentHosts.length) {
-                return currentHosts[hostIndex++];
-            }
-            if (current24 >= 0) { // finished this /24
-                long completed = ++completed24s;
-                this.cursor = space.progress();
-                if (metrics != null) {
-                    ServerTrackerMetric.updateProgress(completed);
-                }
-                current24 = -1;
-            }
-            long next24 = space.next24();
-            if (next24 < 0) {
-                spaceExhausted = true;
-                return -1;
-            }
-            current24 = next24;
-            currentHosts = Ipv4Space.hostsIn24(current24, space.seed());
-            hostIndex = 0;
+        if (current24 >= 0 && hostIndex < currentHosts.length) {
+            return currentHosts[hostIndex++];
         }
+        if (current24 >= 0) { // finished this /24
+            current24 = -1;
+            if (metrics != null) {
+                ServerTrackerMetric.updateProgress(space.cycle24s());
+            }
+        }
+        current24 = space.next24();
+        currentHosts = Ipv4Space.hostsIn24(current24, space.cycleSeed());
+        hostIndex = 0;
+        return currentHosts[hostIndex++];
     }
 
     private static List<Integer> parsePorts(String csv) {
