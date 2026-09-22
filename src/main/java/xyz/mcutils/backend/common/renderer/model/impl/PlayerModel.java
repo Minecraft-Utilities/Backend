@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Minecraft player model for software 3D rendering.
- * Coordinates: Y up, front at -Z, pos is min corner.
+ * Coordinates: Y up, front at +Z (the face/front rects), pos is min corner.
  */
 public class PlayerModel {
     private static final Map<FaceCacheKey, List<Face>> FACE_CACHE = new ConcurrentHashMap<>();
@@ -64,7 +64,7 @@ public class PlayerModel {
      *
      * <p>UV note: {@code addBox} places {@code uvs[1]} on the -Z face and {@code uvs[0]} on
      * the +Z face.  For a cape, the outer-decorative surface must face -Z (toward the camera
-     * in the front view), so we swap slots [0] and [1] before the call.</p>
+     * in the back view), so we swap slots [0] and [1] before the call.</p>
      *
      * @return an unmodifiable list of cape faces using cape-texture UV coordinates
      */
@@ -72,7 +72,7 @@ public class PlayerModel {
         List<Face> faces = new ArrayList<>();
         double[][] raw = ModelUtils.uvFrom(CapeModelCoordinates.ModelBox.CAPE.getUv());
         // Swap [0] (outer-decorative) and [1] (inner-lining) so addBox places the
-        // outer-decorative texture on the -Z face (facing the camera in the front view).
+        // outer-decorative texture on the -Z face (facing the camera in the back view).
         double[][] uvs = new double[][]{raw[1], raw[0], raw[2], raw[3], raw[4], raw[5]};
         ModelUtils.addBox(faces, -5, 8, -3, 10, 16, 1, uvs);
         // Tilt the cape +5° around the top attachment edge (y=24, z=-2): the bottom swings

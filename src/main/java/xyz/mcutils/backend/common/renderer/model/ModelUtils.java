@@ -33,7 +33,8 @@ public final class ModelUtils {
     }
 
     /**
-     * Adds a box (6 faces) to the face list. Front at -Z, back at +Z.
+     * Adds a box (6 faces) to the face list. The front rect (uvs[0]) lands on the +Z face and the
+     * back rect (uvs[1]) on the -Z face, which is the orientation the isometric views expect.
      */
     public static void addBox(List<Face> faces, double px, double py, double pz, double w, double h, double d, double[][] uvs) {
         double x1 = px + w;
@@ -43,7 +44,10 @@ public final class ModelUtils {
         // north (front at -Z), south (back at +Z), up, down, west (-X), east (+X)
         faces.add(new Face(new Vector3(px, y1, pz), new Vector3(x1, y1, pz), new Vector3(px, py, pz), new Vector3(x1, py, pz), uvs[1][0], uvs[1][1], uvs[1][2], uvs[1][3], new Vector3(0, 0, -1)));
 
-        faces.add(new Face(new Vector3(px, y1, z1), new Vector3(x1, y1, z1), new Vector3(px, py, z1), new Vector3(x1, py, z1), uvs[0][0], uvs[0][1], uvs[0][2], uvs[0][3], new Vector3(0, 0, 1)));
+        // The +Z face is walked right-to-left (x1 -> px): every face maps its first vertex to the
+        // uvs rect's left edge, and this rect runs the opposite way to the -Z face's, so walking it
+        // from px would draw the model's front (head face, body front, ...) mirrored.
+        faces.add(new Face(new Vector3(x1, y1, z1), new Vector3(px, y1, z1), new Vector3(x1, py, z1), new Vector3(px, py, z1), uvs[0][0], uvs[0][1], uvs[0][2], uvs[0][3], new Vector3(0, 0, 1)));
 
         faces.add(new Face(new Vector3(x1, y1, pz), new Vector3(px, y1, pz), new Vector3(x1, y1, z1), new Vector3(px, y1, z1), uvs[4][0], uvs[4][1], uvs[4][2], uvs[4][3], new Vector3(0, 1, 0)));
 

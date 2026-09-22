@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Minecraft player head model for software 3D rendering.
- * Same coordinate system as PlayerModel: Y up, front at -Z.
+ * Same coordinate system as PlayerModel: Y up, front at +Z.
  */
 public class PlayerHeadModel {
     private static final Map<FaceCacheKey, List<Face>> FACE_CACHE = new ConcurrentHashMap<>();
