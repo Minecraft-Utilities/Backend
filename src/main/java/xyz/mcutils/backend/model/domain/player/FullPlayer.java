@@ -47,7 +47,7 @@ public class FullPlayer extends BasicPlayer {
         return FullPlayer.builder()
                 .uniqueId(playerRow.getId())
                 .username(playerRow.getUsername())
-                .skin(Skin.fromRow(playerRow.getSkin()))
+                .skin(Skin.fromRowForPlayer(playerRow.getSkin(), playerRow.getUsername()))
                 .cape(cape != null ? VanillaCape.fromRow(cape) : null)
                 .firstSeen(playerRow.getFirstSeen())
                 .legacyAccount(playerRow.isLegacyAccount())

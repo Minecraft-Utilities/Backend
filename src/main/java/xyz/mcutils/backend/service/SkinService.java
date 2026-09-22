@@ -24,6 +24,7 @@ import xyz.mcutils.backend.metric.impl.skin.SkinRenderMetric;
 import xyz.mcutils.backend.model.domain.skin.Skin;
 import xyz.mcutils.backend.model.domain.skin.SkinLookupSort;
 import xyz.mcutils.backend.model.domain.skin.VanillaSkinTextureIds;
+import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
 import xyz.mcutils.backend.model.persistence.postgres.SkinRow;
 import xyz.mcutils.backend.model.token.mojang.SkinTextureToken;
 import xyz.mcutils.backend.repository.postgres.PlayerRepository;
@@ -158,6 +159,21 @@ public class SkinService {
             throw new NotFoundException("Skin not found for player '%s'".formatted(playerQuery));
         }
         return optionalSkinRow.get();
+    }
+
+    /**
+     * When {@code query} is a player username or UUID, returns that player's current username
+     * for Content-Disposition filenames on rendered skin parts.
+     */
+    public Optional<String> findPlayerUsernameForSkinQuery(String query) {
+        if (query.isEmpty() || query.chars().allMatch(Character::isDigit) || query.length() > 36) {
+            return Optional.empty();
+        }
+        boolean isUsername = query.length() <= 16;
+        Optional<PlayerRow> player = isUsername
+                ? this.playerRepository.findByUsernameIgnoreCase(query)
+                : this.playerRepository.findById(UUIDUtils.parseUuid(query));
+        return player.map(PlayerRow::getUsername);
     }
 
     /**

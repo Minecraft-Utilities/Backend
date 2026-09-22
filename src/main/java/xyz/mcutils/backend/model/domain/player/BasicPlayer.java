@@ -51,7 +51,7 @@ public class BasicPlayer {
         return BasicPlayer.builder()
                 .uniqueId(row.getId())
                 .username(row.getUsername())
-                .skin(Skin.fromRow(row.getSkin()))
+                .skin(Skin.fromRowForPlayer(row.getSkin(), row.getUsername()))
                 .cape(cape != null ? VanillaCape.fromRow(cape) : null)
                 .firstSeen(row.getFirstSeen())
                 .build();
