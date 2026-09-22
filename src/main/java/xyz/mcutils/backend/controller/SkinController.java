@@ -7,9 +7,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import xyz.mcutils.backend.common.EnumUtils;
 import xyz.mcutils.backend.common.Pagination;
 import xyz.mcutils.backend.common.renderer.RenderOptions;
 import xyz.mcutils.backend.model.domain.cape.impl.VanillaCape;
@@ -18,6 +21,7 @@ import xyz.mcutils.backend.model.domain.skin.SkinLookupSort;
 import xyz.mcutils.backend.service.CapeService;
 import xyz.mcutils.backend.service.SkinService;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 @RestController
@@ -59,6 +63,19 @@ public class SkinController {
         VanillaCape cape = (capeId != null && !capeId.trim().isEmpty()) ? VanillaCape.fromRow(this.capeService.getCapeByQuery(capeId)) : null;
         RenderOptions options = new RenderOptions(overlays, cape);
         byte[] bytes = skinService.renderSkin(skin, type, options, size);
-        return ResponseEntity.ok().cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic()).contentType(MediaType.IMAGE_PNG).body(bytes);
+
+        ResponseEntity.BodyBuilder response = ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic())
+                .contentType(MediaType.IMAGE_PNG);
+        Skin.SkinPart part = EnumUtils.getEnumConstant(Skin.SkinPart.class, type);
+        this.skinService.findPlayerUsernameForSkinQuery(query).ifPresent(username -> {
+            if (part != null) {
+                ContentDisposition disposition = ContentDisposition.inline()
+                        .filename(Skin.partFileName(username, part), StandardCharsets.UTF_8)
+                        .build();
+                response.header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString());
+            }
+        });
+        return response.body(bytes);
     }
 }

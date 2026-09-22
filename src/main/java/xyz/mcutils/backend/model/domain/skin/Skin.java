@@ -87,8 +87,42 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
 
         this.parts = new HashMap<>();
         for (SkinPart part : SkinPart.values()) {
-            this.parts.put(part.name(), "%s/skins/%s/%s.png".formatted(AppConfig.INSTANCE.getWebPublicUrl(), id, part.name().toLowerCase()));
+            this.parts.put(part.name(), partUrl(id, part));
         }
+    }
+
+    /**
+     * Rewrites rendered part URLs to use a player username or UUID in the path
+     * (e.g. for save-as filenames and player profile links).
+     */
+    public void usePlayerPartUrls(String query) {
+        for (SkinPart part : SkinPart.values()) {
+            this.parts.put(part.name(), partUrl(query, part));
+        }
+    }
+
+    private static String partUrl(Object query, SkinPart part) {
+        return "%s/skins/%s/%s.png".formatted(AppConfig.INSTANCE.getWebPublicUrl(), query, part.name().toLowerCase());
+    }
+
+    /**
+     * Human-readable filename for a rendered skin part (e.g. {@code Notch Face.png}).
+     */
+    public static String partFileName(String username, SkinPart part) {
+        return username + " " + formatPartName(part) + ".png";
+    }
+
+    private static String formatPartName(SkinPart part) {
+        String[] tokens = part.name().split("_");
+        StringBuilder name = new StringBuilder();
+        for (int i = 0; i < tokens.length; i++) {
+            if (i > 0) {
+                name.append(' ');
+            }
+            String token = tokens[i];
+            name.append(Character.toUpperCase(token.charAt(0))).append(token.substring(1).toLowerCase());
+        }
+        return name.toString();
     }
 
     /**
@@ -156,5 +190,11 @@ public class Skin extends Texture implements PartRenderable<Skin, Skin.SkinPart>
                 skinRow.isLegacy(),
                 skinRow.getFirstSeen()
         );
+    }
+
+    public static Skin fromRowForPlayer(SkinRow skinRow, String username) {
+        Skin skin = fromRow(skinRow);
+        skin.usePlayerPartUrls(username);
+        return skin;
     }
 }
