@@ -166,9 +166,9 @@ mc-utils:
 
   # Background player refresh (Mojang session server profile lookups).
   player-refresh:
-    chunk-size: 2500
-    concurrent-fetches: 200
-    mojang-rate-limit: 600
+    chunk-size: 5000
+    concurrent-fetches: 400
+    mojang-rate-limit: 800
     concurrent-persists: 64
 
   # Internet server tracker: sweeps the public IPv4 space for Java Minecraft servers,
