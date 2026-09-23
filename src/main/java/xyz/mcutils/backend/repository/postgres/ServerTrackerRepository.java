@@ -1,6 +1,7 @@
 package xyz.mcutils.backend.repository.postgres;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,8 +13,11 @@ import java.util.UUID;
 
 public interface ServerTrackerRepository extends JpaRepository<TrackedServerRow, UUID> {
     Optional<TrackedServerRow> findByIpAndPort(String ip, int port);
+    Slice<TrackedServerRow> findByHoneypotFalseOrderByLastUpdatedDescUuidAsc(Pageable pageable);
 
-    @Query("SELECT COUNT(t) FROM TrackedServerRow t")
+    Optional<TrackedServerRow> findByUuidAndHoneypotFalse(UUID uuid);
+
+    @Query("SELECT COUNT(t) FROM TrackedServerRow t WHERE t.honeypot = false")
     long countTrackedServers();
 
     /**
@@ -37,13 +41,13 @@ public interface ServerTrackerRepository extends JpaRepository<TrackedServerRow,
             """, nativeQuery = true)
     long countVerifiedOnlinePlayers(@Param("graceSeconds") int graceSeconds);
 
-    @Query("SELECT t.country AS groupKey, COUNT(t) AS total FROM TrackedServerRow t WHERE t.country IS NOT NULL GROUP BY t.country ORDER BY COUNT(t) DESC")
+    @Query("SELECT t.country AS groupKey, COUNT(t) AS total FROM TrackedServerRow t WHERE t.honeypot = false AND t.country IS NOT NULL GROUP BY t.country ORDER BY COUNT(t) DESC")
     List<Breakdown> topCountries(Pageable pageable);
 
-    @Query("SELECT LOWER(COALESCE(t.platform, 'unknown')) AS groupKey, COUNT(t) AS total FROM TrackedServerRow t GROUP BY LOWER(COALESCE(t.platform, 'unknown')) ORDER BY COUNT(t) DESC")
+    @Query("SELECT LOWER(COALESCE(t.platform, 'unknown')) AS groupKey, COUNT(t) AS total FROM TrackedServerRow t WHERE t.honeypot = false GROUP BY LOWER(COALESCE(t.platform, 'unknown')) ORDER BY COUNT(t) DESC")
     List<Breakdown> topPlatforms(Pageable pageable);
 
-    @Query("SELECT t.protocol AS groupKey, COUNT(t) AS total FROM TrackedServerRow t WHERE t.protocol IS NOT NULL AND t.protocol <> -1 GROUP BY t.protocol ORDER BY COUNT(t) DESC")
+    @Query("SELECT t.protocol AS groupKey, COUNT(t) AS total FROM TrackedServerRow t WHERE t.honeypot = false AND t.protocol IS NOT NULL AND t.protocol <> -1 GROUP BY t.protocol ORDER BY COUNT(t) DESC")
     List<Breakdown> topProtocols(Pageable pageable);
 
     interface Breakdown {

@@ -1,14 +1,13 @@
 # Server Tracker Plan
 
-Status: **implemented** (2026-09-20) — the internet **server tracker** is one feature: an endless
+Status: **implemented** (2026-09-23) — the internet **server tracker** is one feature: an endless
 IPv4 discovery sweep + per-server telemetry + equal-cadence refresh + public API. Rename of the v1
 scanner → tracker shipped (package `service.tracker`, `mc-utils.server-tracker.*` config,
-`server_tracker_*` metrics, dashboard updated), `V43__server_tracker.sql`
-applied, and every section below is live code. `mvn test` green (56 tests). End-to-end smoke
-verified against a real Postgres/Redis + a live status-protocol server: refresh claim →
-ping → store upserts (server telemetry/player history), `times_seen`
-increments, offline counting, and the stats endpoint + cache header. Public API surface:
-`docs/SERVER_TRACKER_API_PLAN.md`.
+`server_tracker_*` metrics, dashboard updated), `V43__server_tracker.sql` and
+`V49__tracker_api_indexes.sql` applied, and every section below is live code. The public API now
+exposes statistics, paginated servers, server detail, and tracked-player sightings; every counter
+and resource excludes honeypot servers. Focused tracker tests and a PostgreSQL/HTTP smoke pass.
+See `docs/SERVER_TRACKER_API_PLAN.md` for the API contract.
 
 ---
 
@@ -21,11 +20,11 @@ One service, one namespace, one dataset. The tracker:
   favicon fingerprints, latency, secure-chat flags —
 - keeps every tracked server current with a continuous **refresh cycle where all servers are
   equal** (no velocity, no priority tiers, no scheduled timestamps),
-- exposes the dataset over the public API (stats first).
+- exposes the dataset through honeypot-free public statistics and read APIs.
 
 The v1 scanner mindset ("servers as a means to harvest player names") is replaced by the tracker
-mindset: **the servers themselves are the dataset**, consumers of it (stats endpoint, later
-server lists/history) come first.
+mindset: **the servers themselves are the dataset**, and both aggregate statistics and per-server
+resources are public API consumers.
 
 Constraints: no `pom.xml` changes; strict Controller → Service → Repository layering; explicit
 `{}` braces; Java 25 features where natural.
@@ -65,7 +64,7 @@ Components (old → new):
 | log prefix "Server scanner" | "Server tracker" | |
 | — | `ServerTrackerRefresher` | refresh cycle (§5) |
 | — | `ServerTrackerStore` | persistence + geo (§6) |
-| — | `TrackerController` / `TrackerStatsService` | API (`docs/SERVER_TRACKER_API_PLAN.md`) |
+| — | `TrackerController` / `TrackerStatsService` / `TrackerQueryService` | public API (`docs/SERVER_TRACKER_API_PLAN.md`) |
 
 **Unchanged internals:** `Ipv4Space`, `HoneypotDetector`, `ScanFingerprintStore` /
 `RedisScanFingerprintStore`, `BufferedHarvester` — generic enough to keep
@@ -433,3 +432,5 @@ against real Postgres in the staged rollout.
    via `include-cidrs` scoped scan, then refresh on real data.
 8. `V48__drop_tracker_progress.sql`: the sweep became endless (a cycle reshuffles and restarts), so
    the resumable cursor, its entity/repository and the progress-persist upkeep task were removed.
+9. Honeypot-free paginated server, server-detail, and tracked-player APIs with response records,
+   filtered joined queries, and `V49__tracker_api_indexes.sql`.

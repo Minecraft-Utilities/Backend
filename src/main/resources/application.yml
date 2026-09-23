@@ -174,7 +174,7 @@ mc-utils:
   # Internet server tracker: sweeps the public IPv4 space for Java Minecraft servers,
   # persists per-server telemetry (counts, version, geo, platform, protocol, player
   # history), keeps tracked servers current with an equal-cadence refresh cycle, and
-  # exposes stats over the API. Defaults to enabled; opt out per feature.
+  # exposes honeypot-free stats and read APIs. Defaults to enabled; opt out per feature.
   server-tracker:
     enabled: true
     # Console progress summary interval in seconds (min 10).
