@@ -59,8 +59,7 @@ public class SkinService {
             .weigher((String key, byte[] value) -> value.length)
             .build();
     /**
-     * Upgraded/fixed texture bytes are content-addressed per textureId and never change;
-     * previously every texture request re-decoded + re-scanned + re-encoded the PNG.
+     * Upgraded/fixed texture bytes are content-addressed per textureId and never change.
      */
     private final Cache<String, byte[]> processedTextureCache = CacheBuilder.newBuilder()
             .expireAfterWrite(24, TimeUnit.HOURS)

@@ -36,7 +36,6 @@ public final class BedrockPacketUnconnectedPing implements MinecraftBedrockPacke
         buffer.put(MAGIC); // Magic
         buffer.putLong(0L); // Client GUID
 
-        // Send the packet
         socket.send(new DatagramPacket(buffer.array(), 0, buffer.limit()));
     }
 }

@@ -48,7 +48,6 @@ public final class JavaMinecraftServerPinger implements MinecraftServerPinger<Ja
     public JavaServerStatusToken pingToken(String hostname, String ip, int port, DNSRecord[] records, int timeout) {
         log.debug("Pinging {}:{}...", hostname, port);
 
-        // Open a socket connection to the server
         try (Socket socket = new Socket()) {
             socket.setTcpNoDelay(true);
             // Connect to the already-resolved IP instead of re-resolving the hostname through the
@@ -58,14 +57,11 @@ public final class JavaMinecraftServerPinger implements MinecraftServerPinger<Ja
             socket.connect(new InetSocketAddress(target, port), timeout);
             socket.setSoTimeout(timeout);
 
-            // Open data streams to begin packet transaction
             try (DataInputStream inputStream = new DataInputStream(socket.getInputStream()); DataOutputStream outputStream = new DataOutputStream(socket.getOutputStream())) {
-                // Send the handshake packet
                 JavaPacketHandshakingInSetProtocol handshakePacket = new JavaPacketHandshakingInSetProtocol(hostname, port, JavaMinecraftVersion.getLatestVersion().getProtocol());
                 handshakePacket.process(inputStream, outputStream);
                 outputStream.flush();
 
-                // Send the status request and await the response
                 JavaPacketStatusInStart packetStatusInStart = new JavaPacketStatusInStart();
                 packetStatusInStart.process(inputStream, outputStream);
                 outputStream.flush();

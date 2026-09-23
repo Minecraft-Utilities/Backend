@@ -79,7 +79,6 @@ public class ServerService {
      */
     public CachedMinecraftServer getServer(String platformName, String hostname) {
         if (IP_VALIDATOR.isValid(hostname)) {
-            // Check if the IP is allowed to be pinged.
             this.checkSubnet(hostname);
         }
 
@@ -102,7 +101,6 @@ public class ServerService {
         String key = "%s-%s-%s".formatted(platformName, hostname, port);
         log.debug("Getting server: {}:{}", hostname, port);
 
-        // Check if the server is cached
         long cacheStart = System.currentTimeMillis();
         if (cacheEnabled) {
             Optional<CachedMinecraftServer> cached = serverCacheRepository.findById(key);
@@ -136,7 +134,6 @@ public class ServerService {
             throw new BadRequestException("Hostname returned an invalid ip: '%s'".formatted(hostname));
         }
 
-        // Check if the IP is allowed to be pinged.
         if (IP_VALIDATOR.isValid(ip)) {
             this.checkSubnet(ip);
         }
@@ -152,10 +149,8 @@ public class ServerService {
         cachedServer.getServer().setLocation(ipLookup.location());
         cachedServer.getServer().setAsn(ipLookup.asn());
 
-        // Add server entry data
         this.serverRegistryService.getEntryByHostname(hostname).ifPresent(serverRegistryEntry -> cachedServer.getServer().setRegistryEntry(serverRegistryEntry));
 
-        // Check if the server is blocked by Mojang
         if (platform == Platform.JAVA) {
             ((JavaMinecraftServer) cachedServer.getServer()).setMojangBlocked(mojangService.isServerBlocked(hostname));
         }
@@ -213,7 +208,6 @@ public class ServerService {
         log.debug("Getting preview for server: {}:{} (size {})", server.getHostname(), server.getPort(), size);
         String key = "%s-%s-%s-%s".formatted(platform, server.getHostname(), server.getPort(), size);
 
-        // Check if the server preview is cached
         long cacheStart = System.currentTimeMillis();
         Optional<CachedServerPreview> cached = serverPreviewCacheRepository.findById(key);
         if (cached.isPresent() && previewCacheEnabled) {

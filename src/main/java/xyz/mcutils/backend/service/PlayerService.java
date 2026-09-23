@@ -115,7 +115,7 @@ public class PlayerService {
             PlayerRow playerRow = optionalPlayerRow.get();
             // Only refresh on-demand for viewed players; the background loop owns the long tail.
             // The shared limiter keeps this path inside the same Mojang budget as the background
-            // refresh and submit queue (previously this bypassed all rate limiting).
+            // refresh and submit queue.
             if (playerRow.getNextRefreshAt().isBefore(Instant.now()) && playerRow.getMonthlyViews() > 0) {
                 Main.EXECUTOR.execute(() -> {
                     try {
@@ -188,8 +188,8 @@ public class PlayerService {
 
     @Transactional
     public void createPlayers(List<MojangProfileToken> tokens) {
-        // Precompute the first player owning each distinct texture once (O(N)); previously each
-        // per-texture future re-scanned the whole token list, making this O(distinct x N).
+        // Precompute the first owner of each distinct texture, so the per-texture futures below
+        // don't each re-scan the token list (O(N) instead of O(distinct x N)).
         Map<String, UUID> firstSkinOwnerByTextureId = new HashMap<>();
         Map<String, UUID> firstCapeOwnerByTextureId = new HashMap<>();
         for (MojangProfileToken token : tokens) {

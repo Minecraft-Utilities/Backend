@@ -58,12 +58,11 @@ class ServerTrackerDiscoveryTest {
      * descriptor budget. These two ports stand in for the real sweep: connects to the blackhole
      * port hang, so every pending probe holds a descriptor (like a firewalled host), while connects
      * to the closed port are refused, and with a connect timeout of zero they are settled after
-     * their deadline — the late resolution that used to make the loop count a probe down twice,
-     * once in the selected-key pass and again in the expiry sweep that follows it in the same
-     * iteration (a cancelled key only leaves the selector's key set on the next select). The
-     * doubled decrement drifted the effective ceiling upwards without bound, so the loop kept
-     * opening sockets the cap was supposed to forbid: this test used to see ~220x the configured
-     * concurrency before the process ran out of descriptors.
+     * their deadline. A probe settled late must still be counted down exactly once: counting it in
+     * the selected-key pass and again in the expiry sweep that follows it in the same iteration (a
+     * cancelled key only leaves the selector's key set on the next select) drifts the ceiling
+     * upwards without bound, and the loop then opens far more sockets than the cap allows until the
+     * process runs out of descriptors.
      */
     @Test
     void holdsNoMoreSocketsThanTheConfiguredConcurrency() throws Exception {

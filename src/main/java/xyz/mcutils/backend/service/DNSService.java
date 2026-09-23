@@ -30,8 +30,8 @@ public class DNSService {
      */
     private static final String SRV_QUERY_PREFIX = "_minecraft._tcp.%s";
     /**
-     * Negative results (no SRV/A record) are cached too — an absent SRV record is the common
-     * case, and previously every server-cache miss fired a fresh blocking DNS query for it.
+     * Negative results (no SRV/A record) are cached too: an absent SRV record is the common
+     * case, and each server-cache miss would otherwise fire a fresh blocking DNS query.
      */
     private final Cache<DnsCacheKey, Optional<DNSRecord>> objectCache;
     /**

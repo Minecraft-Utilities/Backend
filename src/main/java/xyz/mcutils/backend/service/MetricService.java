@@ -110,8 +110,8 @@ public class MetricService {
     }
 
     /**
-     * Refreshes the in-memory snapshots behind gauges that previously hit Postgres/Redis
-     * on every /metrics scrape. Runs on the shared scheduler, off the scrape path.
+     * Refreshes the in-memory snapshots behind gauges that must not query Postgres/Redis on
+     * the /metrics scrape path. Runs on the shared scheduler.
      */
     @Scheduled(fixedRate = 30_000, initialDelay = 10_000)
     public void refreshCachedMetrics() {

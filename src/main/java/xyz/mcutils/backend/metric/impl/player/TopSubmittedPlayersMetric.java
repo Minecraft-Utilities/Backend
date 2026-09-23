@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Exposes the top 10 players by total submitted UUIDs as a gauge.
  * The callback reads an in-memory snapshot refreshed on a schedule, so scraping /metrics
- * never executes a Postgres query (previously every scrape ran an ORDER BY on the request thread).
+ * never executes a Postgres query.
  * <p>
  * The snapshot holder is static because the registered gauge callback is built inside the
  * {@code super(...)} call, which cannot reference the not-yet-constructed instance; this class

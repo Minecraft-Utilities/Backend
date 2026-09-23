@@ -13,6 +13,13 @@
 - **Control Flow Braces:** ALWAYS use explicit braces `{}` for control flow. Do not write single-statement `if`, `else`, `for`, `while`, or `do-while` loops on a single line without braces.
   - *DON'T:* `if (elem instanceof String s) out.add(s);`
   - *DO:* `if (elem instanceof String s) { out.add(s); }`
+- **Comments:** Write one only when the code cannot say it itself, and only to explain WHY. A comment that a reader can reconstruct from the line above it is noise.
+  - NEVER changelog narration: `previously …`, `used to …`, `no longer …`, `X was replaced by Y`. Git history owns that, and it rots in the source.
+  - NEVER restate the code, the method name, or a `@param`/`@return` the signature already states.
+  - NEVER comment self-evident fields, members, control flow, or constants whose name says what they are.
+  - *DON'T:* `// Increment the counter` over `counter++;`
+  - *DO:* `// Only the caller that created the load removes the key, or a joiner could start a duplicate load.`
+  - Javadoc stays on public API, but only for what the signature cannot convey: contract, invariants, side effects, failure modes.
 
 ## Architecture & Data Handling
 - **Layered Pattern:** Maintain strict isolation: Controller -> Service -> Repository -> Entity.

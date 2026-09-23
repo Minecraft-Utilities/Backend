@@ -116,7 +116,6 @@ public class MojangService {
             return false;
         }
 
-        // Remove trailing dots
         while (hostname.charAt(hostname.length() - 1) == '.') {
             hostname = hostname.substring(0, hostname.length() - 1);
         }
@@ -140,7 +139,6 @@ public class MojangService {
                 break;
             }
         }
-        // Check if the hostname is blocked
         if (!isIp && isServerHostnameBlocked("*." + hostname)) {
             return true;
         }

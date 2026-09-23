@@ -106,7 +106,6 @@ public final class ColorUtils {
                 }
             }
 
-            // Check if style changed
             boolean sameStyle = Objects.equals(color, activeColor) && fmt == activeFmt;
             if (!sameStyle) {
                 if (!pending.isEmpty()) {

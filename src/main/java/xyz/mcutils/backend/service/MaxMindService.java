@@ -67,7 +67,6 @@ public class MaxMindService {
 
     @PostConstruct
     public void onInitialize() {
-        // Load the databases
         if (!license.isEmpty()) {
             loadDatabases();
         }
@@ -195,7 +194,6 @@ public class MaxMindService {
         }
         log.debug("Database directory: {}", databasesDir.getAbsolutePath());
 
-        // Create the directory if it doesn't exist
         if (!databasesDir.exists()) {
             databasesDir.mkdirs();
             log.debug("Created databases directory at {}", databasesDir.getAbsolutePath());

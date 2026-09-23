@@ -49,9 +49,8 @@ public final class CoalescingLoader<K, V> {
             }
             throw new IllegalStateException(cause != null ? cause : e);
         } finally {
-            // Only the caller that created the load removes the key, so concurrent callers
-            // joining the same in-flight load can never remove it out from under each other
-            // (previously every joiner removed it, opening a window for duplicate loads).
+            // Only the caller that created the load removes the key: if every joiner removed it,
+            // a later caller could start a second load for the same key.
             if (created.get() != null) {
                 inFlight.remove(key);
             }

@@ -34,11 +34,9 @@ public final class JavaPacketStatusInStart extends MinecraftJavaPacket {
      */
     @Override
     public void process(@NonNull DataInputStream inputStream, @NonNull DataOutputStream outputStream) throws IOException {
-        // Send the status request
         outputStream.writeByte(0x01); // Size of packet
         outputStream.writeByte(ID);
 
-        // Read the status response
         readVarInt(inputStream); // Size of the response
         int id = readVarInt(inputStream);
         if (id == -1) { // The stream was prematurely ended
@@ -56,7 +54,6 @@ public final class JavaPacketStatusInStart extends MinecraftJavaPacket {
             throw new IOException("Server returned unexpected value.");
         }
 
-        // Get the json response
         byte[] data = new byte[length];
         inputStream.readFully(data);
         response = new String(data);

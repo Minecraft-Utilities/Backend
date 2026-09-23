@@ -56,7 +56,6 @@ public final class JavaPacketHandshakingInSetProtocol extends MinecraftJavaPacke
             handshake.writeShort(port); // Write the port
             writeVarInt(handshake, STATUS_HANDSHAKE); // Write the status handshake ID
 
-            // Write the handshake bytes to the output stream
             writeVarInt(outputStream, handshakeBytes.size());
             outputStream.write(handshakeBytes.toByteArray());
         }

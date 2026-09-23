@@ -50,9 +50,8 @@ public abstract class WebSocket extends TextWebSocketHandler {
     /**
      * Sends a message to all connected clients.
      * <p>
-     * Serializes the payload once and shares the {@link TextMessage} across sessions
-     * (previously the payload was serialized once per client). Each send is guarded so a
-     * single closed/slow session cannot abort the fan-out to the remaining clients.
+     * Serializes the payload once and shares the {@link TextMessage} across sessions. Each
+     * send is guarded so a single closed/slow session cannot abort the fan-out to the rest.
      *
      * @param message the message to send
      */

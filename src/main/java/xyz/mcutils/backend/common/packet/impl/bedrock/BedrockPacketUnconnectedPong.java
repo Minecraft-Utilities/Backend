@@ -36,7 +36,6 @@ public final class BedrockPacketUnconnectedPong implements MinecraftBedrockPacke
      */
     @Override
     public void process(@NonNull DatagramSocket socket) throws IOException {
-        // Handle receiving of the packet
         byte[] receiveData = new byte[2048];
         DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
         socket.receive(receivePacket);

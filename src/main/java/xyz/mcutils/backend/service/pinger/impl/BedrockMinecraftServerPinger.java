@@ -35,7 +35,6 @@ public final class BedrockMinecraftServerPinger implements MinecraftServerPinger
         log.debug("Pinging {}:{}...", hostname, port);
         long before = System.currentTimeMillis(); // Timestamp before pinging
 
-        // Open a socket connection to the server
         try (DatagramSocket socket = new DatagramSocket()) {
             socket.setSoTimeout(timeout);
             // Connect to the already-resolved IP; DatagramSocket.connect would otherwise
@@ -46,10 +45,8 @@ public final class BedrockMinecraftServerPinger implements MinecraftServerPinger
             long ping = System.currentTimeMillis() - before; // Calculate the ping
             log.debug("Pinged {}:{} in {}ms", hostname, port, ping);
 
-            // Send the unconnected ping packet
             new BedrockPacketUnconnectedPing().process(socket);
 
-            // Handle the received unconnected pong packet
             BedrockPacketUnconnectedPong unconnectedPong = new BedrockPacketUnconnectedPong();
             unconnectedPong.process(socket);
             String response = unconnectedPong.getResponse();
