@@ -6,12 +6,15 @@ import java.time.Instant;
 /**
  * Computes per-player refresh intervals from change velocity and popularity.
  * All state is persisted on {@code players}; selection queries only read {@code next_refresh_at}.
+ * Intervals are spaced geometrically between {@link #MIN_INTERVAL} and {@link #IDLE_INTERVAL}, so the
+ * refresh rate tracks the change rate across orders of magnitude instead of a flat hourly range.
  */
 public final class PlayerRefreshSchedule {
 
     public static final Duration BASE_INTERVAL = Duration.ofHours(3);
     public static final Duration MIN_INTERVAL = Duration.ofMinutes(20);
-    public static final Duration MAX_INTERVAL = Duration.ofHours(24);
+    /** Ceiling for a player with no observed activity. */
+    public static final Duration IDLE_INTERVAL = Duration.ofDays(14);
     public static final Duration FAILURE_BACKOFF = Duration.ofMinutes(30);
     /**
      * Re-check a player shortly after a detected change: a player who just changed is far
@@ -24,12 +27,15 @@ public final class PlayerRefreshSchedule {
     private static final double HALF_LIFE_HOURS = 48.0;
     private static final double VELOCITY_WEIGHT = 2.0;
     private static final double VIEW_WEIGHT = 0.05;
+    private static final double CHANGE_BUMP = 2.0;
     private static final double MAX_VELOCITY = 30.0;
+    /** Activity at which a player lands on the geometric midpoint of the interval range. */
+    private static final double ACTIVITY_HALF = 1.0;
+    private static final double MIN_OVER_IDLE = (double) MIN_INTERVAL.toMillis() / IDLE_INTERVAL.toMillis();
 
     /**
      * Minimum change velocity for a player to join the "hot" refresh tier (claimed before the
-     * cold tier, ordered by velocity descending). At this velocity the adaptive interval is
-     * roughly {@link #MAX_INTERVAL}/2 or less, i.e. meaningfully hotter than the stable baseline.
+     * cold tier, ordered by velocity descending).
      * <p>
      * MUST stay in sync with the partial index predicate in
      * {@code V39__hot_refresh_priority_index.sql} and the JPQL literals in
@@ -51,7 +57,7 @@ public final class PlayerRefreshSchedule {
         }
         double velocity = currentVelocity * Math.pow(0.5, hoursSince / HALF_LIFE_HOURS);
         if (hadChanges) {
-            velocity += 2.0;
+            velocity += CHANGE_BUMP;
         }
         return Math.min(velocity, MAX_VELOCITY);
     }
@@ -65,15 +71,14 @@ public final class PlayerRefreshSchedule {
     }
 
     /**
-     * Maps activity (velocity + popularity) to a refresh interval between {@link #MIN_INTERVAL} and {@link #MAX_INTERVAL}.
-     * Zero activity yields {@link #MAX_INTERVAL}; high activity approaches {@link #MIN_INTERVAL}.
+     * Maps activity (velocity + popularity) to a refresh interval between {@link #MIN_INTERVAL} and {@link #IDLE_INTERVAL}.
+     * Zero activity yields {@link #IDLE_INTERVAL}; the interval shrinks geometrically as activity rises.
      */
     public static Duration intervalFor(double velocity, long monthlyViews) {
         double activity = VELOCITY_WEIGHT * velocity + VIEW_WEIGHT * Math.log1p(monthlyViews);
-        long span = MAX_INTERVAL.toMillis() - MIN_INTERVAL.toMillis();
-        long intervalMs = (long) (span / (1.0 + activity) + MIN_INTERVAL.toMillis());
-        intervalMs = Math.clamp(intervalMs, MIN_INTERVAL.toMillis(), MAX_INTERVAL.toMillis());
-        return Duration.ofMillis(intervalMs);
+        double hotness = activity / (activity + ACTIVITY_HALF);
+        long intervalMs = (long) (IDLE_INTERVAL.toMillis() * Math.pow(MIN_OVER_IDLE, hotness));
+        return Duration.ofMillis(Math.clamp(intervalMs, MIN_INTERVAL.toMillis(), IDLE_INTERVAL.toMillis()));
     }
 
     public static Instant computeNextRefreshAt(double velocity, long monthlyViews, Instant now) {

@@ -27,7 +27,7 @@ public class PlayerRefreshMetric extends Metric<PlayerRefreshMetric.Holder> {
                 Histogram.builder()
                         .name("player_refresh_interval_seconds")
                         .help("Computed adaptive refresh interval after a successful player update")
-                        .classicUpperBounds(1200, 3600, 7200, 14400, 28800, 86400)
+                        .classicUpperBounds(1200, 3600, 7200, 14400, 28800, 86400, 172800, 604800, 1209600)
                         .register(MetricService.REGISTRY)
         ));
     }
