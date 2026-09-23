@@ -1,0 +1,192 @@
+import { env } from "./env";
+
+/** One fixed-size page returned by the public server tracker. */
+export interface TrackerPage<T> {
+  items: T[];
+  totalItems: number;
+  itemsPerPage: number;
+  totalPages: number;
+}
+
+/** Compact public representation of a tracked server. */
+export interface TrackedServerSummary {
+  uuid: string;
+  ip: string;
+  port: number;
+  version?: string | null;
+  protocol?: number | null;
+  platform?: string | null;
+  /** Player count advertised by the server. */
+  onlineCount: number;
+  /** Player capacity advertised by the server. */
+  maxPlayers: number;
+  country?: string | null;
+  /** Whether the tracker's latest refresh attempt succeeded. */
+  online: boolean;
+  /** ISO-8601 timestamp of the latest successful status fetch. */
+  lastUpdated: string;
+}
+
+/** Full public representation of a tracked server. */
+export interface TrackedServerDetail extends TrackedServerSummary {
+  firstSeen: string;
+  lastCheckedAt: string;
+  consecutiveOffline: number;
+  motd?: string | null;
+  latencyMs?: number | null;
+  modded: boolean;
+  preventsChatReports: boolean;
+  enforcesSecureChat: boolean;
+  previewsChat: boolean;
+  asn?: number | null;
+}
+
+/** One public sighting of a tracked player on a server. */
+export interface TrackedPlayerServer {
+  username: string;
+  firstSeen: string;
+  lastSeen: string;
+  timesSeen: number;
+  server: TrackedServerSummary;
+}
+
+/** A tracked player and their paginated public server sightings. */
+export interface TrackedPlayer {
+  playerUuid: string;
+  servers: TrackerPage<TrackedPlayerServer>;
+}
+
+/** Error returned by the public server tracker API. */
+export class TrackerApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "TrackerApiError";
+    this.status = status;
+  }
+}
+
+/** Fetch options, extended with Next's server-side cache controls. */
+export interface TrackerFetchOptions extends RequestInit {
+  next?: { revalidate?: number };
+}
+
+/** The public tracker API and its successful responses are cached for one minute. */
+export const TRACKER_REVALIDATE_SECONDS = 60;
+
+/**
+ * Public statistics of the internet server tracker.
+ *
+ * Mirrors the `TrackerStatsResponse` DTO of the backend API:
+ * https://mc.fascinated.cc/api/tracker/stats
+ */
+export interface TrackerStats {
+  /** Total public servers in the tracker snapshot. */
+  trackedServers: number;
+  /** Distinct players ever observed on public tracked servers. */
+  trackedPlayers: number;
+  /** Distinct players observed in the latest eligible samples from reachable public servers. */
+  onlinePlayers: number;
+  /** Top-10 country ISO code -> server count */
+  geo: Record<string, number>;
+  /** Top-10 server-software (lowercased) -> server count, plain versions bucketed as `unknown` */
+  platform: Record<string, number>;
+  /** Top-10 status-protocol number -> server count */
+  protocol: Record<string, number>;
+}
+
+const TRACKER_API_PATH = `${env.NEXT_PUBLIC_API_URL.replace(/\/$/, "")}/tracker`;
+
+async function fetchTrackerJson<T>(
+  path: string,
+  resource: string,
+  options?: TrackerFetchOptions
+): Promise<T> {
+  let response: Response;
+
+  try {
+    response = await fetch(`${TRACKER_API_PATH}${path}`, options);
+  } catch (error) {
+    const detail = error instanceof Error && error.message ? ` (${error.message})` : "";
+    throw new TrackerApiError(`Unable to reach the server tracker while loading ${resource}${detail}.`, 0);
+  }
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    if (!response.ok) {
+      throw new TrackerApiError(
+        `The server tracker returned HTTP ${response.status} while loading ${resource}.`,
+        response.status
+      );
+    }
+    throw new TrackerApiError(
+      `The server tracker returned invalid JSON while loading ${resource}.`,
+      response.status
+    );
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof payload === "object" &&
+      payload !== null &&
+      "message" in payload &&
+      typeof payload.message === "string" &&
+      payload.message.trim().length > 0
+        ? payload.message
+        : `The server tracker returned HTTP ${response.status} while loading ${resource}.`;
+    throw new TrackerApiError(message, response.status);
+  }
+
+  return payload as T;
+}
+
+/**
+ * Fetches the current public tracker statistics snapshot from the API.
+ *
+ * @param options optional fetch and Next cache controls
+ * @returns the parsed statistics
+ * @throws TrackerApiError when the endpoint cannot be reached or returns an error
+ */
+export async function fetchTrackerStats(options?: TrackerFetchOptions): Promise<TrackerStats> {
+  return fetchTrackerJson<TrackerStats>("/stats", "tracker statistics", options);
+}
+
+/** Fetches a fixed-size page of recently updated public tracked servers. */
+export async function fetchTrackerServers(
+  page: number,
+  options?: TrackerFetchOptions
+): Promise<TrackerPage<TrackedServerSummary>> {
+  return fetchTrackerJson<TrackerPage<TrackedServerSummary>>(
+    `/servers?page=${encodeURIComponent(page)}`,
+    "tracked servers",
+    options
+  );
+}
+
+/** Fetches the full public telemetry for one tracked server. */
+export async function fetchTrackedServer(
+  uuid: string,
+  options?: TrackerFetchOptions
+): Promise<TrackedServerDetail> {
+  return fetchTrackerJson<TrackedServerDetail>(
+    `/${encodeURIComponent(uuid)}`,
+    "tracked server details",
+    options
+  );
+}
+
+/** Fetches a fixed-size page of public sightings for one tracked player. */
+export async function fetchTrackedPlayer(
+  uuid: string,
+  page: number,
+  options?: TrackerFetchOptions
+): Promise<TrackedPlayer> {
+  return fetchTrackerJson<TrackedPlayer>(
+    `/players/${encodeURIComponent(uuid)}?page=${encodeURIComponent(page)}`,
+    "tracked player sightings",
+    options
+  );
+}

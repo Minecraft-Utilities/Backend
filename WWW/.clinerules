@@ -1,0 +1,11 @@
+# Next.js Frontend Standards
+
+## General Rules
+- Always use targeted file edits. Never rewrite an entire file if only a small block needs to change.
+- Do not install new npm dependencies without asking for explicit permission first.
+
+## Code Style & Architecture
+- **Framework:** Next.js App Router (TypeScript, Tailwind CSS).
+- **Component Rules:** Keep components as React Server Components by default.
+- **Client Components:** Only add `'use client'` at the absolute top of the file if local state (`useState`, `useEffect`) or browser-only APIs are required.
+- **Styling:** Use standard Tailwind utility classes. Avoid inline styles or custom CSS files.

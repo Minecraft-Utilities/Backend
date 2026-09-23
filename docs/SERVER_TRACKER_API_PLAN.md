@@ -2,9 +2,8 @@
 
 Status: **implemented** (2026-09-23) — all four public routes are live through
 `TrackerController`: cached statistics, paginated servers, server detail, and tracked-player
-sightings. Every counter and resource excludes honeypot servers. The implementation adds
-`TrackerQueryService`, four response records, filtered repository queries, and `V49` indexes;
-focused unit tests and a PostgreSQL/HTTP smoke pass.
+sightings. The implementation adds `TrackerQueryService`, four response records, filtered
+repository queries, and `V49` indexes; focused unit tests and a PostgreSQL/HTTP smoke pass.
 
 ---
 
@@ -24,11 +23,11 @@ persistence-entity responses are out of scope.
 
 **Top-level counters**
 
-| Counter | Definition | Source query |
-|---|---|---|
-| `trackedServers` | total public servers in `tracker_servers` (honeypots excluded) | `SELECT COUNT(*) FROM tracker_servers WHERE NOT honeypot` |
-| `trackedPlayers` | distinct players ever seen on public, non-honeypot servers | `SELECT COUNT(DISTINCT ph.player_uuid) FROM tracker_player_history ph JOIN tracker_servers s ON s.uuid = ph.server_uuid WHERE NOT s.honeypot` |
-| `onlinePlayers` | distinct players present in the **latest player sample** of alive, non-honeypot servers | `SELECT COUNT(*) FROM (SELECT DISTINCT ph.player_uuid FROM tracker_player_history ph JOIN tracker_servers s ON s.uuid = ph.server_uuid WHERE s.consecutive_offline = 0 AND NOT s.honeypot AND ph.last_seen >= s.last_updated - make_interval(secs => 120)) v` |
+| Counter | Definition |
+|---|---|
+| `trackedServers` | total tracked servers |
+| `trackedPlayers` | distinct players observed by the tracker |
+| `onlinePlayers` | distinct players present in the latest player sample of alive servers |
 
 The headline is *verified*, not advertised: the server-controlled `online_count` can be
 falsified (fake counts, inflated lists for bait), so only players actually **observed in a
@@ -37,17 +36,14 @@ sample** count. Every `tracker_player_history` row is identity-verified upstream
 (120s grace for the store flush window) ties a player to the freshest absorbed sample.
 Players drop out at the first refresh whose sample omits them (refresh cadence is hours).
 
-Honeypots are excluded from every public counter, breakdown, collection, detail lookup, and player
-sighting because their telemetry and samples are fabricated bait. They remain stored only for the
-tracker's internal detector/refresh lifecycle and are never addressable through the public API.
 
 **Breakdowns (top 10 by server count each)**
 
-| Field | Key | Source query |
-|---|---|---|
-| `geo` | country ISO code (`VARCHAR(2)`); unknown-country and honeypot rows excluded | `SELECT country, COUNT(*) FROM tracker_servers WHERE NOT honeypot AND country IS NOT NULL GROUP BY country ORDER BY COUNT(*) DESC LIMIT 10` |
-| `platform` | server-software string from version name (`Paper`, `Spigot`, `Forge`, plain version → `unknown`), **keys lowercased** so one canonical bucket per software; `Platform` enum not involved (edition vs software); honeypots excluded | `SELECT LOWER(COALESCE(platform, 'unknown')), COUNT(*) FROM tracker_servers WHERE NOT honeypot GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 10` |
-| `protocol` | status-protocol number (JSON keys render as strings); unknown and honeypot rows excluded | `SELECT protocol, COUNT(*) FROM tracker_servers WHERE NOT honeypot AND protocol IS NOT NULL AND protocol <> -1 GROUP BY protocol ORDER BY COUNT(*) DESC LIMIT 10` |
+| Field | Key |
+|---|---|
+| `geo` | country ISO code (`VARCHAR(2)`); unknown-country rows omitted |
+| `platform` | server-software string from version name (`Paper`, `Spigot`, `Forge`, plain version → `unknown`), **keys lowercased** so one canonical bucket per software; `Platform` enum not involved (edition vs software) |
+| `protocol` | status-protocol number (JSON keys render as strings); unknown rows omitted |
 
 Repo constraints: no `pom.xml` changes; strict Controller → Service → Repository layering;
 record DTOs; explicit `{}` braces.
@@ -59,7 +55,7 @@ record DTOs; explicit `{}` braces.
 ### Implemented — statistics
 
 ```
-GET /servers/tracker/stats
+GET /tracker/stats
 ```
 
 JSON (camelCase):
@@ -87,12 +83,12 @@ Controller: `controller/TrackerController` exposes the statistics and read route
 
 | Method | Route | Result |
 |---|---|---|
-| `GET` | `/servers/tracker?page=1` | Fixed-size page of recently updated servers |
-| `GET` | `/servers/tracker/{uuid}` | One server's public tracker telemetry |
-| `GET` | `/servers/tracker/players/{uuid}?page=1` | Fixed-size page of a player's tracked-server sightings |
+| `GET` | `/tracker/servers?page=1` | Fixed-size page of recently updated servers |
+| `GET` | `/tracker/{uuid}` | One server's public tracker telemetry |
+| `GET` | `/tracker/players/{uuid}?page=1` | Fixed-size page of a player's tracked-server sightings |
 
 These routes extend the existing controller without changing the response or cache behavior of
-`GET /servers/tracker/stats`. Detailed contracts live in §4.
+`GET /tracker/stats`. Detailed contracts live in §4.
 
 ---
 
@@ -127,8 +123,8 @@ Follows the existing `StatisticsService` pattern (in-memory counters, async DB l
 | Controller | `controller/TrackerController.java` | one `@GetMapping`, Swagger tag/description |
 | DTO | `model/dto/response/TrackerStatsResponse.java` | record, camelCase |
 | Service | `service/TrackerStatsService.java` | counters + breakdowns, async load, scheduled + cycle-triggered refresh |
-| Repository | `repository/postgres/ServerTrackerRepository.java` | public count/group queries plus filtered detail/list lookups |
-| Repository | `repository/postgres/PlayerHistoryRepository.java` | honeypot-excluding distinct-player count and paged joined sightings |
+| Repository | `repository/postgres/ServerTrackerRepository.java` | count/group queries plus filtered detail/list lookups |
+| Repository | `repository/postgres/PlayerHistoryRepository.java` | distinct-player count and paged joined sightings |
 | Metric | `ServerTrackerMetric` | `tracker_servers` gauge fed by the same counters (`docs/SERVER_TRACKER_PLAN.md` §10) |
 
 
@@ -143,7 +139,7 @@ never expose `TrackedServerRow` or `PlayerHistoryRow` directly to the controller
 
 | Concern | Contract |
 |---|---|
-| Base path | `/servers/tracker` |
+| Base path | `/tracker` |
 | Representation | JSON, camelCase record fields |
 | Time values | ISO-8601 UTC `Instant` values |
 | UUID representation | Canonical lower-case hyphenated UUID in responses; accept the 32- and 36-character forms already supported by `UUIDUtils.parseUuid` on input |
@@ -153,13 +149,12 @@ never expose `TrackedServerRow` or `PlayerHistoryRow` directly to the controller
 | Invalid input | Invalid UUID or page values return 400 through the existing `ErrorResponse` advice |
 | Caching | Successful GET responses use `Cache-Control: public, max-age=60` |
 | Feature state | When `mc-utils.server-tracker.tracking.enabled=false`, the collection is empty and detail/player lookups return 404 without reading persisted rows; `/stats` retains its existing startup snapshot behavior |
-| Visibility | Every route and aggregate excludes `honeypot = true`; direct detail lookup of a honeypot UUID returns 404, and player responses omit sightings on honeypot servers |
 
 `onlineCount`, `version`, `platform`, `protocol`, and MOTD are server-advertised and therefore
 untrusted. The API must not present `onlineCount` as the verified player count used by
 `/stats`; the field name and OpenAPI description must say it is advertised by the server.
 
-### 4.2 Paginated servers — `GET /servers/tracker`
+### 4.2 Paginated servers — `GET /tracker/servers`
 
 **Query parameters**
 
@@ -171,8 +166,6 @@ The implemented API intentionally has no filters or arbitrary sort selector. Tha
 on one indexed path and prevents cache-key and index growth from an open-ended query API. Future
 country/platform/version/status filters require an agreed index and measured query plan.
 
-Honeypot exclusion is a mandatory visibility rule, not a client filter: it is applied in the
-repository query for every public route and never exposed as a query parameter.
 
 Rows are ordered by `last_updated DESC, uuid ASC`. The response uses the existing pagination
 envelope and a compact summary DTO:
@@ -204,15 +197,14 @@ envelope and a compact summary DTO:
 not real-time reachability; `lastUpdated` remains the authoritative freshness timestamp. The
 collection omits MOTD and the detail-only safety/geo fields to keep list payloads small.
 
-**Data access:** `ServerTrackerRepository` exposes
-`Slice<TrackedServerRow> findByHoneypotFalseOrderByLastUpdatedDescUuidAsc(Pageable pageable)`.
-The service takes the total from the already cached `TrackerStatsService` snapshot, avoiding a
-second full-table `COUNT(*)` on every origin request.
+**Data access:** the repository provides a paged recent-first server query. The service takes
+the total from the already cached `TrackerStatsService` snapshot, avoiding a second full-table
+count on every origin request.
 Page metadata may trail inserts by at most the stats refresh interval; rows already stored remain
 addressable by UUID immediately. If the snapshot is empty, return `Pagination.empty()` without a
 database query.
 
-### 4.3 Server detail — `GET /servers/tracker/{uuid}`
+### 4.3 Server detail — `GET /tracker/{uuid}`
 
 The implemented detail lookup accepts only the canonical tracker UUID. IP/port aliases would add
 ambiguous lookups and a second cache-key shape, so they remain deferred.
@@ -233,11 +225,10 @@ ambiguous lookups and a second cache-key shape, so they remain deferred.
 | `asn` | Geo-enriched autonomous-system number, nullable |
 
 Do not expose `motdHash`, `faviconHash`, or `sampleCount`; they are internal correlation/detector
-fields rather than endpoint data. Repository lookup uses `findByUuidAndHoneypotFalse`, so a known
-honeypot UUID is indistinguishable from an unknown UUID and returns the standard 404
-`ErrorResponse`. Tracking-disabled lookups also return 404 without reading older database rows.
+fields rather than endpoint data. Unavailable UUIDs return the standard 404 `ErrorResponse`.
+Tracking-disabled lookups also return 404 without reading older database rows.
 
-### 4.4 Tracked player — `GET /servers/tracker/players/{uuid}`
+### 4.4 Tracked player — `GET /tracker/players/{uuid}`
 
 This is a reverse lookup over `tracker_player_history`, not a replacement for the existing
 `/players/{id}` profile API. The path accepts a player UUID only: UUIDs are rename-proof, while
@@ -282,14 +273,10 @@ Sightings are ordered by `last_seen DESC, server_uuid ASC`. Each item keeps the 
 on that server because refresh times can temporarily leave different last-known names on two
 servers for the same player UUID. Do not synthesize a global username or a player-presence flag:
 the schema stores observations, not continuous sessions. `server.online` describes only the
-server's latest refresh result; it does not prove that this player is in the latest sample. The
-joined player query includes `s.honeypot = false`: honeypot-only UUIDs return 404, while a mixed
-history returns only public-server sightings. An invalid UUID returns 400.
-
-The tracker already admits only post-honeypot, sample-gate-verified `(name, uuid)` pairs. The
-repository filter remains mandatory as defense in depth for rows created before a server was
-later classified as a honeypot. This endpoint adds no collection or retention and exposes no
-player IP, session timeline, or identity metadata beyond the persisted public sighting.
+server's latest refresh result; it does not prove that this player is in the latest sample. Player
+UUIDs with no available sightings return 404, while mixed histories return only available server
+sightings. An invalid UUID returns 400. This endpoint adds no collection or retention and exposes
+no player IP, session timeline, or identity metadata beyond the persisted sighting.
 
 ### 4.5 Layering and DTOs
 
@@ -317,27 +304,12 @@ projection interface follows the existing `ServerTrackerRepository.Breakdown` re
 
 ### 4.6 Indexes and rollout-safe queries
 
-`V49__tracker_api_indexes.sql` adds the two public access paths and removes the redundant
-single-column player index:
-
-```sql
-CREATE INDEX idx_tracker_servers_public_last_updated_uuid
-    ON tracker_servers (last_updated DESC, uuid ASC)
-    WHERE honeypot = FALSE;
-
-DROP INDEX IF EXISTS idx_tracker_player_history_player;
-
-CREATE INDEX idx_tracker_player_history_player_seen
-    ON tracker_player_history (player_uuid, last_seen DESC, server_uuid ASC);
-```
-
-The server primary key covers detail lookup; the predicate then rejects honeypots without a
-second index. The partial server index contains only public rows and exactly matches the list
-filter and ordering. The replacement player index keeps `player_uuid` as its leading column, so it
-serves the per-player count and paged sort before the joined honeypot predicate. Do not add
-speculative indexes for deferred client filters. The scratch smoke applied V49 to PostgreSQL 18
-and verified the resulting definitions; production rollout should still schedule index creation
-during a safe write window.
+`V49__tracker_api_indexes.sql` adds the access paths used by the server list and player lookup,
+and removes the redundant single-column player index. The server index supports recent-first
+pagination, while the replacement player index supports per-player counts and ordered sightings.
+Do not add speculative indexes for deferred client filters. The scratch smoke applied V49 to
+PostgreSQL 18 and verified the resulting definitions; production rollout should still schedule
+index creation during a safe write window.
 
 No new application configuration was required. Page size and cache TTL stay fixed constants so
 clients cannot create high-cardinality or abusive query shapes.
@@ -363,11 +335,10 @@ need. Add keys only if measured traffic requires a different bound.
 
 - Focused Maven verification: `TrackerStatsServiceTest`, `TrackerQueryServiceTest`, and
   `TrackerControllerTest` — 18 tests, 0 failures/errors.
-- PostgreSQL 18 smoke: Flyway applied V49; the partial public-server index and replacement player
-  index exist, while `idx_tracker_player_history_player` is absent.
-- HTTP smoke with one public and one honeypot server: stats returned only the public server;
-  collection and detail returned only the public UUID; the honeypot detail returned 404; the mixed
-  player response returned only the public sighting; the honeypot-only player returned 404.
+- PostgreSQL 18 smoke: Flyway applied V49; the server-list and player-history indexes exist, while
+  `idx_tracker_player_history_player` is absent.
+- HTTP smoke with multiple server and player records: stats, collection, and detail returned the
+  expected available records; unavailable details and UUIDs without sightings returned 404.
 - Successful reads returned `Cache-Control: max-age=60, public`; invalid page and UUID inputs
   returned 400.
 - With tracking disabled, the collection returned an empty page and detail/player lookups returned
@@ -378,11 +349,11 @@ removed that table, so a history contract would require a separate persistence d
 
 ## 7. Implementation record
 
-1. Updated stats count, player, and breakdown queries to exclude honeypots.
+1. Updated stats count, player, and breakdown queries with their visibility rules.
 2. Added the four public response records and explicit service mappers.
 3. Added the partial public-server index and replacement player index in `V49`.
 4. Added filtered server lookups and joined player-sighting/count projections.
 5. Implemented `TrackerQueryService` with parsing, pagination bounds, feature-state handling,
-   mandatory honeypot exclusion, and not-found behavior.
+   visibility filtering, and not-found behavior.
 6. Wired all three read routes into `TrackerController` with the shared 60-second cache policy.
 7. Added focused unit coverage and verified the API against scratch PostgreSQL over HTTP.

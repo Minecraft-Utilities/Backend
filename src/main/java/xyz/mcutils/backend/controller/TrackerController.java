@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
  * never touch the database directly.
  */
 @RestController
-@RequestMapping(value = "/servers/tracker")
+@RequestMapping(value = "/tracker")
 @Tag(name = "Server Tracker Controller", description = "Statistics and tracking data of the internet server tracker.")
 public class TrackerController {
 
@@ -47,8 +47,8 @@ public class TrackerController {
                 .body(trackerStatsService.getStats());
     }
 
-    @GetMapping(value = "", produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "Page of tracked servers", description = "Fixed 50-item public, honeypot-excluded server page.")
+    @GetMapping(value = "/servers", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Page of tracked servers", description = "Fixed 50-item page of tracked servers.")
     public ResponseEntity<Pagination.Page<TrackedServerSummaryResponse>> getServers(
             @Parameter(description = "One-based page number", example = "1") @RequestParam(required = false, defaultValue = "1") int page) {
         return ResponseEntity.ok()
@@ -66,7 +66,7 @@ public class TrackerController {
     }
 
     @GetMapping(value = "/players/{uuid}", produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "Tracked player sightings", description = "Fixed 50-item public, honeypot-excluded sightings page for a player UUID.")
+    @Operation(summary = "Tracked player sightings", description = "Fixed 50-item page of sightings for a player UUID.")
     public ResponseEntity<TrackedPlayerResponse> getPlayers(
             @Parameter(description = "Canonical player UUID", example = "069a79f4-44e9-4726-a5be-fca90e38aaf5") @PathVariable String uuid,
             @Parameter(description = "One-based page number", example = "1") @RequestParam(required = false, defaultValue = "1") int page) {
