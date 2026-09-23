@@ -9,6 +9,7 @@ import org.jetbrains.annotations.NotNull;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -19,6 +20,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Getter
 @Slf4j
 public abstract class WebSocket extends TextWebSocketHandler {
+
+    private static final int SEND_TIME_LIMIT_MS = 10_000;
+    private static final int BUFFER_SIZE_LIMIT_BYTES = 512 * 1024;
 
     /**
      * The path of the WebSocket.
@@ -80,14 +84,22 @@ public abstract class WebSocket extends TextWebSocketHandler {
 
     @Override
     public final void afterConnectionEstablished(@NotNull WebSocketSession session) {
-        this.sessions.add(session);
+        // Pushes arrive from every refresh worker at once, and a raw session rejects
+        // overlapping writes — which the fan-out below answers by closing the client.
+        WebSocketSession concurrentSession = new ConcurrentWebSocketSessionDecorator(
+                session,
+                SEND_TIME_LIMIT_MS,
+                BUFFER_SIZE_LIMIT_BYTES
+        );
+        this.sessions.add(concurrentSession);
         log.info("Connection established on {} ({})", this.getPath(), session.getId());
-        this.onSessionConnect(session);
+        this.onSessionConnect(concurrentSession);
     }
 
     @Override
     public final void afterConnectionClosed(@NotNull WebSocketSession session, @NotNull CloseStatus status) {
-        this.sessions.remove(session);
+        // The container hands back the raw session, while the list holds its decorator.
+        this.sessions.removeIf(connected -> connected.getId().equals(session.getId()));
         log.info("Connection closed on {} ({})", this.getPath(), session.getId());
     }
 }

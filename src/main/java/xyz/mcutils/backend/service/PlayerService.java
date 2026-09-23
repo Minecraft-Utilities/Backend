@@ -186,10 +186,6 @@ public class PlayerService {
         return playerRow;
     }
 
-    public void updatePlayer(PlayerRow playerRow, MojangProfileToken token) {
-        this.updatePlayers(Collections.singletonList(new PlayerUpdate(playerRow, token)));
-    }
-
     @Transactional
     public void createPlayers(List<MojangProfileToken> tokens) {
         // Precompute the first player owning each distinct texture once (O(N)); previously each
@@ -271,66 +267,56 @@ public class PlayerService {
 
     /**
      * Prepares and persists a single player refresh. Used by the background refresh pipeline.
+     * <p>
+     * A detected username change is pushed by the refreshing thread as soon as it is
+     * committed, rather than collected and sent once a whole chunk of players finished.
+     *
+     * @return whether the refresh was persisted
      */
-    public PersistPlayerRefreshResult persistPlayerRefresh(PlayerUpdate playerUpdate) {
+    public boolean persistPlayerRefresh(PlayerUpdate playerUpdate) {
         try {
             PreparedPlayerUpdate prepared = preparePlayerUpdate(playerUpdate);
+            UsernameChangeEventRow usernameChangeEvent;
             this.persistSemaphore.acquire();
             try {
-                UsernameChangeEventRow usernameChangeEvent = this.self.persistPlayerUpdate(prepared);
-                return new PersistPlayerRefreshResult(true, usernameChangeEvent);
+                usernameChangeEvent = this.self.persistPlayerUpdate(prepared);
             } finally {
                 this.persistSemaphore.release();
             }
+            broadcastUsernameChange(usernameChangeEvent);
+            return true;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             log.warn("Interrupted while refreshing player {}", playerUpdate.playerRow().getId());
             this.bumpRefreshFailure(playerUpdate.playerRow().getId());
-            return new PersistPlayerRefreshResult(false, null);
+            return false;
         } catch (Exception e) {
             log.warn("Failed to refresh player {}: {}", playerUpdate.playerRow().getId(), e.toString());
             log.debug("Failed to refresh player {}", playerUpdate.playerRow().getId(), e);
             this.bumpRefreshFailure(playerUpdate.playerRow().getId());
-            return new PersistPlayerRefreshResult(false, null);
+            return false;
         }
     }
 
-    public void updatePlayers(List<PlayerUpdate> playerUpdates) {
-        if (playerUpdates.isEmpty()) {
+    public void updatePlayer(PlayerRow playerRow, MojangProfileToken token) {
+        this.persistPlayerRefresh(new PlayerUpdate(playerRow, token));
+    }
+
+    /**
+     * Pushes one committed username change to every client on the name-change WebSocket.
+     *
+     * @param usernameChangeEvent the change to push, or null when the refresh found no change
+     */
+    void broadcastUsernameChange(UsernameChangeEventRow usernameChangeEvent) {
+        if (usernameChangeEvent == null) {
             return;
         }
-
-        List<PlayerUpdate> sortedUpdates = playerUpdates.stream()
-                .sorted(Comparator.comparing(u -> u.playerRow().getId()))
-                .toList();
-
-        List<CompletableFuture<PersistPlayerRefreshResult>> futures = sortedUpdates.stream()
-                .map(playerUpdate -> CompletableFuture.supplyAsync(
-                        () -> this.persistPlayerRefresh(playerUpdate),
-                        Main.EXECUTOR))
-                .toList();
-
-        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
-
-        List<UsernameChangeEventRow> usernameChangeEvents = new ArrayList<>();
-        for (CompletableFuture<PersistPlayerRefreshResult> future : futures) {
-            PersistPlayerRefreshResult result = future.join();
-            if (result.success() && result.usernameChangeEvent() != null) {
-                usernameChangeEvents.add(result.usernameChangeEvent());
-            }
-        }
-        broadcastUsernameChanges(usernameChangeEvents);
-    }
-
-    void broadcastUsernameChanges(List<UsernameChangeEventRow> usernameChangeEvents) {
-        for (UsernameChangeEventRow usernameChangeEvent : usernameChangeEvents) {
-            WebSocketManager.getWebsocket(NameChangeWebSocket.class).sendMessageToAll(new RecentUsernameChange(
-                    usernameChangeEvent.getPlayerId(),
-                    usernameChangeEvent.getNewUsername(),
-                    usernameChangeEvent.getPreviousUsername(),
-                    usernameChangeEvent.getTimestamp()
-            ));
-        }
+        WebSocketManager.getWebsocket(NameChangeWebSocket.class).sendMessageToAll(new RecentUsernameChange(
+                usernameChangeEvent.getPlayerId(),
+                usernameChangeEvent.getNewUsername(),
+                usernameChangeEvent.getPreviousUsername(),
+                usernameChangeEvent.getTimestamp()
+        ));
     }
 
     /**
@@ -571,6 +557,4 @@ public class PlayerService {
     }
 
     public record PlayerUpdate(PlayerRow playerRow, MojangProfileToken token) {}
-
-    public record PersistPlayerRefreshResult(boolean success, UsernameChangeEventRow usernameChangeEvent) {}
 }

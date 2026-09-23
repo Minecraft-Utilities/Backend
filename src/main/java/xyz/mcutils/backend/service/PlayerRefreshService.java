@@ -13,7 +13,6 @@ import org.springframework.web.client.ResourceAccessException;
 import xyz.mcutils.backend.exception.impl.RateLimitException;
 import xyz.mcutils.backend.metric.impl.player.PlayerRefreshMetric;
 import xyz.mcutils.backend.model.persistence.postgres.PlayerRow;
-import xyz.mcutils.backend.model.persistence.postgres.UsernameChangeEventRow;
 import xyz.mcutils.backend.model.token.mojang.MojangProfileToken;
 import xyz.mcutils.backend.repository.postgres.PlayerRepository;
 
@@ -142,7 +141,6 @@ public class PlayerRefreshService {
         long chunkStart = System.currentTimeMillis();
         List<UUID> failedIds = Collections.synchronizedList(new ArrayList<>());
         Map<String, AtomicInteger> failureReasons = new ConcurrentHashMap<>();
-        List<UsernameChangeEventRow> usernameChangeEvents = Collections.synchronizedList(new ArrayList<>());
         AtomicInteger persisted = new AtomicInteger();
         Semaphore inflightFetches = new Semaphore(concurrentFetches);
         List<CompletableFuture<Void>> futures = new ArrayList<>(playerRows.size());
@@ -152,7 +150,7 @@ public class PlayerRefreshService {
                 return;
             }
             futures.add(CompletableFuture.runAsync(
-                    () -> refreshPlayer(playerRow, failedIds, failureReasons, usernameChangeEvents, persisted, inflightFetches),
+                    () -> refreshPlayer(playerRow, failedIds, failureReasons, persisted, inflightFetches),
                     refreshExecutor
             ));
         }
@@ -173,7 +171,6 @@ public class PlayerRefreshService {
         if (!failedIds.isEmpty()) {
             this.playerService.bumpRefreshFailures(failedIds);
         }
-        this.playerService.broadcastUsernameChanges(usernameChangeEvents);
         int persistedCount = persisted.get();
         if (persistedCount > 0) {
             MetricService.getMetric(PlayerRefreshMetric.class).recordPersist(persistedCount);
@@ -221,7 +218,6 @@ public class PlayerRefreshService {
             PlayerRow playerRow,
             List<UUID> failedIds,
             Map<String, AtomicInteger> failureReasons,
-            List<UsernameChangeEventRow> usernameChangeEvents,
             AtomicInteger persisted,
             Semaphore inflightFetches
     ) {
@@ -241,12 +237,8 @@ public class PlayerRefreshService {
             if (update == null) {
                 return;
             }
-            PlayerService.PersistPlayerRefreshResult result = this.playerService.persistPlayerRefresh(update);
-            if (result.success()) {
+            if (this.playerService.persistPlayerRefresh(update)) {
                 persisted.incrementAndGet();
-                if (result.usernameChangeEvent() != null) {
-                    usernameChangeEvents.add(result.usernameChangeEvent());
-                }
             }
         } finally {
             inflightFetches.release();
