@@ -3,16 +3,21 @@ package xyz.mcutils.backend.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import xyz.mcutils.backend.common.Pagination;
+import xyz.mcutils.backend.model.dto.request.TrackerServerFilterRequest;
+import xyz.mcutils.backend.model.dto.response.TrackedPlayerSearchResponse;
 import xyz.mcutils.backend.model.dto.response.TrackedPlayerResponse;
+import xyz.mcutils.backend.model.dto.response.TrackedPlayerServerResponse;
 import xyz.mcutils.backend.model.dto.response.TrackedServerDetailResponse;
 import xyz.mcutils.backend.model.dto.response.TrackedServerSummaryResponse;
 import xyz.mcutils.backend.model.dto.response.TrackerStatsResponse;
@@ -20,6 +25,7 @@ import xyz.mcutils.backend.service.TrackerQueryService;
 import xyz.mcutils.backend.service.TrackerStatsService;
 
 import java.util.concurrent.TimeUnit;
+import java.util.List;
 
 /**
  * Public API of the internet server tracker. Statistics are served from the cached in-memory
@@ -48,12 +54,12 @@ public class TrackerController {
     }
 
     @GetMapping(value = "/servers", produces = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "Page of tracked servers", description = "Fixed 50-item page of tracked servers.")
+    @Operation(summary = "Page of tracked servers", description = "Fixed 50-item page of tracked servers matching the optional filter parameters.")
     public ResponseEntity<Pagination.Page<TrackedServerSummaryResponse>> getServers(
-            @Parameter(description = "One-based page number", example = "1") @RequestParam(required = false, defaultValue = "1") int page) {
+            @Valid @ModelAttribute TrackerServerFilterRequest request) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(60, TimeUnit.SECONDS).cachePublic())
-                .body(trackerQueryService.getServers(page));
+                .body(trackerQueryService.getServers(request));
     }
 
     @GetMapping(value = "/{uuid}", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -63,6 +69,15 @@ public class TrackerController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(60, TimeUnit.SECONDS).cachePublic())
                 .body(trackerQueryService.getServerDetail(uuid));
+    }
+
+    @GetMapping(value = "/players", produces = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "Search tracked players", description = "Search tracked players by username prefix.")
+    public ResponseEntity<List<TrackedPlayerSearchResponse>> searchPlayers(
+            @Parameter(description = "Username prefix", example = "Notch") @RequestParam String query) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(trackerQueryService.searchPlayers(query));
     }
 
     @GetMapping(value = "/players/{uuid}", produces = MediaType.APPLICATION_JSON_VALUE)

@@ -86,6 +86,7 @@ Controller: `controller/TrackerController` exposes the statistics and read route
 | `GET` | `/tracker/servers?page=1` | Fixed-size page of recently updated servers |
 | `GET` | `/tracker/{uuid}` | One server's public tracker telemetry |
 | `GET` | `/tracker/players/{uuid}?page=1` | Fixed-size page of a player's tracked-server sightings |
+| `GET` | `/tracker/players?query=Notch` | Username-prefix autocomplete for players with server history |
 
 These routes extend the existing controller without changing the response or cache behavior of
 `GET /tracker/stats`. Detailed contracts live in §4.
@@ -160,15 +161,19 @@ untrusted. The API must not present `onlineCount` as the verified player count u
 
 | Name | Type | Default | Rules |
 |---|---|---|---|
-| `page` | integer | `1` | Must be at least 1 and no greater than the current `totalPages`; when there are no rows, only page 1 is valid and returns an empty page. Other invalid/out-of-range pages return 400 |
+| `page` | integer | `1` | One-based page within the filtered result set; invalid/out-of-range values return 400 |
+| `ip` | string | — | Case-insensitive IP prefix |
+| `country` | string | — | Case-insensitive country-code contains match |
+| `platform` | string | — | Case-insensitive platform contains match |
+| `protocol` | integer | — | Exact status-protocol number |
+| `minOnlinePlayers` | integer | `0` | Inclusive lower bound on advertised online players |
+| `maxOnlinePlayers` | integer | unlimited | Inclusive upper bound on advertised online players |
+| `sort` | enum | `lastUpdated` | One of `lastUpdated`, `onlineCount`, `latencyMs`, `protocol`, `ip`, `country` |
+| `direction` | `asc`, `desc` | `desc` | Direction for the selected sort field |
 
-The implemented API intentionally has no filters or arbitrary sort selector. That keeps every page
-on one indexed path and prevents cache-key and index growth from an open-ended query API. Future
-country/platform/version/status filters require an agreed index and measured query plan.
-
-
-Rows are ordered by `last_updated DESC, uuid ASC`. The response uses the existing pagination
-envelope and a compact summary DTO:
+Filters combine with AND. Player bounds must be non-negative and `minOnlinePlayers` cannot exceed
+`maxOnlinePlayers`. Sort fields use an explicit allowlist and every ordering has a stable tie-breaker.
+Rows use the existing pagination envelope and a compact summary DTO:
 
 ```json
 {
@@ -193,16 +198,13 @@ envelope and a compact summary DTO:
 }
 ```
 
-`online` is derived as `consecutiveOffline == 0`: the latest refresh attempt succeeded. It is
-not real-time reachability; `lastUpdated` remains the authoritative freshness timestamp. The
-collection omits MOTD and the detail-only safety/geo fields to keep list payloads small.
+`online` reflects the latest tracker refresh result. It is not real-time reachability;
+`lastUpdated` remains the authoritative freshness timestamp. The collection omits MOTD and the
+detail-only safety/geo fields to keep list payloads small.
 
-**Data access:** the repository provides a paged recent-first server query. The service takes
-the total from the already cached `TrackerStatsService` snapshot, avoiding a second full-table
-count on every origin request.
-Page metadata may trail inserts by at most the stats refresh interval; rows already stored remain
-addressable by UUID immediately. If the snapshot is empty, return `Pagination.empty()` without a
-database query.
+**Data access:** `ServerTrackerRepository` builds a JPA Specification from the normalized filters
+and resolves sorting through the allowlist. Filtered `totalItems` and `totalPages` come from the same
+paged query contract, so client pagination remains consistent with active filters.
 
 ### 4.3 Server detail — `GET /tracker/{uuid}`
 
@@ -211,11 +213,13 @@ ambiguous lookups and a second cache-key shape, so they remain deferred.
 
 `TrackedServerDetailResponse` contains the summary fields plus:
 
+The `protocol` field remains numeric in API responses but is not rendered anywhere in the website.
+The UUID remains the API resource key but is not rendered as a profile field either.
+
 | Field | Source / meaning |
 |---|---|
 | `firstSeen` | First successful discovery verification |
 | `lastCheckedAt` | `last_refreshed`: latest refresh attempt, successful or not |
-| `consecutiveOffline` | Consecutive failed refreshes; `0` maps to `online: true` |
 | `motd` | Cleaned, length-limited, server-controlled text; never render as trusted HTML |
 | `latencyMs` | Observed status-ping latency |
 | `modded` | Tracker-derived modded flag |
@@ -228,7 +232,24 @@ Do not expose `motdHash`, `faviconHash`, or `sampleCount`; they are internal cor
 fields rather than endpoint data. Unavailable UUIDs return the standard 404 `ErrorResponse`.
 Tracking-disabled lookups also return 404 without reading older database rows.
 
-### 4.4 Tracked player — `GET /tracker/players/{uuid}`
+### 4.4 Search tracked players — `GET /tracker/players`
+
+The `query` parameter is a case-insensitive username prefix. The endpoint returns at most ten
+matches and only includes players who have server-tracker history:
+
+```json
+[
+  {
+    "playerUuid": "069a79f4-44e9-4726-a5be-fca90e38aaf5",
+    "username": "Notch",
+    "skinId": 42
+  }
+]
+```
+
+Responses use `Cache-Control: no-store`. A blank query or disabled tracking returns an empty list.
+
+### 4.5 Tracked player — `GET /tracker/players/{uuid}`
 
 This is a reverse lookup over `tracker_player_history`, not a replacement for the existing
 `/players/{id}` profile API. The path accepts a player UUID only: UUIDs are rename-proof, while
@@ -278,7 +299,7 @@ UUIDs with no available sightings return 404, while mixed histories return only 
 sightings. An invalid UUID returns 400. This endpoint adds no collection or retention and exposes
 no player IP, session timeline, or identity metadata beyond the persisted sighting.
 
-### 4.5 Layering and DTOs
+### 4.6 Layering and DTOs
 
 `TrackerQueryService` owns row-to-DTO mapping and keeps the stats-specific
 `TrackerStatsService` focused on its cached aggregate snapshot:
@@ -293,6 +314,7 @@ Response records in `model/dto/response`:
 | DTO | Purpose |
 |---|---|
 | `TrackedServerSummaryResponse` | Shared compact server representation for list and player sightings |
+| `TrackedPlayerSearchResponse` | Username-prefix autocomplete result with player UUID and skin ID |
 | `TrackedServerDetailResponse` | Full public detail, mapped explicitly from `TrackedServerRow` |
 | `TrackedPlayerResponse` | Player UUID plus paginated sightings |
 | `TrackedPlayerServerResponse` | Per-server username, first/last seen, times seen, and server summary |
@@ -302,7 +324,7 @@ performs no JPA work and receives no persistence entity. `PlayerHistoryRepositor
 paged joined projection and matching count, so player lookup never issues a query per server. Its
 projection interface follows the existing `ServerTrackerRepository.Breakdown` repository pattern.
 
-### 4.6 Indexes and rollout-safe queries
+### 4.7 Indexes and rollout-safe queries
 
 `V49__tracker_api_indexes.sql` adds the access paths used by the server list and player lookup,
 and removes the redundant single-column player index. The server index supports recent-first
@@ -334,13 +356,17 @@ need. Add keys only if measured traffic requires a different bound.
 ## 6. Verification
 
 - Focused Maven verification: `TrackerStatsServiceTest`, `TrackerQueryServiceTest`, and
-  `TrackerControllerTest` — 18 tests, 0 failures/errors.
-- PostgreSQL 18 smoke: Flyway applied V49; the server-list and player-history indexes exist, while
-  `idx_tracker_player_history_player` is absent.
+  `TrackerControllerTest` — 22 tests, 0 failures/errors.
+- PostgreSQL 18 smoke: Flyway applies V49 and V50; the collection/player indexes and focused
+  filter/sort indexes exist, while `idx_tracker_player_history_player` is absent.
 - HTTP smoke with multiple server and player records: stats, collection, and detail returned the
   expected available records; unavailable details and UUIDs without sightings returned 404.
-- Successful reads returned `Cache-Control: max-age=60, public`; invalid page and UUID inputs
-  returned 400.
+- Username autocomplete returned a player with history and excluded an otherwise indexed player
+  without sightings; selecting the match opened its history page successfully.
+- Filter smoke combined location, platform, protocol, status, and player bounds; verified stable
+  player-count sorting, IP-prefix filtering, filtered page bounds, 400 validation, V50 indexes,
+  URL round-tripping, active chips, and responsive filter controls.
+- Successful reads returned the documented cache headers; invalid page and UUID inputs returned 400.
 - With tracking disabled, the collection returned an empty page and detail/player lookups returned
   404 without repository reads.
 
@@ -350,10 +376,11 @@ removed that table, so a history contract would require a separate persistence d
 ## 7. Implementation record
 
 1. Updated stats count, player, and breakdown queries with their visibility rules.
-2. Added the four public response records and explicit service mappers.
-3. Added the partial public-server index and replacement player index in `V49`.
-4. Added filtered server lookups and joined player-sighting/count projections.
-5. Implemented `TrackerQueryService` with parsing, pagination bounds, feature-state handling,
-   visibility filtering, and not-found behavior.
-6. Wired all three read routes into `TrackerController` with the shared 60-second cache policy.
+2. Added the five public response records and explicit service mappers.
+3. Added public collection/player indexes in `V49` and focused filter/sort indexes in `V50`.
+4. Added filtered server specifications, allow-listed sorting, tracked-player search, and joined
+   player-sighting/count projections.
+5. Implemented `TrackerQueryService` with parsing, search, filtered pagination, feature-state
+   handling, visibility filtering, and not-found behavior.
+6. Wired all four read routes into `TrackerController` with the documented cache policy.
 7. Added focused unit coverage and verified the API against scratch PostgreSQL over HTTP.

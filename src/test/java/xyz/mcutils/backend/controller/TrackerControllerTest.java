@@ -4,7 +4,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 import xyz.mcutils.backend.common.Pagination;
+import xyz.mcutils.backend.model.dto.request.TrackerServerFilterRequest;
 import xyz.mcutils.backend.model.dto.response.TrackedPlayerResponse;
+import xyz.mcutils.backend.model.dto.response.TrackedPlayerSearchResponse;
 import xyz.mcutils.backend.model.dto.response.TrackedPlayerServerResponse;
 import xyz.mcutils.backend.model.dto.response.TrackedServerDetailResponse;
 import xyz.mcutils.backend.model.dto.response.TrackedServerSummaryResponse;
@@ -55,17 +57,20 @@ class TrackerControllerTest {
     }
 
     @Test
-    void getServersForwardsPageAndReturnsPublicCache() {
+    void getServersForwardsFiltersAndReturnsPublicCache() {
         TrackedServerSummaryResponse summary = summary();
         Pagination.Page<TrackedServerSummaryResponse> page = new Pagination.Page<>(List.of(summary), 51, 50, 2);
-        when(trackerQueryService.getServers(2)).thenReturn(page);
+        TrackerServerFilterRequest request = new TrackerServerFilterRequest(
+                2, "198.51", null, null, 769, 5, 100, "onlineCount", "desc"
+        );
+        when(trackerQueryService.getServers(request)).thenReturn(page);
 
-        ResponseEntity<Pagination.Page<TrackedServerSummaryResponse>> response = controller.getServers(2);
+        ResponseEntity<Pagination.Page<TrackedServerSummaryResponse>> response = controller.getServers(request);
 
         assertEquals(200, response.getStatusCode().value());
         assertEquals(page, response.getBody());
         assertPublicCache(response);
-        verify(trackerQueryService).getServers(2);
+        verify(trackerQueryService).getServers(request);
     }
 
     @Test
@@ -79,6 +84,20 @@ class TrackerControllerTest {
         assertEquals(detail, response.getBody());
         assertPublicCache(response);
         verify(trackerQueryService).getServerDetail(SERVER_UUID.toString());
+    }
+
+    @Test
+    void searchPlayersForwardsQueryAndDisablesCaching() {
+        List<TrackedPlayerSearchResponse> matches =
+                List.of(new TrackedPlayerSearchResponse(PLAYER_UUID, "Notch", 42));
+        when(trackerQueryService.searchPlayers("Notch")).thenReturn(matches);
+
+        ResponseEntity<List<TrackedPlayerSearchResponse>> response = controller.searchPlayers("Notch");
+
+        assertEquals(200, response.getStatusCode().value());
+        assertEquals(matches, response.getBody());
+        assertTrue(response.getHeaders().getCacheControl().contains("no-store"));
+        verify(trackerQueryService).searchPlayers("Notch");
     }
 
     @Test
@@ -131,7 +150,6 @@ class TrackerControllerTest {
                 LAST_UPDATED,
                 Instant.parse("2026-08-01T03:00:00Z"),
                 LAST_UPDATED,
-                0,
                 "Public server",
                 45,
                 false,

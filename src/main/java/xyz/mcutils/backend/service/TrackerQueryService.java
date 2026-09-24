@@ -3,11 +3,15 @@ package xyz.mcutils.backend.service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import xyz.mcutils.backend.common.Pagination;
 import xyz.mcutils.backend.common.UUIDUtils;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
+import xyz.mcutils.backend.model.dto.request.TrackerServerFilterRequest;
+import xyz.mcutils.backend.model.dto.response.TrackedPlayerSearchResponse;
 import xyz.mcutils.backend.model.dto.response.TrackedPlayerResponse;
 import xyz.mcutils.backend.model.dto.response.TrackedPlayerServerResponse;
 import xyz.mcutils.backend.model.dto.response.TrackedServerDetailResponse;
@@ -18,6 +22,7 @@ import xyz.mcutils.backend.repository.postgres.PlayerHistoryRepository.PlayerSig
 import xyz.mcutils.backend.repository.postgres.ServerTrackerRepository;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -31,21 +36,19 @@ import java.util.UUID;
 public class TrackerQueryService {
 
     private static final int PER_PAGE = 50;
+    private static final int SEARCH_LIMIT = 10;
 
     private final ServerTrackerRepository serverTrackerRepository;
     private final PlayerHistoryRepository playerHistoryRepository;
-    private final TrackerStatsService trackerStatsService;
     private final boolean trackingEnabled;
 
     public TrackerQueryService(
             ServerTrackerRepository serverTrackerRepository,
             PlayerHistoryRepository playerHistoryRepository,
-            TrackerStatsService trackerStatsService,
             @Value("${mc-utils.server-tracker.tracking.enabled:true}") boolean trackingEnabled
     ) {
         this.serverTrackerRepository = serverTrackerRepository;
         this.playerHistoryRepository = playerHistoryRepository;
-        this.trackerStatsService = trackerStatsService;
         this.trackingEnabled = trackingEnabled;
     }
 
@@ -57,31 +60,60 @@ public class TrackerQueryService {
      * @throws BadRequestException when the page is below 1 or out of range
      */
     public Pagination.Page<TrackedServerSummaryResponse> getServers(int page) {
+        return getServers(TrackerServerFilterRequest.noFilters(page));
+    }
+
+    /**
+     * Returns a public, honeypot-excluded page of tracked servers matching the request.
+     *
+     * @param request normalized filter/sort query parameters
+     * @return fixed 50-item page with totals computed from the filtered result set
+     * @throws BadRequestException when the page, player bounds, sort, or direction is invalid
+     */
+    public Pagination.Page<TrackedServerSummaryResponse> getServers(TrackerServerFilterRequest request) {
+        Objects.requireNonNull(request, "request");
+        int page = request.pageNumber();
         if (page < 1) {
             throw new BadRequestException("Invalid page '%s'".formatted(page));
         }
+        if (!request.hasValidPlayerBounds()) {
+            throw new BadRequestException("Invalid player bounds: minOnlinePlayers=%s, maxOnlinePlayers=%s"
+                    .formatted(request.minOnlinePlayers(), request.maxOnlinePlayers()));
+        }
+        if (!request.hasValidSort()) {
+            throw new BadRequestException("Invalid sort '%s'".formatted(request.sort()));
+        }
+        if (!request.hasValidDirection()) {
+            throw new BadRequestException("Invalid direction '%s'".formatted(request.direction()));
+        }
+
         if (!trackingEnabled) {
             return emptyServerPage(page);
         }
 
-        long totalItems = trackerStatsService.getStats().trackedServers();
+        Sort sort = ServerTrackerRepository.resolveSort(request);
+        Specification<TrackedServerRow> specification = ServerTrackerRepository.toSpecification(request);
+        Page<TrackedServerRow> result = serverTrackerRepository.findAll(
+                specification,
+                PageRequest.of(page - 1, PER_PAGE, sort)
+        );
+
+        long totalItems = result.getTotalElements();
         if (totalItems <= 0) {
             return emptyServerPage(page);
         }
 
-        int totalPages = (int) ((totalItems + PER_PAGE - 1) / PER_PAGE);
+        int totalPages = result.getTotalPages();
         if (page > totalPages) {
             throw new BadRequestException("Invalid or out-of-range page '%s'".formatted(page));
         }
 
-        Pagination<TrackedServerSummaryResponse> pagination = new Pagination<TrackedServerSummaryResponse>()
-                .setItemsPerPage(PER_PAGE)
-                .setTotalItems(totalItems);
-        return pagination.getPage(page, callback -> serverTrackerRepository
-                .findByHoneypotFalseOrderByLastUpdatedDescUuidAsc(PageRequest.of(page - 1, callback.limit()))
-                .stream()
-                .map(this::toSummary)
-                .toList());
+        return new Pagination.Page<>(
+                result.getContent().stream().map(this::toSummary).toList(),
+                totalItems,
+                PER_PAGE,
+                totalPages
+        );
     }
 
     /**
@@ -101,6 +133,27 @@ public class TrackerQueryService {
         TrackedServerRow row = serverTrackerRepository.findByUuidAndHoneypotFalse(parsedUuid)
                 .orElseThrow(() -> new NotFoundException("No public server found for UUID: " + uuid));
         return toDetail(row);
+    }
+
+    /**
+     * Searches players whose usernames have public server-tracker history.
+     *
+     * @param query username prefix
+     * @return matching tracked players, limited to ten results
+     */
+    public List<TrackedPlayerSearchResponse> searchPlayers(String query) {
+        String normalizedQuery = query.trim();
+        if (!trackingEnabled || normalizedQuery.isEmpty()) {
+            return List.of();
+        }
+
+        return playerHistoryRepository.searchPublicPlayers(normalizedQuery, PageRequest.of(0, SEARCH_LIMIT)).stream()
+                .map(projection -> new TrackedPlayerSearchResponse(
+                        projection.getPlayerUuid(),
+                        projection.getUsername(),
+                        projection.getSkinId()
+                ))
+                .toList();
     }
 
     /**
@@ -140,6 +193,7 @@ public class TrackerQueryService {
                 .toList();
         return new TrackedPlayerResponse(parsedUuid, new Pagination.Page<>(items, sightings, PER_PAGE, totalPages));
     }
+
 
     private Pagination.Page<TrackedServerSummaryResponse> emptyServerPage(int page) {
         if (page != 1) {
@@ -182,7 +236,6 @@ public class TrackerQueryService {
                 row.getLastUpdated(),
                 row.getFirstSeen(),
                 row.getLastRefreshed(),
-                row.getConsecutiveOffline(),
                 row.getMotd(),
                 row.getLatencyMs(),
                 row.isModded(),

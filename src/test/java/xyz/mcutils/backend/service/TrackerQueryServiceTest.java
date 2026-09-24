@@ -5,22 +5,23 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.SliceImpl;
+import org.springframework.data.jpa.domain.Specification;
 import xyz.mcutils.backend.common.Pagination;
 import xyz.mcutils.backend.exception.impl.BadRequestException;
 import xyz.mcutils.backend.exception.impl.NotFoundException;
+import xyz.mcutils.backend.model.dto.request.TrackerServerFilterRequest;
+import xyz.mcutils.backend.model.dto.response.TrackedPlayerSearchResponse;
 import xyz.mcutils.backend.model.dto.response.TrackedPlayerResponse;
 import xyz.mcutils.backend.model.dto.response.TrackedServerDetailResponse;
 import xyz.mcutils.backend.model.dto.response.TrackedServerSummaryResponse;
-import xyz.mcutils.backend.model.dto.response.TrackerStatsResponse;
 import xyz.mcutils.backend.model.persistence.postgres.TrackedServerRow;
 import xyz.mcutils.backend.repository.postgres.PlayerHistoryRepository;
 import xyz.mcutils.backend.repository.postgres.ServerTrackerRepository;
-
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
+
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,7 +32,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -45,22 +45,19 @@ class TrackerQueryServiceTest {
 
     private ServerTrackerRepository serverRepository;
     private PlayerHistoryRepository playerRepository;
-    private TrackerStatsService statsService;
     private TrackerQueryService service;
 
     @BeforeEach
     void setUp() {
         serverRepository = mock(ServerTrackerRepository.class);
         playerRepository = mock(PlayerHistoryRepository.class);
-        statsService = mock(TrackerStatsService.class);
-        service = new TrackerQueryService(serverRepository, playerRepository, statsService, true);
+        service = new TrackerQueryService(serverRepository, playerRepository, true);
     }
 
     @Test
-    void getServersMapsSummaryAndUsesFiftyItemPage() {
-        when(statsService.getStats()).thenReturn(stats(42));
-        when(serverRepository.findByHoneypotFalseOrderByLastUpdatedDescUuidAsc(any()))
-                .thenReturn(new SliceImpl<>(List.of(serverRow()), PageRequest.of(0, PER_PAGE), false));
+    void getServersMapsSummaryAndUsesFilteredPagination() {
+        when(serverRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(serverRow()), PageRequest.of(0, PER_PAGE), 1));
 
         Pagination.Page<TrackedServerSummaryResponse> result = service.getServers(1);
 
@@ -77,19 +74,36 @@ class TrackerQueryServiceTest {
         assertEquals("US", summary.country());
         assertTrue(summary.online());
         assertEquals(LAST_UPDATED, summary.lastUpdated());
-        assertEquals(42L, result.getTotalItems());
+        assertEquals(1L, result.getTotalItems());
         assertEquals(PER_PAGE, result.getItemsPerPage());
         assertEquals(1, result.getTotalPages());
 
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
-        verify(serverRepository).findByHoneypotFalseOrderByLastUpdatedDescUuidAsc(pageable.capture());
+        verify(serverRepository).findAll(any(Specification.class), pageable.capture());
         assertEquals(0, pageable.getValue().getPageNumber());
         assertEquals(PER_PAGE, pageable.getValue().getPageSize());
+        assertEquals("lastUpdated", pageable.getValue().getSort().getOrderFor("lastUpdated").getProperty());
     }
 
     @Test
-    void getServersReturnsEmptyPageWithoutRepositoryQuery() {
-        when(statsService.getStats()).thenReturn(stats(0));
+    void getServersAppliesRequestedSort() {
+        when(serverRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, PER_PAGE), 0));
+        TrackerServerFilterRequest request = new TrackerServerFilterRequest(
+                1, null, null, null, null, null, null, "onlineCount", "asc"
+        );
+
+        service.getServers(request);
+
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(serverRepository).findAll(any(Specification.class), pageable.capture());
+        assertEquals(Sort.Direction.ASC, pageable.getValue().getSort().getOrderFor("onlineCount").getDirection());
+    }
+
+    @Test
+    void getServersReturnsEmptyFilteredPage() {
+        when(serverRepository.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, PER_PAGE), 0));
 
         Pagination.Page<TrackedServerSummaryResponse> result = service.getServers(1);
 
@@ -97,21 +111,26 @@ class TrackerQueryServiceTest {
         assertEquals(0L, result.getTotalItems());
         assertEquals(PER_PAGE, result.getItemsPerPage());
         assertEquals(0, result.getTotalPages());
-        verify(serverRepository, never()).findByHoneypotFalseOrderByLastUpdatedDescUuidAsc(any());
     }
 
     @Test
-    void getServersRejectsInvalidAndOutOfRangePages() {
-        when(statsService.getStats()).thenReturn(stats(10));
-
+    void getServersRejectsInvalidPagesFiltersAndSorts() {
         assertThrows(BadRequestException.class, () -> service.getServers(0));
-        assertThrows(BadRequestException.class, () -> service.getServers(2));
-        verify(serverRepository, never()).findByHoneypotFalseOrderByLastUpdatedDescUuidAsc(any());
+        assertThrows(BadRequestException.class, () -> service.getServers(
+                new TrackerServerFilterRequest(1, null, null, null, null, 20, 10, null, null)
+        ));
+        assertThrows(BadRequestException.class, () -> service.getServers(
+                new TrackerServerFilterRequest(1, null, null, null, null, null, null, "unknown", null)
+        ));
+        assertThrows(BadRequestException.class, () -> service.getServers(
+                new TrackerServerFilterRequest(1, null, null, null, null, null, null, null, "sideways")
+        ));
+        verifyNoInteractions(serverRepository);
     }
 
     @Test
-    void getServersIsEmptyWithoutStatsOrRepositoryReadsWhenDisabled() {
-        TrackerQueryService disabled = new TrackerQueryService(serverRepository, playerRepository, statsService, false);
+    void getServersIsEmptyWithoutRepositoryReadsWhenDisabled() {
+        TrackerQueryService disabled = new TrackerQueryService(serverRepository, playerRepository, false);
 
         Pagination.Page<TrackedServerSummaryResponse> result = disabled.getServers(1);
 
@@ -119,7 +138,7 @@ class TrackerQueryServiceTest {
         assertEquals(0L, result.getTotalItems());
         assertEquals(PER_PAGE, result.getItemsPerPage());
         assertThrows(BadRequestException.class, () -> disabled.getServers(2));
-        verifyNoInteractions(statsService, serverRepository);
+        verifyNoInteractions(serverRepository);
     }
 
     @Test
@@ -144,7 +163,6 @@ class TrackerQueryServiceTest {
         assertEquals(Instant.parse("2026-08-01T03:00:00Z"), detail.firstSeen());
         assertEquals(Instant.parse("2026-09-23T10:20:00Z"), detail.lastCheckedAt());
         assertFalse(detail.online());
-        assertEquals(2, detail.consecutiveOffline());
         assertEquals("Public server", detail.motd());
         assertEquals(Integer.valueOf(45), detail.latencyMs());
         assertTrue(detail.modded());
@@ -162,8 +180,39 @@ class TrackerQueryServiceTest {
         assertThrows(BadRequestException.class, () -> service.getServerDetail("invalid"));
         assertThrows(NotFoundException.class, () -> service.getServerDetail(unknown.toString()));
 
-        TrackerQueryService disabled = new TrackerQueryService(serverRepository, playerRepository, statsService, false);
+        TrackerQueryService disabled = new TrackerQueryService(serverRepository, playerRepository, false);
         assertThrows(NotFoundException.class, () -> disabled.getServerDetail(SERVER_UUID.toString()));
+    }
+
+    @Test
+    void searchPlayersReturnsTrackedMatchesWithBoundedPage() {
+        PlayerHistoryRepository.TrackedPlayerSearchProjection projection =
+                mock(PlayerHistoryRepository.TrackedPlayerSearchProjection.class);
+        when(projection.getPlayerUuid()).thenReturn(PLAYER_UUID);
+        when(projection.getUsername()).thenReturn("Notch");
+        when(projection.getSkinId()).thenReturn(42L);
+        when(playerRepository.searchPublicPlayers(eq("Notch"), any())).thenReturn(List.of(projection));
+
+        List<TrackedPlayerSearchResponse> result = service.searchPlayers(" Notch ");
+
+        assertEquals(1, result.size());
+        assertEquals(PLAYER_UUID, result.get(0).playerUuid());
+        assertEquals("Notch", result.get(0).username());
+        assertEquals(42L, result.get(0).skinId());
+
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(playerRepository).searchPublicPlayers(eq("Notch"), pageable.capture());
+        assertEquals(0, pageable.getValue().getPageNumber());
+        assertEquals(10, pageable.getValue().getPageSize());
+    }
+
+    @Test
+    void searchPlayersSkipsRepositoryForBlankOrDisabledSearch() {
+        assertTrue(service.searchPlayers("   ").isEmpty());
+        TrackerQueryService disabled = new TrackerQueryService(serverRepository, playerRepository, false);
+        assertTrue(disabled.searchPlayers("Notch").isEmpty());
+
+        verifyNoInteractions(playerRepository);
     }
 
     @Test
@@ -211,16 +260,13 @@ class TrackerQueryServiceTest {
 
     @Test
     void getPlayersReturnsNotFoundWithoutRepositoryReadsWhenDisabled() {
-        TrackerQueryService disabled = new TrackerQueryService(serverRepository, playerRepository, statsService, false);
+        TrackerQueryService disabled = new TrackerQueryService(serverRepository, playerRepository, false);
 
         assertThrows(NotFoundException.class, () -> disabled.getPlayers(PLAYER_UUID.toString(), 1));
 
         verifyNoInteractions(playerRepository);
     }
 
-    private static TrackerStatsResponse stats(long trackedServers) {
-        return new TrackerStatsResponse(trackedServers, 1, 1, Map.of("US", trackedServers), Map.of("paper", trackedServers), Map.of("769", trackedServers));
-    }
 
     private static TrackedServerRow serverRow() {
         TrackedServerRow row = new TrackedServerRow();

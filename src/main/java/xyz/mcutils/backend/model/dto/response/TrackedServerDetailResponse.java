@@ -19,7 +19,6 @@ import java.util.UUID;
  * @param lastUpdated timestamp of the latest successful status fetch
  * @param firstSeen timestamp of the first successful discovery verification
  * @param lastCheckedAt timestamp of the latest refresh attempt
- * @param consecutiveOffline number of consecutive failed refreshes
  * @param motd server-advertised message of the day
  * @param latencyMs observed status-ping latency, if measured
  * @param modded whether the tracker identified the server as modded
@@ -42,7 +41,6 @@ public record TrackedServerDetailResponse(
         Instant lastUpdated,
         Instant firstSeen,
         Instant lastCheckedAt,
-        int consecutiveOffline,
         String motd,
         Integer latencyMs,
         boolean modded,

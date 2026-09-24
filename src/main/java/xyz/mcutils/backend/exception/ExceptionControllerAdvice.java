@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import xyz.mcutils.backend.model.dto.response.ErrorResponse;
 
@@ -29,6 +30,16 @@ public final class ExceptionControllerAdvice {
     public ResponseEntity<ErrorResponse> handleAsyncRequestTimeout(AsyncRequestTimeoutException ex) {
         log.warn("Async request timed out: {}", ex.getMessage());
         return new ResponseEntity<>(new ErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, "Request timed out. Please try again."), HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(fieldError -> fieldError.getDefaultMessage())
+                .filter(value -> value != null && !value.isBlank())
+                .findFirst()
+                .orElse("Invalid request parameters.");
+        return ResponseEntity.badRequest().body(new ErrorResponse(HttpStatus.BAD_REQUEST, message));
     }
 
     @ExceptionHandler(Exception.class)

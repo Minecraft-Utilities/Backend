@@ -9,6 +9,7 @@ import xyz.mcutils.backend.model.persistence.postgres.PlayerHistoryRow;
 import xyz.mcutils.backend.model.persistence.postgres.TrackedServerRow;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public interface PlayerHistoryRepository extends JpaRepository<PlayerHistoryRow, PlayerHistoryRow.PlayerHistoryId> {
@@ -19,6 +20,26 @@ public interface PlayerHistoryRepository extends JpaRepository<PlayerHistoryRow,
         WHERE s.honeypot = false
         """)
     long countDistinctPlayers();
+
+    @Query("""
+        SELECT p.id AS playerUuid,
+               p.username AS username,
+               p.skin.id AS skinId
+        FROM PlayerRow p
+        WHERE LOWER(p.username) LIKE LOWER(CONCAT(:query, '%'))
+          AND EXISTS (
+              SELECT ph.playerUuid
+              FROM PlayerHistoryRow ph
+              JOIN TrackedServerRow s ON s.uuid = ph.serverUuid
+              WHERE ph.playerUuid = p.id
+                AND s.honeypot = false
+          )
+        ORDER BY LOWER(p.username)
+        """)
+    List<PlayerHistoryRepository.TrackedPlayerSearchProjection> searchPublicPlayers(
+            @Param("query") String query,
+            Pageable pageable
+    );
 
     @Query("""
         SELECT COUNT(ph)
@@ -55,6 +76,14 @@ public interface PlayerHistoryRepository extends JpaRepository<PlayerHistoryRow,
             @Param("playerUuid") UUID playerUuid,
             Pageable pageable
     );
+
+    interface TrackedPlayerSearchProjection {
+        UUID getPlayerUuid();
+
+        String getUsername();
+
+        long getSkinId();
+    }
 
     interface PlayerSightingProjection {
         String getUsername();
