@@ -2,6 +2,9 @@
 
 import { formatNumberWithCommas } from "@/common/utils";
 import { ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { ChartPie } from "lucide-react";
 import { Cell, Pie, PieChart } from "recharts";
 import { colorFor, formatPercent } from "./chart-utils";
 
@@ -80,7 +83,15 @@ export default function PieBreakdown({
 
   if (entries.length === 0) {
     return (
-      <p className="text-muted-foreground flex h-48 items-center justify-center text-sm">{emptyMessage}</p>
+      <Empty className="min-h-48">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <ChartPie aria-hidden />
+          </EmptyMedia>
+          <EmptyTitle>No data yet</EmptyTitle>
+          <EmptyDescription>{emptyMessage}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 
@@ -136,34 +147,44 @@ export default function PieBreakdown({
         </ChartContainer>
       </div>
 
-      <div className="flex w-full min-w-0 flex-col gap-4">
-        <ul className="flex w-full min-w-0 flex-col gap-1.5">
-          {entries.map(([name, count], index) => (
-            <li key={name} className="flex items-center gap-2 text-sm">
+      <ItemGroup className="min-w-0">
+        {entries.map(([name, count], index) => (
+          <Item key={name} size="xs">
+            <ItemMedia>
               <span
                 className="size-2.5 shrink-0 rounded-full"
                 style={{ backgroundColor: colorFor(name, index) }}
               />
-              <span className="text-muted-foreground min-w-0 flex-1 truncate">{displayName(name)}</span>
+            </ItemMedia>
+            <ItemContent className="min-w-0">
+              <ItemTitle>{displayName(name)}</ItemTitle>
+            </ItemContent>
+            <ItemActions>
               <span className="tabular-nums">{formatNumberWithCommas(count)}</span>
               <span className="text-muted-foreground w-12 shrink-0 text-right text-xs tabular-nums">
                 {formatPercent(count, totalForPercent)}
               </span>
-            </li>
-          ))}
+            </ItemActions>
+          </Item>
+        ))}
 
-          {showRemainder && (
-            <li className="flex items-center gap-2 text-sm">
+        {showRemainder && (
+          <Item size="xs">
+            <ItemMedia>
               <span className="bg-muted size-2.5 shrink-0 rounded-full" />
-              <span className="text-muted-foreground/70 min-w-0 flex-1 truncate">{remainderLabel}</span>
+            </ItemMedia>
+            <ItemContent className="min-w-0">
+              <ItemTitle className="text-muted-foreground font-normal">{remainderLabel}</ItemTitle>
+            </ItemContent>
+            <ItemActions>
               <span className="tabular-nums">{formatNumberWithCommas(remainder)}</span>
               <span className="text-muted-foreground w-12 shrink-0 text-right text-xs tabular-nums">
                 {formatPercent(remainder, totalForPercent)}
               </span>
-            </li>
-          )}
-        </ul>
-      </div>
+            </ItemActions>
+          </Item>
+        )}
+      </ItemGroup>
     </div>
   );
 }

@@ -1,11 +1,23 @@
 import type { TrackedPlayer, TrackedPlayerServer } from "@/common/tracker";
+import { serverAddress } from "@/common/tracker";
 import { formatNumberWithCommas } from "@/common/utils";
 import { ProfileCopyableValue } from "@/components/profile-field";
 import TimeAgo from "@/components/time-ago";
 import { Button } from "@/components/ui/button";
 import Card, { CardContent } from "@/components/ui/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemFooter,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item";
 import Pagination from "@/components/ui/pagination";
-import { ArrowUpRight, CalendarClock } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { ArrowUpRight, CalendarClock, Server } from "lucide-react";
 import Link from "next/link";
 
 export interface TrackerPlayerSightingsProps {
@@ -73,7 +85,7 @@ export function TrackerPlayerSightings({
       <Card className="overflow-hidden p-0">
         <CardContent className="grid gap-5 p-5 md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(7rem,0.6fr))] md:items-center">
           <div className="min-w-0">
-            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Player UUID</p>
+            <p className="text-muted-foreground text-xs">Player UUID</p>
             <div className="mt-2">
               <ProfileCopyableValue text={player.playerUuid} />
             </div>
@@ -102,14 +114,16 @@ export function TrackerPlayerSightings({
       </Card>
 
       {sightings.length === 0 ? (
-        <Card className="w-full max-w-md">
-          <CardContent className="flex flex-col items-center gap-2 text-center">
-            <CalendarClock className="text-muted-foreground size-6" aria-hidden />
-            <p className="text-foreground font-medium">No public sightings on this page</p>
-            <p className="text-muted-foreground text-sm">
-              Return to page one to see the full tracked-player history.
-            </p>
-          </CardContent>
+        <Card className="w-full overflow-hidden p-0">
+          <Empty className="min-h-48">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <CalendarClock aria-hidden />
+              </EmptyMedia>
+              <EmptyTitle>No public sightings on this page</EmptyTitle>
+              <EmptyDescription>Return to page one to see the full tracked-player history.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         </Card>
       ) : (
         <ol
@@ -117,10 +131,8 @@ export function TrackerPlayerSightings({
           aria-label="Server sighting timeline"
         >
           {sightings.map((sighting, index) => {
-            const address =
-              sighting.server.ip.includes(":") && !sighting.server.ip.startsWith("[")
-                ? `[${sighting.server.ip}]:${sighting.server.port}`
-                : `${sighting.server.ip}:${sighting.server.port}`;
+            const address = serverAddress(sighting.server);
+            const software = sighting.server.version ?? sighting.server.platform ?? "Minecraft server";
 
             return (
               <li key={`${sighting.server.uuid}-${index}`} className="relative pb-4 last:pb-0">
@@ -133,43 +145,47 @@ export function TrackerPlayerSightings({
                   aria-hidden
                 />
                 <Card className="hover:border-primary/35 overflow-hidden p-0 transition-colors">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-foreground truncate font-semibold">{address}</p>
-                        <p className="text-muted-foreground mt-1 truncate text-xs">
-                          {sighting.server.version ?? sighting.server.platform ?? "Minecraft server"} ·
-                          observed as {sighting.username}
-                        </p>
-                      </div>
+                  <Item className="p-4">
+                    <ItemMedia variant="icon">
+                      <Server aria-hidden />
+                    </ItemMedia>
+                    <ItemContent className="min-w-0">
+                      <ItemTitle>{address}</ItemTitle>
+                      <ItemDescription>
+                        {software} · observed as {sighting.username}
+                      </ItemDescription>
+                    </ItemContent>
+                    <ItemActions>
                       <Button asChild variant="ghost" size="icon-sm" aria-label={`View ${address}`}>
                         <Link href={`/servers/${encodeURIComponent(sighting.server.uuid)}`}>
                           <ArrowUpRight className="size-4" aria-hidden />
                         </Link>
                       </Button>
-                    </div>
-
-                    <div className="border-border/60 mt-4 grid grid-cols-2 gap-4 border-t pt-4 sm:grid-cols-3">
-                      <div>
-                        <p className="text-foreground text-sm font-medium">
-                          <FreshnessValue value={sighting.firstSeen} />
-                        </p>
-                        <p className="text-muted-foreground text-xs">first on server</p>
+                    </ItemActions>
+                    <ItemFooter className="flex-col items-stretch gap-4">
+                      <Separator />
+                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                        <div>
+                          <p className="text-foreground text-sm font-medium">
+                            <FreshnessValue value={sighting.firstSeen} />
+                          </p>
+                          <p className="text-muted-foreground text-xs">first on server</p>
+                        </div>
+                        <div>
+                          <p className="text-foreground text-sm font-medium">
+                            <FreshnessValue value={sighting.lastSeen} />
+                          </p>
+                          <p className="text-muted-foreground text-xs">last on server</p>
+                        </div>
+                        <div>
+                          <p className="text-foreground text-sm font-medium tabular-nums">
+                            {formatNumberWithCommas(sighting.timesSeen)}
+                          </p>
+                          <p className="text-muted-foreground text-xs">times seen</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-foreground text-sm font-medium">
-                          <FreshnessValue value={sighting.lastSeen} />
-                        </p>
-                        <p className="text-muted-foreground text-xs">last on server</p>
-                      </div>
-                      <div>
-                        <p className="text-foreground text-sm font-medium tabular-nums">
-                          {formatNumberWithCommas(sighting.timesSeen)}
-                        </p>
-                        <p className="text-muted-foreground text-xs">times seen</p>
-                      </div>
-                    </div>
-                  </CardContent>
+                    </ItemFooter>
+                  </Item>
                 </Card>
               </li>
             );

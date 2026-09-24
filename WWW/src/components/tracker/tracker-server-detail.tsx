@@ -1,9 +1,12 @@
-import type { TrackedServerDetail } from "@/common/tracker";
+import { serverAddress, type TrackedServerDetail } from "@/common/tracker";
 import { formatNumberWithCommas } from "@/common/utils";
 import { ProfileCopyableValue, ProfileField, ProfileFields, ProfileValue } from "@/components/profile-field";
 import TimeAgo from "@/components/time-ago";
-import { countryFlag, countryLabel, protocolLabel } from "@/components/tracker/chart-utils";
+import { countryFlag, countryLabel } from "@/components/tracker/chart-utils";
 import Card, { CardContent, CardHeader } from "@/components/ui/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { Separator } from "@/components/ui/separator";
 import { Check, CircleAlert, Clock3, MapPin, ShieldCheck, Users, Wifi, X } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -40,21 +43,6 @@ function OptionalValue({
   return <ProfileValue>{value == null || value === "" ? unavailable : value}</ProfileValue>;
 }
 
-function CapabilityValue({ enabled, label }: { enabled: boolean; label: string }) {
-  return (
-    <span
-      className={
-        enabled
-          ? "inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400"
-          : "text-muted-foreground inline-flex items-center gap-1.5"
-      }
-    >
-      {enabled ? <Check className="size-3.5" aria-hidden /> : <X className="size-3.5" aria-hidden />}
-      {label}
-    </span>
-  );
-}
-
 function DetailCard({
   title,
   children,
@@ -73,82 +61,114 @@ function DetailCard({
 }
 
 export function TrackerServerDetail({ server }: TrackerServerDetailProps) {
-  const address =
-    server.ip.includes(":") && !server.ip.startsWith("[")
-      ? `[${server.ip}]:${server.port}`
-      : `${server.ip}:${server.port}`;
+  const address = serverAddress(server);
   const country = server.country?.trim();
   const flag = country ? countryFlag(country) : null;
   const motd = server.motd?.trim();
+  const capabilities = [
+    {
+      enabled: server.modded,
+      label: server.modded ? "Modded server detected" : "No modded server detected",
+    },
+    {
+      enabled: server.preventsChatReports,
+      label: server.preventsChatReports ? "Prevents chat reports" : "Does not prevent chat reports",
+    },
+    {
+      enabled: server.enforcesSecureChat,
+      label: server.enforcesSecureChat ? "Enforces secure chat" : "Does not enforce secure chat",
+    },
+    {
+      enabled: server.previewsChat,
+      label: server.previewsChat ? "Previews chat" : "Does not preview chat",
+    },
+  ];
 
   return (
     <section className="flex w-full min-w-0 flex-col gap-5" aria-label="Tracked server telemetry">
-      <div className="border-border/70 bg-card/70 rounded-xl border p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <span
-              className={
-                server.online
-                  ? "size-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgb(16_185_129_/_0.12)]"
-                  : "bg-muted-foreground/50 size-2.5 rounded-full"
-              }
-              aria-hidden
-            />
-            <div>
-              <p className="text-foreground font-semibold">{server.online ? "Online" : "Offline"}</p>
-              <p className="text-muted-foreground text-xs">Latest tracker refresh result</p>
+      <Card className="overflow-hidden p-0">
+        <CardContent className="p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <span
+                className={
+                  server.online
+                    ? "size-2.5 rounded-full bg-emerald-500"
+                    : "bg-muted-foreground/50 size-2.5 rounded-full"
+                }
+                aria-hidden
+              />
+              <div>
+                <p className="text-foreground font-medium">{server.online ? "Online" : "Offline"}</p>
+                <p className="text-muted-foreground text-xs">Latest tracker refresh result</p>
+              </div>
+            </div>
+            <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
+              <Clock3 className="size-3.5 shrink-0" aria-hidden />
+              Last checked <FreshnessValue value={server.lastCheckedAt} />
             </div>
           </div>
-          <div className="text-muted-foreground flex items-center gap-2 text-xs">
-            <Clock3 className="size-3.5" aria-hidden />
-            Last checked <FreshnessValue value={server.lastCheckedAt} />
-          </div>
-        </div>
 
-        <div className="border-border/60 md:divide-border/60 mt-5 grid grid-cols-2 gap-4 border-t pt-5 md:grid-cols-4 md:divide-x">
-          <div className="flex items-start gap-2 md:px-4 md:first:pl-0">
-            <Users className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
-            <div>
-              <p className="text-foreground font-semibold tabular-nums">
-                {formatNumberWithCommas(server.onlineCount)} / {formatNumberWithCommas(server.maxPlayers)}
-              </p>
-              <p className="text-muted-foreground text-xs">advertised players</p>
-            </div>
+          <Separator className="my-4" />
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Item variant="muted" size="sm">
+              <ItemMedia variant="icon">
+                <Users aria-hidden />
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle className="tabular-nums">
+                  {formatNumberWithCommas(server.onlineCount)} / {formatNumberWithCommas(server.maxPlayers)}
+                </ItemTitle>
+                <ItemDescription>advertised players</ItemDescription>
+              </ItemContent>
+            </Item>
+
+            <Item variant="muted" size="sm">
+              <ItemMedia variant="icon">
+                <Wifi aria-hidden />
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle className="truncate">{server.version ?? "Unknown"}</ItemTitle>
+                <ItemDescription className="truncate">
+                  {server.platform ?? "software unknown"}
+                </ItemDescription>
+              </ItemContent>
+            </Item>
+
+            <Item variant="muted" size="sm">
+              <ItemMedia variant="icon">
+                <MapPin aria-hidden />
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle className="truncate">
+                  {country ? (
+                    <>
+                      {flag ? <span aria-hidden>{flag}</span> : null}
+                      {countryLabel(country)}
+                    </>
+                  ) : (
+                    "Unknown"
+                  )}
+                </ItemTitle>
+                <ItemDescription>estimated location</ItemDescription>
+              </ItemContent>
+            </Item>
+
+            <Item variant="muted" size="sm">
+              <ItemMedia variant="icon">
+                <Clock3 aria-hidden />
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle className="tabular-nums">
+                  {server.latencyMs == null ? "—" : `${server.latencyMs} ms`}
+                </ItemTitle>
+                <ItemDescription>observed latency</ItemDescription>
+              </ItemContent>
+            </Item>
           </div>
-          <div className="flex items-start gap-2 md:px-4">
-            <Wifi className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
-            <div className="min-w-0">
-              <p className="text-foreground truncate font-semibold">{server.version ?? "Unknown"}</p>
-              <p className="text-muted-foreground text-xs">{server.platform ?? "software unknown"}</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-2 md:px-4">
-            <MapPin className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
-            <div className="min-w-0">
-              <p className="text-foreground truncate font-semibold">
-                {country ? (
-                  <>
-                    {flag ? <span aria-hidden>{flag} </span> : null}
-                    {countryLabel(country)}
-                  </>
-                ) : (
-                  "Unknown"
-                )}
-              </p>
-              <p className="text-muted-foreground text-xs">estimated location</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-2 md:px-4">
-            <Clock3 className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
-            <div>
-              <p className="text-foreground font-semibold">
-                {server.latencyMs == null ? "—" : `${server.latencyMs} ms`}
-              </p>
-              <p className="text-muted-foreground text-xs">observed latency</p>
-            </div>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
         <DetailCard title="Telemetry">
@@ -159,28 +179,17 @@ export function TrackerServerDetail({ server }: TrackerServerDetailProps) {
             <ProfileField label="Platform">
               <OptionalValue value={server.platform} />
             </ProfileField>
-            <ProfileField label="Protocol">
-              <OptionalValue
-                value={server.protocol == null ? null : protocolLabel(String(server.protocol))}
-              />
-            </ProfileField>
             <ProfileField label="First seen">
               <FreshnessValue value={server.firstSeen} />
             </ProfileField>
             <ProfileField label="Last seen">
               <FreshnessValue value={server.lastUpdated} />
             </ProfileField>
-            <ProfileField label="Failed checks" tooltip="Consecutive refresh attempts that did not succeed.">
-              <ProfileValue>{formatNumberWithCommas(server.consecutiveOffline)}</ProfileValue>
-            </ProfileField>
           </ProfileFields>
         </DetailCard>
 
         <DetailCard title="Network">
           <ProfileFields>
-            <ProfileField label="UUID">
-              <ProfileCopyableValue text={server.uuid} />
-            </ProfileField>
             <ProfileField label="Address">
               <ProfileCopyableValue text={address} />
             </ProfileField>
@@ -199,31 +208,36 @@ export function TrackerServerDetail({ server }: TrackerServerDetailProps) {
               {motd}
             </p>
           ) : (
-            <p className="text-muted-foreground flex items-center gap-2 text-sm">
-              <CircleAlert className="size-4" aria-hidden />
-              No MOTD was reported for this server.
-            </p>
+            <Empty className="py-6">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <CircleAlert aria-hidden />
+                </EmptyMedia>
+                <EmptyTitle>No MOTD reported</EmptyTitle>
+                <EmptyDescription>The server did not advertise a message of the day.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
         </DetailCard>
 
         <DetailCard title="Server capabilities" className="lg:col-span-2">
           <div className="grid gap-3 sm:grid-cols-2">
-            <CapabilityValue
-              enabled={server.modded}
-              label={server.modded ? "Modded server detected" : "No modded server detected"}
-            />
-            <CapabilityValue
-              enabled={server.preventsChatReports}
-              label={server.preventsChatReports ? "Prevents chat reports" : "Does not prevent chat reports"}
-            />
-            <CapabilityValue
-              enabled={server.enforcesSecureChat}
-              label={server.enforcesSecureChat ? "Enforces secure chat" : "Does not enforce secure chat"}
-            />
-            <CapabilityValue
-              enabled={server.previewsChat}
-              label={server.previewsChat ? "Previews chat" : "Does not preview chat"}
-            />
+            {capabilities.map(capability => (
+              <Item key={capability.label} variant="outline" size="sm">
+                <ItemMedia variant="icon">
+                  {capability.enabled ? (
+                    <Check className="text-emerald-500" aria-hidden />
+                  ) : (
+                    <X className="text-muted-foreground" aria-hidden />
+                  )}
+                </ItemMedia>
+                <ItemContent>
+                  <ItemTitle className={capability.enabled ? undefined : "text-muted-foreground font-normal"}>
+                    {capability.label}
+                  </ItemTitle>
+                </ItemContent>
+              </Item>
+            ))}
           </div>
           <p className="text-muted-foreground mt-4 flex items-start gap-2 text-xs">
             <ShieldCheck className="mt-0.5 size-3.5 shrink-0" aria-hidden />

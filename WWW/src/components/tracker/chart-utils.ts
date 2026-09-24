@@ -44,7 +44,7 @@ export function formatPercent(part: number, total: number): string {
  * Known Java Edition release protocol numbers -> Minecraft version label.
  * Source: https://minecraft.wiki/w/Protocol_version (accessed 2026-09-20)
  */
-const PROTOCOL_LABELS: Record<string, string> = {
+export const PROTOCOL_LABELS: Record<string, string> = {
   "47": "1.8",
   "107": "1.9",
   "108": "1.9.1",

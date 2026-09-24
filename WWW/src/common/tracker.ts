@@ -7,6 +7,69 @@ export interface TrackerPage<T> {
   itemsPerPage: number;
   totalPages: number;
 }
+/** Sort fields accepted by the public server tracker. */
+export const TRACKER_SERVER_SORT_FIELDS = [
+  "lastUpdated",
+  "onlineCount",
+  "latencyMs",
+  "protocol",
+  "ip",
+  "country",
+] as const;
+
+export type TrackerServerSortField = (typeof TRACKER_SERVER_SORT_FIELDS)[number];
+
+/** Sort directions accepted by the public server tracker. */
+export type TrackerServerSortDirection = "asc" | "desc";
+
+/** Query state accepted by the public server tracker endpoint. */
+export interface TrackerServerQuery {
+  page: number;
+  ip?: string;
+  country?: string;
+  platform?: string;
+  protocol?: number;
+  minOnlinePlayers?: number;
+  maxOnlinePlayers?: number;
+  /**
+   * `lastUpdated` | `onlineCount` | `latencyMs` | `protocol` | `ip` | `country`
+   * are the known values. Invalid hand-edited URL values are forwarded
+   * to the API as 400s instead of being silently rewritten.
+   */
+  sort?: TrackerServerSortField | (string & {});
+  /** `asc` | `desc` are the known values. Invalid values are forwarded as 400s. */
+  direction?: TrackerServerSortDirection | (string & {});
+}
+
+/** Serializes tracker query state using the public endpoint's parameter names. */
+export function serializeTrackerServerQuery(query: TrackerServerQuery): string {
+  const params = new URLSearchParams();
+  params.set("page", String(query.page));
+
+  const values: Array<[string, string | number | undefined]> = [
+    ["ip", query.ip],
+    ["country", query.country],
+    ["platform", query.platform],
+    ["protocol", query.protocol],
+    ["minOnlinePlayers", query.minOnlinePlayers],
+    ["maxOnlinePlayers", query.maxOnlinePlayers],
+    ["sort", query.sort],
+    ["direction", query.direction],
+  ];
+
+  for (const [key, value] of values) {
+    if (value === undefined || value === null || (typeof value === "number" && !Number.isFinite(value))) {
+      continue;
+    }
+
+    const serialized = String(value);
+    if (serialized.length > 0) {
+      params.set(key, serialized);
+    }
+  }
+
+  return params.toString();
+}
 
 /** Compact public representation of a tracked server. */
 export interface TrackedServerSummary {
@@ -27,11 +90,17 @@ export interface TrackedServerSummary {
   lastUpdated: string;
 }
 
+/** `ip:port` for a tracked server, bracketing the host when it is an IPv6 literal. */
+export function serverAddress(server: Pick<TrackedServerSummary, "ip" | "port">): string {
+  return server.ip.includes(":") && !server.ip.startsWith("[")
+    ? `[${server.ip}]:${server.port}`
+    : `${server.ip}:${server.port}`;
+}
+
 /** Full public representation of a tracked server. */
 export interface TrackedServerDetail extends TrackedServerSummary {
   firstSeen: string;
   lastCheckedAt: string;
-  consecutiveOffline: number;
   motd?: string | null;
   latencyMs?: number | null;
   modded: boolean;
@@ -54,6 +123,13 @@ export interface TrackedPlayerServer {
 export interface TrackedPlayer {
   playerUuid: string;
   servers: TrackerPage<TrackedPlayerServer>;
+}
+
+/** Username-search result for a player with public tracker history. */
+export interface TrackedPlayerSearchResult {
+  playerUuid: string;
+  username: string;
+  skinId: number;
 }
 
 /** Error returned by the public server tracker API. */
@@ -154,13 +230,20 @@ export async function fetchTrackerStats(options?: TrackerFetchOptions): Promise<
   return fetchTrackerJson<TrackerStats>("/stats", "tracker statistics", options);
 }
 
-/** Fetches a fixed-size page of recently updated public tracked servers. */
+/**
+ * Fetches a fixed-size page of public tracked servers.
+ *
+ * @param query optional filter, sort, and pagination state; defaults to page one
+ * @param options optional fetch and Next cache controls
+ * @returns the parsed page of tracked server summaries
+ * @throws TrackerApiError when the endpoint cannot be reached or returns an error
+ */
 export async function fetchTrackerServers(
-  page: number,
+  query: TrackerServerQuery = { page: 1 },
   options?: TrackerFetchOptions
 ): Promise<TrackerPage<TrackedServerSummary>> {
   return fetchTrackerJson<TrackerPage<TrackedServerSummary>>(
-    `/servers?page=${encodeURIComponent(page)}`,
+    `/servers?${serializeTrackerServerQuery(query)}`,
     "tracked servers",
     options
   );
@@ -174,6 +257,18 @@ export async function fetchTrackedServer(
   return fetchTrackerJson<TrackedServerDetail>(
     `/${encodeURIComponent(uuid)}`,
     "tracked server details",
+    options
+  );
+}
+
+/** Searches tracked players by username prefix. */
+export async function searchTrackedPlayers(
+  query: string,
+  options?: TrackerFetchOptions
+): Promise<TrackedPlayerSearchResult[]> {
+  return fetchTrackerJson<TrackedPlayerSearchResult[]>(
+    `/players?query=${encodeURIComponent(query)}`,
+    "tracked player search",
     options
   );
 }

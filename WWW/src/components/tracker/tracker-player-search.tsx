@@ -1,14 +1,13 @@
 "use client";
 
-import { mcUtilsApi } from "@/common/mc-utils";
+import { searchTrackedPlayers, type TrackedPlayerSearchResult } from "@/common/tracker";
 import { cn } from "@/common/utils";
-import PlayerLookupEntry from "@/components/player/player-lookup-entry";
+import TrackedPlayerSearchEntry from "@/components/tracker/tracked-player-search-entry";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useDebounce } from "@uidotdev/usehooks";
 import { CircleAlert, Loader2, Search, UserRound, X } from "lucide-react";
-import type { BasicPlayer } from "mcutils-js-api/dist/types/player/player";
 import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useState } from "react";
 
@@ -29,23 +28,18 @@ export default function TrackerPlayerSearch({ className }: TrackerPlayerSearchPr
     isFetching,
     isSuccess,
   } = useQuery({
-    queryKey: ["playerSearch", debouncedQuery],
-    queryFn: async (): Promise<BasicPlayer[]> => {
-      const result = await mcUtilsApi.searchPlayers(debouncedQuery);
-      if (result.error) {
-        throw new Error(result.error.message);
-      }
-      return result.entries ?? [];
-    },
+    queryKey: ["trackerPlayerSearch", debouncedQuery],
+    queryFn: (): Promise<TrackedPlayerSearchResult[]> =>
+      searchTrackedPlayers(debouncedQuery, { cache: "no-store" }),
     placeholderData: keepPreviousData,
     enabled: debouncedQuery.length > 0,
   });
 
   const selectPlayer = useCallback(
-    (entry: BasicPlayer) => {
+    (entry: TrackedPlayerSearchResult) => {
       setOpen(false);
       setQuery("");
-      router.push(`/servers/players/${entry.uniqueId}`);
+      router.push(`/servers/players/${entry.playerUuid}`);
     },
     [router]
   );
@@ -118,16 +112,16 @@ export default function TrackerPlayerSearch({ className }: TrackerPlayerSearchPr
           <div className="flex flex-col gap-1 p-1">
             <div className="text-muted-foreground flex items-center gap-2 px-3 py-1.5">
               <UserRound className="size-3.5" aria-hidden />
-              <span className="text-xs font-medium tracking-wider uppercase">Players</span>
+              <span className="text-xs font-medium tracking-wider uppercase">Tracked players</span>
             </div>
             {entries.map(entry => (
-              <PlayerLookupEntry key={entry.uniqueId} entry={entry} onSelect={selectPlayer} />
+              <TrackedPlayerSearchEntry key={entry.playerUuid} entry={entry} onSelect={selectPlayer} />
             ))}
           </div>
         ) : showEmpty ? (
           <div className="text-muted-foreground flex items-center gap-3 px-4 py-5 text-sm">
             <UserRound className="size-4 shrink-0" aria-hidden />
-            No players match “{debouncedQuery}”.
+            No tracked players match “{debouncedQuery}”.
           </div>
         ) : isError ? (
           <div className="text-destructive flex items-center gap-3 px-4 py-5 text-sm" role="alert">

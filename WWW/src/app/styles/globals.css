@@ -107,6 +107,32 @@ body {
 }
 
 /*
+  Custom variants the shadcn Radix primitives are written against. Without these
+  declarations the classes that use them compile to nothing, so elements like
+  Separator lose their hairline height.
+
+  Source: https://github.com/shadcn-ui/ui/blob/main/packages/shadcn/src/tailwind.css
+*/
+@custom-variant data-checked {
+  &:where([data-state="checked"]),
+  &:where([data-checked]:not([data-checked="false"])) {
+    @slot;
+  }
+}
+
+@custom-variant data-horizontal {
+  &:where([data-orientation="horizontal"]) {
+    @slot;
+  }
+}
+
+@custom-variant data-vertical {
+  &:where([data-orientation="vertical"]) {
+    @slot;
+  }
+}
+
+/*
   The default border color has changed to `currentColor` in Tailwind CSS v4,
   so we've added these compatibility styles to make sure everything still
   looks the same as it did with Tailwind CSS v3.

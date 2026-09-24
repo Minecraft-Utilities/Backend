@@ -1,11 +1,19 @@
 import {
   fetchTrackerServers,
+  fetchTrackerStats,
   TRACKER_REVALIDATE_SECONDS,
   type TrackedServerSummary,
   type TrackerPage,
 } from "@/common/tracker";
+import { formatNumberWithCommas } from "@/common/utils";
+import QueryFilterBuilder from "@/components/filters/query-filter-builder";
 import TrackerErrorCard from "@/components/tracker/tracker-error-card";
 import TrackerPageHeader from "@/components/tracker/tracker-page-header";
+import {
+  buildTrackerServerFilterDefinition,
+  trackerServerPageHref,
+  trackerServerQueryFromSearchParams,
+} from "@/components/tracker/tracker-server-filter-config";
 import TrackerServerList from "@/components/tracker/tracker-server-list";
 import { Button } from "@/components/ui/button";
 import type { Metadata } from "next";
@@ -35,23 +43,34 @@ function normalizePage(value: string | string[] | undefined): number | null {
 export default async function BrowseTrackedServersPage({ searchParams }: PageProps<"/servers/browse">) {
   const params = await searchParams;
   const page = normalizePage(params.page);
+  const filters = trackerServerQueryFromSearchParams(params);
+
+  // Started before the page fetch so both tracker calls share a single round trip.
+  const statsPromise = fetchTrackerStats({
+    next: { revalidate: TRACKER_REVALIDATE_SECONDS },
+  }).catch(() => null);
 
   let servers: TrackerPage<TrackedServerSummary> | null = null;
   let loadError: string | null = null;
 
   if (page !== null) {
     try {
-      servers = await fetchTrackerServers(page, { next: { revalidate: TRACKER_REVALIDATE_SECONDS } });
+      servers = await fetchTrackerServers(
+        { ...filters, page },
+        { next: { revalidate: TRACKER_REVALIDATE_SECONDS } }
+      );
     } catch (error) {
-      loadError = error instanceof Error ? error.message : "The tracked server list could not be loaded.";
+      loadError = error instanceof Error ? error.message : "The server list could not be loaded.";
     }
   }
+
+  const filterDefinition = buildTrackerServerFilterDefinition(await statsPromise);
 
   return (
     <div className="mt-10 flex w-full flex-col items-center gap-8">
       <TrackerPageHeader
         title="Browse Minecraft servers"
-        description="Explore public Minecraft servers ordered by their most recent successful observation."
+        description="Explore public Minecraft servers and narrow the directory by network, software, protocol, location, and popularity."
         active="browse"
         actions={
           <Button asChild variant="outline">
@@ -60,38 +79,43 @@ export default async function BrowseTrackedServersPage({ searchParams }: PagePro
         }
       />
 
-      {page === null ? (
-        <TrackerErrorCard
-          title="Invalid page"
-          message="Page numbers must be positive whole numbers."
-          action={
-            <Button asChild variant="outline">
-              <Link href="/servers/browse?page=1">Go to page one</Link>
-            </Button>
-          }
-        />
-      ) : loadError || !servers ? (
-        <TrackerErrorCard
-          title="Servers unavailable"
-          message={loadError ?? "The server list could not be loaded."}
-          action={
-            <Button asChild variant="outline">
-              <Link href="/servers/browse?page=1">Return to page one</Link>
-            </Button>
-          }
-        />
-      ) : (
-        <div className="flex w-full max-w-5xl flex-col gap-4">
-          <p className="text-muted-foreground text-sm" aria-live="polite">
-            Page {page} of {servers.totalPages || 1} · {servers.totalItems} public servers
-          </p>
-          <TrackerServerList
-            data={servers}
-            currentPage={page}
-            hrefForPage={targetPage => `/servers/browse?page=${targetPage}`}
+      <div className="flex w-full max-w-5xl flex-col gap-4">
+        <QueryFilterBuilder key={JSON.stringify(params)} definition={filterDefinition} />
+
+        {page === null ? (
+          <TrackerErrorCard
+            title="Invalid page"
+            message="Page numbers must be positive whole numbers."
+            action={
+              <Button asChild variant="outline">
+                <Link href="/servers/browse?page=1">Go to page one</Link>
+              </Button>
+            }
           />
-        </div>
-      )}
+        ) : loadError || !servers ? (
+          <TrackerErrorCard
+            title="Servers unavailable"
+            message={loadError ?? "The server list could not be loaded."}
+            action={
+              <Button asChild variant="outline">
+                <Link href="/servers/browse?page=1">Return to page one</Link>
+              </Button>
+            }
+          />
+        ) : (
+          <div className="flex flex-col gap-4">
+            <p className="text-muted-foreground text-sm" aria-live="polite">
+              Page {formatNumberWithCommas(page)} of {formatNumberWithCommas(servers.totalPages || 1)} ·{" "}
+              {formatNumberWithCommas(servers.totalItems)} matching servers
+            </p>
+            <TrackerServerList
+              data={servers}
+              currentPage={page}
+              hrefForPage={targetPage => trackerServerPageHref(params, targetPage)}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

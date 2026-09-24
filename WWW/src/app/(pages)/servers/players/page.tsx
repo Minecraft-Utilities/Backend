@@ -14,7 +14,7 @@ export default function TrackedPlayerLookupPage() {
       <TrackerPageHeader
         title="Player server history"
         description="Search by username to see the public servers where a verified player was observed."
-        active="browse"
+        active="players"
       />
 
       <Card className="w-full max-w-3xl overflow-hidden p-0">

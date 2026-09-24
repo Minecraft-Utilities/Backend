@@ -1,5 +1,6 @@
 import {
   fetchTrackedServer,
+  serverAddress,
   TRACKER_REVALIDATE_SECONDS,
   TrackerApiError,
   type TrackedServerDetail,
@@ -36,10 +37,7 @@ export async function generateMetadata(props: ServerPageProps): Promise<Metadata
 
   try {
     const server = await loadServer(rawUuid);
-    const address =
-      server.ip.includes(":") && !server.ip.startsWith("[")
-        ? `[${server.ip}]:${server.port}`
-        : `${server.ip}:${server.port}`;
+    const address = serverAddress(server);
     const label = server.version ? `${address} — ${server.version}` : address;
     const title = `${label} — Minecraft Server`;
     const description = `View ${label}'s server status, player counts, freshness, network details, and secure-chat capabilities on MC Utils.`;
@@ -79,7 +77,7 @@ export default async function TrackedServerPage(props: ServerPageProps) {
     return (
       <div className="mt-10 flex w-full flex-col items-center gap-8">
         <TrackerPageHeader
-          eyebrow="Minecraft server"
+          breadcrumbs={[{ label: "Browse servers", href: "/servers/browse" }, { label: "Server" }]}
           title="Server unavailable"
           description="The requested server could not be loaded."
           active="browse"
@@ -99,15 +97,13 @@ export default async function TrackedServerPage(props: ServerPageProps) {
     );
   }
 
-  const address =
-    server.ip.includes(":") && !server.ip.startsWith("[")
-      ? `[${server.ip}]:${server.port}`
-      : `${server.ip}:${server.port}`;
+  const address = serverAddress(server);
   const software = server.version ?? server.platform ?? "Minecraft server";
 
   return (
     <div className="mt-10 flex w-full flex-col items-center gap-8">
       <TrackerPageHeader
+        breadcrumbs={[{ label: "Browse servers", href: "/servers/browse" }, { label: "Server" }]}
         title={address}
         description={`${software} server · latest public observations and refresh history.`}
         active="browse"

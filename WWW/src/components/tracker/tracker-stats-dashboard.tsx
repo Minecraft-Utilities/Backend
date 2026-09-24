@@ -2,9 +2,11 @@
 
 import { fetchTrackerStats, type TrackerStats } from "@/common/tracker";
 import { capitalize } from "@/common/utils";
+import { Badge } from "@/components/ui/badge";
 import Card, { CardContent, CardHeader } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import { countryFlag, countryLabel, protocolLabel } from "./chart-utils";
+import { useEffect, useState } from "react";
+import { countryFlag, countryLabel } from "./chart-utils";
 import PieBreakdown from "./pie-breakdown";
 import TrackerStatCards from "./tracker-stat-cards";
 
@@ -22,12 +24,20 @@ function BreakdownCardHeader({ title }: { title: string }) {
     <CardHeader>
       <div className="flex w-full items-center justify-between gap-2">
         <span>{title}</span>
-        <span className="bg-muted/50 text-muted-foreground rounded-full px-2 py-0.5 text-[10px] font-semibold">
-          Top 10
-        </span>
+        <Badge variant="secondary">Top 10</Badge>
       </div>
     </CardHeader>
   );
+}
+
+function describeElapsed(seconds: number): string {
+  if (seconds < 5) {
+    return "just now";
+  }
+  if (seconds < 60) {
+    return `${seconds} seconds ago`;
+  }
+  return `${Math.floor(seconds / 60)} minutes ago`;
 }
 
 export default function TrackerStatsDashboard({ initialStats }: { initialStats: TrackerStats }) {
@@ -40,22 +50,27 @@ export default function TrackerStatsDashboard({ initialStats }: { initialStats: 
     staleTime: 0,
   });
 
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  // The clock is only read inside this effect so that render stays pure; the first
+  // paint before the effect runs reads as "just now".
+  useEffect(() => {
+    const refresh = () => {
+      setElapsedSeconds(Math.max(0, Math.round((Date.now() - dataUpdatedAt) / 1000)));
+    };
+    refresh();
+    const timer = setInterval(refresh, 1000);
+    return () => clearInterval(timer);
+  }, [dataUpdatedAt]);
+
   // Unfingerprinted servers dominate the platform breakdown; lump them into "Other platforms".
   const platform = Object.fromEntries(Object.entries(stats.platform).filter(([key]) => key !== "unknown"));
 
-  const secondsSinceUpdate = Math.max(0, Math.round((Date.now() - dataUpdatedAt) / 1000));
-  const updatedText =
-    secondsSinceUpdate < 5
-      ? "just now"
-      : secondsSinceUpdate < 60
-        ? `${secondsSinceUpdate} seconds ago`
-        : `${Math.floor(secondsSinceUpdate / 60)} minutes ago`;
-
   return (
-    <div className="flex w-full max-w-[980px] flex-col gap-4">
+    <div className="flex w-full max-w-5xl flex-col gap-4">
       <TrackerStatCards stats={stats} />
 
-      <div className="grid w-full grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid w-full grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="w-full">
           <BreakdownCardHeader title="Platforms" />
           <CardContent>
@@ -66,20 +81,6 @@ export default function TrackerStatsDashboard({ initialStats }: { initialStats: 
               emptyMessage="No platform data yet. The tracker is still discovering server software."
               grandTotal={stats.trackedServers}
               remainderLabel="Other platforms"
-            />
-          </CardContent>
-        </Card>
-
-        <Card className="w-full">
-          <BreakdownCardHeader title="Protocol Versions" />
-          <CardContent>
-            <PieBreakdown
-              data={stats.protocol}
-              labels={buildLabels(stats.protocol, protocolLabel)}
-              centerLabel="servers"
-              emptyMessage="No protocol data yet. The tracker is still discovering server versions."
-              grandTotal={stats.trackedServers}
-              remainderLabel="Other protocols"
             />
           </CardContent>
         </Card>
@@ -103,7 +104,7 @@ export default function TrackerStatsDashboard({ initialStats }: { initialStats: 
       </div>
 
       <p className="text-muted-foreground mt-4 text-center text-xs">
-        Last updated {updatedText} · refreshed every minute.
+        Last updated {describeElapsed(elapsedSeconds)} · refreshed every minute.
       </p>
     </div>
   );

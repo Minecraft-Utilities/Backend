@@ -1,6 +1,7 @@
 import type { TrackerStats } from "@/common/tracker";
 import { formatNumberWithCommas } from "@/common/utils";
 import Card, { CardContent } from "@/components/ui/card";
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 
 interface TrackerStatCardsProps {
   stats: TrackerStats;
@@ -26,19 +27,21 @@ export default function TrackerStatCards({ stats }: TrackerStatCardsProps) {
   ];
 
   return (
-    <Card className="w-full overflow-hidden p-0">
-      <CardContent className="divide-border/60 grid grid-cols-1 divide-y p-0 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-        {definitions.map(definition => (
-          <div key={definition.label} className="flex flex-col gap-1 px-5 py-5">
-            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-              {definition.label}
-            </p>
-            <p className="text-foreground text-3xl font-semibold tracking-tight tabular-nums">
-              {formatNumberWithCommas(definition.value)}
-            </p>
-            <p className="text-muted-foreground text-xs">{definition.description}</p>
-          </div>
-        ))}
+    <Card className="w-full">
+      <CardContent>
+        <ItemGroup className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {definitions.map(definition => (
+            <Item key={definition.label} variant="muted" size="sm">
+              <ItemContent>
+                <ItemTitle>{definition.label}</ItemTitle>
+                <p className="text-3xl font-semibold tracking-tight tabular-nums">
+                  {formatNumberWithCommas(definition.value)}
+                </p>
+                <ItemDescription>{definition.description}</ItemDescription>
+              </ItemContent>
+            </Item>
+          ))}
+        </ItemGroup>
       </CardContent>
     </Card>
   );

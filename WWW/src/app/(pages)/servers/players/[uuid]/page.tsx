@@ -82,10 +82,10 @@ export default async function TrackedPlayerPage(props: PlayerPageProps) {
     return (
       <div className="mt-10 flex w-full flex-col items-center gap-8">
         <TrackerPageHeader
-          eyebrow="Player history"
+          breadcrumbs={[{ label: "Player history", href: "/servers/players" }, { label: "Player" }]}
           title="Player history unavailable"
           description="The requested player sightings could not be loaded."
-          active="browse"
+          active="players"
         />
         <TrackerErrorCard
           title="Player history unavailable"
@@ -109,9 +109,10 @@ export default async function TrackedPlayerPage(props: PlayerPageProps) {
   return (
     <div className="mt-10 flex w-full flex-col items-center gap-8">
       <TrackerPageHeader
+        breadcrumbs={[{ label: "Player history", href: "/servers/players" }, { label: "Player" }]}
         title={username ?? "Player"}
         description="Public server sightings and refresh history from MC Utils."
-        active="browse"
+        active="players"
         actions={
           <>
             {username ? (
